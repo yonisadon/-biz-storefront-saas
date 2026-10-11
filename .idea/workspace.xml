@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="e7110a08-b2b4-4ac0-bc2b-49b1c61b39f7" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/web/app/biz/[slug]/legal/[doc]/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/app/biz/[slug]/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/app/manage/[token]/page.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/AccessibilityToolbar.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/Gallery.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/Hours.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/OrderSection.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/BusinessPanel.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/Dashboard.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/LeadsPanel.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/api.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/format.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/labels.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/legalDefaults.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/manageApi.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/theme.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/types.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/middleware.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/schema/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/schema/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/schema/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/tsconfig.json" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="3KY8qmEvwW6TdtLwdgszaaMnjrv" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
+    <option name="showVisibilityIcons" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "project.structure.last.edited": "Problems",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.2"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\-biz-storefront-saas\web\components\manage" />
+      <recent name="D:\-biz-storefront-saas\backend" />
+    </key>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e7110a08-b2b4-4ac0-bc2b-49b1c61b39f7" name="Changes" comment="" />
+      <created>1791723333761</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1791723333761</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number"
+    },
+    "order_flow": {
+      "type": "object",
+      "properties": {
+        "whatsapp_enabled": { "type": "boolean" },
+        "site_inquiry_enabled": { "type": "boolean" }
+      },
+      "required": ["whatsapp_enabled", "site_inquiry_enabled"]
+    },
+    "opening_hours": {
+      "type": "object"
+    }
+  },
+  "required": ["version", "order_flow"]
+}

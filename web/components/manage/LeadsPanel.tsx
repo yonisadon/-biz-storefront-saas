@@ -1,0 +1,119 @@
+'use client';
+
+import { useState } from 'react';
+import { fmtDate, ils, toLocalPhone, waLink } from '@/lib/format';
+import { LEAD_STATUSES, STATUS_LABEL } from '@/lib/labels';
+import { mcall } from '@/lib/manageApi';
+import type { LeadStatus, LeadsResponse } from '@/lib/types';
+
+const PAGE = 25;
+
+export default function LeadsPanel({ token, initial }: { token: string; initial: LeadsResponse }) {
+  const [data, setData] = useState(initial);
+  const [filter, setFilter] = useState<LeadStatus | ''>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load(status: LeadStatus | '', offset: number) {
+    setLoading(true); setError(null);
+    try {
+      const qs = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
+      if (status) qs.set('status', status);
+      setData(await mcall<LeadsResponse>(token, `leads?${qs}`));
+    } catch {
+      setError('לא הצלחנו לטעון את הפניות.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function changeStatus(id: string, status: LeadStatus) {
+    const prev = data;
+    setData({ ...data, leads: data.leads.map((l) => (l.id === id ? { ...l, status } : l)) }); // optimistic
+    try {
+      await mcall(token, `leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+    } catch {
+      setData(prev);
+      setError('עדכון הסטטוס נכשל.');
+    }
+  }
+
+  const th = 'px-3 py-2 text-start font-medium';
+
+  return (
+    <section aria-label="פניות">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-sm">סינון לפי סטטוס:{' '}
+          <select value={filter} disabled={loading}
+            onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); load(v, 0); }}
+            className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
+            <option value="">הכל</option>
+            {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+          </select>
+        </label>
+        <span className="text-sm text-gray-500">{data.total} פניות</span>
+        {loading && <span className="text-sm text-gray-500">טוען…</span>}
+      </div>
+
+      {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
+
+      <div className="mt-3 overflow-x-auto rounded-xl border border-gray-200 bg-white">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="bg-gray-100 text-gray-600">
+            <tr>
+              <th className={th}>תאריך</th><th className={th}>לקוח</th><th className={th}>פריטים</th>
+              <th className={th}>סכום משוער</th><th className={th}>ערוץ</th><th className={th}>סטטוס</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {data.leads.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500">אין פניות להצגה.</td></tr>
+            )}
+            {data.leads.map((l) => (
+              <tr key={l.id} className="align-top">
+                <td className="whitespace-nowrap px-3 py-2" suppressHydrationWarning>{fmtDate(l.created_at)}</td>
+                <td className="px-3 py-2">
+                  <div className="font-medium">{l.customer_name}</div>
+                  <div className="flex flex-wrap gap-x-3">
+                    <a dir="ltr" className="text-blue-700 underline" href={`tel:${toLocalPhone(l.customer_phone)}`}>{toLocalPhone(l.customer_phone)}</a>
+                    <a className="text-blue-700 underline" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">וואטסאפ</a>
+                  </div>
+                  {l.customer_email && <div dir="ltr" className="text-start text-gray-600">{l.customer_email}</div>}
+                  {l.message && <p className="mt-1 whitespace-pre-line text-gray-600">{l.message}</p>}
+                </td>
+                <td className="px-3 py-2">
+                  {l.items.length ? l.items.map((i, k) => <div key={k}>{i.name} × {i.quantity}</div>) : '—'}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2">
+                  {l.estimated_total_agorot === null
+                    ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '—')
+                    : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}
+                </td>
+                <td className="px-3 py-2">{l.submission_channel === 'whatsapp' ? 'וואטסאפ' : 'אתר'}</td>
+                <td className="px-3 py-2">
+                  <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name}`}
+                    onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)}
+                    className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
+                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between">
+        <button type="button" disabled={loading || data.offset === 0}
+          onClick={() => load(filter, Math.max(0, data.offset - PAGE))}
+          className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הקודם</button>
+        <span className="text-sm text-gray-500">
+          {data.total === 0 ? 0 : data.offset + 1}–{Math.min(data.offset + PAGE, data.total)} מתוך {data.total}
+        </span>
+        <button type="button" disabled={loading || data.offset + PAGE >= data.total}
+          onClick={() => load(filter, data.offset + PAGE)}
+          className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הבא</button>
+      </div>
+    </section>
+  );
+}
