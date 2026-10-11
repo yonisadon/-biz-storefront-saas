@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "branding": {
+    "colors": {
+      "primary": "#1F4E79",
+      "secondary": "#F2C94C",
+      "accent": "#E4572E",
+      "background": "#FFFFFF",
+      "text": "#1A1A1A"
+    }
+  },
+  "order_flow": {
+    "whatsapp_enabled": true,
+    "site_inquiry_enabled": true,
+    "whatsapp_message_template": "שלום, שמי {customer_name}, טלפון: {customer_phone}\nהזמנה:\n{items}\nסכום משוער: {estimated_total}\n{message}",
+    "site_success_message": "הפנייה נשלחה בהצלחה, נחזור אליך בהקדם."
+  },
+  "opening_hours": {
+    "days": {
+      "sun": [{ "open": "08:00", "close": "18:00" }],
+      "mon": [{ "open": "08:00", "close": "18:00" }],
+      "tue": [{ "open": "08:00", "close": "18:00" }],
+      "wed": [{ "open": "08:00", "close": "18:00" }],
+      "thu": [{ "open": "08:00", "close": "18:00" }],
+      "fri": [{ "open": "08:00", "close": "13:00" }],
+      "sat": "closed"
+    },
+    "out_of_hours_banner": {
+      "enabled": true,
+      "message": "אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות."
+    }
+  },
+  "catalog": {
+    "quote_label": "להצעת מחיר"
+  },
+  "legal": {},
+  "seo": {
+    "title": "הובלות לדוגמה | שירות מהיר ואמין",
+    "description": "הובלות דירות ומשרדים בכל הארץ. השאירו פנייה וקבלו הצעת מחיר."
+  }
+}
