@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://platform.example/schemas/business-config.v1.json",
+  "title": "Business Config (v1)",
+  "description": "Stored in businesses.config (jsonb). Validate in the API layer before every write. Business name, phone, WhatsApp number, email and About text are real columns on `businesses`, not part of this config. Gallery images, products and custom domains live in their own tables.",
+  "type": "object",
+  "required": ["version", "order_flow", "opening_hours"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "colors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "primary":    { "$ref": "#/$defs/hexColor" },
+            "secondary":  { "$ref": "#/$defs/hexColor" },
+            "accent":     { "$ref": "#/$defs/hexColor" },
+            "background": { "$ref": "#/$defs/hexColor" },
+            "text":       { "$ref": "#/$defs/hexColor" }
+          }
+        }
+      }
+    },
+
+    "order_flow": {
+      "description": "Spec 3.2. Seller may show both routes or only one. DB CHECKs enforce: not both false, and whatsapp_enabled=true requires businesses.whatsapp_number.",
+      "type": "object",
+      "required": ["whatsapp_enabled", "site_inquiry_enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "whatsapp_enabled": {
+          "type": "boolean",
+          "description": "Route A: opens WhatsApp, lead saved as whatsapp_initiated."
+        },
+        "site_inquiry_enabled": {
+          "type": "boolean",
+          "description": "Route B: lead saved as pending_approval."
+        },
+        "whatsapp_message_template": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Placeholders: {customer_name} {customer_phone} {items} {estimated_total} {message}",
+          "default": "שלום, שמי {customer_name}, טלפון: {customer_phone}\nהזמנה:\n{items}\nסכום משוער: {estimated_total}\n{message}"
+        },
+        "site_success_message": {
+          "type": "string",
+          "maxLength": 300,
+          "default": "הפנייה נשלחה בהצלחה, נחזור אליך בהקדם."
+        }
+      },
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "whatsapp_enabled": { "const": false },
+              "site_inquiry_enabled": { "const": false }
+            }
+          }
+        }
+      ]
+    },
+
+    "opening_hours": {
+      "description": "Spec 4.4: working days/hours per weekday + out-of-hours banner. Timezone comes from businesses.timezone.",
+      "type": "object",
+      "required": ["days"],
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "type": "object",
+          "required": ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+          "additionalProperties": false,
+          "properties": {
+            "sun": { "$ref": "#/$defs/day" },
+            "mon": { "$ref": "#/$defs/day" },
+            "tue": { "$ref": "#/$defs/day" },
+            "wed": { "$ref": "#/$defs/day" },
+            "thu": { "$ref": "#/$defs/day" },
+            "fri": { "$ref": "#/$defs/day" },
+            "sat": { "$ref": "#/$defs/day" }
+          }
+        },
+        "out_of_hours_banner": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "message": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות."
+            }
+          }
+        }
+      }
+    },
+
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quote_label": {
+          "type": "string",
+          "maxLength": 40,
+          "default": "להצעת מחיר",
+          "description": "Shown instead of a price when products.price_agorot IS NULL."
+        }
+      }
+    },
+
+    "legal": {
+      "description": "Spec 4.5. The accessibility toolbar is built into the platform and always on. Omit a document to use the platform default text.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "terms_of_use":            { "$ref": "#/$defs/legalDoc" },
+        "privacy_policy":          { "$ref": "#/$defs/legalDoc" },
+        "accessibility_statement": { "$ref": "#/$defs/legalDoc" }
+      }
+    },
+
+    "seo": {
+      "description": "Spec 4.6: dynamic Open Graph tags. If og_image_asset_id is omitted, the app falls back to the first gallery image.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title":        { "type": "string", "maxLength": 70 },
+        "description":  { "type": "string", "maxLength": 200 },
+        "og_image_asset_id": { "type": "string", "format": "uuid" }
+      }
+    }
+  },
+
+  "$defs": {
+    "hexColor": { "type": "string", "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+
+    "time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+
+    "day": {
+      "oneOf": [
+        { "const": "closed" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["open", "close"],
+            "additionalProperties": false,
+            "properties": {
+              "open":  { "$ref": "#/$defs/time" },
+              "close": { "$ref": "#/$defs/time" }
+            }
+          }
+        }
+      ]
+    },
+
+    "legalDoc": {
+      "type": "object",
+      "required": ["custom_text"],
+      "additionalProperties": false,
+      "properties": {
+        "custom_text": { "type": "string", "minLength": 1, "maxLength": 50000 }
+      }
+    }
+  }
+}
