@@ -53,3 +53,22 @@ export type ManageBusiness = {
   config: Record<string, any>;
   domains: { domain: string; is_verified: boolean; is_primary: boolean }[];
 };
+// הוסף את השורות האלו בסוף הקובץ:
+export type MProduct = {
+  id: string;
+  kind: 'product' | 'service';
+  name: string;
+  description: string | null;
+  price_agorot: number | null;
+  is_active: boolean;
+  sort_order: number;
+  image_url: string | null;
+};
+
+export type MGalleryImage = {
+  id: string;
+  position: number;
+  alt_text: string | null;
+  caption: string | null;
+  url: string;
+};

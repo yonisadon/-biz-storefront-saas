@@ -2,27 +2,30 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e7110a08-b2b4-4ac0-bc2b-49b1c61b39f7" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/web/app/biz/[slug]/legal/[doc]/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/app/biz/[slug]/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/app/manage/[token]/page.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/AccessibilityToolbar.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/Gallery.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/Hours.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/OrderSection.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/manage/BusinessPanel.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/manage/Dashboard.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/components/manage/LeadsPanel.tsx" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/api.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/format.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/labels.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/legalDefaults.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/manageApi.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/theme.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/lib/types.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/middleware.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/schema/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/schema/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/schema/tsconfig.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/tsconfig.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/catalogSchemas.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/images.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/routes/catalog.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/routes/media.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/src/storage.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/app/api/[...path]/route.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/GalleryPanel.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/HoursPanel.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/components/manage/ProductsPanel.tsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/web/lib/prepareImage.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.env.example" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/config.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/routes/manage.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/manage.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/routes/public.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/public.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/schema/business_config.schema.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/schema/business_config.schema.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/server.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/server.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/biz/[slug]/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/biz/[slug]/page.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/components/OrderSection.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/components/OrderSection.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/components/manage/BusinessPanel.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/components/manage/BusinessPanel.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/components/manage/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/web/components/manage/Dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/lib/manageApi.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/lib/manageApi.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/lib/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/lib/types.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/next.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/web/next.config.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,6 +49,7 @@
   "keyToString": {
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "D:/torah-learn-main",
     "project.structure.last.edited": "Problems",
     "project.structure.proportion": "0.0",
     "project.structure.side.proportion": "0.2"

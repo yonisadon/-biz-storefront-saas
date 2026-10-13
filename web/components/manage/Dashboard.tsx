@@ -3,20 +3,21 @@
 import { useState } from 'react';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
+import GalleryPanel from './GalleryPanel';
+import HoursPanel from './HoursPanel';
 import LeadsPanel from './LeadsPanel';
+import ProductsPanel from './ProductsPanel';
+
+type Tab = 'leads' | 'products' | 'gallery' | 'hours' | 'business';
+const TABS: [Tab, string][] = [
+  ['leads', 'פניות'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'],
+];
 
 export default function Dashboard({ token, initialBusiness, initialLeads }: {
   token: string; initialBusiness: ManageBusiness; initialLeads: LeadsResponse;
 }) {
-  const [tab, setTab] = useState<'leads' | 'business'>('leads');
+  const [tab, setTab] = useState<Tab>('leads');
   const [biz, setBiz] = useState(initialBusiness);
-
-  const tabBtn = (id: typeof tab, label: string) => (
-    <button type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
-      className={`rounded-full px-4 py-2 text-sm font-medium ${tab === id ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-300'}`}>
-      {label}
-    </button>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -30,12 +31,21 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
             className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300">צפייה באתר ↗</a>
         </header>
 
-        <nav className="flex gap-2" aria-label="ניווט">{tabBtn('leads', 'פניות')}{tabBtn('business', 'פרטי העסק')}</nav>
+        <nav className="flex flex-wrap gap-2" aria-label="ניווט">
+          {TABS.map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
+              className={`rounded-full px-4 py-2 text-sm font-medium ${tab === id ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-300'}`}>
+              {label}
+            </button>
+          ))}
+        </nav>
 
         <div className="mt-4">
-          {tab === 'leads'
-            ? <LeadsPanel token={token} initial={initialLeads} />
-            : <BusinessPanel token={token} biz={biz} onSaved={setBiz} />}
+          {tab === 'leads' && <LeadsPanel token={token} initial={initialLeads} />}
+          {tab === 'products' && <ProductsPanel token={token} />}
+          {tab === 'gallery' && <GalleryPanel token={token} />}
+          {tab === 'hours' && <HoursPanel token={token} biz={biz} onSaved={setBiz} />}
+          {tab === 'business' && <BusinessPanel token={token} biz={biz} onSaved={setBiz} />}
         </div>
       </div>
     </div>

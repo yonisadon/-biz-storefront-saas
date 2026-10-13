@@ -20,7 +20,7 @@ function errorText(status: number, d: any): string {
 }
 
 function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => void; label: string }) {
-  const btn = 'h-9 w-9 rounded-full border border-ink/25 text-lg leading-none';
+  const btn = 'h-9 w-9 rounded-full border border-ink/25 text-lg leading-none flex items-center justify-center';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
       <button type="button" className={btn} aria-label="הפחתת כמות" onClick={() => onChange(q - 1)}>−</button>
@@ -80,7 +80,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
           customer_email: form.email.trim() || undefined,
           message: form.message.trim() || undefined,
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
-          company_website: form.hp, // honeypot
+          company_website: form.hp,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -89,7 +89,6 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       setCart({});
       if (data.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url });
-        // Same-tab navigation: unlike window.open after an await, mobile browsers don't block it
         window.location.assign(data.whatsapp_url);
       } else {
         setDone({ route: 'site', message: data.success_message ?? 'הפנייה נשלחה בהצלחה.' });
@@ -109,7 +108,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
         <h2 id="catalog-h" className="text-2xl font-bold">{items.length ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
         {canOrder && (
           <button type="button" onClick={() => dlg.current?.showModal()}
-            className="rounded-full border border-ink/25 px-4 py-2 text-sm font-medium">
+            className="rounded-full border border-ink/25 px-4 py-2 text-sm font-medium hover:bg-gray-50">
             השאירו פנייה
           </button>
         )}
@@ -136,14 +135,14 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
                   {p.description && <p className="whitespace-pre-line text-sm text-ink/70">{p.description}</p>}
                   <div className="mt-auto flex items-center justify-between gap-3 pt-2">
                     <span className="font-bold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
-                    {canOrder && (q > 0
-                      ? <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
-                      : (
-                        <button type="button" onClick={() => setQty(p.id, 1)}
-                          className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">
-                          {p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
-                        </button>
-                      )}
+                    {canOrder && (q > 0 ? (
+                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
+                    ) : (
+                      <button type="button" onClick={() => setQty(p.id, 1)}
+                        className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
+                        {p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </li>
@@ -152,96 +151,79 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
         </ul>
       )}
 
+      {/* Sticky bar on bottom when cart has items */}
       {count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink/15 bg-surface p-3 shadow-lg">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-            <div className="text-sm">
-              <div className="font-semibold">{count} פריטים בהזמנה</div>
-              {totalText && <div className="text-ink/70">סכום משוער: {totalText}</div>}
-            </div>
-            <button type="button" onClick={() => dlg.current?.showModal()}
-              className="rounded-full bg-primary px-5 py-2.5 font-semibold text-primary-fg">
-              המשך להזמנה
-            </button>
+        <div className="fixed bottom-0 inset-x-0 bg-surface border-t border-ink/15 p-4 shadow-lg flex items-center justify-between gap-4 z-40">
+          <div>
+            <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
+            <div className="font-bold text-lg">{totalText}</div>
           </div>
+          <button type="button" onClick={() => dlg.current?.showModal()}
+            className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
+            המשך להזמנה
+          </button>
         </div>
       )}
 
-      <dialog
-        ref={dlg}
-        onClose={() => setDone(null)}
-        onClick={(e) => { if (e.target === dlg.current) dlg.current?.close(); }}
-        className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl bg-surface p-0 text-ink backdrop:bg-black/50"
-      >
-        <div className="p-5">
-          {done ? (
-            <div className="space-y-4 text-center">
-              <h3 className="text-xl font-bold">{done.route === 'site' ? 'תודה!' : 'ההזמנה נשמרה'}</h3>
-              {done.route === 'site' ? (
-                <p>{done.message}</p>
-              ) : (
-                <p>
-                  וואטסאפ אמור להיפתח עכשיו. אם לא,{' '}
-                  <a className="font-semibold underline" href={done.url} target="_blank" rel="noopener noreferrer">לחצו כאן</a>.
-                </p>
-              )}
-              <button type="button" onClick={() => dlg.current?.close()} className="rounded-full border border-ink/25 px-5 py-2">סגירה</button>
-            </div>
-          ) : (
-            <form onSubmit={(e) => { e.preventDefault(); submit(flow.site_inquiry_enabled ? 'site' : 'whatsapp'); }} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold">פרטים להזמנה</h3>
-                <button type="button" onClick={() => dlg.current?.close()} aria-label="סגירה" className="text-2xl leading-none">×</button>
-              </div>
-
-              {lines.length > 0 && (
-                <ul className="rounded-lg bg-ink/5 p-3 text-sm">
-                  {lines.map(({ p, q }) => (
-                    <li key={p.id} className="flex justify-between gap-2">
-                      <span>{p.name} × {q}</span>
-                      <span>{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
-                    </li>
-                  ))}
-                  {totalText && <li className="mt-1 border-t border-ink/15 pt-1 font-semibold">סכום משוער: {totalText}</li>}
-                </ul>
-              )}
-
-              <label className="block text-sm font-medium">שם מלא *
-                <input className={input} value={form.name} onChange={setField('name')} autoComplete="name" required />
-              </label>
-              <label className="block text-sm font-medium">טלפון *
-                <input className={input} dir="ltr" inputMode="tel" autoComplete="tel" value={form.phone} onChange={setField('phone')} placeholder="050-0000000" required />
-              </label>
-              <label className="block text-sm font-medium">דוא״ל (לא חובה)
-                <input className={input} dir="ltr" type="email" autoComplete="email" value={form.email} onChange={setField('email')} />
-              </label>
-              <label className="block text-sm font-medium">הודעה (לא חובה)
-                <textarea className={input} rows={3} maxLength={2000} value={form.message} onChange={setField('message')} />
-              </label>
-
-              {/* Honeypot: invisible to people, bots fill it */}
-              <input type="text" name="company_website" tabIndex={-1} autoComplete="off" aria-hidden="true"
-                value={form.hp} onChange={setField('hp')} className="absolute -start-[9999px] h-0 w-0 opacity-0" />
-
-              {error && <p role="alert" className="rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
-
-              <div className="grid gap-2 pt-1">
-                {flow.whatsapp_enabled && (
-                  <button type="button" disabled={!!busy} onClick={() => submit('whatsapp')}
-                    className="rounded-xl bg-[#25D366] px-4 py-3 font-semibold text-black disabled:opacity-60">
-                    {busy === 'whatsapp' ? 'שולח…' : 'שלח הזמנה בוואטסאפ'}
-                  </button>
-                )}
-                {flow.site_inquiry_enabled && (
-                  <button type="button" disabled={!!busy} onClick={() => submit('site')}
-                    className="rounded-xl bg-primary px-4 py-3 font-semibold text-primary-fg disabled:opacity-60">
-                    {busy === 'site' ? 'שולח…' : 'השאר פנייה באתר'}
-                  </button>
-                )}
-              </div>
-            </form>
-          )}
+      {/* Order Modal */}
+      <dialog ref={dlg} className="m-auto rounded-2xl p-6 backdrop:bg-black/50 max-w-md w-full text-start">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold">פרטי פנייה</h3>
+          <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
         </div>
+
+        {done ? (
+          <div className="py-4 text-center">
+            <p className="text-lg font-medium text-green-600 mb-4">
+              {done.route === 'whatsapp' ? 'מעביר לוואטסאפ...' : done.message}
+            </p>
+            <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
+              className="rounded-full border border-ink/25 px-6 py-2">
+              סגור
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
+
+            <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
+
+            <div>
+              <label className="block text-sm font-medium">שם מלא *</label>
+              <input type="text" required className={input} value={form.name} onChange={setField('name')} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium">מספר טלפון *</label>
+              <input type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium">אימייל (רשות)</label>
+              <input type="email" className={input} value={form.email} onChange={setField('email')} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium">הודעה / הערות</label>
+              <textarea className={`${input} min-h-[80px]`} value={form.message} onChange={setField('message')} />
+            </div>
+
+            <div className="pt-2 space-y-2">
+              {flow.whatsapp_enabled && (
+                <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
+                  className="w-full rounded-xl bg-green-600 text-white py-3 font-medium hover:bg-green-700 disabled:opacity-50">
+                  {busy === 'whatsapp' ? 'שולח...' : 'שליחה בוואטסאפ'}
+                </button>
+              )}
+              {flow.site_inquiry_enabled && (
+                <button type="button" disabled={busy !== null} onClick={() => submit('site')}
+                  className="w-full rounded-xl bg-primary text-primary-fg py-3 font-medium hover:opacity-90 disabled:opacity-50">
+                  {busy === 'site' ? 'שולח...' : 'שליחה דרך האתר'}
+                </button>
+              )}
+            </div>
+          </form>
+        )}
       </dialog>
     </section>
   );

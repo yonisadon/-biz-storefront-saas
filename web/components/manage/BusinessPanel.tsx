@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { toLocalPhone } from '@/lib/format';
-import { DAYS } from '@/lib/labels';
 import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
@@ -49,8 +48,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           phone: f.phone.trim() || null,
           whatsapp_number: f.whatsapp.trim() || null,
           email: f.email.trim() || null,
-          about_text: f.about.trim() || null, // empty => About section hidden on the site
-          // The API replaces whole config sections, so keep the existing order_flow fields
+          about_text: f.about.trim() || null,
           config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site } },
         }),
       });
@@ -64,7 +62,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   }
 
   const input = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2';
-  const days = biz.config.opening_hours?.days as Record<string, 'closed' | { open: string; close: string }[]> | undefined;
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -107,25 +104,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
       </form>
 
       <div className="space-y-6">
-        <section className="rounded-xl border border-gray-200 bg-white p-4">
-          <h2 className="text-lg font-bold">שעות פעילות</h2>
-          {days ? (
-            <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-              {DAYS.map(([k, label]) => {
-                const d = days[k];
-                return (
-                  <div key={k} className="contents">
-                    <dt className="font-medium">{label}</dt>
-                    <dd dir="ltr" className="text-start">
-                      {!d || d === 'closed' ? 'סגור' : d.map((r) => `${r.open}–${r.close}`).join(', ')}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-          ) : <p className="mt-2 text-sm text-gray-500">לא הוגדרו שעות פעילות.</p>}
-          <p className="mt-3 text-xs text-gray-500">עריכת שעות הפעילות תתווסף בשלב הבא.</p>
-        </section>
+        {/* סעיף השעות הישן הוסר לחלוטין מכיוון שמנוהל כעת בטאב ייעודי */}
 
         <section className="rounded-xl border border-gray-200 bg-white p-4">
           <h2 className="text-lg font-bold">קישורים</h2>

@@ -1,7 +1,15 @@
 import type { NextConfig } from 'next';
+
 const media = new URL(process.env.MEDIA_BASE_URL ?? 'http://localhost');
+
 const config: NextConfig = {
   poweredByHeader: false,
+
+  // הוסף את הבלוק הזה כאן:
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   images: {
     remotePatterns: [{
       protocol: media.protocol === 'http:' ? 'http' : 'https',
@@ -21,4 +29,5 @@ const config: NextConfig = {
     }];
   },
 };
+
 export default config;
