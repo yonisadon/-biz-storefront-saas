@@ -18,7 +18,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
   // ---- Business profile ----
   app.get('/business', async (req) =>
-    withTenant(req.tenantId, async (db) => {
+   withTenant(req.tenantId, async (db) => {
       const biz = (await db.query(
         `SELECT name, slug, status, phone, whatsapp_number, email, about_text,
                 locale, timezone, config
