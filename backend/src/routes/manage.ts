@@ -4,6 +4,7 @@ import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
 import { BusinessPatch, LeadListQuery, LeadStatusPatch } from '../schemas';
 import { resolveByToken } from '../tenant';
+import { catalogRoutes } from './catalog'; // <-- 1. הוספת האימפורט הזה
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -12,6 +13,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('Referrer-Policy', 'no-referrer');
   });
+
+  await app.register(catalogRoutes); // <-- 2. הוספת השורה הזו כאן!
 
   // ---- Business profile ----
   app.get('/business', async (req) =>

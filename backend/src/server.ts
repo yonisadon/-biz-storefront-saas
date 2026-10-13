@@ -1,12 +1,14 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart'; // <-- אימפורט חדש
 import { ZodError } from 'zod';
 import { env } from './config';
 import { HttpError } from './errors';
 import { resolveByHost, resolveBySlug } from './tenant';
 import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
+import { mediaRoutes } from './routes/media'; // <-- אימפורט חדש
 
 // Management tokens are secrets: keep them out of logs
 const redactUrl = (url: string) => url.replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]');
@@ -30,6 +32,10 @@ export async function buildServer() {
   await app.register(cors, { origin: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : false });
   await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
 
+  // <-- הוספת 2 השורות האלו מיד אחרי rateLimit:
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5 } });
+  await app.register(mediaRoutes);
+
   app.get('/health', async () => ({ ok: true }));
 
   await app.register(publicRoutes(resolveBySlug), { prefix: '/api/biz/:slug' });
@@ -52,6 +58,15 @@ export async function buildServer() {
         message: CONSTRAINT_MESSAGES[err.constraint] ?? 'Value rejected by database constraint',
       });
     }
+
+    // <-- הוספת טיפול בשגיאות קבצים והתנגשויות לפני השורות הכלליות:
+    if (err.code === 'FST_REQ_FILE_TOO_LARGE') {
+      return reply.code(413).send({ error: 'file_too_large' });
+    }
+    if (err.code === '23505') { // unique violation
+      return reply.code(409).send({ error: 'conflict', message: 'Concurrent change, please retry' });
+    }
+
     if (err.statusCode && err.statusCode < 500) { // 404 route, 429 rate limit, bad JSON...
       return reply.code(err.statusCode).send({ error: err.code ?? 'bad_request', message: err.message });
     }

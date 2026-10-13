@@ -5,6 +5,7 @@ import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
 import { ils, isOpenNow, mediaUrl, renderTemplate, toLocalPhone } from '../util';
+import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 
 const DEFAULT_WA_TEMPLATE =
   'שלום, שמי {customer_name}, טלפון: {customer_phone}\nהזמנה:\n{items}\nסכום משוער: {estimated_total}\n{message}';
@@ -83,7 +84,8 @@ async function buildPublicPayload(db: pg.PoolClient) {
     og: {
       title: cfg.seo?.title ?? biz.name,
       description: cfg.seo?.description ?? (biz.about_text ? String(biz.about_text).slice(0, 160) : null),
-      image_url: ogKey ? mediaUrl(env.MEDIA_BASE_URL, ogKey) : null,
+      // <-- 2. עדכון השורה הזו להשתמש ב-ogVariant:
+      image_url: ogKey ? mediaUrl(env.MEDIA_BASE_URL, ogVariant(ogKey)) : null,
     },
   };
 }
