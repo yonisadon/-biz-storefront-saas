@@ -45,6 +45,10 @@ async function main() {
 
       const databaseName = `biz_${String(b.id).replace(/-/g, '').slice(0, 24)}`;
       let databaseCreated = false;
+      // Hide this storefront while its snapshot is copied. Requests already in
+      // flight are given time to finish before copying begins.
+      await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'suspended']);
+      await new Promise((resolve) => setTimeout(resolve, 6000));
       tenantAdmin = undefined;
       try {
         await admin.query(`CREATE DATABASE ${identifier(databaseName)}`);
@@ -58,7 +62,7 @@ async function main() {
           'id', 'slug', 'name', 'status', 'whatsapp_number', 'phone', 'email',
           'about_text', 'locale', 'timezone', 'config', 'created_at', 'updated_at',
         ];
-        const businessValues = businessColumns.map((column) => b[column]);
+        const businessValues = businessColumns.map((column) => column === 'status' ? 'suspended' : b[column]);
         await tenantAdmin.query(
           `INSERT INTO public.businesses (${businessColumns.map(identifier).join(', ')})
            VALUES (${businessValues.map((_, i) => '$' + (i + 1)).join(', ')})`,
@@ -91,8 +95,11 @@ async function main() {
           'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
           [b.id, databaseName],
         );
+        await tenantAdmin.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']);
+        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']);
         console.log(`MIGRATED ${b.slug} -> ${databaseName}`);
       } catch (err) {
+        await registry.query('DELETE FROM app.tenant_databases WHERE tenant_id = $1', [b.id]).catch(() => {});
         if (tenantAdmin) {
           await tenantAdmin.end().catch(() => {});
           tenantAdmin = undefined;
@@ -100,6 +107,7 @@ async function main() {
         if (databaseCreated) {
           await admin.query(`DROP DATABASE IF EXISTS ${identifier(databaseName)} WITH (FORCE)`).catch(() => {});
         }
+        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']).catch(() => {});
         throw new Error(`Migration failed for ${b.slug}: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         if (tenantAdmin) {
