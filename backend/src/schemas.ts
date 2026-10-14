@@ -27,7 +27,7 @@ export const LeadInput = z.object({
     .transform((v) => v || undefined)
     .pipe(z.string().email().optional()),
   message: z.string().trim().max(2000).optional().transform((v) => v || undefined),
-  appointment_at: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/).optional(),
+  appointment_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).optional(),
   items: z.array(z.object({
     product_id: z.string().uuid(),
     quantity: z.number().int().min(1).max(9999),
