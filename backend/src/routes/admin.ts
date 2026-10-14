@@ -87,8 +87,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       tenantId = created.rows[0]?.id;
       if (!tenantId) throw new Error('business_creation_failed');
       await registry.query(
-        'UPDATE public.businesses SET phone = $2, email = $3 WHERE id = $1',
-        [tenantId, phoneNumber, input.email || null],
+        'UPDATE public.businesses SET phone = $2, email = $3, status = $4 WHERE id = $1',
+        [tenantId, phoneNumber, input.email || null, 'suspended'],
       );
 
       // Database identifiers are generated from the server-created UUID, never user input.
@@ -136,6 +136,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
         [tenantId, databaseName],
       );
+
+      // Publish only after the dedicated DB and registry mapping are ready.
+      await tenantAdmin.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [tenantId, 'active']);
+      await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [tenantId, 'active']);
 
       return reply.code(201).send({
         id: tenantId,
