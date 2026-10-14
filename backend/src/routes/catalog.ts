@@ -69,13 +69,13 @@ async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Pro
 }
 
 const PRODUCT_SELECT = `
-  SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.is_active, p.sort_order, m.storage_key
+  SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.is_active, p.sort_order, m.storage_key
     FROM products p
     LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id`;
 
 const shapeProduct = (r: any) => ({
   id: r.id, kind: r.kind, name: r.name, description: r.description,
-  price_agorot: r.price_agorot, is_active: r.is_active, sort_order: r.sort_order,
+  price_agorot: r.price_agorot, requires_appointment: r.requires_appointment === true, is_active: r.is_active, sort_order: r.sort_order,
   image_url: r.storage_key ? mediaUrl(r.storage_key) : null,
 });
 
@@ -102,11 +102,11 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       const n = await db.query('SELECT count(*)::int AS n FROM products');
       if (n.rows[0].n >= MAX_PRODUCTS) throw new HttpError(409, 'product_limit');
       const ins = await db.query(
-        `INSERT INTO products (tenant_id, kind, name, description, price_agorot, is_active, sort_order)
-         VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5,
+        `INSERT INTO products (tenant_id, kind, name, description, price_agorot, is_active, requires_appointment, sort_order)
+         VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6,
                  (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM products))
          RETURNING id`,
-        [b.kind, b.name, b.description, b.price_agorot, b.is_active],
+        [b.kind, b.name, b.description, b.price_agorot, b.is_active, b.requires_appointment],
       );
       return (await db.query(`${PRODUCT_SELECT} WHERE p.id = $1`, [ins.rows[0].id])).rows[0];
     });
@@ -136,7 +136,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       const sets: string[] = [];
       const vals: unknown[] = [];
       // column names are hard-coded below, never user input
-      for (const c of ['kind', 'name', 'description', 'price_agorot', 'is_active'] as const) {
+      for (const c of ['kind', 'name', 'description', 'price_agorot', 'is_active', 'requires_appointment'] as const) {
         if (patch[c] !== undefined) { vals.push(patch[c]); sets.push(`${c} = $${vals.length}`); }
       }
       vals.push(id);
