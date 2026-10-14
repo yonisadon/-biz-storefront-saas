@@ -7,6 +7,9 @@ const Env = z.object({
   MEDIA_BASE_URL: z.string().url(),
   CORS_ORIGINS: z.string().default(''),
   SUPERADMIN_DATABASE_URL: z.string().optional(),
+  // PostgreSQL owner/CREATEDB-capable connection used only for provisioning.
+  DATABASE_ADMIN_URL: z.string().optional(),
+  SUPERADMIN_API_TOKEN: z.string().min(32).optional(),
   PUBLIC_BASE_URL: z.string().url().optional(),
 
   // שדות חדשים שהתווספו לניהול תמונות ואחסון:
