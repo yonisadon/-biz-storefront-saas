@@ -151,6 +151,8 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
 
           const needsAppointment = found.some((p) => p.requires_appointment === true);
           const appointmentAt = body.appointment_at;
+          const appointmentDurationMinutes = found.filter((p) => p.requires_appointment === true)
+            .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
           if (needsAppointment && !appointmentAt) throw new HttpError(400, 'appointment_required');
           if (appointmentAt) {
             if (!needsAppointment) throw new HttpError(400, 'appointment_not_applicable');
@@ -159,8 +161,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
             const ranges = biz.config?.opening_hours?.days?.[dayKey];
             const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-            const appointmentDurationMinutes = found.filter((p) => p.requires_appointment === true)
-              .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
             const requestedMinutes = toMinutes(timePart);
             const validSlot = appointmentDurationMinutes > 0 && appointmentDurationMinutes <= 480 && Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => requestedMinutes >= toMinutes(r.open) && requestedMinutes + appointmentDurationMinutes <= toMinutes(r.close) && (requestedMinutes - toMinutes(r.open)) % appointmentDurationMinutes === 0);
             const requestedDate = new Date(`${datePart}T12:00:00Z`);
@@ -178,7 +178,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
              RETURNING id`,
             [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
-             JSON.stringify({ has_quote_items: hasQuote, ...(appointmentAt ? { appointment_at: appointmentAt } : {}) })],
+             JSON.stringify({ has_quote_items: hasQuote, ...(appointmentAt ? { appointment_at: appointmentAt, appointment_duration_minutes: appointmentDurationMinutes } : {}) })],
           );
           const leadId: string = lead.rows[0].id;
 
@@ -204,7 +204,8 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const itemsText = found.map((p) => {
               const q = qty.get(p.id)!;
               const price = p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q);
-              return `• ${p.name} × ${q} — ${price}`;
+              const duration = p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
+              return `• ${p.name} × ${q}${duration} — ${price}`;
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
               : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
@@ -219,7 +220,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             // The seller controls the greeting, but the selected items and total must never be omitted.
             if (!template.includes('{items}')) text += `\n\nפריטים שנבחרו:\n${itemsText || '-'}`;
             if (!template.includes('{estimated_total}')) text += `\nסכום משוער: ${totalText}`;
-            if (appointmentAt) text += `\nשעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`;
+            if (appointmentAt) text += `\nשעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}\nמשך תור משוער: ${appointmentDurationMinutes} דקות`;
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
           }
           return out;
