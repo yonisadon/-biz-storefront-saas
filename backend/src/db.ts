@@ -1,13 +1,63 @@
 import pg from 'pg';
 import { env } from './config';
 
+// The existing database remains the central registry and the compatibility
+// database for businesses created before per-business databases were enabled.
 export const pool = new pg.Pool({
   connectionString: env.APP_DATABASE_URL,
   max: 10,
   ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
 });
 
-pool.on('error', (err) => console.error('pg pool error', err));
+pool.on('error', (err) => console.error('pg registry pool error', err));
+
+const tenantPools = new Map<string, pg.Pool>();
+const missingRegistry = { value: false };
+
+function connectionStringForDatabase(databaseName: string) {
+  const url = new URL(env.APP_DATABASE_URL);
+  url.pathname = `/${databaseName}`;
+  return url.toString();
+}
+
+/**
+ * Resolves a tenant to its dedicated database when it has been provisioned.
+ * Tenants without a registry entry continue using the legacy database, allowing
+ * a staged rollout without taking the existing storefront offline.
+ */
+async function poolForTenant(tenantId: string): Promise<pg.Pool> {
+  if (missingRegistry.value) return pool;
+
+  let databaseName: string | undefined;
+  try {
+    const result = await pool.query(
+      'SELECT database_name FROM app.tenant_databases WHERE tenant_id = $1',
+      [tenantId],
+    );
+    databaseName = result.rows[0]?.database_name;
+  } catch (err) {
+    // Compatibility before the registry migration is applied. Provisioning
+    // itself will fail until the migration exists, but existing stores still run.
+    if ((err as { code?: string }).code === '42P01' || (err as { code?: string }).code === '3F000') {
+      missingRegistry.value = true;
+      return pool;
+    }
+    throw err;
+  }
+
+  if (!databaseName) return pool;
+  const existing = tenantPools.get(databaseName);
+  if (existing) return existing;
+
+  const tenantPool = new pg.Pool({
+    connectionString: connectionStringForDatabase(databaseName),
+    max: 5,
+    ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+  });
+  tenantPool.on('error', (err) => console.error('pg tenant pool error', err));
+  tenantPools.set(databaseName, tenantPool);
+  return tenantPool;
+}
 
 /**
  * Runs fn inside a transaction with app.current_tenant bound LOCALLY
@@ -18,7 +68,8 @@ export async function withTenant<T>(
   tenantId: string,
   fn: (db: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await pool.connect();
+  const selectedPool = await poolForTenant(tenantId);
+  const client = await selectedPool.connect();
   try {
     await client.query('BEGIN');
     await client.query(
