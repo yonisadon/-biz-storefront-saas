@@ -159,8 +159,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const ranges = biz.config?.opening_hours?.days?.[dayKey];
             const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
             const validSlot = Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => timePart >= r.open && toMinutes(timePart) + 30 <= toMinutes(r.close));
-            const requested = new Date(`${appointmentAt}:00`);
-            if (!validSlot || !Number.isFinite(requested.getTime()) || requested.getTime() <= Date.now()) throw new HttpError(400, 'invalid_appointment_time');
+            const requestedDate = new Date(`${datePart}T12:00:00Z`);
+            const validDate = Number.isFinite(requestedDate.getTime()) && requestedDate.toISOString().slice(0, 10) === datePart;
+            const parts = new Intl.DateTimeFormat('en-CA', { timeZone: biz.timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+            const part = (type: string) => parts.find((x) => x.type === type)?.value ?? '';
+            const nowLocal = `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+            if (!validDate || !validSlot || appointmentAt <= nowLocal) throw new HttpError(400, 'invalid_appointment_time');
           }
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           const lead = await db.query(
