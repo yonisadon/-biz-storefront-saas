@@ -53,6 +53,8 @@ export default async function StorefrontPage({ params }: Props) {
   if (!data) notFound();
 
   const { business: b, opening_hours: oh } = data;
+  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number);
+  const hasBusinessInfo = Boolean(oh?.days || hasContact);
 
   return (
     <div className="brand-root min-h-screen bg-surface text-ink" style={themeVars(data.branding?.colors)}>
@@ -64,51 +66,15 @@ export default async function StorefrontPage({ params }: Props) {
 
       {data.sections?.gallery && data.gallery && <Gallery images={data.gallery} />}
 
-      <main className="mx-auto max-w-3xl space-y-7 px-4 py-5 sm:space-y-8 sm:py-8">
-        <header className="relative isolate overflow-hidden rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
-          <div aria-hidden="true" className="pointer-events-none absolute -left-12 -top-16 -z-10 h-48 w-48 rounded-full bg-primary/10 blur-2xl sm:h-64 sm:w-64" />
-          <div className="max-w-3xl">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-secondary/40 px-3 py-1.5 text-sm font-semibold text-ink">
-              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
-              ברוכים הבאים
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:space-y-7 sm:py-8">
+        <header className="py-1">
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl">{b?.name}</h1>
+          {data.about?.trim() && (
+            <p className="mt-3 whitespace-pre-line text-base leading-7 text-ink/75 sm:text-lg">
+              {data.about.trim()}
             </p>
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">{b?.name}</h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-ink/70 sm:text-lg">
-              מוזמנים להכיר את השירותים שלנו ולבחור את מה שמתאים לכם. נשמח לעזור.
-            </p>
-          </div>
+          )}
         </header>
-
-        {data.sections?.about && data.about && (
-          <section aria-labelledby="about-h" className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-6">
-            <h2 id="about-h" className="text-xl font-bold sm:text-2xl">הסיפור שלנו</h2>
-            <p className="mt-3 whitespace-pre-line leading-relaxed text-ink/80">{data.about}</p>
-          </section>
-        )}
-
-        {(oh?.days || b?.phone || b?.email || b?.whatsapp_number) && (
-          <div className={`grid gap-3 ${oh?.days && (b?.phone || b?.email || b?.whatsapp_number) ? "sm:grid-cols-2" : ""}`}>
-            {oh?.days && <Hours days={oh.days} openNow={oh.open_now} />}
-            {(b?.phone || b?.email || b?.whatsapp_number) && (
-              <section aria-label="פרטי קשר" className="rounded-xl border border-ink/15 bg-surface px-4 py-3">
-                <h2 className="font-semibold">יצירת קשר</h2>
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                  {b?.phone && (
-                    <a href={`tel:${toLocalPhone(b.phone)}`} className="font-medium underline decoration-ink/30 underline-offset-4">
-                      <span className="me-1" aria-hidden="true">☎</span><span dir="ltr">{toLocalPhone(b.phone)}</span>
-                    </a>
-                  )}
-                  {!b?.phone && b?.whatsapp_number && (
-                    <a href={`https://wa.me/${b.whatsapp_number.replace(/^\+/, '')}`} className="font-medium underline decoration-ink/30 underline-offset-4" target="_blank" rel="noopener noreferrer">
-                      <span className="me-1" aria-hidden="true">◉</span><span dir="ltr">{toLocalPhone(b.whatsapp_number)}</span>
-                    </a>
-                  )}
-                  {b?.email && <a href={`mailto:${b.email}`} className="break-all underline decoration-ink/30 underline-offset-4">{b.email}</a>}
-                </div>
-              </section>
-            )}
-          </div>
-        )}
 
         {data.catalog?.items?.length ? (
           <OrderSection
@@ -118,6 +84,37 @@ export default async function StorefrontPage({ params }: Props) {
             flow={data.order_flow}
           />
         ) : null}
+
+        {hasBusinessInfo && (
+          <section aria-labelledby="business-info-h" className="rounded-2xl border border-ink/10 bg-white p-4 shadow-sm sm:p-5">
+            <h2 id="business-info-h" className="text-lg font-bold">פרטי העסק</h2>
+            <div className={oh?.days && hasContact ? 'mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5' : 'mt-3'}>
+              {oh?.days && (
+                <div className={hasContact ? 'border-b border-ink/10 pb-3 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-5' : ''}>
+                  <Hours days={oh.days} openNow={oh.open_now} embedded />
+                </div>
+              )}
+              {hasContact && (
+                <div className="min-w-0">
+                  <h3 className="font-semibold">יצירת קשר</h3>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                    {b?.phone && (
+                      <a href={`tel:${toLocalPhone(b.phone)}`} className="font-medium underline decoration-ink/30 underline-offset-4">
+                        <span className="me-1" aria-hidden="true">☎</span><span dir="ltr">{toLocalPhone(b.phone)}</span>
+                      </a>
+                    )}
+                    {!b?.phone && b?.whatsapp_number && (
+                      <a href={`https://wa.me/${b.whatsapp_number.replace(/^\\+/, '')}`} className="font-medium underline decoration-ink/30 underline-offset-4" target="_blank" rel="noopener noreferrer">
+                        <span className="me-1" aria-hidden="true">◉</span><span dir="ltr">{toLocalPhone(b.whatsapp_number)}</span>
+                      </a>
+                    )}
+                    {b?.email && <a href={`mailto:${b.email}`} className="break-all underline decoration-ink/30 underline-offset-4">{b.email}</a>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <footer className="border-t border-ink/15 px-4 py-5 text-center text-sm text-ink/70">
           <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי">
