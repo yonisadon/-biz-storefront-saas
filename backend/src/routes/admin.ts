@@ -69,27 +69,35 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       await registry.connect();
       await databaseAdmin.connect();
 
-      // This function lives in the existing registry DB and enforces unique slugs.
-      const created = await registry.query(
-        'SELECT app.create_business($1, $2, $3, $4::jsonb) AS id',
-        [
-          input.slug,
-          input.name,
-          whatsappNumber,
-          JSON.stringify({
-            opening_hours: {
-              days: { sun: [], mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] },
+      // Create the registry row as suspended atomically so no request can
+      // resolve a partially provisioned storefront between these statements.
+      await registry.query('BEGIN');
+      try {
+        const created = await registry.query(
+          'SELECT app.create_business($1, $2, $3, $4::jsonb) AS id',
+          [
+            input.slug,
+            input.name,
+            whatsappNumber,
+            JSON.stringify({
+              opening_hours: {
+                days: { sun: [], mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] },
               out_of_hours_banner: { enabled: false, message: '' },
-            },
-          }),
-        ],
-      );
-      tenantId = created.rows[0]?.id;
-      if (!tenantId) throw new Error('business_creation_failed');
-      await registry.query(
-        'UPDATE public.businesses SET phone = $2, email = $3, status = $4 WHERE id = $1',
-        [tenantId, phoneNumber, input.email || null, 'suspended'],
-      );
+              },
+            }),
+          ],
+        );
+        tenantId = created.rows[0]?.id;
+        if (!tenantId) throw new Error('business_creation_failed');
+        await registry.query(
+          'UPDATE public.businesses SET phone = $2, email = $3, status = $4 WHERE id = $1',
+          [tenantId, phoneNumber, input.email || null, 'suspended'],
+        );
+        await registry.query('COMMIT');
+      } catch (err) {
+        await registry.query('ROLLBACK').catch(() => {});
+        throw err;
+      }
 
       // Database identifiers are generated from the server-created UUID, never user input.
       databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
