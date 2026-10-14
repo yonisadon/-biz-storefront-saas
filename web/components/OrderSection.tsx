@@ -148,7 +148,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
-                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{p.requires_appointment ? 'שירות · בתיאום שעה' : 'שירות'}</span>
+                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{p.requires_appointment ? `שירות · תור ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
                   {p.description && <p className="whitespace-pre-line text-sm text-ink/70">{p.description}</p>}
@@ -194,7 +194,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
         {!done && (
           <div className="mb-4 rounded-xl bg-gray-50 p-3">
             <ul className="space-y-1.5 text-sm">
-              {lines.map(({ p, q }) => <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>)}
+              {lines.map(({ p, q }) => <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}{p.kind === 'service' && p.requires_appointment ? <span className="block text-xs text-ink/60">משך: {p.appointment_duration_minutes * q} דקות</span> : null}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>)}
             </ul>
             {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
           </div>
@@ -203,7 +203,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
         {!done && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <legend className="px-1 text-sm font-semibold">תיאום שעה מבוקשת</legend>
-            <p className="text-xs leading-5 text-ink/65">בחרו מועד מתוך שעות הפעילות. אורך התור מחושב לפי השירותים שבחרתם; זו בקשת תיאום בלבד והעסק יאשר את השעה מולכם.</p>
+            <p className="text-xs leading-5 text-ink/65">משך התור המבוקש: {appointmentDurationMinutes} דקות בסך הכול. בחרו מועד מתוך שעות הפעילות; זו בקשת תיאום בלבד והעסק יאשר את השעה מולכם.</p>
             <label className="block text-sm font-medium">תאריך
               <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
             </label>
