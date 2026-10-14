@@ -95,6 +95,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
       await databaseAdmin.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
       databaseCreated = true;
+      await databaseAdmin.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(databaseName)} TO app_runtime, app_superadmin`);
 
       tenantAdmin = new pg.Client({
         connectionString: databaseUrl(env.DATABASE_ADMIN_URL, databaseName),
