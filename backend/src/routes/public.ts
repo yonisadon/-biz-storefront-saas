@@ -185,13 +185,17 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
               : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
-            const text = renderTemplate(flow.whatsapp_message_template ?? DEFAULT_WA_TEMPLATE, {
+            const template = flow.whatsapp_message_template || DEFAULT_WA_TEMPLATE;
+            let text = renderTemplate(template, {
               customer_name: body.customer_name ?? '',
               customer_phone: body.customer_phone ? toLocalPhone(body.customer_phone) : '',
               items: itemsText || '-',
               estimated_total: totalText,
               message: body.message ?? '',
             }).trim();
+            // The seller controls the greeting, but the selected items and total must never be omitted.
+            if (!template.includes('{items}')) text += `\n\nפריטים שנבחרו:\n${itemsText || '-'}`;
+            if (!template.includes('{estimated_total}')) text += `\nסכום משוער: ${totalText}`;
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
           }
           return out;
