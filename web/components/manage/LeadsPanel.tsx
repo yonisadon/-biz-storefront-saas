@@ -57,7 +57,69 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
 
       {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
 
-      <div className="mt-3 overflow-x-auto rounded-xl border border-gray-200 bg-white">
+      {/* Mobile-first lead cards: never force a wide table onto a phone screen. */}
+      <ul className="mt-3 grid gap-3 md:hidden" aria-label="רשימת פניות">
+        {data.leads.length === 0 && (
+          <li className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500">
+            אין פניות להצגה כרגע.
+          </li>
+        )}
+        {data.leads.map((l) => (
+          <li key={l.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-bold text-gray-900">{l.customer_name}</p>
+                <p className="mt-1 text-xs text-gray-500" suppressHydrationWarning>{fmtDate(l.created_at)}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                {l.submission_channel === 'whatsapp' ? 'וואטסאפ' : 'דרך האתר'}
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a dir="ltr" className="inline-flex min-h-10 items-center rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-800"
+                href={`tel:${toLocalPhone(l.customer_phone)}`} aria-label={`התקשרות אל ${l.customer_name}`}>
+                <span aria-hidden="true" className="me-2">☎</span>{toLocalPhone(l.customer_phone)}
+              </a>
+              <a className="inline-flex min-h-10 items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800"
+                href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true" className="me-2">◉</span>פתיחה בוואטסאפ
+              </a>
+            </div>
+
+            {l.customer_email && <p dir="ltr" className="mt-2 break-all text-start text-sm text-gray-600">{l.customer_email}</p>}
+            {l.message && <p className="mt-3 whitespace-pre-line rounded-xl bg-gray-50 p-3 text-sm leading-6 text-gray-700">{l.message}</p>}
+
+            <div className="mt-3 border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-500">פריטים בפנייה</p>
+              {l.items.length ? (
+                <ul className="mt-1 space-y-1 text-sm text-gray-800">
+                  {l.items.map((i, k) => <li key={k}>{i.name} <span className="text-gray-500">× {i.quantity}</span></li>)}
+                </ul>
+              ) : <p className="mt-1 text-sm text-gray-500">לא נבחרו פריטים</p>}
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="text-sm text-gray-500">סכום משוער</span>
+                <span className="font-bold text-gray-900">
+                  {l.estimated_total_agorot === null
+                    ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '—')
+                    : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}
+                </span>
+              </div>
+            </div>
+
+            <label className="mt-4 block text-sm font-semibold text-gray-700">
+              סטטוס טיפול
+              <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name}`}
+                onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)}
+                className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
+                {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+              </select>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-3 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
