@@ -64,3 +64,9 @@ a {
 ::selection {
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
 }
+
+/* Accessibility toolbar preferences: real, visible changes. */
+html.a11y-large { font-size: 112.5%; }
+html.a11y-large body { line-height: 1.65; }
+html.a11y-contrast { filter: contrast(1.35); }
+html.a11y-links a { text-decoration: underline !important; text-decoration-thickness: 2px !important; text-underline-offset: 3px !important; }
