@@ -8,6 +8,7 @@ import type { OrderFlow, Product } from '@/lib/types';
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
+type Step = 'choose' | 'site';
 
 function errorText(status: number, d: any): string {
   if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
@@ -33,7 +34,8 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
 export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
+  const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
@@ -66,7 +68,8 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
     const phone = normalizeILPhone(form.phone);
     if (!form.name.trim()) return setError('נא להזין שם מלא.');
     if (!phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
-    if (count === 0 && !form.message.trim()) return setError('בחרו פריט או כתבו הודעה.');
+    if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
+    if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
     try {
@@ -75,10 +78,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           route,
-          customer_name: form.name.trim(),
-          customer_phone: form.phone,
-          customer_email: form.email.trim() || undefined,
-          message: form.message.trim() || undefined,
+          ...(route === 'site' ? { customer_name: form.name.trim(), customer_phone: form.phone, customer_email: form.email.trim() || undefined } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
@@ -100,18 +100,14 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
     }
   }
 
-  const input = 'mt-1 w-full rounded-lg border border-ink/25 bg-surface px-3 py-2 text-start';
+  const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
+  const openContinuation = () => { setError(null); setDone(null); setStep(flow.whatsapp_enabled && flow.site_inquiry_enabled ? 'choose' : flow.site_inquiry_enabled ? 'site' : 'choose'); dlg.current?.showModal(); };
 
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 id="catalog-h" className="text-2xl font-bold">{items.length ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
-        {canOrder && (
-          <button type="button" onClick={() => dlg.current?.showModal()}
-            className="rounded-full border border-ink/25 px-4 py-2 text-sm font-medium hover:bg-gray-50">
-            השאירו פנייה
-          </button>
-        )}
+
       </div>
 
       {items.length > 0 && (
@@ -158,7 +154,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
             <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
           </div>
-          <button type="button" onClick={() => dlg.current?.showModal()}
+          <button type="button" onClick={openContinuation}
             className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
             המשך להזמנה
           </button>
@@ -166,7 +162,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} className="m-auto rounded-2xl p-6 backdrop:bg-black/50 max-w-md w-full text-start">
+      <dialog ref={dlg} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">פרטי פנייה</h3>
           <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
