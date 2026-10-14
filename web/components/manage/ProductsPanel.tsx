@@ -71,7 +71,7 @@ export default function ProductsPanel({ token }: { token: string }) {
             <div className="min-w-0 flex-1">
               <div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div>
               <div className="text-sm text-gray-600">
-                {p.price_agorot === null ? 'הצעת מחיר' : ils(p.price_agorot)} · {p.kind === 'service' ? 'שירות' : 'מוצר'}{p.requires_appointment ? ' · בתיאום שעה' : ''}{p.requires_appointment ? ' · בתיאום שעה' : ''}
+                {p.price_agorot === null ? 'הצעת מחיר' : ils(p.price_agorot)} · {p.kind === 'service' ? 'שירות' : 'מוצר'}{p.requires_appointment ? ` · תור ${p.appointment_duration_minutes} דק׳` : ''}
                 {!p.is_active && ' · מוסתר באתר'}
               </div>
             </div>
@@ -111,6 +111,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
   const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
+  const [appointmentDurationMinutes, setAppointmentDurationMinutes] = useState(product?.appointment_duration_minutes ?? 30);
   const [file, setFile] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -150,7 +151,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       }
       price = Math.round(v * 100);
     }
-    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, requires_appointment: kind === 'service' && requiresAppointment };
+    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, requires_appointment: kind === 'service' && requiresAppointment, appointment_duration_minutes: kind === 'service' && requiresAppointment ? appointmentDurationMinutes : 30 };
 
     setBusy(true); setMsg(null);
     let id = current?.id;
@@ -233,7 +234,21 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         </div>
 
         {kind === 'service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={requiresAppointment} onChange={(e) => setRequiresAppointment(e.target.checked)} className="mt-1" /><span><span className="font-medium">נדרש תיאום שעה</span><span className="block text-xs text-gray-500">הלקוח יתבקש לבחור תאריך ושעה מתוך שעות הפעילות. זו בקשת תיאום, לא אישור אוטומטי של התור.</span></span></label>}
-        {kind === 'service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={requiresAppointment} onChange={(e) => setRequiresAppointment(e.target.checked)} className="mt-1" /><span><span className="font-medium">נדרש תיאום שעה</span><span className="block text-xs text-gray-500">הלקוח יתבקש לבחור תאריך ושעה מתוך שעות הפעילות. זו בקשת תיאום, לא אישור אוטומטי של התור.</span></span></label>}
+        {kind === 'service' && requiresAppointment && (
+          <label className="block text-sm font-medium">משך התור
+            <select className={input} value={appointmentDurationMinutes} onChange={(e) => setAppointmentDurationMinutes(Number(e.target.value))}>
+              <option value={15}>15 דקות — עד 4 תורים בשעה</option>
+              <option value={30}>30 דקות — עד 2 תורים בשעה</option>
+              <option value={45}>45 דקות</option>
+              <option value={60}>שעה — תור אחד בשעה</option>
+              <option value={90}>שעה וחצי</option>
+              <option value={120}>שעתיים</option>
+              <option value={180}>3 שעות — תור אחד בכל 3 שעות</option>
+              <option value={240}>4 שעות</option>
+            </select>
+            <span className="mt-1 block text-xs font-normal text-gray-500">משך התור קובע את מרווחי השעות לבחירה. זו עדיין בקשת תיאום, לא יומן שמונע התנגשויות.</span>
+          </label>
+        )}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> מוצג באתר
         </label>
