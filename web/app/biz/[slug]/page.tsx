@@ -91,7 +91,7 @@ export default async function StorefrontPage({ params }: Props) {
             <div className={oh?.days && hasContact ? 'grid gap-4 sm:grid-cols-2 sm:gap-5' : ''}>
               {oh?.days && (
                 <div className={hasContact ? 'border-b border-ink/10 pb-3 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-5' : ''}>
-                  <Hours days={oh.days} openNow={oh.open_now} embedded />
+                  <Hours days={oh.days} openNow={oh.open_now} embedded={true} />
                 </div>
               )}
               {hasContact && (
