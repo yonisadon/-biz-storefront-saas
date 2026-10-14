@@ -14,6 +14,7 @@ export const ProductCreate = z.object({
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
   requires_appointment: z.boolean().default(false),
+  appointment_duration_minutes: z.number().int().min(15).max(240).multipleOf(15).default(30),
 }).strict();
 
 export const ProductPatch = z.object({
@@ -23,6 +24,7 @@ export const ProductPatch = z.object({
   price_agorot: price.optional(),
   is_active: z.boolean().optional(),
   requires_appointment: z.boolean().optional(),
+  appointment_duration_minutes: z.number().int().min(15).max(240).multipleOf(15).optional(),
 }).strict().refine((o) => Object.values(o).some((v) => v !== undefined), { message: 'empty_patch' });
 
 export const OrderBody = z.object({
