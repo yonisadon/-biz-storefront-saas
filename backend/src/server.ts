@@ -8,7 +8,8 @@ import { HttpError } from './errors';
 import { resolveByHost, resolveBySlug } from './tenant';
 import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
-import { mediaRoutes } from './routes/media'; // <-- אימפורט חדש
+import { mediaRoutes } from './routes/media';
+import { adminRoutes } from './routes/admin';
 
 // Management tokens are secrets: keep them out of logs
 const redactUrl = (url: string) => url.replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]');
@@ -41,6 +42,7 @@ export async function buildServer() {
   await app.register(publicRoutes(resolveBySlug), { prefix: '/api/biz/:slug' });
   await app.register(publicRoutes(resolveByHost), { prefix: '/api/site' });
   await app.register(manageRoutes, { prefix: '/api/manage/:token' });
+  await app.register(adminRoutes, { prefix: '/api/admin' });
 
   app.setErrorHandler((err: any, req, reply) => {
     if (err instanceof ZodError) {
