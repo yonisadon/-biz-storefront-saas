@@ -168,55 +168,64 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
           <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
         </div>
 
+        {!done && (
+          <div className="mb-4 rounded-xl bg-gray-50 p-3">
+            <ul className="space-y-1.5 text-sm">
+              {lines.map(({ p, q }) => <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>)}
+            </ul>
+            {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
+          </div>
+        )}
+
         {done ? (
           <div className="py-4 text-center">
-            <p className="text-lg font-medium text-green-600 mb-4">
-              {done.route === 'whatsapp' ? 'מעביר לוואטסאפ...' : done.message}
+            <p className="mb-4 text-lg font-medium text-green-700">
+              {done.route === 'whatsapp' ? 'פותחים את WhatsApp. יש לשלוח את ההודעה כדי להשלים את הפנייה.' : done.message}
             </p>
+            {done.route === 'whatsapp' && <a href={done.url} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
             <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
-              className="rounded-full border border-ink/25 px-6 py-2">
-              סגור
-            </button>
+              className="ms-2 min-h-11 rounded-xl border border-ink/25 px-5 py-2">סגור</button>
+          </div>
+        ) : step === 'choose' ? (
+          <div className="space-y-3">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {flow.whatsapp_enabled && (
+              <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52] px-4 py-3 font-bold text-white hover:bg-[#117443] disabled:opacity-50">
+                {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
+              </button>
+            )}
+            {flow.site_inquiry_enabled && (
+              <button type="button" onClick={() => { setError(null); setStep('site'); }}
+                className="min-h-12 w-full rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg hover:opacity-90">
+                השארת פנייה באתר
+              </button>
+            )}
+            <p className="text-center text-xs leading-5 text-ink/60">הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp לא שולח את ההודעה במקומכם.</p>
           </div>
         ) : (
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-
+          <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
-
             <div>
-              <label className="block text-sm font-medium">שם מלא *</label>
-              <input type="text" required className={input} value={form.name} onChange={setField('name')} />
+              <label htmlFor="lead-name" className="block text-sm font-medium">שם מלא *</label>
+              <input id="lead-name" name="name" autoComplete="name" type="text" required className={input} value={form.name} onChange={setField('name')} />
             </div>
-
             <div>
-              <label className="block text-sm font-medium">מספר טלפון *</label>
-              <input type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+              <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
+              <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
-
             <div>
-              <label className="block text-sm font-medium">אימייל (רשות)</label>
-              <input type="email" className={input} value={form.email} onChange={setField('email')} />
+              <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
+              <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium">הודעה / הערות</label>
-              <textarea className={`${input} min-h-[80px]`} value={form.message} onChange={setField('message')} />
-            </div>
-
-            <div className="pt-2 space-y-2">
-              {flow.whatsapp_enabled && (
-                <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
-                  className="w-full rounded-xl bg-green-600 text-white py-3 font-medium hover:bg-green-700 disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'שולח...' : 'שליחה בוואטסאפ'}
-                </button>
-              )}
-              {flow.site_inquiry_enabled && (
-                <button type="button" disabled={busy !== null} onClick={() => submit('site')}
-                  className="w-full rounded-xl bg-primary text-primary-fg py-3 font-medium hover:opacity-90 disabled:opacity-50">
-                  {busy === 'site' ? 'שולח...' : 'שליחה דרך האתר'}
-                </button>
-              )}
+            <div className="flex gap-2 pt-2">
+              {flow.whatsapp_enabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
+                className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3 font-semibold">חזרה</button>}
+              <button type="submit" disabled={busy !== null}
+                className="min-h-12 flex-1 rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg disabled:opacity-50">
+                {busy === 'site' ? 'שולח…' : 'שליחת הפנייה'}
+              </button>
             </div>
           </form>
         )}
