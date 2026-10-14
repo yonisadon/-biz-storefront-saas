@@ -8,6 +8,7 @@ export type Product = {
   description: string | null;
   price_agorot: number | null;
   requires_appointment: boolean;
+  appointment_duration_minutes: number;
   image: { url: string; width: number | null; height: number | null } | null;
 };
 export type GalleryImage = {
@@ -65,6 +66,7 @@ export type MProduct = {
   sort_order: number;
   image_url: string | null;
   requires_appointment: boolean;
+  appointment_duration_minutes: number;
 };
 
 export type MGalleryImage = {
