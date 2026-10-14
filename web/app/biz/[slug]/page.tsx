@@ -65,9 +65,18 @@ export default async function StorefrontPage({ params }: Props) {
       {data.sections?.gallery && data.gallery && <Gallery images={data.gallery} />}
 
       <main className="mx-auto max-w-3xl space-y-7 px-4 py-5 sm:space-y-8 sm:py-8">
-        <header className="rounded-2xl border border-ink/10 bg-white/70 p-4 sm:p-6">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{b?.name}</h1>
-
+        <header className="relative isolate overflow-hidden rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
+          <div aria-hidden="true" className="pointer-events-none absolute -left-12 -top-16 -z-10 h-48 w-48 rounded-full bg-primary/10 blur-2xl sm:h-64 sm:w-64" />
+          <div className="max-w-3xl">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-secondary/40 px-3 py-1.5 text-sm font-semibold text-ink">
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
+              ברוכים הבאים
+            </p>
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">{b?.name}</h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-ink/70 sm:text-lg">
+              מוזמנים להכיר את השירותים שלנו ולבחור את מה שמתאים לכם. נשמח לעזור.
+            </p>
+          </div>
         </header>
 
         {data.sections?.about && data.about && (
