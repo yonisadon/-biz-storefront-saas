@@ -8,7 +8,8 @@
       "type": "object",
       "properties": {
         "whatsapp_enabled": { "type": "boolean" },
-        "site_inquiry_enabled": { "type": "boolean" }
+        "site_inquiry_enabled": { "type": "boolean" },
+        "whatsapp_message_template": { "type": "string", "maxLength": 1000 }
       },
       "required": ["whatsapp_enabled", "site_inquiry_enabled"]
     },

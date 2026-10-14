@@ -157,8 +157,8 @@ CREATE TABLE IF NOT EXISTS public.portfolio_images (
 CREATE TABLE IF NOT EXISTS public.leads (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id               uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
-  customer_name           text NOT NULL CHECK (length(btrim(customer_name)) > 0),
-  customer_phone          app.il_phone NOT NULL,
+  customer_name           text CHECK (customer_name IS NULL OR length(btrim(customer_name)) > 0),
+  customer_phone          app.il_phone,
   customer_email          text CHECK (customer_email IS NULL
                                       OR customer_email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'),
   message                 text,

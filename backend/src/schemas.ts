@@ -5,12 +5,6 @@ export const LEAD_STATUSES = [
   'whatsapp_initiated', 'pending_approval', 'approved', 'rejected', 'completed', 'cancelled',
 ] as const;
 
-const phoneRequired = z.string().max(40).transform((v, ctx) => {
-  const n = normalizeILPhone(v);
-  if (!n) { ctx.addIssue({ code: 'custom', message: 'invalid_il_phone' }); return z.NEVER; }
-  return n;
-});
-
 const phoneOrNull = z.string().max(40).nullable().transform((v, ctx) => {
   if (v === null || v.trim() === '') return null;
   const n = normalizeILPhone(v);
@@ -18,10 +12,17 @@ const phoneOrNull = z.string().max(40).nullable().transform((v, ctx) => {
   return n;
 });
 
+const phoneOptional = z.string().max(40).optional().transform((v, ctx) => {
+  if (v === undefined || v.trim() === '') return undefined;
+  const n = normalizeILPhone(v);
+  if (!n) { ctx.addIssue({ code: 'custom', message: 'invalid_il_phone' }); return z.NEVER; }
+  return n;
+});
+
 export const LeadInput = z.object({
   route: z.enum(['whatsapp', 'site']),
-  customer_name: z.string().trim().min(1).max(120),
-  customer_phone: phoneRequired,
+  customer_name: z.string().trim().min(1).max(120).optional(),
+  customer_phone: phoneOptional,
   customer_email: z.string().trim().max(254).optional()
     .transform((v) => v || undefined)
     .pipe(z.string().email().optional()),
@@ -31,9 +32,13 @@ export const LeadInput = z.object({
     quantity: z.number().int().min(1).max(9999),
   })).max(50).default([]),
   company_website: z.string().max(200).optional(), // honeypot: real users leave it empty
-}).strict().refine((v) => v.items.length > 0 || !!v.message, {
-  message: 'items_or_message_required', path: ['items'],
-});
+}).strict()
+  .refine((v) => v.route !== 'site' || (!!v.customer_name && !!v.customer_phone), {
+    message: 'contact_required', path: ['customer_name'],
+  })
+  .refine((v) => v.items.length > 0 || !!v.message, {
+    message: 'items_or_message_required', path: ['items'],
+  });
 export type LeadInputT = z.infer<typeof LeadInput>;
 
 export const LeadListQuery = z.object({

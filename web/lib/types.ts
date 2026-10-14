@@ -34,8 +34,8 @@ export type PublicPayload = {
 };
 export type Lead = {
   id: string;
-  customer_name: string;
-  customer_phone: string;
+  customer_name: string | null;
+  customer_phone: string | null;
   customer_email: string | null;
   message: string | null;
   submission_channel: 'whatsapp' | 'site';

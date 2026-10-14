@@ -53,7 +53,6 @@ export default async function StorefrontPage({ params }: Props) {
   if (!data) notFound();
 
   const { business: b, opening_hours: oh } = data;
-  const chip = 'rounded-full border border-ink/20 px-3 py-1.5 text-sm hover:bg-primary/5';
 
   return (
     <div className="brand-root min-h-screen bg-surface text-ink" style={themeVars(data.branding?.colors)}>
@@ -66,25 +65,17 @@ export default async function StorefrontPage({ params }: Props) {
       {data.sections?.gallery && data.gallery && <Gallery images={data.gallery} />}
 
       <main className="mx-auto max-w-3xl space-y-7 px-4 py-5 sm:space-y-8 sm:py-8">
-        <header className="rounded-2xl border border-ink/10 bg-white/70 p-4 sm:p-6">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{b?.name}</h1>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {b?.phone && (
-              <a className={chip} href={`tel:${toLocalPhone(b.phone)}`}>
-                התקשרו: <span dir="ltr">{toLocalPhone(b.phone)}</span>
-              </a>
-            )}
-            {b?.whatsapp_number && (
-              <a
-                className={`${chip} border-transparent bg-primary text-primary-fg hover:opacity-90`}
-                href={`https://wa.me/${b.whatsapp_number.replace(/^\+/, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                וואטסאפ
-              </a>
-            )}
-            {b?.email && <a className={chip} href={`mailto:${b.email}`}>{b.email}</a>}
+        <header className="relative isolate overflow-hidden rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8 lg:p-10">
+          <div aria-hidden="true" className="pointer-events-none absolute -left-12 -top-16 -z-10 h-48 w-48 rounded-full bg-primary/10 blur-2xl sm:h-64 sm:w-64" />
+          <div className="max-w-3xl">
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-secondary/40 px-3 py-1.5 text-sm font-semibold text-ink">
+              <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
+              ברוכים הבאים
+            </p>
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">{b?.name}</h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-ink/70 sm:text-lg">
+              מוזמנים להכיר את השירותים שלנו ולבחור את מה שמתאים לכם. נשמח לעזור.
+            </p>
           </div>
         </header>
 
@@ -95,16 +86,38 @@ export default async function StorefrontPage({ params }: Props) {
           </section>
         )}
 
-        {data.catalog && (
+        {(oh?.days || b?.phone || b?.email || b?.whatsapp_number) && (
+          <div className={`grid gap-3 ${oh?.days && (b?.phone || b?.email || b?.whatsapp_number) ? "sm:grid-cols-2" : ""}`}>
+            {oh?.days && <Hours days={oh.days} openNow={oh.open_now} />}
+            {(b?.phone || b?.email || b?.whatsapp_number) && (
+              <section aria-label="פרטי קשר" className="rounded-xl border border-ink/15 bg-surface px-4 py-3">
+                <h2 className="font-semibold">יצירת קשר</h2>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                  {b?.phone && (
+                    <a href={`tel:${toLocalPhone(b.phone)}`} className="font-medium underline decoration-ink/30 underline-offset-4">
+                      <span className="me-1" aria-hidden="true">☎</span><span dir="ltr">{toLocalPhone(b.phone)}</span>
+                    </a>
+                  )}
+                  {!b?.phone && b?.whatsapp_number && (
+                    <a href={`https://wa.me/${b.whatsapp_number.replace(/^\+/, '')}`} className="font-medium underline decoration-ink/30 underline-offset-4" target="_blank" rel="noopener noreferrer">
+                      <span className="me-1" aria-hidden="true">◉</span><span dir="ltr">{toLocalPhone(b.whatsapp_number)}</span>
+                    </a>
+                  )}
+                  {b?.email && <a href={`mailto:${b.email}`} className="break-all underline decoration-ink/30 underline-offset-4">{b.email}</a>}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {data.catalog?.items?.length ? (
           <OrderSection
             apiBase={ctx.path}
-            items={data.catalog.items || []}
+            items={data.catalog.items}
             quoteLabel={data.catalog.quote_label}
             flow={data.order_flow}
           />
-        )}
-
-        {oh?.days && <Hours days={oh.days} openNow={oh.open_now} />}
+        ) : null}
 
         <footer className="border-t border-ink/15 px-4 py-5 text-center text-sm text-ink/70">
           <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי">

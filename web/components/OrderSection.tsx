@@ -8,6 +8,7 @@ import type { OrderFlow, Product } from '@/lib/types';
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
+type Step = 'choose' | 'site';
 
 function errorText(status: number, d: any): string {
   if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
@@ -33,7 +34,8 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
 export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [form, setForm] = useState({ name: '', phone: '', email: '', message: '', hp: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
+  const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
@@ -64,9 +66,8 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
   async function submit(route: Route) {
     setError(null);
     const phone = normalizeILPhone(form.phone);
-    if (!form.name.trim()) return setError('נא להזין שם מלא.');
-    if (!phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
-    if (count === 0 && !form.message.trim()) return setError('בחרו פריט או כתבו הודעה.');
+    if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
+    if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
     try {
@@ -75,10 +76,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           route,
-          customer_name: form.name.trim(),
-          customer_phone: form.phone,
-          customer_email: form.email.trim() || undefined,
-          message: form.message.trim() || undefined,
+          ...(route === 'site' ? { customer_name: form.name.trim(), customer_phone: form.phone, customer_email: form.email.trim() || undefined } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
@@ -86,11 +84,11 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       const data = await res.json().catch(() => null);
       if (!res.ok) return setError(errorText(res.status, data));
 
-      setCart({});
       if (data.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url });
         window.location.assign(data.whatsapp_url);
       } else {
+        setCart({});
         setDone({ route: 'site', message: data.success_message ?? 'הפנייה נשלחה בהצלחה.' });
       }
     } catch {
@@ -100,18 +98,14 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
     }
   }
 
-  const input = 'mt-1 w-full rounded-lg border border-ink/25 bg-surface px-3 py-2 text-start';
+  const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
+  const openContinuation = () => { setError(null); setDone(null); setStep(flow.whatsapp_enabled && flow.site_inquiry_enabled ? 'choose' : flow.site_inquiry_enabled ? 'site' : 'choose'); dlg.current?.showModal(); };
 
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 id="catalog-h" className="text-2xl font-bold">{items.length ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
-        {canOrder && (
-          <button type="button" onClick={() => dlg.current?.showModal()}
-            className="rounded-full border border-ink/25 px-4 py-2 text-sm font-medium hover:bg-gray-50">
-            השאירו פנייה
-          </button>
-        )}
+
       </div>
 
       {items.length > 0 && (
@@ -158,7 +152,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
             <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
           </div>
-          <button type="button" onClick={() => dlg.current?.showModal()}
+          <button type="button" onClick={openContinuation}
             className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
             המשך להזמנה
           </button>
@@ -166,61 +160,70 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} className="m-auto rounded-2xl p-6 backdrop:bg-black/50 max-w-md w-full text-start">
+      <dialog ref={dlg} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">פרטי פנייה</h3>
+          <h3 className="text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
         </div>
 
+        {!done && (
+          <div className="mb-4 rounded-xl bg-gray-50 p-3">
+            <ul className="space-y-1.5 text-sm">
+              {lines.map(({ p, q }) => <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>)}
+            </ul>
+            {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
+          </div>
+        )}
+
         {done ? (
           <div className="py-4 text-center">
-            <p className="text-lg font-medium text-green-600 mb-4">
-              {done.route === 'whatsapp' ? 'מעביר לוואטסאפ...' : done.message}
+            <p className="mb-4 text-lg font-medium text-green-700">
+              {done.route === 'whatsapp' ? 'פותחים את WhatsApp. יש לשלוח את ההודעה כדי להשלים את הפנייה.' : done.message}
             </p>
+            {done.route === 'whatsapp' && <a href={done.url} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
             <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
-              className="rounded-full border border-ink/25 px-6 py-2">
-              סגור
-            </button>
+              className="ms-2 min-h-11 rounded-xl border border-ink/25 px-5 py-2">סגור</button>
+          </div>
+        ) : step === 'choose' ? (
+          <div className="space-y-3">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {flow.whatsapp_enabled && (
+              <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52] px-4 py-3 font-bold text-white hover:bg-[#117443] disabled:opacity-50">
+                {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
+              </button>
+            )}
+            {flow.site_inquiry_enabled && (
+              <button type="button" onClick={() => { setError(null); setStep('site'); }}
+                className="min-h-12 w-full rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg hover:opacity-90">
+                השארת פנייה באתר
+              </button>
+            )}
+            <p className="text-center text-xs leading-5 text-ink/60">הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp לא שולח את ההודעה במקומכם.</p>
           </div>
         ) : (
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-            {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
-
+          <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
-
             <div>
-              <label className="block text-sm font-medium">שם מלא *</label>
-              <input type="text" required className={input} value={form.name} onChange={setField('name')} />
+              <label htmlFor="lead-name" className="block text-sm font-medium">שם מלא *</label>
+              <input id="lead-name" name="name" autoComplete="name" type="text" required className={input} value={form.name} onChange={setField('name')} />
             </div>
-
             <div>
-              <label className="block text-sm font-medium">מספר טלפון *</label>
-              <input type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+              <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
+              <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
-
             <div>
-              <label className="block text-sm font-medium">אימייל (רשות)</label>
-              <input type="email" className={input} value={form.email} onChange={setField('email')} />
+              <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
+              <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium">הודעה / הערות</label>
-              <textarea className={`${input} min-h-[80px]`} value={form.message} onChange={setField('message')} />
-            </div>
-
-            <div className="pt-2 space-y-2">
-              {flow.whatsapp_enabled && (
-                <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
-                  className="w-full rounded-xl bg-green-600 text-white py-3 font-medium hover:bg-green-700 disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'שולח...' : 'שליחה בוואטסאפ'}
-                </button>
-              )}
-              {flow.site_inquiry_enabled && (
-                <button type="button" disabled={busy !== null} onClick={() => submit('site')}
-                  className="w-full rounded-xl bg-primary text-primary-fg py-3 font-medium hover:opacity-90 disabled:opacity-50">
-                  {busy === 'site' ? 'שולח...' : 'שליחה דרך האתר'}
-                </button>
-              )}
+            <div className="flex gap-2 pt-2">
+              {flow.whatsapp_enabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
+                className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3 font-semibold">חזרה</button>}
+              <button type="submit" disabled={busy !== null}
+                className="min-h-12 flex-1 rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg disabled:opacity-50">
+                {busy === 'site' ? 'שולח…' : 'שליחת הפנייה'}
+              </button>
             </div>
           </form>
         )}
