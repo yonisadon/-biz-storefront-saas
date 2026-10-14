@@ -27,7 +27,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const hours = cfg.opening_hours ?? {};
 
   const products = (await db.query(
-    `SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, m.storage_key, m.width, m.height
+    `SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height
        FROM products p
        LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id
       WHERE p.is_active
@@ -36,6 +36,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
     id: r.id, kind: r.kind, name: r.name, description: r.description,
     price_agorot: r.price_agorot, // null => quote
     requires_appointment: r.requires_appointment === true,
+    appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
     image: r.storage_key
       ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height }
       : null,
@@ -133,7 +134,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const ids = [...qty.keys()];
           const found = ids.length
             ? (await db.query(
-                'SELECT id, name, price_agorot, requires_appointment FROM products WHERE is_active AND id = ANY($1::uuid[])',
+                'SELECT id, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
                 [ids],
               )).rows
             : [];
@@ -158,7 +159,10 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
             const ranges = biz.config?.opening_hours?.days?.[dayKey];
             const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-            const validSlot = Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => timePart >= r.open && toMinutes(timePart) + 30 <= toMinutes(r.close));
+            const appointmentDurationMinutes = found.filter((p) => p.requires_appointment === true)
+              .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
+            const requestedMinutes = toMinutes(timePart);
+            const validSlot = appointmentDurationMinutes > 0 && appointmentDurationMinutes <= 480 && Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => requestedMinutes >= toMinutes(r.open) && requestedMinutes + appointmentDurationMinutes <= toMinutes(r.close) && (requestedMinutes - toMinutes(r.open)) % appointmentDurationMinutes === 0);
             const requestedDate = new Date(`${datePart}T12:00:00Z`);
             const validDate = Number.isFinite(requestedDate.getTime()) && requestedDate.toISOString().slice(0, 10) === datePart;
             const parts = new Intl.DateTimeFormat('en-CA', { timeZone: biz.timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
