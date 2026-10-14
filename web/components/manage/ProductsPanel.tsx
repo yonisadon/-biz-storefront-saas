@@ -6,7 +6,7 @@ import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
 import type { MProduct } from '@/lib/types';
 
-const btn = 'rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300 disabled:opacity-40';
+const btn = 'min-h-10 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 disabled:opacity-40 sm:min-h-9 sm:rounded-full sm:py-1.5';
 
 export default function ProductsPanel({ token }: { token: string }) {
   const [items, setItems] = useState<MProduct[] | null>(null);
@@ -64,18 +64,18 @@ export default function ProductsPanel({ token }: { token: string }) {
 
       <ul className="mt-3 space-y-2">
         {items?.map((p, i) => (
-          <li key={p.id} className={`flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 ${p.is_active ? '' : 'opacity-60'}`}>
+          <li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-shadow sm:flex-row sm:items-center ${p.is_active ? '' : 'opacity-60'}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {p.image_url ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
               : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">אין תמונה</div>}
             <div className="min-w-0 flex-1">
-              <div className="truncate font-medium">{p.name}</div>
+              <div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div>
               <div className="text-sm text-gray-600">
                 {p.price_agorot === null ? 'הצעת מחיר' : ils(p.price_agorot)} · {p.kind === 'service' ? 'שירות' : 'מוצר'}
                 {!p.is_active && ' · מוסתר באתר'}
               </div>
             </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end">
               <button type="button" className={btn} onClick={() => move(i, -1)} disabled={i === 0} aria-label={`הזז את ${p.name} למעלה`}>↑</button>
               <button type="button" className={btn} onClick={() => move(i, 1)} disabled={i === items.length - 1} aria-label={`הזז את ${p.name} למטה`}>↓</button>
               <button type="button" className={btn} onClick={() => setEditing(p)}>עריכה</button>
