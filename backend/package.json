@@ -5,7 +5,8 @@
     "dev": "tsx watch --env-file=.env src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "issue-token": "tsx --env-file=.env scripts/issue-token.ts"
+    "issue-token": "tsx --env-file=.env scripts/issue-token.ts",
+    "migrate-tenants": "tsx --env-file=.env scripts/migrate-tenants-to-databases.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
