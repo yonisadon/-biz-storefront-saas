@@ -78,7 +78,7 @@ export default async function StorefrontPage({ params }: Props) {
         )}
 
         {(oh?.days || b?.phone || b?.email || b?.whatsapp_number) && (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${oh?.days && (b?.phone || b?.email || b?.whatsapp_number) ? "sm:grid-cols-2" : ""}`}>
             {oh?.days && <Hours days={oh.days} openNow={oh.open_now} />}
             {(b?.phone || b?.email || b?.whatsapp_number) && (
               <section aria-label="פרטי קשר" className="rounded-xl border border-ink/15 bg-surface px-4 py-3">
