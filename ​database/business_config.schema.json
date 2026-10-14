@@ -44,8 +44,8 @@
         "whatsapp_message_template": {
           "type": "string",
           "maxLength": 1000,
-          "description": "Placeholders: {customer_name} {customer_phone} {items} {estimated_total} {message}",
-          "default": "שלום, שמי {customer_name}, טלפון: {customer_phone}\nהזמנה:\n{items}\nסכום משוער: {estimated_total}\n{message}"
+          "description": "Placeholders: {customer_name} {customer_phone} {items} {estimated_total}",
+          "default": "שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}"
         },
         "site_success_message": {
           "type": "string",
