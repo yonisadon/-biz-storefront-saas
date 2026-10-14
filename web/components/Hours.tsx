@@ -4,18 +4,20 @@ import type { DayHours } from '@/lib/types';
 export default function Hours({
   days,
   openNow,
+  embedded = false,
 }: {
   days: Record<string, DayHours>;
   openNow?: boolean | null;
+  embedded?: boolean;
 }) {
   return (
     <section
       aria-label="שעות פעילות"
-      className="rounded-xl border border-ink/15 bg-surface px-3 py-2.5"
+      className={embedded ? 'min-w-0' : 'rounded-xl border border-ink/15 bg-surface px-3 py-2.5'}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span aria-hidden="true" className="text-base">◷</span>
-        <h2 className="font-semibold">שעות פעילות</h2>
+        <h3 className="font-semibold">שעות פעילות</h3>
         {openNow === true && (
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
             פתוח עכשיו

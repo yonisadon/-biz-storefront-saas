@@ -28,7 +28,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     about: biz.about_text ?? '',
     wa: flow.whatsapp_enabled === true,
     site: flow.site_inquiry_enabled === true,
-    whatsappMessageTemplate: flow.whatsapp_message_template ?? 'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}',
+    whatsappMessageTemplate: flow.whatsapp_message_template ?? 'שלום, אני מעוניין/ת בפריטים הבאים:\\n{items}\\nסכום משוער: {estimated_total}',
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,7 +50,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           whatsapp_number: f.whatsapp.trim() || null,
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
-          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_message_template: f.whatsappMessageTemplate.trim() || 'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}' } },
+          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_message_template: f.whatsappMessageTemplate.trim() || 'שלום, אני מעוניין/ת בפריטים הבאים:\\n{items}\\nסכום משוער: {estimated_total}' } },
         }),
       });
       onSaved({ ...biz, ...saved });
@@ -80,8 +80,9 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         <label className="block text-sm font-medium">דוא״ל
           <input className={input} dir="ltr" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
         </label>
-        <label className="block text-sm font-medium">הסיפור שלנו (אם ריק, האזור לא יוצג באתר)
-          <textarea className={input} rows={5} maxLength={5000} value={f.about} onChange={(e) => set('about', e.target.value)} />
+        <label className="block text-sm font-medium">תיאור העסק (לא חובה)
+          <textarea className={input} rows={4} maxLength={5000} placeholder="כמה מילים על העסק, השירותים או מה שמייחד אתכם" value={f.about} onChange={(e) => set('about', e.target.value)} />
+          <span className="mt-1 block text-xs font-normal text-gray-500">יופיע מתחת לשם העסק באתר, רק אם מילאתם אותו.</span>
         </label>
 
         {f.wa && (
