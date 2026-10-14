@@ -71,7 +71,7 @@ export default function ProductsPanel({ token }: { token: string }) {
             <div className="min-w-0 flex-1">
               <div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div>
               <div className="text-sm text-gray-600">
-                {p.price_agorot === null ? 'הצעת מחיר' : ils(p.price_agorot)} · {p.kind === 'service' ? 'שירות' : 'מוצר'}
+                {p.price_agorot === null ? 'הצעת מחיר' : ils(p.price_agorot)} · {p.kind === 'service' ? 'שירות' : 'מוצר'}{p.requires_appointment ? ' · בתיאום שעה' : ''}{p.requires_appointment ? ' · בתיאום שעה' : ''}
                 {!p.is_active && ' · מוסתר באתר'}
               </div>
             </div>
@@ -110,6 +110,8 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [quote, setQuote] = useState(product ? product.price_agorot === null : false);
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
+  const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
+  const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
   const [file, setFile] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -149,7 +151,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       }
       price = Math.round(v * 100);
     }
-    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active };
+    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, requires_appointment: kind === 'service' && requiresAppointment };
 
     setBusy(true); setMsg(null);
     let id = current?.id;
@@ -231,6 +233,8 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
           <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB. התמונה נדחסת אוטומטית.</p>
         </div>
 
+        {kind === 'service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={requiresAppointment} onChange={(e) => setRequiresAppointment(e.target.checked)} className="mt-1" /><span><span className="font-medium">נדרש תיאום שעה</span><span className="block text-xs text-gray-500">הלקוח יתבקש לבחור תאריך ושעה מתוך שעות הפעילות. זו בקשת תיאום, לא אישור אוטומטי של התור.</span></span></label>}
+        {kind === 'service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={requiresAppointment} onChange={(e) => setRequiresAppointment(e.target.checked)} className="mt-1" /><span><span className="font-medium">נדרש תיאום שעה</span><span className="block text-xs text-gray-500">הלקוח יתבקש לבחור תאריך ושעה מתוך שעות הפעילות. זו בקשת תיאום, לא אישור אוטומטי של התור.</span></span></label>}
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> מוצג באתר
         </label>

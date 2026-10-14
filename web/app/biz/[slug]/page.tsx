@@ -82,33 +82,24 @@ export default async function StorefrontPage({ params }: Props) {
             items={data.catalog.items}
             quoteLabel={data.catalog.quote_label}
             flow={data.order_flow}
+            openingHours={oh?.days ?? null}
           />
         ) : null}
 
         {hasBusinessInfo && (
           <section aria-labelledby="business-info-h" className="rounded-2xl border border-ink/10 bg-white p-4 shadow-sm sm:p-5">
-            <h2 id="business-info-h" className="text-lg font-bold">פרטי העסק</h2>
-            <div className={oh?.days && hasContact ? 'mt-3 grid gap-4 sm:grid-cols-2 sm:gap-5' : 'mt-3'}>
+            <div className={oh?.days && hasContact ? 'grid gap-4 sm:grid-cols-2 sm:gap-5' : ''}>
               {oh?.days && (
                 <div className={hasContact ? 'border-b border-ink/10 pb-3 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-5' : ''}>
-                  <Hours days={oh.days} openNow={oh.open_now} embedded />
+                  <Hours days={oh.days} openNow={oh.open_now} embedded={true} />
                 </div>
               )}
               {hasContact && (
                 <div className="min-w-0">
-                  <h3 className="font-semibold">יצירת קשר</h3>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                    {b?.phone && (
-                      <a href={`tel:${toLocalPhone(b.phone)}`} className="font-medium underline decoration-ink/30 underline-offset-4">
-                        <span className="me-1" aria-hidden="true">☎</span><span dir="ltr">{toLocalPhone(b.phone)}</span>
-                      </a>
-                    )}
-                    {!b?.phone && b?.whatsapp_number && (
-                      <a href={`https://wa.me/${b.whatsapp_number.replace(/^\\+/, '')}`} className="font-medium underline decoration-ink/30 underline-offset-4" target="_blank" rel="noopener noreferrer">
-                        <span className="me-1" aria-hidden="true">◉</span><span dir="ltr">{toLocalPhone(b.whatsapp_number)}</span>
-                      </a>
-                    )}
-                    {b?.email && <a href={`mailto:${b.email}`} className="break-all underline decoration-ink/30 underline-offset-4">{b.email}</a>}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {b?.phone && <a href={`tel:${toLocalPhone(b.phone)}`} aria-label={`חיוג ל-${toLocalPhone(b.phone)}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-ink/15 bg-surface px-3 py-2 text-sm font-medium hover:border-primary/50"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M5 3h3l2 5-2 1.5a15 15 0 0 0 6.5 6.5L16 14l5 2v3c0 1.1-.9 2-2 2C10 21 3 14 3 5c0-1.1.9-2 2-2Z"/></svg><span dir="ltr">{toLocalPhone(b.phone)}</span></a>}
+                    {b?.email && <a href={`mailto:${b.email}`} className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-xl border border-ink/15 bg-surface px-3 py-2 text-sm font-medium hover:border-primary/50"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path strokeLinecap="round" strokeLinejoin="round" d="m4 7 8 6 8-6"/></svg><span className="break-all">{b.email}</span></a>}
+                    {b?.whatsapp_number && <a href={`https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}`} target="_blank" rel="noopener noreferrer" aria-label="יצירת קשר ב־WhatsApp" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#168A52] px-3 py-2 text-sm font-semibold text-white hover:bg-[#117443]"><svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor"><path d="M20.5 3.5A11.8 11.8 0 0 0 2 17.7L.5 23.5l6-1.6A11.8 11.8 0 0 0 20.5 3.5ZM12 21a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.5.9.9-3.4-.2-.4A9.7 9.7 0 1 1 12 21Zm5.4-7.3c-.3-.2-1.7-.9-2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7 0a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.6-2c-.2-.3 0-.5.2-.7l.5-.6.2-.5c.1-.2 0-.4 0-.6l-.9-2.1c-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4s-1.1 1.1-1.1 2.6 1.1 3 1.3 3.2a11 11 0 0 0 4.3 3.8c.6.3 1.1.5 1.5.6.6.2 1.2.2 1.7.1.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.3.1-1.4s-.2-.2-.5-.4Z"/></svg><span>WhatsApp</span></a>}
                   </div>
                 </div>
               )}

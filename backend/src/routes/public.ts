@@ -27,7 +27,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const hours = cfg.opening_hours ?? {};
 
   const products = (await db.query(
-    `SELECT p.id, p.kind, p.name, p.description, p.price_agorot, m.storage_key, m.width, m.height
+    `SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, m.storage_key, m.width, m.height
        FROM products p
        LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id
       WHERE p.is_active
@@ -35,6 +35,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   )).rows.map((r) => ({
     id: r.id, kind: r.kind, name: r.name, description: r.description,
     price_agorot: r.price_agorot, // null => quote
+    requires_appointment: r.requires_appointment === true,
     image: r.storage_key
       ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height }
       : null,
@@ -132,7 +133,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const ids = [...qty.keys()];
           const found = ids.length
             ? (await db.query(
-                'SELECT id, name, price_agorot FROM products WHERE is_active AND id = ANY($1::uuid[])',
+                'SELECT id, name, price_agorot, requires_appointment FROM products WHERE is_active AND id = ANY($1::uuid[])',
                 [ids],
               )).rows
             : [];
@@ -147,6 +148,24 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
+          const needsAppointment = found.some((p) => p.requires_appointment === true);
+          const appointmentAt = body.appointment_at;
+          if (needsAppointment && !appointmentAt) throw new HttpError(400, 'appointment_required');
+          if (appointmentAt) {
+            if (!needsAppointment) throw new HttpError(400, 'appointment_not_applicable');
+            const [datePart, timePart] = appointmentAt.split('T');
+            const date = new Date(`${datePart}T12:00:00`);
+            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
+            const ranges = biz.config?.opening_hours?.days?.[dayKey];
+            const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+            const validSlot = Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => timePart >= r.open && toMinutes(timePart) + 30 <= toMinutes(r.close));
+            const requestedDate = new Date(`${datePart}T12:00:00Z`);
+            const validDate = Number.isFinite(requestedDate.getTime()) && requestedDate.toISOString().slice(0, 10) === datePart;
+            const parts = new Intl.DateTimeFormat('en-CA', { timeZone: biz.timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+            const part = (type: string) => parts.find((x) => x.type === type)?.value ?? '';
+            const nowLocal = `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+            if (!validDate || !validSlot || appointmentAt <= nowLocal) throw new HttpError(400, 'invalid_appointment_time');
+          }
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           const lead = await db.query(
             `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
@@ -155,7 +174,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
              RETURNING id`,
             [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
-             JSON.stringify({ has_quote_items: hasQuote })],
+             JSON.stringify({ has_quote_items: hasQuote, ...(appointmentAt ? { appointment_at: appointmentAt } : {}) })],
           );
           const leadId: string = lead.rows[0].id;
 
@@ -196,6 +215,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             // The seller controls the greeting, but the selected items and total must never be omitted.
             if (!template.includes('{items}')) text += `\n\nפריטים שנבחרו:\n${itemsText || '-'}`;
             if (!template.includes('{estimated_total}')) text += `\nסכום משוער: ${totalText}`;
+            if (appointmentAt) text += `\nשעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`;
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
           }
           return out;

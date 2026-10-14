@@ -7,6 +7,7 @@ export type Product = {
   name: string;
   description: string | null;
   price_agorot: number | null;
+  requires_appointment: boolean;
   image: { url: string; width: number | null; height: number | null } | null;
 };
 export type GalleryImage = {
@@ -41,7 +42,7 @@ export type Lead = {
   submission_channel: 'whatsapp' | 'site';
   status: LeadStatus;
   estimated_total_agorot: number | null;
-  metadata: { has_quote_items?: boolean };
+  metadata: { has_quote_items?: boolean; appointment_at?: string };
   created_at: string;
   items: { name: string; unit_price_agorot: number | null; quantity: number }[];
 };
@@ -63,6 +64,7 @@ export type MProduct = {
   is_active: boolean;
   sort_order: number;
   image_url: string | null;
+  requires_appointment: boolean;
 };
 
 export type MGalleryImage = {

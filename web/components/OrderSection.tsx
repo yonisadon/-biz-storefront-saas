@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import { useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
-import type { OrderFlow, Product } from '@/lib/types';
+import type { DayHours, OrderFlow, Product } from '@/lib/types';
 
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow };
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
 type Step = 'choose' | 'site';
@@ -16,6 +16,8 @@ function errorText(status: number, d: any): string {
   const msgs: string[] = (d?.issues ?? []).map((i: any) => i.message);
   if (msgs.includes('invalid_il_phone')) return 'מספר הטלפון אינו תקין.';
   if (msgs.includes('items_or_message_required')) return 'בחרו פריט או כתבו הודעה.';
+  if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
+  if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
   return 'לא הצלחנו לשלוח. נסו שוב.';
 }
@@ -31,10 +33,12 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props) {
+export default function OrderSection({ apiBase, items, quoteLabel, flow, openingHours }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('');
   const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +50,22 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
     .map(([id, q]) => ({ p: byId.get(id)!, q }))
     .filter((l) => l.p);
   const count = lines.reduce((s, l) => s + l.q, 0);
+  const needsAppointment = lines.some(({ p }) => p.kind === 'service' && p.requires_appointment);
+  const appointmentSlots = useMemo(() => {
+    if (!appointmentDate || !openingHours) return [];
+    const date = new Date(`${appointmentDate}T12:00:00`);
+    const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
+    const ranges = openingHours[key];
+    if (!Array.isArray(ranges)) return [];
+    const slots: string[] = [];
+    for (const range of ranges) {
+      const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+      for (let minute = toMinutes(range.open); minute + 30 <= toMinutes(range.close); minute += 30) {
+        slots.push(`${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`);
+      }
+    }
+    return slots;
+  }, [appointmentDate, openingHours]);
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
@@ -67,6 +87,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
     setError(null);
     const phone = normalizeILPhone(form.phone);
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
+    if (needsAppointment && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
     if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
@@ -77,6 +98,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
         body: JSON.stringify({
           route,
           ...(route === 'site' ? { customer_name: form.name.trim(), customer_phone: form.phone, customer_email: form.email.trim() || undefined } : {}),
+          ...(needsAppointment ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
@@ -123,7 +145,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
-                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">שירות</span>
+                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{p.requires_appointment ? 'שירות · בתיאום שעה' : 'שירות'}</span>
                     )}
                   </div>
                   {p.description && <p className="whitespace-pre-line text-sm text-ink/70">{p.description}</p>}
@@ -173,6 +195,22 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
             </ul>
             {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
           </div>
+        )}
+
+        {!done && needsAppointment && (
+          <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
+            <legend className="px-1 text-sm font-semibold">תיאום שעה מבוקשת</legend>
+            <p className="text-xs leading-5 text-ink/65">בחרו מועד מתוך שעות הפעילות של העסק. זו בקשת תיאום; העסק יאשר את השעה מולכם.</p>
+            <label className="block text-sm font-medium">תאריך
+              <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
+            </label>
+            <label className="block text-sm font-medium">שעה
+              <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || appointmentSlots.length === 0} className={input}>
+                <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות זמינות ביום זה'}</option>
+                {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
+            </label>
+          </fieldset>
         )}
 
         {done ? (
