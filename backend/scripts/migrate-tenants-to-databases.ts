@@ -95,8 +95,8 @@ async function main() {
           'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
           [b.id, databaseName],
         );
-        await tenantAdmin.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']);
-        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']);
+        await tenantAdmin.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, b.status]);
+        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, b.status]);
         console.log(`MIGRATED ${b.slug} -> ${databaseName}`);
       } catch (err) {
         await registry.query('DELETE FROM app.tenant_databases WHERE tenant_id = $1', [b.id]).catch(() => {});
@@ -107,7 +107,7 @@ async function main() {
         if (databaseCreated) {
           await admin.query(`DROP DATABASE IF EXISTS ${identifier(databaseName)} WITH (FORCE)`).catch(() => {});
         }
-        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, 'active']).catch(() => {});
+        await registry.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [b.id, b.status]).catch(() => {});
         throw new Error(`Migration failed for ${b.slug}: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         if (tenantAdmin) {
