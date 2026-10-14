@@ -111,7 +111,6 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
   const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
-  const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
   const [file, setFile] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
