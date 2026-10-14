@@ -31,4 +31,4 @@ export function isOpenNow(hours: any, tz: string, now = new Date()): boolean | n
   return day.some((r: { open: string; close: string }) => r.open <= hhmm && hhmm < r.close);
 }
 
-export const mediaUrl = (base: string, storageKey: string) => `${base}/${storageKey}`;
+export const mediaUrl = (base: string, storageKey: string) => `${base.replace(/\/+$/, '')}/media/${storageKey}`;
