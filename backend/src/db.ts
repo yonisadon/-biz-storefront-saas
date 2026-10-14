@@ -47,7 +47,9 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
 
   const tenantPool = new pg.Pool({
     connectionString: connectionStringForDatabase(databaseName),
-    max: 5,
+    max: 2,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
     ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
   });
   tenantPool.on('error', (err) => console.error('pg tenant pool error', err));
