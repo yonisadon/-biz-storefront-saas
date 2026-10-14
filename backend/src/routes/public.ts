@@ -162,20 +162,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const requested = new Date(`${appointmentAt}:00`);
             if (!validSlot || !Number.isFinite(requested.getTime()) || requested.getTime() <= Date.now()) throw new HttpError(400, 'invalid_appointment_time');
           }
-          const needsAppointment = found.some((p) => p.requires_appointment === true);
-          const appointmentAt = body.appointment_at;
-          if (needsAppointment && !appointmentAt) throw new HttpError(400, 'appointment_required');
-          if (appointmentAt) {
-            if (!needsAppointment) throw new HttpError(400, 'appointment_not_applicable');
-            const [datePart, timePart] = appointmentAt.split('T');
-            const date = new Date(`${datePart}T12:00:00`);
-            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
-            const ranges = biz.config?.opening_hours?.days?.[dayKey];
-            const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-            const validSlot = Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => timePart >= r.open && toMinutes(timePart) + 30 <= toMinutes(r.close));
-            const requested = new Date(`${appointmentAt}:00`);
-            if (!validSlot || !Number.isFinite(requested.getTime()) || requested.getTime() <= Date.now()) throw new HttpError(400, 'invalid_appointment_time');
-          }
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           const lead = await db.query(
             `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
