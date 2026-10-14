@@ -4,11 +4,10 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
-import { ils, isOpenNow, mediaUrl, renderTemplate, toLocalPhone } from '../util';
+import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 
-const DEFAULT_WA_TEMPLATE =
-  'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}';
+const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 
 async function loadBusiness(db: pg.PoolClient) {
@@ -209,18 +208,25 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
               : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
-            const template = flow.whatsapp_message_template || DEFAULT_WA_TEMPLATE;
-            let text = renderTemplate(template, {
-              customer_name: body.customer_name ?? '',
-              customer_phone: body.customer_phone ? toLocalPhone(body.customer_phone) : '',
-              items: itemsText || '-',
-              estimated_total: totalText,
-              message: body.message ?? '',
-            }).trim();
-            // The seller controls the greeting, but the selected items and total must never be omitted.
-            if (!template.includes('{items}')) text += `\n\nפריטים שנבחרו:\n${itemsText || '-'}`;
-            if (!template.includes('{estimated_total}')) text += `\nסכום משוער: ${totalText}`;
-            if (appointmentAt) text += `\nשעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}\nמשך תור משוער: ${appointmentDurationMinutes} דקות`;
+            // The seller edits only the opening line. The order details are always built here.
+            const intro = String(flow.whatsapp_intro ?? '').trim() || DEFAULT_WA_INTRO;
+            const messageLines = [
+              intro,
+              '',
+              'פריטים שנבחרו:',
+              itemsText || '-',
+            ];
+            if (body.customer_name) messageLines.push(`שם: ${body.customer_name}`);
+            if (body.customer_phone) messageLines.push(`טלפון: ${toLocalPhone(body.customer_phone)}`);
+            messageLines.push('', `סכום משוער: ${totalText}`);
+            if (body.message) messageLines.push('', `הערה: ${body.message}`);
+            if (appointmentAt) {
+              messageLines.push(
+                `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
+                `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+              );
+            }
+            const text = messageLines.join('\n');
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
           }
           return out;
