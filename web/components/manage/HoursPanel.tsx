@@ -67,24 +67,24 @@ export default function HoursPanel({ token, biz, onSaved }: {
     finally { setBusy(false); }
   }
 
-  const time = 'rounded-lg border border-gray-300 bg-white px-2 py-1.5';
+  const time = 'w-[108px] rounded-md border border-gray-300 bg-white px-1.5 py-1 text-sm';
 
   return (
-    <section aria-label="שעות פעילות" className="rounded-xl border border-gray-200 bg-white p-4">
+    <section aria-label="שעות פעילות" className="rounded-xl border border-ink/15 bg-white p-3 sm:p-4">
       <h2 className="text-lg font-bold">שעות פעילות</h2>
-      <div className="mt-3 divide-y divide-gray-100">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {DAYS.map(([k, label]) => {
           const d = days[k] ?? 'closed';
           const open = d !== 'closed';
           return (
-            <div key={k} className="flex flex-wrap items-start gap-x-4 gap-y-2 py-3">
-              <label className="flex w-28 items-center gap-2 font-medium">
+            <div key={k} className="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-lg border border-gray-100 px-3 py-2">
+              <label className="flex w-24 shrink-0 items-center gap-2 font-medium">
                 <input type="checkbox" checked={open}
                   onChange={(e) => setDay(k, e.target.checked ? [{ open: '09:00', close: '17:00' }] : 'closed')} />
                 {label}
               </label>
               {open ? (
-                <div className="space-y-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   {d.map((r, i) => (
                     <div key={i} className="flex items-center gap-2" dir="ltr">
                       <input type="time" className={time} value={r.open} aria-label={`${label}: שעת פתיחה`}

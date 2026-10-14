@@ -53,7 +53,7 @@ export default async function StorefrontPage({ params }: Props) {
   if (!data) notFound();
 
   const { business: b, opening_hours: oh } = data;
-  const chip = 'rounded-full border border-ink/20 px-3 py-1.5 text-sm hover:bg-ink/5';
+  const chip = 'rounded-full border border-ink/20 px-3 py-1.5 text-sm hover:bg-primary/5';
 
   return (
     <div className="brand-root min-h-screen bg-surface text-ink" style={themeVars(data.branding?.colors)}>
@@ -63,21 +63,20 @@ export default async function StorefrontPage({ params }: Props) {
         </div>
       )}
 
-      {/* Hidden entirely when there are no images */}
       {data.sections?.gallery && data.gallery && <Gallery images={data.gallery} />}
 
-      <main className="mx-auto max-w-3xl space-y-10 px-4 py-6">
-        <header className="space-y-3">
-          <h1 className="text-3xl font-bold">{b?.name}</h1>
-          <div className="flex flex-wrap gap-2">
+      <main className="mx-auto max-w-3xl space-y-7 px-4 py-5 sm:space-y-8 sm:py-8">
+        <header className="rounded-2xl border border-ink/10 bg-white/70 p-4 sm:p-6">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{b?.name}</h1>
+          <div className="mt-3 flex flex-wrap gap-2">
             {b?.phone && (
               <a className={chip} href={`tel:${toLocalPhone(b.phone)}`}>
-                התקשרו: {toLocalPhone(b.phone)}
+                התקשרו: <span dir="ltr">{toLocalPhone(b.phone)}</span>
               </a>
             )}
             {b?.whatsapp_number && (
               <a
-                className={chip}
+                className={`${chip} border-transparent bg-primary text-primary-fg hover:opacity-90`}
                 href={`https://wa.me/${b.whatsapp_number.replace(/^\+/, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -89,10 +88,9 @@ export default async function StorefrontPage({ params }: Props) {
           </div>
         </header>
 
-        {/* Shown only if the seller entered text */}
         {data.sections?.about && data.about && (
-          <section aria-labelledby="about-h">
-            <h2 id="about-h" className="text-2xl font-bold">הסיפור שלנו</h2>
+          <section aria-labelledby="about-h" className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-6">
+            <h2 id="about-h" className="text-xl font-bold sm:text-2xl">הסיפור שלנו</h2>
             <p className="mt-3 whitespace-pre-line leading-relaxed text-ink/80">{data.about}</p>
           </section>
         )}
@@ -106,21 +104,16 @@ export default async function StorefrontPage({ params }: Props) {
           />
         )}
 
-        {oh?.days && (
-          <section aria-labelledby="hours-h">
-            <h2 id="hours-h" className="text-2xl font-bold">שעות פעילות</h2>
-            <Hours days={oh.days} />
-          </section>
-        )}
-      </main>
+        {oh?.days && <Hours days={oh.days} openNow={oh.open_now} />}
 
-      <footer className="border-t border-ink/15 px-4 py-6 text-center text-sm text-ink/70">
-        <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי">
-          <a href={`${ctx.base}/legal/terms_of_use`}>תנאי שימוש</a>
-          <a href={`${ctx.base}/legal/privacy_policy`}>מדיניות פרטיות</a>
-          <a href={`${ctx.base}/legal/accessibility_statement`}>הצהרת נגישות</a>
-        </nav>
-      </footer>
+        <footer className="border-t border-ink/15 px-4 py-5 text-center text-sm text-ink/70">
+          <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי">
+            <a href={`${ctx.base}/legal/terms_of_use`}>תנאי שימוש</a>
+            <a href={`${ctx.base}/legal/privacy_policy`}>מדיניות פרטיות</a>
+            <a href={`${ctx.base}/legal/accessibility_statement`}>הצהרת נגישות</a>
+          </nav>
+        </footer>
+      </main>
 
       <AccessibilityToolbar statementHref={`${ctx.base}/legal/accessibility_statement`} />
     </div>
