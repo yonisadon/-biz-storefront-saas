@@ -8,7 +8,7 @@ import { ils, isOpenNow, mediaUrl, renderTemplate, toLocalPhone } from '../util'
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 
 const DEFAULT_WA_TEMPLATE =
-  'שלום, שמי {customer_name}, טלפון: {customer_phone}\nהזמנה:\n{items}\nסכום משוער: {estimated_total}\n{message}';
+  'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}';
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 
 async function loadBusiness(db: pg.PoolClient) {
@@ -153,7 +153,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                                 submission_channel, status, estimated_total_agorot, metadata)
              VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb)
              RETURNING id`,
-            [body.customer_name, body.customer_phone, body.customer_email ?? null,
+            [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
              JSON.stringify({ has_quote_items: hasQuote })],
           );
@@ -186,8 +186,8 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const totalText = estimated === null ? quoteLabel
               : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
             const text = renderTemplate(flow.whatsapp_message_template ?? DEFAULT_WA_TEMPLATE, {
-              customer_name: body.customer_name,
-              customer_phone: toLocalPhone(body.customer_phone),
+              customer_name: body.customer_name ?? '',
+              customer_phone: body.customer_phone ? toLocalPhone(body.customer_phone) : '',
               items: itemsText || '-',
               estimated_total: totalText,
               message: body.message ?? '',
