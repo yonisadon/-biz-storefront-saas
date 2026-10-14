@@ -3,8 +3,6 @@ import type { DayHours } from '@/lib/types';
 
 export type HoursProps = { days: Record<string, DayHours>; openNow?: boolean | null; embedded?: boolean };
 
-export type HoursProps = { days: Record<string, DayHours>; openNow?: boolean | null; embedded?: boolean };
-
 export default function Hours({
   days,
   openNow,
