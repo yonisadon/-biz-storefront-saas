@@ -13,6 +13,7 @@ export const ProductCreate = z.object({
   description: optText(2000).transform((v) => v ?? null),
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
+  requires_appointment: z.boolean().default(false),
 }).strict();
 
 export const ProductPatch = z.object({
@@ -21,6 +22,7 @@ export const ProductPatch = z.object({
   description: optText(2000),
   price_agorot: price.optional(),
   is_active: z.boolean().optional(),
+  requires_appointment: z.boolean().optional(),
 }).strict().refine((o) => Object.values(o).some((v) => v !== undefined), { message: 'empty_patch' });
 
 export const OrderBody = z.object({
