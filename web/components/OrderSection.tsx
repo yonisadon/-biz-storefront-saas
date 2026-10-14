@@ -51,8 +51,9 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
     .filter((l) => l.p);
   const count = lines.reduce((s, l) => s + l.q, 0);
   const needsAppointment = lines.some(({ p }) => p.kind === 'service' && p.requires_appointment);
+  const appointmentDurationMinutes = lines.filter(({ p }) => p.kind === 'service' && p.requires_appointment).reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const appointmentSlots = useMemo(() => {
-    if (!appointmentDate || !openingHours) return [];
+    if (!appointmentDate || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480) return [];
     const date = new Date(`${appointmentDate}T12:00:00`);
     const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
     const ranges = openingHours[key];
@@ -60,24 +61,26 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
     const slots: string[] = [];
     for (const range of ranges) {
       const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-      for (let minute = toMinutes(range.open); minute + 30 <= toMinutes(range.close); minute += 30) {
+      for (let minute = toMinutes(range.open); minute + appointmentDurationMinutes <= toMinutes(range.close); minute += appointmentDurationMinutes) {
         slots.push(`${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`);
       }
     }
     return slots;
-  }, [appointmentDate, openingHours]);
+  }, [appointmentDate, openingHours, appointmentDurationMinutes]);
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
   const totalText = priced.length === 0 ? (hasQuote ? quoteLabel : '')
     : hasQuote ? `${ils(total)} + ${quoteLabel}` : ils(total);
 
-  const setQty = (id: string, q: number) =>
+  const setQty = (id: string, q: number) => {
+    setAppointmentTime('');
     setCart((c) => {
       const n = { ...c };
       if (q <= 0) delete n[id]; else n[id] = Math.min(99, q);
       return n;
     });
+  };
 
   const setField = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -200,7 +203,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
         {!done && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <legend className="px-1 text-sm font-semibold">תיאום שעה מבוקשת</legend>
-            <p className="text-xs leading-5 text-ink/65">בחרו מועד מתוך שעות הפעילות של העסק. זו בקשת תיאום; העסק יאשר את השעה מולכם.</p>
+            <p className="text-xs leading-5 text-ink/65">בחרו מועד מתוך שעות הפעילות. אורך התור מחושב לפי השירותים שבחרתם; זו בקשת תיאום בלבד והעסק יאשר את השעה מולכם.</p>
             <label className="block text-sm font-medium">תאריך
               <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
             </label>
