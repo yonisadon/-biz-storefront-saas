@@ -5,12 +5,6 @@ export const LEAD_STATUSES = [
   'whatsapp_initiated', 'pending_approval', 'approved', 'rejected', 'completed', 'cancelled',
 ] as const;
 
-const phoneRequired = z.string().max(40).transform((v, ctx) => {
-  const n = normalizeILPhone(v);
-  if (!n) { ctx.addIssue({ code: 'custom', message: 'invalid_il_phone' }); return z.NEVER; }
-  return n;
-});
-
 const phoneOrNull = z.string().max(40).nullable().transform((v, ctx) => {
   if (v === null || v.trim() === '') return null;
   const n = normalizeILPhone(v);
