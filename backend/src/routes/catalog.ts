@@ -17,7 +17,7 @@ const idParam = (req: FastifyRequest) => {
   if (!UUID_RE.test(id)) throw new HttpError(404, 'not_found');
   return id;
 };
-const mediaUrl = (key: string) => `${env.MEDIA_BASE_URL}/${key}`;
+const mediaUrl = (key: string) => `${env.MEDIA_BASE_URL.replace(/\/+$/, '')}/media/${key}`;
 
 const removeQuietly = async (req: FastifyRequest, keys: string[]) => {
   if (!keys.length) return;
