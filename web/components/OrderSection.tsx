@@ -66,8 +66,6 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
   async function submit(route: Route) {
     setError(null);
     const phone = normalizeILPhone(form.phone);
-    if (!form.name.trim()) return setError('נא להזין שם מלא.');
-    if (!phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
     if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
 
@@ -86,11 +84,11 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       const data = await res.json().catch(() => null);
       if (!res.ok) return setError(errorText(res.status, data));
 
-      setCart({});
       if (data.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url });
         window.location.assign(data.whatsapp_url);
       } else {
+        setCart({});
         setDone({ route: 'site', message: data.success_message ?? 'הפנייה נשלחה בהצלחה.' });
       }
     } catch {
@@ -164,7 +162,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       {/* Order Modal */}
       <dialog ref={dlg} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">פרטי פנייה</h3>
+          <h3 className="text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
         </div>
 
