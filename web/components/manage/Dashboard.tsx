@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { themeVars } from '@/lib/theme';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
 import GalleryPanel from './GalleryPanel';
@@ -20,21 +21,26 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
   const [biz, setBiz] = useState(initialBusiness);
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="mx-auto max-w-5xl p-4">
-        <header className="flex flex-wrap items-center justify-between gap-3 py-4">
+    <div
+      className="brand-root min-h-screen bg-surface text-ink"
+      style={themeVars(biz.config?.branding?.colors)}
+    >
+      <div className="mx-auto max-w-5xl p-4 sm:p-6">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 py-4">
           <div>
             <h1 className="text-xl font-bold">{biz.name}</h1>
-            <p className="text-sm text-gray-500">ממשק ניהול</p>
+            <p className="mt-1 text-sm text-ink/65">ממשק ניהול</p>
           </div>
           <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
-            className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300">צפייה באתר ↗</a>
+            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
+            צפייה באתר ↗
+          </a>
         </header>
 
-        <nav className="flex flex-wrap gap-2" aria-label="ניווט">
+        <nav className="mt-4 flex flex-wrap gap-2" aria-label="ניווט">
           {TABS.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
-              className={`rounded-full px-4 py-2 text-sm font-medium ${tab === id ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-300'}`}>
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${tab === id ? 'bg-primary text-primary-fg' : 'bg-white text-ink ring-1 ring-ink/15 hover:bg-primary/5'}`}>
               {label}
             </button>
           ))}
