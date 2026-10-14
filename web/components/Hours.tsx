@@ -1,15 +1,13 @@
 import { DAYS } from '@/lib/labels';
 import type { DayHours } from '@/lib/types';
 
+export type HoursProps = { days: Record<string, DayHours>; openNow?: boolean | null; embedded?: boolean };
+
 export default function Hours({
   days,
   openNow,
   embedded = false,
-}: {
-  days: Record<string, DayHours>;
-  openNow?: boolean | null;
-  embedded?: boolean;
-}) {
+}: HoursProps) {
   return (
     <section
       aria-label="שעות פעילות"
