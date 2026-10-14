@@ -12,7 +12,6 @@ export const pool = new pg.Pool({
 pool.on('error', (err) => console.error('pg registry pool error', err));
 
 const tenantPools = new Map<string, pg.Pool>();
-const missingRegistry = { value: false };
 
 function connectionStringForDatabase(databaseName: string) {
   const url = new URL(env.APP_DATABASE_URL);
@@ -26,8 +25,6 @@ function connectionStringForDatabase(databaseName: string) {
  * a staged rollout without taking the existing storefront offline.
  */
 async function poolForTenant(tenantId: string): Promise<pg.Pool> {
-  if (missingRegistry.value) return pool;
-
   let databaseName: string | undefined;
   try {
     const result = await pool.query(
@@ -39,7 +36,6 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
     // Compatibility before the registry migration is applied. Provisioning
     // itself will fail until the migration exists, but existing stores still run.
     if ((err as { code?: string }).code === '42P01' || (err as { code?: string }).code === '3F000') {
-      missingRegistry.value = true;
       return pool;
     }
     throw err;
