@@ -57,8 +57,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
     const phoneNumber = phone(input.phone);
     const whatsappNumber = phone(input.whatsapp_number);
-    const registry = new pg.Client({ connectionString: env.SUPERADMIN_DATABASE_URL });
-    const databaseAdmin = new pg.Client({ connectionString: env.DATABASE_ADMIN_URL });
+    const clientOptions = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    const registry = new pg.Client({ connectionString: env.SUPERADMIN_DATABASE_URL, ...clientOptions });
+    const databaseAdmin = new pg.Client({ connectionString: env.DATABASE_ADMIN_URL, ...clientOptions });
     let tenantAdmin: pg.Client | undefined;
     let tenantId: string | undefined;
     let databaseName: string | undefined;
@@ -85,6 +86,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       );
       tenantId = created.rows[0]?.id;
       if (!tenantId) throw new Error('business_creation_failed');
+      await registry.query(
+        'UPDATE public.businesses SET phone = $2, email = $3 WHERE id = $1',
+        [tenantId, phoneNumber, input.email || null],
+      );
 
       // Database identifiers are generated from the server-created UUID, never user input.
       databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
@@ -93,6 +98,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
       tenantAdmin = new pg.Client({
         connectionString: databaseUrl(env.DATABASE_ADMIN_URL, databaseName),
+        ...clientOptions,
       });
       await tenantAdmin.connect();
 
