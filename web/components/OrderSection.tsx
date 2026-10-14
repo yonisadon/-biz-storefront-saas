@@ -166,7 +166,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} className="m-auto rounded-2xl p-6 backdrop:bg-black/50 max-w-md w-full text-start">
+      <dialog ref={dlg} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">פרטי פנייה</h3>
           <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
@@ -189,23 +189,23 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow }: Props
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
 
             <div>
-              <label className="block text-sm font-medium">שם מלא *</label>
-              <input type="text" required className={input} value={form.name} onChange={setField('name')} />
+              <label htmlFor="lead-name" className="block text-sm font-medium">שם מלא *</label>
+              <input id="lead-name" name="name" autoComplete="name" type="text" required className={input} value={form.name} onChange={setField('name')} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">מספר טלפון *</label>
-              <input type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+              <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
+              <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">אימייל (רשות)</label>
-              <input type="email" className={input} value={form.email} onChange={setField('email')} />
+              <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
+              <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
             </div>
 
             <div>
-              <label className="block text-sm font-medium">הודעה / הערות</label>
-              <textarea className={`${input} min-h-[80px]`} value={form.message} onChange={setField('message')} />
+              <label htmlFor="lead-message" className="block text-sm font-medium">הודעה / הערות</label>
+              <textarea id="lead-message" name="message" className={`${input} min-h-[96px]`} value={form.message} onChange={setField('message')} />
             </div>
 
             <div className="pt-2 space-y-2">
