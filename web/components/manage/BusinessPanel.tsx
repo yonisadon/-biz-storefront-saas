@@ -5,6 +5,17 @@ import { toLocalPhone } from '@/lib/format';
 import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
+function initialWhatsAppIntro(flow: Record<string, any>): string {
+  if (typeof flow.whatsapp_intro === 'string') return flow.whatsapp_intro;
+  // Migrate old configurations by preserving only the opening before the item placeholder.
+  const legacy = typeof flow.whatsapp_message_template === 'string' ? flow.whatsapp_message_template : '';
+  const intro = legacy.split('{items}')[0]
+    .replace(/\\n/g, '\n')
+    .replace(/\{(?:customer_name|customer_phone|estimated_total|message)\}/g, '')
+    .trim();
+  return intro || 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
+}
+
 function saveError(err: unknown): string {
   if (err instanceof ApiError) {
     const msgs: string[] = (err.body?.issues ?? []).map((i: any) => i.message);
@@ -28,7 +39,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     about: biz.about_text ?? '',
     wa: flow.whatsapp_enabled === true,
     site: flow.site_inquiry_enabled === true,
-    whatsappMessageTemplate: flow.whatsapp_message_template ?? 'שלום, אני מעוניין/ת בפריטים הבאים:\\n{items}\\nסכום משוער: {estimated_total}',
+    whatsappIntro: initialWhatsAppIntro(flow),
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,7 +61,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           whatsapp_number: f.whatsapp.trim() || null,
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
-          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_message_template: f.whatsappMessageTemplate.trim() || 'שלום, אני מעוניין/ת בפריטים הבאים:\\n{items}\\nסכום משוער: {estimated_total}' } },
+          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() } },
         }),
       });
       onSaved({ ...biz, ...saved });
@@ -86,10 +97,10 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         </label>
 
         {f.wa && (
-          <label className="block text-sm font-medium">נוסח פתיחה להודעת WhatsApp
-            <textarea className={input} rows={4} maxLength={1000} value={f.whatsappMessageTemplate}
-              onChange={(e) => set('whatsappMessageTemplate', e.target.value)} />
-            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">הפריטים והסכום יצורפו אוטומטית. אפשר לשלב בנוסח: {'{items}'}, {'{estimated_total}'}, {'{customer_name}'}, {'{customer_phone}'}.</span>
+          <label className="block text-sm font-medium">פתיח להודעת WhatsApp (לא חובה)
+            <textarea className={input} rows={2} maxLength={1000} value={f.whatsappIntro}
+              onChange={(e) => set('whatsappIntro', e.target.value)} />
+            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">כתבו רק משפט פתיחה. המערכת תצרף אוטומטית את הפריטים, הכמויות, הסכום המשוער והתור אם נבחר. שם וטלפון יופיעו רק אם הוזנו.</span>
           </label>
         )}
 
