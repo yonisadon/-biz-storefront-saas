@@ -2,6 +2,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 import { HttpError } from './errors';
 
+
 // Keep memory predictable on small Railway instances
 sharp.cache(false);
 sharp.concurrency(2);
