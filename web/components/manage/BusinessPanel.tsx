@@ -28,6 +28,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     about: biz.about_text ?? '',
     wa: flow.whatsapp_enabled === true,
     site: flow.site_inquiry_enabled === true,
+    whatsappMessageTemplate: flow.whatsapp_message_template ?? 'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}',
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,7 +50,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           whatsapp_number: f.whatsapp.trim() || null,
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
-          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site } },
+          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_message_template: f.whatsappMessageTemplate.trim() || 'שלום, אני מעוניין/ת בפריטים הבאים:\n{items}\nסכום משוער: {estimated_total}' } },
         }),
       });
       onSaved({ ...biz, ...saved });
@@ -82,6 +83,14 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         <label className="block text-sm font-medium">הסיפור שלנו (אם ריק, האזור לא יוצג באתר)
           <textarea className={input} rows={5} maxLength={5000} value={f.about} onChange={(e) => set('about', e.target.value)} />
         </label>
+
+        {f.wa && (
+          <label className="block text-sm font-medium">נוסח פתיחה להודעת WhatsApp
+            <textarea className={input} rows={4} maxLength={1000} value={f.whatsappMessageTemplate}
+              onChange={(e) => set('whatsappMessageTemplate', e.target.value)} />
+            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">הפריטים והסכום יצורפו אוטומטית. אפשר לשלב בנוסח: {'{items}'}, {'{estimated_total}'}, {'{customer_name}'}, {'{customer_phone}'}.</span>
+          </label>
+        )}
 
         <fieldset className="space-y-2 pt-1">
           <legend className="text-sm font-medium">מסלולי הזמנה באתר</legend>
