@@ -52,10 +52,16 @@ export default async function StorefrontPage({ params }: Props) {
   const data = await getStorefront(ctx);
   if (!data) notFound();
   const { business: b, opening_hours: oh } = data;
-  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number);
-  const hasBusinessInfo = Boolean(oh?.days || hasContact);
+  const social = data.social_links ?? {};
+  const profile = data.business_profile ?? {};
+  const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
+  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
+  const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
   const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
+  const instagramHref = safeSocialHref(social.instagram, 'instagram');
+  const facebookHref = safeSocialHref(social.facebook, 'facebook');
+  const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
 
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" style={themeVars(data.branding?.colors)}>
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
