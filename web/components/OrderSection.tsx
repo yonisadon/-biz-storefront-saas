@@ -10,10 +10,12 @@ type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
 type Step = 'choose' | 'site';
 
-function errorText(status: number, d: any): string {
+type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?: string; whatsapp_url?: string; success_message?: string };
+
+function errorText(status: number, d: ApiErrorPayload | null): string {
   if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
   if (status === 403) return 'מסלול ההזמנה הזה אינו זמין כרגע.';
-  const msgs: string[] = (d?.issues ?? []).map((i: any) => i.message);
+  const msgs: string[] = (d?.issues ?? []).map((i) => i.message);
   if (msgs.includes('invalid_il_phone')) return 'מספר הטלפון אינו תקין.';
   if (msgs.includes('items_or_message_required')) return 'בחרו פריט או כתבו הודעה.';
   if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
@@ -106,7 +108,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
           company_website: form.hp,
         }),
       });
-      const data = await res.json().catch(() => null);
+      const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
       if (data.route === 'whatsapp' && data.whatsapp_url) {
