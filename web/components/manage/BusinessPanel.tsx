@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { toLocalPhone } from '@/lib/format';
+import PalettePicker from '@/components/PalettePicker';
+import { BRAND_PALETTES, paletteIdForColors, type PaletteId } from '@/lib/palettes';
 import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
@@ -41,6 +43,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     site: flow.site_inquiry_enabled === true,
     whatsappIntro: initialWhatsAppIntro(flow),
   });
+  const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
@@ -61,7 +64,10 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           whatsapp_number: f.whatsapp.trim() || null,
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
-          config: { order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() } },
+          config: {
+            order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() },
+            branding: { colors: BRAND_PALETTES[palette].colors },
+          },
         }),
       });
       onSaved({ ...biz, ...saved });
@@ -77,8 +83,9 @@ export default function BusinessPanel({ token, biz, onSaved }: {
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      <form onSubmit={save} className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+      <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
+        <PalettePicker value={palette} onChange={setPalette} />
         <label className="block text-sm font-medium">שם העסק
           <input className={input} value={f.name} onChange={(e) => set('name', e.target.value)} />
         </label>
