@@ -89,7 +89,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm">סינון לפי סטטוס:{' '}
           <select value={filter} disabled={loading}
-            onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); load(v, 0); }}
+            onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); setSelectedIds(new Set()); load(v, 0); }}
             className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
             <option value="">הכל</option>
             {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -138,7 +138,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       </ul>
 
       <div className="mt-3 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
               <th className={th}>בחר</th><th className={th}>תאריך</th><th className={th}>לקוח</th><th className={th}>פריטים</th>
