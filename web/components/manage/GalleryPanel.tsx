@@ -73,7 +73,7 @@ export default function GalleryPanel({ token }: { token: string }) {
   async function setHero(img: MGalleryImage) {
     try {
       const biz = await mcall<any>(token, 'business');
-      const saved = await mcall<any>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
+      await mcall<any>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
       setHeroId(img.id);
       setMsg('התמונה הראשית נשמרה.');
     } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
