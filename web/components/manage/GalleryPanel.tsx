@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
-import type { MGalleryImage } from '@/lib/types';
+import type { MGalleryImage, ManageBusiness } from '@/lib/types';
 
 const MAX = 7;
 const btn = 'rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300 disabled:opacity-40';
@@ -18,7 +18,7 @@ export default function GalleryPanel({ token }: { token: string }) {
     try {
       const [images, biz] = await Promise.all([
         mcall<MGalleryImage[]>(token, 'gallery'),
-        mcall<any>(token, 'business'),
+        mcall<ManageBusiness>(token, 'business'),
       ]);
       setItems(images);
       setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
@@ -73,7 +73,7 @@ export default function GalleryPanel({ token }: { token: string }) {
   async function setHero(img: MGalleryImage) {
     try {
       const biz = await mcall<any>(token, 'business');
-      await mcall<any>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
+      await mcall<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
       setHeroId(img.id);
       setMsg('התמונה הראשית נשמרה.');
     } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
