@@ -111,12 +111,12 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
-      if (data.route === 'whatsapp' && data.whatsapp_url) {
+      if (data?.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url });
         window.location.assign(data.whatsapp_url);
       } else {
         setCart({});
-        setDone({ route: 'site', message: data.success_message ?? 'הפנייה נשלחה בהצלחה.' });
+        setDone({ route: 'site', message: data?.success_message ?? 'הפנייה נשלחה בהצלחה.' });
       }
     } catch {
       setError('שגיאת רשת. נסו שוב.');
