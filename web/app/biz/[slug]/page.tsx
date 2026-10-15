@@ -40,12 +40,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { og, business } = data;
   const description = og?.description ?? undefined;
   const images = og?.image_url ? [{ url: og.image_url, alt: og?.title || '' }] : undefined;
+  const appIcon = data.gallery.find((image) => image.id === data.branding?.icon_gallery_image_id)?.url
+    ?? data.gallery.find((image) => image.id === data.branding?.hero_gallery_image_id)?.url
+    ?? data.gallery[0]?.url
+    ?? og?.image_url
+    ?? undefined;
   let metadataBase: URL | undefined;
   try { if (ctx.origin) metadataBase = new URL(ctx.origin); } catch { /* invalid origin */ }
   return {
     metadataBase, title: og?.title || business?.name || 'עסק', description,
     manifest: ctx.base ? `${ctx.base}/manifest.webmanifest` : '/biz/_site/manifest.webmanifest',
-    icons: images ? { icon: images[0].url, apple: images[0].url } : undefined,
+    icons: appIcon ? { icon: appIcon, apple: appIcon } : undefined,
     alternates: { canonical: ctx.base || '/' },
     openGraph: { type: 'website', locale: 'he_IL', siteName: business?.name, title: og?.title || business?.name, description, url: ctx.base || '/', images },
     twitter: { card: images ? 'summary_large_image' : 'summary', title: og?.title || business?.name, description, images: images?.map(i => i.url) },
@@ -129,6 +134,6 @@ export default async function StorefrontPage({ params }: Props) {
       </section>}
       {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}>מידע משפטי ונגישות</a></footer>}
     </main>
-    {Boolean(legalDocs[2]?.custom_text?.trim()) && <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />}
+    <AccessibilityToolbar statementHref={legalDocs[2]?.custom_text?.trim() ? (ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement') : undefined} />
   </div>;
 }
