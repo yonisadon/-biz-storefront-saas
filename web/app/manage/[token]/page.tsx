@@ -5,7 +5,6 @@ import Dashboard from '@/components/manage/Dashboard';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-export const dynamic = 'force-dynamic';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 
