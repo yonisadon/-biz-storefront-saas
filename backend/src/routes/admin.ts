@@ -33,6 +33,40 @@ function quoteIdentifier(identifier: string): string {
   return '"' + identifier.replace(/"/g, '""') + '"';
 }
 
+
+const TRANSIENT_DB_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH',
+  '57P03', '08001', '08006',
+]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function connectClientWithRetry(
+  connectionString: string,
+  options: Omit<pg.ClientConfig, 'connectionString'> = {},
+): Promise<pg.Client> {
+  const maxAttempts = 12;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const client = new pg.Client({
+      ...options,
+      connectionString,
+      connectionTimeoutMillis: 5000,
+    });
+    try {
+      await client.connect();
+      return client;
+    } catch (err) {
+      await client.end().catch(() => {});
+      const code = (err as { code?: string }).code;
+      if (!code || !TRANSIENT_DB_CODES.has(code) || attempt === maxAttempts) throw err;
+      const delayMs = Math.min(1000 * attempt, 5000);
+      console.warn(`PostgreSQL is not ready (attempt ${attempt}/${maxAttempts}); retrying in ${delayMs}ms.`);
+      await sleep(delayMs);
+    }
+  }
+  throw new Error('PostgreSQL did not become available');
+}
+
 function authorized(req: FastifyRequest): boolean {
   const expected = env.SUPERADMIN_API_TOKEN;
   if (!expected) return false;
@@ -58,16 +92,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const phoneNumber = phone(input.phone);
     const whatsappNumber = phone(input.whatsapp_number);
     const clientOptions = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
-    const registry = new pg.Client({ connectionString: env.SUPERADMIN_DATABASE_URL, ...clientOptions });
-    const databaseAdmin = new pg.Client({ connectionString: env.DATABASE_ADMIN_URL, ...clientOptions });
+    let registry: pg.Client | undefined;
+    let databaseAdmin: pg.Client | undefined;
     let tenantAdmin: pg.Client | undefined;
     let tenantId: string | undefined;
     let databaseName: string | undefined;
     let databaseCreated = false;
 
     try {
-      await registry.connect();
-      await databaseAdmin.connect();
+      // Both connections can race PostgreSQL's wake-up after a quiet period.
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, clientOptions);
+      databaseAdmin = await connectClientWithRetry(env.DATABASE_ADMIN_URL, clientOptions);
 
       // Create the registry row as suspended atomically so no request can
       // resolve a partially provisioned storefront between these statements.
@@ -105,11 +140,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       databaseCreated = true;
       await databaseAdmin.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(databaseName)} TO app_runtime, app_superadmin`);
 
-      tenantAdmin = new pg.Client({
-        connectionString: databaseUrl(env.DATABASE_ADMIN_URL, databaseName),
-        ...clientOptions,
-      });
-      await tenantAdmin.connect();
+      tenantAdmin = await connectClientWithRetry(
+        databaseUrl(env.DATABASE_ADMIN_URL, databaseName),
+        clientOptions,
+      );
 
       // Each new database gets the exact same schema as the current application.
       const schema = readFileSync(join(__dirname, '../../migrations/tenant-schema.sql'), 'utf8');
@@ -162,10 +196,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       // Provisioning is all-or-nothing from the user's perspective. Clean up a
       // partially created DB/business so a retry doesn't leave orphan resources.
       if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-      if (databaseCreated && databaseName) {
+      if (databaseCreated && databaseName && databaseAdmin) {
         await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`).catch(() => {});
       }
-      if (tenantId) {
+      if (tenantId && registry) {
         await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]).catch(() => {});
       }
       if ((err as { code?: string }).code === '23505') {
@@ -176,8 +210,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       throw new HttpError(500, 'business_provisioning_failed');
     } finally {
       if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-      await databaseAdmin.end().catch(() => {});
-      await registry.end().catch(() => {});
+      if (databaseAdmin) await databaseAdmin.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
     }
   });
 };
