@@ -12,10 +12,17 @@ export default function GalleryPanel({ token }: { token: string }) {
   const [items, setItems] = useState<MGalleryImage[] | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [heroId, setHeroId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try { setItems(await mcall<MGalleryImage[]>(token, 'gallery')); }
-    catch { setMsg('לא הצלחנו לטעון את הגלריה.'); }
+    try {
+      const [images, biz] = await Promise.all([
+        mcall<MGalleryImage[]>(token, 'gallery'),
+        mcall<any>(token, 'business'),
+      ]);
+      setItems(images);
+      setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
+    } catch { setMsg('לא הצלחנו לטעון את הגלריה.'); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
 
@@ -63,6 +70,15 @@ export default function GalleryPanel({ token }: { token: string }) {
     } catch { setMsg('המחיקה נכשלה.'); }
   }
 
+  async function setHero(img: MGalleryImage) {
+    try {
+      const biz = await mcall<any>(token, 'business');
+      await mcall<any>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
+      setHeroId(img.id);
+      setMsg('התמונה הראשית נשמרה.');
+    } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
+  }
+
   async function saveAlt(img: MGalleryImage, value: string) {
     const v = value.trim();
     if (v === (img.alt_text ?? '')) return;
@@ -81,7 +97,7 @@ export default function GalleryPanel({ token }: { token: string }) {
           <input type="file" accept={ACCEPT} multiple className="sr-only" disabled={remaining <= 0 || !!progress} onChange={onFiles} />
         </label>
       </div>
-      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות, כל אחת עד 10MB. אם אין תמונות, הגלריה לא מוצגת באתר.</p>
+      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות, כל אחת עד 10MB. בחרו תמונה ראשית; עד 7 תמונות נוספות יוצגו בגלריה באתר.</p>
 
       {progress && <p role="status" className="mt-3 text-sm text-gray-600">{progress}</p>}
       {msg && <p role="alert" className="mt-3 whitespace-pre-line rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}
@@ -102,7 +118,8 @@ export default function GalleryPanel({ token }: { token: string }) {
                   className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
               </label>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm text-gray-500">#{i + 1}</span>
+                <span className="text-sm text-gray-500">#{i + 1}{heroId === img.id ? " · תמונה ראשית" : ""}</span>
+                <button type="button" className={btn} onClick={() => setHero(img)} disabled={heroId === img.id}>הגדרה כתמונה ראשית</button>
                 <button type="button" className={btn} onClick={() => move(i, -1)} disabled={i === 0}>הקדם</button>
                 <button type="button" className={btn} onClick={() => move(i, 1)} disabled={i === items.length - 1}>אחר</button>
                 <button type="button" className={`${btn} text-red-700`} onClick={() => remove(img)}>מחיקה</button>

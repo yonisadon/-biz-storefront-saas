@@ -42,12 +42,13 @@ async function buildPublicPayload(db: pg.PoolClient) {
   }));
 
   const galleryRows = (await db.query(
-    `SELECT pi.position, pi.alt_text, pi.caption, m.storage_key, m.width, m.height
+    `SELECT pi.id, pi.position, pi.alt_text, pi.caption, m.storage_key, m.width, m.height
        FROM portfolio_images pi
        JOIN media_assets m ON m.tenant_id = pi.tenant_id AND m.id = pi.asset_id
       ORDER BY pi.position`,
   )).rows;
   const gallery = galleryRows.map((r) => ({
+    id: r.id,
     url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key),
     alt: r.alt_text, caption: r.caption, width: r.width, height: r.height,
   }));
@@ -58,7 +59,9 @@ async function buildPublicPayload(db: pg.PoolClient) {
     const r = await db.query('SELECT storage_key FROM media_assets WHERE id = $1', [cfg.seo.og_image_asset_id]);
     ogKey = r.rows[0]?.storage_key ?? null;
   }
-  ogKey ??= galleryRows[0]?.storage_key ?? null;
+  const selectedHeroId = cfg.branding?.hero_gallery_image_id;
+  const selectedHero = selectedHeroId ? galleryRows.find((r) => r.id === selectedHeroId) : null;
+  ogKey = selectedHero?.storage_key ?? ogKey ?? galleryRows[0]?.storage_key ?? null;
 
   const openNow = isOpenNow(hours, biz.timezone);
   return {
@@ -69,6 +72,8 @@ async function buildPublicPayload(db: pg.PoolClient) {
     },
     about: biz.about_text,                       // null => component hidden
     branding: cfg.branding ?? {},
+    social_links: cfg.social_links ?? {},
+    business_profile: cfg.business_profile ?? {},
     order_flow: {
       whatsapp_enabled: flow.whatsapp_enabled === true,
       site_inquiry_enabled: flow.site_inquiry_enabled === true,

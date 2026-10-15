@@ -20,6 +20,8 @@
     "branding": {
       "type": "object",
       "properties": {
+        "hero_gallery_image_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}$" },
+        "icon_gallery_image_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}$" },
         "colors": {
           "type": "object",
           "properties": {
@@ -34,6 +36,23 @@
         }
       },
       "required": ["colors"],
+      "additionalProperties": false
+    },
+    "social_links": {
+      "type": "object",
+      "properties": {
+        "instagram": { "type": "string", "maxLength": 500 },
+        "facebook": { "type": "string", "maxLength": 500 }
+      },
+      "additionalProperties": false
+    },
+    "business_profile": {
+      "type": "object",
+      "properties": {
+        "city": { "type": "string", "maxLength": 120 },
+        "street_address": { "type": "string", "maxLength": 250 },
+        "show_address": { "type": "boolean" }
+      },
       "additionalProperties": false
     }
   },

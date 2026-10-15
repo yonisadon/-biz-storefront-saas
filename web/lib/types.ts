@@ -12,7 +12,7 @@ export type Product = {
   image: { url: string; width: number | null; height: number | null } | null;
 };
 export type GalleryImage = {
-  url: string; alt: string | null; caption: string | null;
+  id: string; url: string; alt: string | null; caption: string | null;
   width: number | null; height: number | null;
 };
 export type PublicPayload = {
@@ -21,7 +21,9 @@ export type PublicPayload = {
     email: string | null; locale: string; timezone: string;
   };
   about: string | null;
-  branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>> };
+  branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>>; hero_gallery_image_id?: string; icon_gallery_image_id?: string };
+  social_links?: { instagram?: string; facebook?: string };
+  business_profile?: { city?: string; street_address?: string; show_address?: boolean };
   order_flow: OrderFlow;
   opening_hours: {
     days: Record<string, DayHours> | null;
