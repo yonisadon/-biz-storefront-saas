@@ -11,7 +11,7 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
   if (!data) notFound();
 
   const startUrl = ctx.base || '/';
-  const scope = ctx.base ? `${ctx.base}/` : '/';
+  const scope = ctx.base || '/';
   const iconImage = data.gallery.find((image) => image.id === data.branding?.icon_gallery_image_id)
     ?? data.gallery.find((image) => image.id === data.branding?.hero_gallery_image_id)
     ?? data.gallery[0];
