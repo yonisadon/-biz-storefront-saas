@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { fmtDate, ils, toLocalPhone, waLink } from '@/lib/format';
 import { LEAD_STATUSES, STATUS_LABEL } from '@/lib/labels';
 import { mcall } from '@/lib/manageApi';
-import type { LeadStatus, LeadsResponse } from '@/lib/types';
+import type { Lead, LeadStatus, LeadsResponse } from '@/lib/types';
+import LeadNotes from './LeadNotes';
 
 const PAGE = 25;
 
@@ -13,6 +14,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
   const [filter, setFilter] = useState<LeadStatus | ''>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   async function load(status: LeadStatus | '', offset: number) {
     setLoading(true); setError(null);
@@ -24,6 +26,42 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       setError('לא הצלחנו לטעון את הפניות.');
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function exportExcel() {
+    setExporting(true); setError(null);
+    try {
+      const all: Lead[] = [];
+      let offset = 0;
+      let total = 0;
+      do {
+        const qs = new URLSearchParams({ limit: '100', offset: String(offset) });
+        if (filter) qs.set('status', filter);
+        const page = await mcall<LeadsResponse>(token, `leads?${qs}`);
+        all.push(...page.leads);
+        total = page.total;
+        offset += page.leads.length;
+        if (!page.leads.length) break;
+      } while (offset < total);
+      const csvCell = (value: unknown) => '"' + String(value ?? '').replace(/"/g, '""') + '"';
+      const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)'];
+      const rows = all.map((l) => [
+        fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
+        l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', STATUS_LABEL[l.status], l.message,
+        l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
+        l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
+      ]);
+      const csv = '\\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\\r\\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'פניות-לקוחות.csv'; a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('ייצוא הפניות נכשל. נסו שוב.');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -52,6 +90,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
           </select>
         </label>
         <span className="text-sm text-gray-500">{data.total} פניות</span>
+        <button type="button" onClick={exportExcel} disabled={exporting || loading} className="min-h-9 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 disabled:opacity-50">{exporting ? "מייצא…" : "ייצוא לאקסל (CSV)"}</button>
         {loading && <span className="text-sm text-gray-500">טוען…</span>}
       </div>
 
@@ -80,6 +119,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               {l.items.length ? <ul className="mt-1 space-y-1 text-sm text-gray-800">{l.items.map((i, k) => <li key={k}>{i.name} <span className="text-gray-500">× {i.quantity}</span></li>)}</ul> : <p className="mt-1 text-sm text-gray-500">לא נבחרו פריטים</p>}
               <div className="mt-3 flex items-center justify-between gap-3"><span className="text-sm text-gray-500">סכום משוער</span><span className="font-bold text-gray-900">{l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '—') : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}</span></div>
             </div>
+            <LeadNotes token={token} leadId={l.id} />
             <label className="mt-4 block text-sm font-semibold text-gray-700">סטטוס טיפול
               <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name || 'פנייה ב־WhatsApp'}`} onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
                 {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
