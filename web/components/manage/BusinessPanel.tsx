@@ -39,6 +39,11 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     whatsapp: toLocalPhone(biz.whatsapp_number),
     email: biz.email ?? '',
     about: biz.about_text ?? '',
+    instagram: biz.config.social_links?.instagram ?? '',
+    facebook: biz.config.social_links?.facebook ?? '',
+    city: biz.config.business_profile?.city ?? '',
+    streetAddress: biz.config.business_profile?.street_address ?? '',
+    showAddress: biz.config.business_profile?.show_address === true,
     wa: flow.whatsapp_enabled === true,
     site: flow.site_inquiry_enabled === true,
     whatsappIntro: initialWhatsAppIntro(flow),
@@ -66,7 +71,13 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           about_text: f.about.trim() || null,
           config: {
             order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() },
-            branding: { colors: BRAND_PALETTES[palette].colors },
+            branding: { ...(biz.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors },
+            social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
+            business_profile: {
+              city: f.city.trim(),
+              street_address: f.streetAddress.trim(),
+              show_address: f.showAddress,
+            },
           },
         }),
       });
@@ -98,6 +109,26 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         <label className="block text-sm font-medium">דוא״ל
           <input className={input} dir="ltr" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
         </label>
+        <label className="block text-sm font-medium">קישור Instagram (לא חובה)
+          <input className={input} dir="ltr" type="url" placeholder="https://www.instagram.com/your-business" value={f.instagram} onChange={(e) => set('instagram', e.target.value)} />
+        </label>
+        <label className="block text-sm font-medium">קישור Facebook (לא חובה)
+          <input className={input} dir="ltr" type="url" placeholder="https://www.facebook.com/your-business" value={f.facebook} onChange={(e) => set('facebook', e.target.value)} />
+        </label>
+        <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">כתובת העסק</legend>
+          <label className="block text-sm font-medium">עיר
+            <input className={input} maxLength={120} value={f.city} onChange={(e) => set('city', e.target.value)} />
+          </label>
+          <label className="block text-sm font-medium">רחוב ומספר בית
+            <input className={input} maxLength={250} value={f.streetAddress} onChange={(e) => set('streetAddress', e.target.value)} />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={f.showAddress} onChange={(e) => set('showAddress', e.target.checked)} />
+            הצגת הכתובת באתר הלקוחות
+          </label>
+          <p className="text-xs text-gray-500">הכתובת נשמרת גם כשהיא מוסתרת מהלקוחות.</p>
+        </fieldset>
         <label className="block text-sm font-medium">תיאור העסק (לא חובה)
           <textarea className={input} rows={4} maxLength={5000} placeholder="כמה מילים על העסק, השירותים או מה שמייחד אתכם" value={f.about} onChange={(e) => set('about', e.target.value)} />
           <span className="mt-1 block text-xs font-normal text-gray-500">יופיע מתחת לשם העסק באתר, רק אם מילאתם אותו.</span>
