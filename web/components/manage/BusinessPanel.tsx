@@ -49,6 +49,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     whatsappIntro: initialWhatsAppIntro(flow),
   });
   const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
+  const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
@@ -57,7 +58,8 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     e.preventDefault(); setMsg(null);
     if (!f.name.trim()) return setMsg({ ok: false, text: 'שם העסק הוא שדה חובה.' });
     if (f.wa && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'כדי להפעיל מסלול וואטסאפ יש להזין מספר וואטסאפ.' });
-    if (!f.wa && !f.site) return setMsg({ ok: false, text: 'חייב להישאר לפחות מסלול הזמנה אחד פעיל.' });
+    if (siteMode === 'services_whatsapp' && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'במצב שירותים בלבד יש להזין מספר WhatsApp.' });
+    if (siteMode === 'catalog_order' && !f.wa && !f.site) return setMsg({ ok: false, text: 'חייב להישאר לפחות מסלול הזמנה אחד פעיל.' });
 
     setSaving(true);
     try {
@@ -73,7 +75,8 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
           config: {
-            order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() },
+            site_mode: siteMode,
+            order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site, whatsapp_intro: f.whatsappIntro.trim() },
             branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
@@ -100,6 +103,11 @@ export default function BusinessPanel({ token, biz, onSaved }: {
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
         <PalettePicker value={palette} onChange={setPalette} />
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">סוג האתר</legend>
+          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'services_whatsapp'} onChange={() => setSiteMode('services_whatsapp')} /><span><strong>הצגת שירותים ופנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">בלי סל, טופס הזמנה או בחירת תור באתר. כל שירות יפנה לשיחה ב-WhatsApp.</span></span></label>
+        </fieldset>
         <label className="block text-sm font-medium">שם העסק
           <input className={input} value={f.name} onChange={(e) => set('name', e.target.value)} />
         </label>
@@ -137,7 +145,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <span className="mt-1 block text-xs font-normal text-gray-500">יופיע מתחת לשם העסק באתר, רק אם מילאתם אותו.</span>
         </label>
 
-        {f.wa && (
+        {(f.wa || siteMode === 'services_whatsapp') && (
           <label className="block text-sm font-medium">נוסח הודעת WhatsApp (משמש גם לפנייה כללית וגם להזמנה)
             <textarea className={input} rows={2} maxLength={1000} value={f.whatsappIntro}
               onChange={(e) => set('whatsappIntro', e.target.value)} />
@@ -145,7 +153,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           </label>
         )}
 
-        <fieldset className="space-y-2 pt-1">
+        {siteMode === 'catalog_order' && <fieldset className="space-y-2 pt-1">
           <legend className="text-sm font-medium">מסלולי הזמנה באתר</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={f.wa} onChange={(e) => set('wa', e.target.checked)} /> שלח הזמנה בוואטסאפ
@@ -153,7 +161,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={f.site} onChange={(e) => set('site', e.target.checked)} /> השאר פנייה באתר
           </label>
-        </fieldset>
+        </fieldset>}
 
         {msg && (
           <p role={msg.ok ? 'status' : 'alert'}
