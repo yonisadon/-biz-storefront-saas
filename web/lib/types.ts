@@ -1,5 +1,5 @@
 export type LeadStatus =  | 'whatsapp_initiated' | 'pending_approval' | 'approved'  | 'rejected' | 'completed' | 'cancelled';
-export type OrderFlow = { whatsapp_enabled: boolean; site_inquiry_enabled: boolean };
+export type OrderFlow = { whatsapp_enabled: boolean; site_inquiry_enabled: boolean; whatsapp_intro?: string };
 export type DayHours = 'closed' | { open: string; close: string }[];
 export type Product = {
   id: string;
