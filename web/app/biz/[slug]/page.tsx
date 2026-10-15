@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
+import PwaInstallButton from '@/components/PwaInstallButton';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
@@ -89,6 +90,9 @@ export default async function StorefrontPage({ params }: Props) {
         <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
         {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
       </header>
+      <div className="mb-5 flex justify-center">
+        <PwaInstallButton label="התקנת אתר העסק" />
+      </div>
       {serviceMode && services.length > 0 && <section aria-labelledby="services-heading" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">
           <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">השירותים שלנו</h2>
