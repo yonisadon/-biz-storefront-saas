@@ -55,7 +55,9 @@ export type ManageBusiness = {
   name: string; slug: string; status: string;
   phone: string | null; whatsapp_number: string | null; email: string | null;
   about_text: string | null; locale: string; timezone: string;
-  // Business config is server-validated JSON with feature-specific sections.\n  // eslint-disable-next-line @typescript-eslint/no-explicit-any\n  config: Record<string, any>;
+  // Business config is server-validated JSON with feature-specific sections.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config: Record<string, any>;
   domains: { domain: string; is_verified: boolean; is_primary: boolean }[];
 };
 // הוסף את השורות האלו בסוף הקובץ:
