@@ -5,13 +5,31 @@ import Dashboard from '@/components/manage/Dashboard';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = {
-  title: 'ניהול העסק',
-  robots: { index: false, follow: false },
-  referrer: 'no-referrer',
-};
+export const dynamic = 'force-dynamic';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
+
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  if (!TOKEN_RE.test(token)) return { title: 'ניהול העסק', robots: { index: false, follow: false } };
+
+  let businessName = 'העסק';
+  try {
+    const response = await fetch(`${process.env.API_URL}/api/manage/${token}/business`, { cache: 'no-store' });
+    if (response.ok) {
+      const biz = await response.json() as ManageBusiness;
+      businessName = biz.name || businessName;
+    }
+  } catch { /* Keep a safe generic title if the API is temporarily unavailable. */ }
+
+  return {
+    title: `ניהול ${businessName}`,
+    applicationName: `ניהול ${businessName}`,
+    manifest: `/manage/${token}/manifest.webmanifest`,
+    robots: { index: false, follow: false },
+    referrer: 'no-referrer',
+  };
+}
 
 export default async function ManagePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
