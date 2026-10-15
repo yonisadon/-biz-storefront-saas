@@ -11,6 +11,21 @@ import { themeVars } from '@/lib/theme';
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
 
+function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return undefined;
+    const host = url.hostname.toLowerCase();
+    const allowed = network === 'instagram'
+      ? ['instagram.com', 'www.instagram.com']
+      : ['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.com', 'www.fb.com'];
+    return allowed.includes(host) ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const ctx = await getCtx(resolvedParams.slug);
