@@ -40,7 +40,7 @@ export default function LegalPanel({ token, biz, onSaved }: {
         method: 'PATCH',
         body: JSON.stringify({ config: { legal } }),
       });
-      onSaved({ ...latest, ...saved, config: { ...latest.config, ...(saved as any).config, legal } });
+      onSaved({ ...latest, ...saved, config: { ...latest.config, ...(saved.config ?? {}), legal } });
       setMessage('מסמכי האתר נשמרו.');
     } catch {
       setMessage('שמירת המסמכים נכשלה. בדקו את החיבור ונסו שוב.');
