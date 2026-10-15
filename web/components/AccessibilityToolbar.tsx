@@ -13,7 +13,7 @@ function apply(p: Prefs) {
   c.toggle('a11y-links', p.links);
 }
 
-export default function AccessibilityToolbar({ statementHref }: { statementHref: string }) {
+export default function AccessibilityToolbar({ statementHref }: { statementHref?: string }) {
   const [open, setOpen] = useState(false);
   const [p, setP] = useState<Prefs>(OFF);
 
@@ -49,7 +49,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref:
           {row('contrast', 'ניגודיות גבוהה')}
           {row('links', 'הדגשת קישורים')}
           <button type="button" onClick={() => update(OFF)} className="w-full rounded-lg border border-ink/25 px-3 py-2 text-start text-sm">איפוס</button>
-          <a href={statementHref} className="block px-1 pt-1 text-sm underline">הצהרת נגישות</a>
+          {statementHref && <a href={statementHref} className="block px-1 pt-1 text-sm underline">הצהרת נגישות</a>}
         </div>
       )}
     </div>
