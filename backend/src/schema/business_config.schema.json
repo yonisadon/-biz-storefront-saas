@@ -4,6 +4,7 @@
     "version": {
       "type": "number"
     },
+    "site_mode": { "type": "string", "enum": ["catalog_order", "services_whatsapp"] },
     "order_flow": {
       "type": "object",
       "properties": {
