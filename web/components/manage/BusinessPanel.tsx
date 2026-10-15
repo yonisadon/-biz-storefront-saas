@@ -7,7 +7,7 @@ import { BRAND_PALETTES, paletteIdForColors, type PaletteId } from '@/lib/palett
 import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
-function initialWhatsAppIntro(flow: Record<string, any>): string {
+function initialWhatsAppIntro(flow: Record<string, unknown>): string {
   if (typeof flow.whatsapp_intro === 'string') return flow.whatsapp_intro;
   // Migrate old configurations by preserving only the opening before the item placeholder.
   const legacy = typeof flow.whatsapp_message_template === 'string' ? flow.whatsapp_message_template : '';
@@ -20,7 +20,7 @@ function initialWhatsAppIntro(flow: Record<string, any>): string {
 
 function saveError(err: unknown): string {
   if (err instanceof ApiError) {
-    const msgs: string[] = (err.body?.issues ?? []).map((i: any) => i.message);
+    const msgs: string[] = (err.body?.issues ?? []).map((i) => i.message);
     if (msgs.includes('invalid_il_phone')) return 'מספר טלפון אינו תקין.';
     if (err.body?.error === 'constraint_violation')
       return 'לא ניתן להפעיל וואטסאפ בלי מספר וואטסאפ, ולפחות מסלול הזמנה אחד חייב להישאר פעיל.';
