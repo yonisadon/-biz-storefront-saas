@@ -99,8 +99,8 @@ export default async function StorefrontPage({ params }: Props) {
           </div>}
         </div>
       </section>}
-      {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={`${ctx.base}/legal`}>מידע משפטי ונגישות</a></footer>}
+      {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}>מידע משפטי ונגישות</a></footer>}
     </main>
-    {Boolean(legalDocs[2]?.custom_text?.trim()) && <AccessibilityToolbar statementHref={`${ctx.base}/legal#accessibility_statement`} />}
+    {Boolean(legalDocs[2]?.custom_text?.trim()) && <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />}
   </div>;
 }
