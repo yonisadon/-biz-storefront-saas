@@ -17,10 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function LegalPage({ params }: Props) {
   const { slug } = await params;
   const ctx = await getCtx(slug);
-  const [biz, ...documents] = await Promise.all([
+  const [biz, terms, privacy, accessibility] = await Promise.all([
     getStorefront(ctx),
-    ...LEGAL_DOCS.map((doc) => getLegal(ctx, doc)),
+    getLegal(ctx, 'terms_of_use'),
+    getLegal(ctx, 'privacy_policy'),
+    getLegal(ctx, 'accessibility_statement'),
   ]);
+  const documents = [terms, privacy, accessibility];
   if (!biz) notFound();
 
   const entries = LEGAL_DOCS.map((doc, i) => ({
