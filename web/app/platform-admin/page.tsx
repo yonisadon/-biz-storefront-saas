@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import PalettePicker from '@/components/PalettePicker';
+import { BRAND_PALETTES, type PaletteId } from '@/lib/palettes';
 
 type CreatedBusiness = {
   id: string;
@@ -20,6 +22,7 @@ export default function PlatformAdminPage() {
   const [phone, setPhone] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [palette, setPalette] = useState<PaletteId>('natural');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<CreatedBusiness | null>(null);
@@ -42,6 +45,7 @@ export default function PlatformAdminPage() {
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
+          branding: { colors: BRAND_PALETTES[palette].colors },
         }),
         cache: 'no-store',
       });
@@ -63,6 +67,7 @@ export default function PlatformAdminPage() {
       setPhone('');
       setWhatsappNumber('');
       setEmail('');
+      setPalette('natural');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה לא צפויה.');
     } finally {
@@ -109,6 +114,8 @@ export default function PlatformAdminPage() {
               <span className="text-xs text-slate-500">/biz/</span>
             </div>
           </div>
+
+          <PalettePicker value={palette} onChange={setPalette} />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>

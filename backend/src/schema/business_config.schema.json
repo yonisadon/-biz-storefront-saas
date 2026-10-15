@@ -16,6 +16,25 @@
     },
     "opening_hours": {
       "type": "object"
+    },
+    "branding": {
+      "type": "object",
+      "properties": {
+        "colors": {
+          "type": "object",
+          "properties": {
+            "primary": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+            "secondary": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+            "accent": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+            "background": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
+            "text": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" }
+          },
+          "required": ["primary", "secondary", "accent", "background", "text"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["colors"],
+      "additionalProperties": false
     }
   },
   "required": ["version", "order_flow"]
