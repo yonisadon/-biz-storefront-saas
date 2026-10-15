@@ -57,7 +57,7 @@ export default async function StorefrontPage({ params }: Props) {
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}` : undefined;
+  const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
