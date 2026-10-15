@@ -1,5 +1,7 @@
+export type ApiErrorBody = { error?: string; issues?: { message: string }[]; [key: string]: unknown };
+
 export class ApiError extends Error {
-  constructor(public status: number, public body: any) {
+  constructor(public status: number, public body: ApiErrorBody | null) {
     super(body?.error ?? 'error');
   }
 }
@@ -32,7 +34,7 @@ export function uploadErrorText(err: unknown): string {
         ? 'קבצים מונפשים אינם נתמכים.' : 'סוג הקובץ אינו נתמך. אפשר להעלות JPG, PNG או WebP.';
       case 422: return 'לא הצלחנו לקרוא את התמונה. נסו קובץ אחר.';
       case 409: return err.body?.error === 'gallery_full'
-        ? 'הגלריה מלאה (עד 10 תמונות).' : 'הפעולה התנגשה בשינוי אחר, נסו שוב.';
+        ? 'הגלריה מלאה (עד 7 תמונות).' : 'הפעולה התנגשה בשינוי אחר, נסו שוב.';
       case 404: return 'הפריט לא נמצא.';
       case 429: return 'יותר מדי העלאות. נסו שוב בעוד דקה.';
     }

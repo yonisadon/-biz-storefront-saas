@@ -23,6 +23,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const biz = await loadBusiness(db);
   const cfg = biz.config ?? {};
   const flow = cfg.order_flow ?? {};
+  const siteMode = cfg.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
   const products = (await db.query(
@@ -74,11 +75,12 @@ async function buildPublicPayload(db: pg.PoolClient) {
     branding: cfg.branding ?? {},
     social_links: cfg.social_links ?? {},
     business_profile: cfg.business_profile ?? {},
+    site_mode: siteMode,
     order_flow: {
       whatsapp_enabled: flow.whatsapp_enabled === true,
       site_inquiry_enabled: flow.site_inquiry_enabled === true,
       // The same seller-defined opening is used for general contact and order messages.
-      whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || DEFAULT_WA_INTRO,
+      whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || (siteMode === 'services_whatsapp' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO),
     },
     opening_hours: {
       days: hours.days ?? null,

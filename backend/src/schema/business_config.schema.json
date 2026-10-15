@@ -4,6 +4,7 @@
     "version": {
       "type": "number"
     },
+    "site_mode": { "type": "string", "enum": ["catalog_order", "services_whatsapp"] },
     "order_flow": {
       "type": "object",
       "properties": {
@@ -43,6 +44,15 @@
       "properties": {
         "instagram": { "type": "string", "maxLength": 500 },
         "facebook": { "type": "string", "maxLength": 500 }
+      },
+      "additionalProperties": false
+    },
+    "legal": {
+      "type": "object",
+      "properties": {
+        "terms_of_use": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
+        "privacy_policy": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
+        "accessibility_statement": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false }
       },
       "additionalProperties": false
     },

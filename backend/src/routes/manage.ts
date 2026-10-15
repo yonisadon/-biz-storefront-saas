@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
-import { BusinessPatch, LeadListQuery, LeadStatusPatch } from '../schemas';
+import { BusinessPatch, LeadListQuery, LeadNoteInput, LeadStatusPatch } from '../schemas';
 import { resolveByToken } from '../tenant';
 import { catalogRoutes } from './catalog'; // <-- 1. הוספת האימפורט הזה
 
@@ -101,6 +101,35 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         leads: rows.map(({ total: _t, ...lead }) => lead),
       };
     });
+  });
+
+  app.get('/leads/:id/notes', async (req) => {
+    const id = (req.params as { id: string }).id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'not_found');
+    return withTenant(req.tenantId, async (db) => {
+      const exists = await db.query('SELECT 1 FROM leads WHERE id = $1', [id]);
+      if (!exists.rowCount) throw new HttpError(404, 'not_found');
+      return (await db.query(
+        'SELECT id, body, created_at, updated_at FROM lead_notes WHERE lead_id = $1 ORDER BY created_at DESC, id DESC',
+        [id],
+      )).rows;
+    });
+  });
+
+  app.post('/leads/:id/notes', async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'not_found');
+    const { body } = LeadNoteInput.parse(req.body);
+    const note = await withTenant(req.tenantId, async (db) => {
+      const exists = await db.query('SELECT 1 FROM leads WHERE id = $1', [id]);
+      if (!exists.rowCount) throw new HttpError(404, 'not_found');
+      const result = await db.query(
+        'INSERT INTO lead_notes (tenant_id, lead_id, body) VALUES (app.current_tenant_id(), $1, $2) RETURNING id, body, created_at, updated_at',
+        [id, body],
+      );
+      return result.rows[0];
+    });
+    return reply.code(201).send(note);
   });
 
   app.patch('/leads/:id', async (req) => {

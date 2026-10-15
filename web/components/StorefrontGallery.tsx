@@ -6,7 +6,7 @@ import type { GalleryImage } from '@/lib/types';
 
 export default function StorefrontGallery({ images, heroId }: { images: GalleryImage[]; heroId?: string }) {
   const hero = images.find((image) => image.id === heroId) ?? images[0];
-  const extras = images.filter((image) => image.id !== hero?.id).slice(0, 7);
+  const extras = images.filter((image) => image.id !== hero?.id).slice(0, 6);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
 

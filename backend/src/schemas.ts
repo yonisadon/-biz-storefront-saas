@@ -50,6 +50,8 @@ export const LeadListQuery = z.object({
 
 export const LeadStatusPatch = z.object({ status: z.enum(LEAD_STATUSES) }).strict();
 
+export const LeadNoteInput = z.object({ body: z.string().trim().min(1).max(2000) }).strict();
+
 export const BusinessPatch = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   phone: phoneOrNull.optional(),

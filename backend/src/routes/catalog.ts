@@ -9,7 +9,7 @@ import { GalleryPatch, OrderBody, ProductCreate, ProductPatch } from '../catalog
 import { mainKey, ogKey, storage, variantKeys } from '../storage';
 
 const MAX_PRODUCTS = 200;
-const MAX_GALLERY = 10;
+const MAX_GALLERY = 7;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const idParam = (req: FastifyRequest) => {
@@ -200,7 +200,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
-  // ================= Gallery (max 10) =================
+  // ================= Gallery (max 7) =================
   app.get('/gallery', async (req) =>
     withTenant(req.tenantId, async (db) =>
       (await db.query(`${GALLERY_SELECT} ORDER BY g.position`)).rows.map(shapeGallery)));

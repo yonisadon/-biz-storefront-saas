@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
-import type { MGalleryImage } from '@/lib/types';
+import type { MGalleryImage, ManageBusiness } from '@/lib/types';
 
-const MAX = 10;
+const MAX = 7;
 const btn = 'rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300 disabled:opacity-40';
 
 export default function GalleryPanel({ token }: { token: string }) {
@@ -18,7 +18,7 @@ export default function GalleryPanel({ token }: { token: string }) {
     try {
       const [images, biz] = await Promise.all([
         mcall<MGalleryImage[]>(token, 'gallery'),
-        mcall<any>(token, 'business'),
+        mcall<ManageBusiness>(token, 'business'),
       ]);
       setItems(images);
       setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
@@ -72,8 +72,8 @@ export default function GalleryPanel({ token }: { token: string }) {
 
   async function setHero(img: MGalleryImage) {
     try {
-      const biz = await mcall<any>(token, 'business');
-      await mcall<any>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
+      const biz = await mcall<ManageBusiness>(token, 'business');
+      await mcall<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
       setHeroId(img.id);
       setMsg('התמונה הראשית נשמרה.');
     } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
@@ -97,7 +97,7 @@ export default function GalleryPanel({ token }: { token: string }) {
           <input type="file" accept={ACCEPT} multiple className="sr-only" disabled={remaining <= 0 || !!progress} onChange={onFiles} />
         </label>
       </div>
-      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות, כל אחת עד 10MB. בחרו תמונה ראשית; עד 7 תמונות נוספות יוצגו בגלריה באתר.</p>
+      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות בסך הכול, כל אחת עד 10MB. בחרו תמונה ראשית לראש דף העסק.</p>
 
       {progress && <p role="status" className="mt-3 text-sm text-gray-600">{progress}</p>}
       {msg && <p role="alert" className="mt-3 whitespace-pre-line rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}

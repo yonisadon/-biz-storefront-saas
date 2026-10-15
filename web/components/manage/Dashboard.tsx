@@ -7,11 +7,12 @@ import BusinessPanel from './BusinessPanel';
 import GalleryPanel from './GalleryPanel';
 import HoursPanel from './HoursPanel';
 import LeadsPanel from './LeadsPanel';
+import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
 
-type Tab = 'leads' | 'products' | 'gallery' | 'hours' | 'business';
+type Tab = 'leads' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'],
+  ['leads', 'פניות'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads }: {
@@ -53,6 +54,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
           {tab === 'gallery' && <GalleryPanel token={token} />}
           {tab === 'hours' && <HoursPanel token={token} biz={biz} onSaved={setBiz} />}
           {tab === 'business' && <BusinessPanel token={token} biz={biz} onSaved={setBiz} />}
+          {tab === 'legal' && <LegalPanel token={token} biz={biz} onSaved={setBiz} />}
         </div>
       </div>
     </div>

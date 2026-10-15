@@ -1,15 +1,20 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
-import { getCtx, getStorefront } from '@/lib/api';
-import { toLocalPhone } from '@/lib/format';
+import { getCtx, getLegal, getStorefront } from '@/lib/api';
+import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
 
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
+
+function serviceWhatsAppHref(number: string, intro: string, serviceName: string): string {
+  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(intro + String.fromCharCode(10, 10) + 'שירות: ' + serviceName);
+}
 
 function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
   if (!value) return undefined;
@@ -39,6 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try { if (ctx.origin) metadataBase = new URL(ctx.origin); } catch { /* invalid origin */ }
   return {
     metadataBase, title: og?.title || business?.name || 'עסק', description,
+    manifest: ctx.base ? `${ctx.base}/manifest.webmanifest` : '/biz/_site/manifest.webmanifest',
     icons: images ? { icon: images[0].url, apple: images[0].url } : undefined,
     alternates: { canonical: ctx.base || '/' },
     openGraph: { type: 'website', locale: 'he_IL', siteName: business?.name, title: og?.title || business?.name, description, url: ctx.base || '/', images },
@@ -49,15 +55,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StorefrontPage({ params }: Props) {
   const resolvedParams = await params;
   const ctx = await getCtx(resolvedParams.slug);
-  const data = await getStorefront(ctx);
+  const [data, legalDocs] = await Promise.all([
+    getStorefront(ctx),
+    Promise.all([getLegal(ctx, 'terms_of_use'), getLegal(ctx, 'privacy_policy'), getLegal(ctx, 'accessibility_statement')]),
+  ]);
   if (!data) notFound();
   const { business: b, opening_hours: oh } = data;
   const social = data.social_links ?? {};
   const profile = data.business_profile ?? {};
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
-  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
+  const serviceMode = data.site_mode === 'services_whatsapp';
+  const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
+  const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
+  const hasContact = Boolean(b?.phone || b?.email || (!serviceMode && b?.whatsapp_number) || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
+  const whatsappHref = !serviceMode && waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
@@ -72,7 +84,26 @@ export default async function StorefrontPage({ params }: Props) {
         <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
         {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
       </header>
-      {data.catalog?.items?.length ? <section className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
+      {serviceMode && services.length > 0 && <section aria-labelledby="services-heading" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
+        <div className="mb-5">
+          <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">השירותים שלנו</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/65">בחרו את השירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
+        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {services.map((service) => <li key={service.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            {service.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={service.image.url} alt={service.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
+            <div className="flex flex-1 flex-col p-4">
+              <h3 className="text-lg font-bold">{service.name}</h3>
+              {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/70">{service.description}</p>}
+              {service.price_agorot !== null && <p className="mt-3 font-bold">{ils(service.price_agorot)}</p>}
+              <div className="mt-auto pt-4">
+                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:', service.name)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+              </div>
+            </div>
+          </li>)}
+        </ul>
+      </section>}
+      {!serviceMode && data.catalog?.items?.length ? <section className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
       {hasBusinessInfo && <section aria-labelledby="business-info-h" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
@@ -96,8 +127,8 @@ export default async function StorefrontPage({ params }: Props) {
           </div>}
         </div>
       </section>}
-      <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי"><a className="transition hover:text-primary" href={`${ctx.base}/legal/terms_of_use`}>תנאי שימוש</a><a className="transition hover:text-primary" href={`${ctx.base}/legal/privacy_policy`}>מדיניות פרטיות</a><a className="transition hover:text-primary" href={`${ctx.base}/legal/accessibility_statement`}>הצהרת נגישות</a></nav></footer>
+      {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}>מידע משפטי ונגישות</a></footer>}
     </main>
-    <AccessibilityToolbar statementHref={`${ctx.base}/legal/accessibility_statement`} />
+    {Boolean(legalDocs[2]?.custom_text?.trim()) && <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />}
   </div>;
 }
