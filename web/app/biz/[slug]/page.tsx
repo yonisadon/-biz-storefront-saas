@@ -12,7 +12,7 @@ import { themeVars } from '@/lib/theme';
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
 
-function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
+function serviceWhatsAppHref(number: string, intro: string, serviceName: string): string {\n  return `https://wa.me/${number}?text=${encodeURIComponent(`${intro}\\n\\nשירות: ${serviceName}`)}`;\n}\n\nfunction safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
