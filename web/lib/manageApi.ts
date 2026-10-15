@@ -1,5 +1,7 @@
+export type ApiErrorBody = { error?: string; issues?: { message: string }[]; [key: string]: unknown };
+
 export class ApiError extends Error {
-  constructor(public status: number, public body: any) {
+  constructor(public status: number, public body: ApiErrorBody | null) {
     super(body?.error ?? 'error');
   }
 }
