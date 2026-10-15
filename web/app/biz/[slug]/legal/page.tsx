@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
-import { LEGAL_DOCS, LEGAL_TITLES, type LegalDoc } from '@/lib/legalDefaults';
+import { LEGAL_DOCS, LEGAL_TITLES } from '@/lib/legalDefaults';
 import { themeVars } from '@/lib/theme';
 
 export const revalidate = 60;
