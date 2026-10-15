@@ -151,7 +151,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
             )}
             {data.leads.map((l) => (
               <tr key={l.id} className="align-top">
-                <td className="px-3 py-2"><input type="checkbox" aria-label="בחירת פנייה לייצוא" checked={selectedIds.has(l.id)} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); e.target.checked ? next.add(l.id) : next.delete(l.id); return next; })} /></td>
+                <td className="px-3 py-2"><input type="checkbox" aria-label="בחירת פנייה לייצוא" checked={selectedIds.has(l.id)} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); if (e.target.checked) next.add(l.id); else next.delete(l.id); return next; })} /></td>
                 <td className="whitespace-nowrap px-3 py-2" suppressHydrationWarning>{fmtDate(l.created_at)}</td>
                 <td className="px-3 py-2">
                   <div className="font-medium">{l.customer_name || (l.submission_channel === 'whatsapp' ? 'המשך ב־WhatsApp' : 'פנייה חדשה')}</div>
