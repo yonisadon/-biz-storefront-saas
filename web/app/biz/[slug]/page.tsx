@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
-import { toLocalPhone } from '@/lib/format';
+import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
 
 export const revalidate = 30;
@@ -58,7 +59,10 @@ export default async function StorefrontPage({ params }: Props) {
   const social = data.social_links ?? {};
   const profile = data.business_profile ?? {};
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
-  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
+  const serviceMode = data.site_mode === 'services_whatsapp';
+  const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
+  const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\\D/g, '').replace(/^0/, '972') : '';
+  const hasContact = Boolean(b?.phone || b?.email || (!serviceMode && b?.whatsapp_number) || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
   const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
@@ -75,7 +79,26 @@ export default async function StorefrontPage({ params }: Props) {
         <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
         {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
       </header>
-      {data.catalog?.items?.length ? <section className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
+      {serviceMode && services.length > 0 && <section aria-labelledby="services-heading" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
+        <div className="mb-5">
+          <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">השירותים שלנו</h2>
+          <p className="mt-2 text-sm leading-6 text-ink/65">בחרו את השירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
+        </div>
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {services.map((service) => <li key={service.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            {service.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={service.image.url} alt={service.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
+            <div className="flex flex-1 flex-col p-4">
+              <h3 className="text-lg font-bold">{service.name}</h3>
+              {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/70">{service.description}</p>}
+              {service.price_agorot !== null && <p className="mt-3 font-bold">{ils(service.price_agorot)}</p>}
+              <div className="mt-auto pt-4">
+                {waNumber && <a href={\`https://wa.me/\${waNumber}?text=\${encodeURIComponent(\`\${data.order_flow.whatsapp_intro}\\n\\nשירות: \${service.name}\`)}\`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+              </div>
+            </div>
+          </li>)}
+        </ul>
+      </section>}
+      {!serviceMode && data.catalog?.items?.length ? <section className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
       {hasBusinessInfo && <section aria-labelledby="business-info-h" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
