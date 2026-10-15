@@ -15,6 +15,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   async function load(status: LeadStatus | '', offset: number) {
     setLoading(true); setError(null);
@@ -45,13 +46,14 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         offset += page.leads.length;
         if (!page.leads.length) break;
       } while (offset < total);
+      const exportRows = selectedIds.size ? all.filter((lead) => selectedIds.has(lead.id)) : all;
       const csvCell = (value: unknown) => {
         let text = String(value ?? '');
         if (['=', '+', '-', '@', '\\t', '\\r'].includes(text[0] ?? '')) text = "'" + text;
         return '"' + text.replace(/"/g, '""') + '"';
       };
       const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)'];
-      const rows = all.map((l) => [
+      const rows = exportRows.map((l) => [
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
         l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', STATUS_LABEL[l.status], l.message,
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
@@ -94,7 +96,8 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
           </select>
         </label>
         <span className="text-sm text-gray-500">{data.total} פניות</span>
-        <button type="button" onClick={exportExcel} disabled={exporting || loading} className="min-h-9 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 disabled:opacity-50">{exporting ? "מייצא…" : "ייצוא לאקסל (CSV)"}</button>
+        <button type="button" onClick={exportExcel} disabled={exporting || loading} className="min-h-9 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-800 disabled:opacity-50">{exporting ? "מייצא…" : selectedIds.size ? `ייצוא ${selectedIds.size} נבחרות` : "ייצוא כל הפניות המסוננות"}</button>
+        {data.leads.length > 0 && <label className="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" checked={data.leads.every((l) => selectedIds.has(l.id))} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); data.leads.forEach((l) => e.target.checked ? next.add(l.id) : next.delete(l.id)); return next; })} />בחירת כל הפניות בעמוד</label>}
         {loading && <span className="text-sm text-gray-500">טוען…</span>}
       </div>
 
@@ -104,6 +107,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         {data.leads.length === 0 && <li className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500">אין פניות להצגה כרגע.</li>}
         {data.leads.map((l) => (
           <li key={l.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <label className="mb-2 inline-flex items-center gap-2 text-xs text-gray-500"><input type="checkbox" checked={selectedIds.has(l.id)} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); e.target.checked ? next.add(l.id) : next.delete(l.id); return next; })} />בחירת פנייה לייצוא</label>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="break-words font-bold text-gray-900">{l.customer_name || (l.submission_channel === 'whatsapp' ? 'המשך ב־WhatsApp' : 'פנייה חדשה')}</p>
@@ -137,16 +141,17 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-gray-100 text-gray-600">
             <tr>
-              <th className={th}>תאריך</th><th className={th}>לקוח</th><th className={th}>פריטים</th>
+              <th className={th}>בחר</th><th className={th}>תאריך</th><th className={th}>לקוח</th><th className={th}>פריטים</th>
               <th className={th}>סכום משוער</th><th className={th}>ערוץ</th><th className={th}>סטטוס</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.leads.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-8 text-center text-gray-500">אין פניות להצגה.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-500">אין פניות להצגה.</td></tr>
             )}
             {data.leads.map((l) => (
               <tr key={l.id} className="align-top">
+                <td className="px-3 py-2"><input type="checkbox" aria-label="בחירת פנייה לייצוא" checked={selectedIds.has(l.id)} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); e.target.checked ? next.add(l.id) : next.delete(l.id); return next; })} /></td>
                 <td className="whitespace-nowrap px-3 py-2" suppressHydrationWarning>{fmtDate(l.created_at)}</td>
                 <td className="px-3 py-2">
                   <div className="font-medium">{l.customer_name || (l.submission_channel === 'whatsapp' ? 'המשך ב־WhatsApp' : 'פנייה חדשה')}</div>
