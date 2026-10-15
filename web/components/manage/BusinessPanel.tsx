@@ -138,10 +138,10 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         </label>
 
         {f.wa && (
-          <label className="block text-sm font-medium">פתיח להודעת WhatsApp (לא חובה)
+          <label className="block text-sm font-medium">נוסח הודעת WhatsApp (משמש גם לפנייה כללית וגם להזמנה)
             <textarea className={input} rows={2} maxLength={1000} value={f.whatsappIntro}
               onChange={(e) => set('whatsappIntro', e.target.value)} />
-            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">כתבו רק משפט פתיחה. המערכת תצרף אוטומטית את הפריטים, הכמויות, הסכום המשוער והתור אם נבחר. שם וטלפון יופיעו רק אם הוזנו.</span>
+            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">הנוסח הזה משמש גם לפנייה כללית וגם להזמנה. בפנייה כללית יישלח רק הנוסח (ובכרטיס שירות אפשר להוסיף את שם השירות); בהזמנה המערכת תוסיף אוטומטית פריטים, כמויות, סכום משוער ופרטי תור אם נבחרו. שם וטלפון יופיעו רק אם הוזנו.</span>
           </label>
         )}
 
