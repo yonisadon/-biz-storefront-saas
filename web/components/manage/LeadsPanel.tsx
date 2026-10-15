@@ -47,7 +47,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       } while (offset < total);
       const csvCell = (value: unknown) => {
         let text = String(value ?? '');
-        if (/^[=+\\-@\\t\\r]/.test(text)) text = "'" + text;
+        if (['=', '+', '-', '@', '\\t', '\\r'].includes(text[0] ?? '')) text = "'" + text;
         return '"' + text.replace(/"/g, '""') + '"';
       };
       const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)'];
