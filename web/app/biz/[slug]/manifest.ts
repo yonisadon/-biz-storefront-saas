@@ -28,6 +28,10 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
     display: 'standalone',
     background_color: data.branding?.colors?.background || '#ffffff',
     theme_color: data.branding?.colors?.primary || '#17324d',
-    icons: iconUrl ? [{ src: iconUrl, purpose: 'any' }] : [],
+    icons: [
+      ...(iconUrl ? [{ src: iconUrl, purpose: 'any' as const }] : []),
+      { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+    ],
   };
 }
