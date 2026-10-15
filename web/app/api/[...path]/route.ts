@@ -9,6 +9,9 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const headers = new Headers();
   const ct = req.headers.get('content-type'); // keeps the multipart boundary intact
   if (ct) headers.set('content-type', ct);
+  // Needed only for the manually authenticated Super Admin screen.
+  const authorization = req.headers.get('authorization');
+  if (authorization) headers.set('authorization', authorization);
   const xff = req.headers.get('x-forwarded-for');
   if (xff) headers.set('x-forwarded-for', xff);
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
