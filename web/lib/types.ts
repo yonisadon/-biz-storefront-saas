@@ -24,6 +24,7 @@ export type PublicPayload = {
   branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>>; hero_gallery_image_id?: string; icon_gallery_image_id?: string };
   social_links?: { instagram?: string; facebook?: string };
   business_profile?: { city?: string; street_address?: string; show_address?: boolean };
+  site_mode: 'catalog_order' | 'services_whatsapp';
   order_flow: OrderFlow;
   opening_hours: {
     days: Record<string, DayHours> | null;
