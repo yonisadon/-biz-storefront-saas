@@ -5,7 +5,7 @@ import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
 import type { MGalleryImage } from '@/lib/types';
 
-const MAX = 10;
+const MAX = 7;
 const btn = 'rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300 disabled:opacity-40';
 
 export default function GalleryPanel({ token }: { token: string }) {
@@ -97,7 +97,7 @@ export default function GalleryPanel({ token }: { token: string }) {
           <input type="file" accept={ACCEPT} multiple className="sr-only" disabled={remaining <= 0 || !!progress} onChange={onFiles} />
         </label>
       </div>
-      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות, כל אחת עד 10MB. בחרו תמונה ראשית; עד 7 תמונות נוספות יוצגו בגלריה באתר.</p>
+      <p className="mt-1 text-xs text-gray-500">עד {MAX} תמונות בסך הכול, כל אחת עד 10MB. בחרו תמונה ראשית לראש דף העסק.</p>
 
       {progress && <p role="status" className="mt-3 text-sm text-gray-600">{progress}</p>}
       {msg && <p role="alert" className="mt-3 whitespace-pre-line rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}
