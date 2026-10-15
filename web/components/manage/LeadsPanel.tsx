@@ -45,7 +45,11 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         offset += page.leads.length;
         if (!page.leads.length) break;
       } while (offset < total);
-      const csvCell = (value: unknown) => '"' + String(value ?? '').replace(/"/g, '""') + '"';
+      const csvCell = (value: unknown) => {
+        let text = String(value ?? '');
+        if (/^[=+\\-@\\t\\r]/.test(text)) text = "'" + text;
+        return '"' + text.replace(/"/g, '""') + '"';
+      };
       const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)'];
       const rows = all.map((l) => [
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
@@ -53,7 +57,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
         l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
       ]);
-      const csv = '\\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\\r\\n');
+      const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
       const a = document.createElement('a');
       a.href = url; a.download = 'פניות-לקוחות.csv'; a.click();
@@ -153,6 +157,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                   {l.customer_email && <div dir="ltr" className="text-start text-gray-600">{l.customer_email}</div>}
                   {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">תור מבוקש: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
                   {l.message && <p className="mt-1 whitespace-pre-line text-gray-600">{l.message}</p>}
+                  <LeadNotes token={token} leadId={l.id} />
                 </td>
                 <td className="px-3 py-2">
                   {l.items.length ? l.items.map((i, k) => <div key={k}>{i.name} × {i.quantity}</div>) : '—'}
