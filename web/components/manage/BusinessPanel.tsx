@@ -61,6 +61,9 @@ export default function BusinessPanel({ token, biz, onSaved }: {
 
     setSaving(true);
     try {
+      // Read the latest config before saving so settings changed in another panel (e.g. hero image) are preserved.
+      const latest = await mcall<ManageBusiness>(token, 'business');
+      const latestFlow = latest.config.order_flow ?? flow;
       const saved = await mcall<Partial<ManageBusiness>>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({
@@ -70,8 +73,8 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
           config: {
-            order_flow: { ...flow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() },
-            branding: { ...(biz.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors },
+            order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: f.site, whatsapp_intro: f.whatsappIntro.trim() },
+            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
