@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { themeVars } from '@/lib/theme';
+import PwaInstallButton from '@/components/PwaInstallButton';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
 import GalleryPanel from './GalleryPanel';
@@ -33,10 +34,13 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
             <h1 className="mt-1 text-xl font-extrabold tracking-tight">{biz.name}</h1>
             <p className="mt-1 text-sm text-ink/65">ניהול האתר, הפניות והתוכן במקום אחד</p>
           </div>
-          <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
-            צפייה באתר ↗
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <PwaInstallButton label="התקנת ניהול העסק" />
+            <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
+              className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
+              צפייה באתר ↗
+            </a>
+          </div>
         </header>
 
         <nav className="mt-4 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
