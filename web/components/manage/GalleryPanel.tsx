@@ -13,6 +13,7 @@ export default function GalleryPanel({ token }: { token: string }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [heroId, setHeroId] = useState<string | null>(null);
+  const [iconId, setIconId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -22,6 +23,7 @@ export default function GalleryPanel({ token }: { token: string }) {
       ]);
       setItems(images);
       setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
+      setIconId(biz.config?.branding?.icon_gallery_image_id ?? null);
     } catch { setMsg('לא הצלחנו לטעון את הגלריה.'); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
@@ -79,6 +81,15 @@ export default function GalleryPanel({ token }: { token: string }) {
     } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
   }
 
+  async function setIcon(img: MGalleryImage) {
+    try {
+      const biz = await mcall<ManageBusiness>(token, 'business');
+      await mcall<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), icon_gallery_image_id: img.id } } }) });
+      setIconId(img.id);
+      setMsg('אייקון ה-PWA נשמר. האייקון יתעדכן לאחר רענון/התקנה מחדש לפי הדפדפן.');
+    } catch { setMsg('שמירת אייקון ה-PWA נכשלה.'); }
+  }
+
   async function saveAlt(img: MGalleryImage, value: string) {
     const v = value.trim();
     if (v === (img.alt_text ?? '')) return;
@@ -118,8 +129,9 @@ export default function GalleryPanel({ token }: { token: string }) {
                   className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
               </label>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm text-gray-500">#{i + 1}{heroId === img.id ? " · תמונה ראשית" : ""}</span>
+                <span className="text-sm text-gray-500">#{i + 1}{heroId === img.id ? " · תמונה ראשית" : ""}{iconId === img.id ? " · אייקון PWA" : ""}</span>
                 <button type="button" className={btn} onClick={() => setHero(img)} disabled={heroId === img.id}>הגדרה כתמונה ראשית</button>
+                <button type="button" className={btn} onClick={() => setIcon(img)} disabled={iconId === img.id}>הגדרה כאייקון האתר</button>
                 <button type="button" className={btn} onClick={() => move(i, -1)} disabled={i === 0}>הקדם</button>
                 <button type="button" className={btn} onClick={() => move(i, 1)} disabled={i === items.length - 1}>אחר</button>
                 <button type="button" className={`${btn} text-red-700`} onClick={() => remove(img)}>מחיקה</button>
