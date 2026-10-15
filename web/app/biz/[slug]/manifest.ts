@@ -11,6 +11,11 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
   if (!data) notFound();
 
   const startUrl = ctx.base || '/';
+  const scope = ctx.base ? `${ctx.base}/` : '/';
+  const iconImage = data.gallery.find((image) => image.id === data.branding?.icon_gallery_image_id)
+    ?? data.gallery.find((image) => image.id === data.branding?.hero_gallery_image_id)
+    ?? data.gallery[0];
+  const iconUrl = iconImage?.url ?? data.og?.image_url ?? undefined;
   return {
     id: startUrl,
     name: data.business.name,
@@ -19,13 +24,10 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
     lang: 'he',
     dir: 'rtl',
     start_url: startUrl,
-    scope: startUrl,
+    scope,
     display: 'standalone',
     background_color: data.branding?.colors?.background || '#ffffff',
     theme_color: data.branding?.colors?.primary || '#17324d',
-    icons: [
-      { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-      { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' }
-    ],
+    icons: iconUrl ? [{ src: iconUrl, sizes: 'any', purpose: 'any' }] : [],
   };
 }
