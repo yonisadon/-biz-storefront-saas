@@ -63,7 +63,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
       const a = document.createElement('a');
       a.href = url; a.download = 'פניות-לקוחות.csv'; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       setError('ייצוא הפניות נכשל. נסו שוב.');
     } finally {
