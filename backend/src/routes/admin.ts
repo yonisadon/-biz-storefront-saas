@@ -196,7 +196,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       // Provisioning is all-or-nothing from the user's perspective. Clean up a
       // partially created DB/business so a retry doesn't leave orphan resources.
       if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-      if (databaseCreated && databaseName) {
+      if (databaseCreated && databaseName && databaseAdmin) {
         await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`).catch(() => {});
       }
       if (tenantId && registry) {
