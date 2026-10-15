@@ -44,6 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try { if (ctx.origin) metadataBase = new URL(ctx.origin); } catch { /* invalid origin */ }
   return {
     metadataBase, title: og?.title || business?.name || 'עסק', description,
+    manifest: ctx.base ? `${ctx.base}/manifest.webmanifest` : '/biz/_site/manifest.webmanifest',
     icons: images ? { icon: images[0].url, apple: images[0].url } : undefined,
     alternates: { canonical: ctx.base || '/' },
     openGraph: { type: 'website', locale: 'he_IL', siteName: business?.name, title: og?.title || business?.name, description, url: ctx.base || '/', images },
