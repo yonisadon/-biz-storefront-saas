@@ -12,7 +12,11 @@ import { themeVars } from '@/lib/theme';
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
 
-function serviceWhatsAppHref(number: string, intro: string, serviceName: string): string {\n  return `https://wa.me/${number}?text=${encodeURIComponent(`${intro}\\n\\nשירות: ${serviceName}`)}`;\n}\n\nfunction safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
+function serviceWhatsAppHref(number: string, intro: string, serviceName: string): string {
+  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(intro + String.fromCharCode(10, 10) + 'שירות: ' + serviceName);
+}
+
+function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
   if (!value) return undefined;
   try {
     const url = new URL(value);
@@ -61,10 +65,10 @@ export default async function StorefrontPage({ params }: Props) {
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
   const serviceMode = data.site_mode === 'services_whatsapp';
   const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
-  const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\\D/g, '').replace(/^0/, '972') : '';
+  const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
   const hasContact = Boolean(b?.phone || b?.email || (!serviceMode && b?.whatsapp_number) || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = b?.whatsapp_number ? `https://wa.me/${b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
+  const whatsappHref = !serviceMode && waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
@@ -92,7 +96,7 @@ export default async function StorefrontPage({ params }: Props) {
               {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/70">{service.description}</p>}
               {service.price_agorot !== null && <p className="mt-3 font-bold">{ils(service.price_agorot)}</p>}
               <div className="mt-auto pt-4">
-                {waNumber && <a href={\`https://wa.me/\${waNumber}?text=\${encodeURIComponent(\`\${data.order_flow.whatsapp_intro}\\n\\nשירות: \${service.name}\`)}\`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro, service.name)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
           </li>)}
