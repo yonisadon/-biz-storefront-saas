@@ -97,7 +97,7 @@ export default async function StorefrontPage({ params }: Props) {
               {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/70">{service.description}</p>}
               {service.price_agorot !== null && <p className="mt-3 font-bold">{ils(service.price_agorot)}</p>}
               <div className="mt-auto pt-4">
-                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro, service.name)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:', service.name)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
           </li>)}
