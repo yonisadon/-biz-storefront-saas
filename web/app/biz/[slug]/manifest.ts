@@ -28,6 +28,6 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
     display: 'standalone',
     background_color: data.branding?.colors?.background || '#ffffff',
     theme_color: data.branding?.colors?.primary || '#17324d',
-    icons: iconUrl ? [{ src: iconUrl, sizes: 'any', purpose: 'any' }] : [],
+    icons: iconUrl ? [{ src: iconUrl, purpose: 'any' }] : [],
   };
 }
