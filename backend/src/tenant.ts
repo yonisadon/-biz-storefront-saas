@@ -12,9 +12,28 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/; // 32 random bytes as base64url = 43
 
 export const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest();
 
+const TRANSIENT_DB_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH',
+  '57P03', '08001', '08006',
+]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function scalar(sql: string, params: unknown[]): Promise<string | null> {
-  const { rows } = await pool.query(sql, params);
-  return rows[0]?.t ?? null;
+  // Railway may wake PostgreSQL after the API container has already started.
+  // Retry only transient connection/startup failures; never mask SQL/schema errors.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { rows } = await pool.query(sql, params);
+      return rows[0]?.t ?? null;
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (!code || !TRANSIENT_DB_CODES.has(code) || attempt >= 6) throw err;
+      const delayMs = Math.min(1000 * 2 ** attempt, 5000);
+      console.warn(`Registry database not ready (attempt ${attempt + 1}/7); retrying in ${delayMs}ms.`);
+      await sleep(delayMs);
+    }
+  }
 }
 
 // Public site: /api/biz/:slug/...
