@@ -77,6 +77,8 @@ async function buildPublicPayload(db: pg.PoolClient) {
     order_flow: {
       whatsapp_enabled: flow.whatsapp_enabled === true,
       site_inquiry_enabled: flow.site_inquiry_enabled === true,
+      // The same seller-defined opening is used for general contact and order messages.
+      whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || DEFAULT_WA_INTRO,
     },
     opening_hours: {
       days: hours.days ?? null,
