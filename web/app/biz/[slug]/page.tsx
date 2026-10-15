@@ -4,7 +4,7 @@ import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
-import { getCtx, getStorefront } from '@/lib/api';
+import { getCtx, getLegal, getStorefront } from '@/lib/api';
 import { toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
 
@@ -49,7 +49,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StorefrontPage({ params }: Props) {
   const resolvedParams = await params;
   const ctx = await getCtx(resolvedParams.slug);
-  const data = await getStorefront(ctx);
+  const [data, legalDocs] = await Promise.all([
+    getStorefront(ctx),
+    Promise.all([getLegal(ctx, 'terms_of_use'), getLegal(ctx, 'privacy_policy'), getLegal(ctx, 'accessibility_statement')]),
+  ]);
   if (!data) notFound();
   const { business: b, opening_hours: oh } = data;
   const social = data.social_links ?? {};
@@ -96,8 +99,8 @@ export default async function StorefrontPage({ params }: Props) {
           </div>}
         </div>
       </section>}
-      <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><nav className="flex flex-wrap justify-center gap-x-5 gap-y-2" aria-label="מידע משפטי"><a className="transition hover:text-primary" href={`${ctx.base}/legal/terms_of_use`}>תנאי שימוש</a><a className="transition hover:text-primary" href={`${ctx.base}/legal/privacy_policy`}>מדיניות פרטיות</a><a className="transition hover:text-primary" href={`${ctx.base}/legal/accessibility_statement`}>הצהרת נגישות</a></nav></footer>
+      {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={`${ctx.base}/legal`}>מידע משפטי ונגישות</a></footer>}
     </main>
-    <AccessibilityToolbar statementHref={`${ctx.base}/legal/accessibility_statement`} />
+    {Boolean(legalDocs[2]?.custom_text?.trim()) && <AccessibilityToolbar statementHref={`${ctx.base}/legal#accessibility_statement`} />}
   </div>;
 }
