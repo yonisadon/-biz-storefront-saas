@@ -46,6 +46,15 @@
       },
       "additionalProperties": false
     },
+    "legal": {
+      "type": "object",
+      "properties": {
+        "terms_of_use": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
+        "privacy_policy": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
+        "accessibility_statement": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false }
+      },
+      "additionalProperties": false
+    },
     "business_profile": {
       "type": "object",
       "properties": {
