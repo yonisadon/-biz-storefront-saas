@@ -2,6 +2,11 @@ import type { MetadataRoute } from 'next';
 import { notFound } from 'next/navigation';
 import type { ManageBusiness, MGalleryImage } from '@/lib/types';
 
+
+function pwaIconUrl(url: string, size: number): string {
+  return url.replace(/\\.jpg(?:\\?.*)?$/, `.icon-${size}.png`);
+}
+
 export const dynamic = 'force-dynamic';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
@@ -34,6 +39,15 @@ export async function GET(
     { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
     { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
   ];
+
+  const businessIcons: MetadataRoute.Manifest['icons'] = iconImage?.url
+    ? [192, 512].map((size) => ({
+        src: pwaIconUrl(iconImage.url, size),
+        sizes: `${size}x${size}`,
+        type: 'image/png',
+        purpose: 'any' as const,
+      }))
+    : fallbackIcons;
 
   const manifest: MetadataRoute.Manifest = {
     id: startUrl,
