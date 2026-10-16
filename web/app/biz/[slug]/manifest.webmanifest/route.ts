@@ -5,7 +5,7 @@ import { getCtx, getStorefront } from '@/lib/api';
 export const revalidate = 60;
 
 function pwaIconUrl(url: string, size: number): string {
-  return url.replace(/\.jpg(?:\?.*)?$/, \`.icon-\${size}.png\`);
+  return url.replace(/\.jpg(?:\?.*)?$/, '.icon-' + size + '.png');
 }
 
 export async function GET(
