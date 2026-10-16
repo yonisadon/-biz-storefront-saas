@@ -23,13 +23,13 @@ export async function GET(
     ?? data.gallery[0];
 
   const fallbackIcons: MetadataRoute.Manifest['icons'] = [
-    { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-    { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+        sizes: String(size) + 'x' + size,
+        sizes: String(size) + 'x' + size,
   ];
   const icons: MetadataRoute.Manifest['icons'] = iconImage?.url
     ? [192, 512].map((size) => ({
         src: pwaIconUrl(iconImage.url, size),
-        sizes: \`\${size}x\${size}\`,
+        sizes: String(size) + 'x' + size,
         type: 'image/png',
         purpose: 'any' as const,
       }))
