@@ -51,8 +51,8 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
     applicationName: title,
     manifest: `/manage/${token}/manifest.webmanifest`,
     icons: icon192 ? {
-        sizes: String(size) + 'x' + size,
-        sizes: String(size) + 'x' + size,
+      icon: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
+      apple: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
     } : undefined,
     openGraph: {
       type: 'website',
