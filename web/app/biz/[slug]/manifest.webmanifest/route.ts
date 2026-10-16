@@ -4,19 +4,22 @@ import { getCtx, getStorefront } from '@/lib/api';
 
 export const revalidate = 60;
 
-export default async function manifest({ params }: { params: Promise<{ slug: string }> }): Promise<MetadataRoute.Manifest> {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ slug: string }> },
+): Promise<Response> {
   const { slug } = await params;
   const ctx = await getCtx(slug);
   const data = await getStorefront(ctx);
   if (!data) notFound();
 
   const startUrl = ctx.base || '/';
-  const scope = ctx.base || '/';
   const iconImage = data.gallery.find((image) => image.id === data.branding?.icon_gallery_image_id)
     ?? data.gallery.find((image) => image.id === data.branding?.hero_gallery_image_id)
     ?? data.gallery[0];
   const iconUrl = iconImage?.url ?? data.og?.image_url ?? undefined;
-  return {
+
+  const manifest: MetadataRoute.Manifest = {
     id: startUrl,
     name: data.business.name,
     short_name: data.business.name.slice(0, 24),
@@ -24,10 +27,18 @@ export default async function manifest({ params }: { params: Promise<{ slug: str
     lang: 'he',
     dir: 'rtl',
     start_url: startUrl,
-    scope,
+    scope: startUrl,
     display: 'standalone',
     background_color: data.branding?.colors?.background || '#ffffff',
     theme_color: data.branding?.colors?.primary || '#17324d',
-    icons: iconUrl ? [{ src: iconUrl, purpose: 'any' }] : [],
+    icons: [
+      ...(iconUrl ? [{ src: iconUrl, purpose: 'any' as const }] : []),
+      { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+    ],
   };
+
+  return Response.json(manifest, {
+    headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60' },
+  });
 }

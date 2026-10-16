@@ -5,13 +5,55 @@ import Dashboard from '@/components/manage/Dashboard';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
-export const metadata: Metadata = {
-  title: 'ניהול העסק',
-  robots: { index: false, follow: false },
-  referrer: 'no-referrer',
-};
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
+
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  if (!TOKEN_RE.test(token)) return { title: 'ניהול העסק', robots: { index: false, follow: false } };
+
+  let businessName = 'העסק';
+  let appIcon: string | undefined;
+  try {
+    const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+    const [businessResponse, galleryResponse] = await Promise.all([
+      fetch(`${baseUrl}/business`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/gallery`, { cache: 'no-store' }),
+    ]);
+    if (businessResponse.ok) {
+      const biz = await businessResponse.json() as ManageBusiness;
+      businessName = biz.name || businessName;
+      if (galleryResponse.ok) {
+        const gallery = await galleryResponse.json() as { id: string; url: string }[];
+        const branding = biz.config?.branding;
+        appIcon = gallery.find((image) => image.id === branding?.icon_gallery_image_id)?.url
+          ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)?.url
+          ?? gallery[0]?.url;
+      }
+    }
+  } catch { /* Keep safe generic metadata if the API is temporarily unavailable. */ }
+
+  const title = `ניהול ${businessName}`;
+  const description = `אזור הניהול הפרטי של ${businessName}`;
+
+  return {
+    title,
+    description,
+    applicationName: title,
+    manifest: `/manage/${token}/manifest.webmanifest`,
+    icons: appIcon ? { icon: appIcon, apple: appIcon } : undefined,
+    openGraph: {
+      type: 'website',
+      locale: 'he_IL',
+      title,
+      description,
+      siteName: title,
+    },
+    twitter: { card: 'summary', title, description },
+    robots: { index: false, follow: false },
+    referrer: 'no-referrer',
+  };
+}
 
 export default async function ManagePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
