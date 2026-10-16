@@ -6,6 +6,10 @@ export const dynamic = 'force-dynamic';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 
+function pwaIconUrl(url: string, size: number): string {
+  return url.replace(/\.jpg(?:\?.*)?$/, '.icon-' + size + '.png');
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ token: string }> },
@@ -13,14 +17,14 @@ export async function GET(
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
-  const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+  const baseUrl = String(process.env.API_URL) + '/api/manage/' + token;
   const [businessResponse, galleryResponse] = await Promise.all([
-    fetch(`${baseUrl}/business`, { cache: 'no-store' }),
-    fetch(`${baseUrl}/gallery`, { cache: 'no-store' }),
+    fetch(baseUrl + '/business', { cache: 'no-store' }),
+    fetch(baseUrl + '/gallery', { cache: 'no-store' }),
   ]);
   if (businessResponse.status === 404 || galleryResponse.status === 404) notFound();
-  if (!businessResponse.ok) throw new Error(`business backend ${businessResponse.status}`);
-  if (!galleryResponse.ok) throw new Error(`gallery backend ${galleryResponse.status}`);
+  if (!businessResponse.ok) throw new Error('business backend ' + businessResponse.status);
+  if (!galleryResponse.ok) throw new Error('gallery backend ' + galleryResponse.status);
 
   const biz = await businessResponse.json() as ManageBusiness;
   const gallery = await galleryResponse.json() as MGalleryImage[];
@@ -28,18 +32,26 @@ export async function GET(
   const iconImage = gallery.find((image) => image.id === branding?.icon_gallery_image_id)
     ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)
     ?? gallery[0];
-  const startUrl = `/manage/${token}`;
+  const startUrl = '/manage/' + token;
 
   const fallbackIcons: MetadataRoute.Manifest['icons'] = [
     { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
     { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
   ];
+  const icons: MetadataRoute.Manifest['icons'] = iconImage?.url
+    ? [192, 512].map((size) => ({
+        src: pwaIconUrl(iconImage.url, size),
+        sizes: String(size) + 'x' + size,
+        type: 'image/png',
+        purpose: 'any' as const,
+      }))
+    : fallbackIcons;
 
   const manifest: MetadataRoute.Manifest = {
     id: startUrl,
-    name: `ניהול ${biz.name}`,
-    short_name: `ניהול ${biz.name}`.slice(0, 24),
-    description: `אזור הניהול של ${biz.name}`,
+    name: 'ניהול ' + biz.name,
+    short_name: ('ניהול ' + biz.name).slice(0, 24),
+    description: 'אזור הניהול של ' + biz.name,
     lang: 'he',
     dir: 'rtl',
     start_url: startUrl,
@@ -47,10 +59,7 @@ export async function GET(
     display: 'standalone',
     background_color: branding?.colors?.background || '#ffffff',
     theme_color: branding?.colors?.primary || '#17324d',
-    // Do not offer the platform's generic house icon when the business has its own image.
-    icons: iconImage?.url
-      ? [{ src: iconImage.url, purpose: 'any' }, { src: iconImage.url, purpose: 'maskable' }]
-      : fallbackIcons,
+    icons,
   };
 
   return Response.json(manifest, {

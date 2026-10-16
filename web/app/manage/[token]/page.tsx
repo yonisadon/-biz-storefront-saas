@@ -8,41 +8,52 @@ export const dynamic = 'force-dynamic';
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 
+function pwaIconUrl(url: string, size: number): string {
+  return url.replace(/\.jpg(?:\?.*)?$/, '.icon-' + size + '.png');
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const { token } = await params;
   if (!TOKEN_RE.test(token)) return { title: 'ניהול העסק', robots: { index: false, follow: false } };
 
   let businessName = 'העסק';
   let appIcon: string | undefined;
+  const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+
+  // Fetch business metadata independently: a gallery error must not discard a valid business name.
   try {
-    const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
-    const [businessResponse, galleryResponse] = await Promise.all([
-      fetch(`${baseUrl}/business`, { cache: 'no-store' }),
-      fetch(`${baseUrl}/gallery`, { cache: 'no-store' }),
-    ]);
+    const businessResponse = await fetch(`${baseUrl}/business`, { cache: 'no-store' });
     if (businessResponse.ok) {
       const biz = await businessResponse.json() as ManageBusiness;
       businessName = biz.name || businessName;
-      if (galleryResponse.ok) {
-        const gallery = await galleryResponse.json() as { id: string; url: string }[];
-        const branding = biz.config?.branding;
-        appIcon = gallery.find((image) => image.id === branding?.icon_gallery_image_id)?.url
-          ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)?.url
-          ?? gallery[0]?.url;
-      }
+      try {
+        const galleryResponse = await fetch(`${baseUrl}/gallery`, { cache: 'no-store' });
+        if (galleryResponse.ok) {
+          const gallery = await galleryResponse.json() as { id: string; url: string }[];
+          const branding = biz.config?.branding;
+          appIcon = gallery.find((image) => image.id === branding?.icon_gallery_image_id)?.url
+            ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)?.url
+            ?? gallery[0]?.url;
+        }
+      } catch { /* Keep business-specific text if image lookup fails. */ }
     }
   } catch { /* Keep safe generic metadata if the API is temporarily unavailable. */ }
 
   const title = `ניהול ${businessName}`;
   const description = `אזור הניהול הפרטי של ${businessName}`;
-  const socialImages = appIcon ? [{ url: appIcon, alt: `האייקון של ${businessName}` }] : undefined;
+  const icon192 = appIcon ? pwaIconUrl(appIcon, 192) : undefined;
+  const socialImage = appIcon?.replace(/\.jpg(?:\?.*)?$/, '.og.jpg');
+  const socialImages = socialImage ? [{ url: socialImage, alt: `ניהול ${businessName}` }] : undefined;
 
   return {
     title,
     description,
     applicationName: title,
     manifest: `/manage/${token}/manifest.webmanifest`,
-    icons: appIcon ? { icon: appIcon, apple: appIcon } : undefined,
+    icons: icon192 ? {
+      icon: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
+      apple: [{ url: icon192, sizes: '192x192', type: 'image/png' }],
+    } : undefined,
     openGraph: {
       type: 'website',
       locale: 'he_IL',
