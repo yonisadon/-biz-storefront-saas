@@ -21,10 +21,22 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
     }
   } catch { /* Keep a safe generic title if the API is temporarily unavailable. */ }
 
+  const title = `ניהול ${businessName}`;
+  const description = `אזור הניהול הפרטי של ${businessName}`;
+
   return {
-    title: `ניהול ${businessName}`,
-    applicationName: `ניהול ${businessName}`,
+    title,
+    description,
+    applicationName: title,
     manifest: `/manage/${token}/manifest.webmanifest`,
+    openGraph: {
+      type: 'website',
+      locale: 'he_IL',
+      title,
+      description,
+      siteName: title,
+    },
+    twitter: { card: 'summary', title, description },
     robots: { index: false, follow: false },
     referrer: 'no-referrer',
   };
