@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { notFound } from 'next/navigation';
-import type { ManageBusiness } from '@/lib/types';
+import type { ManageBusiness, MGalleryImage } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,12 +13,21 @@ export async function GET(
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
-  const response = await fetch(`${process.env.API_URL}/api/manage/${token}/business`, {
-    cache: 'no-store',
-  });
-  if (response.status === 404) notFound();
-  if (!response.ok) throw new Error(`backend ${response.status}`);
-  const biz = await response.json() as ManageBusiness;
+  const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+  const [businessResponse, galleryResponse] = await Promise.all([
+    fetch(`${baseUrl}/business`, { cache: 'no-store' }),
+    fetch(`${baseUrl}/gallery`, { cache: 'no-store' }),
+  ]);
+  if (businessResponse.status === 404 || galleryResponse.status === 404) notFound();
+  if (!businessResponse.ok) throw new Error(`business backend ${businessResponse.status}`);
+  if (!galleryResponse.ok) throw new Error(`gallery backend ${galleryResponse.status}`);
+
+  const biz = await businessResponse.json() as ManageBusiness;
+  const gallery = await galleryResponse.json() as MGalleryImage[];
+  const branding = biz.config?.branding;
+  const iconImage = gallery.find((image) => image.id === branding?.icon_gallery_image_id)
+    ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)
+    ?? gallery[0];
   const startUrl = `/manage/${token}`;
 
   const manifest: MetadataRoute.Manifest = {
@@ -31,9 +40,10 @@ export async function GET(
     start_url: startUrl,
     scope: startUrl,
     display: 'standalone',
-    background_color: biz.config?.branding?.colors?.background || '#ffffff',
-    theme_color: biz.config?.branding?.colors?.primary || '#17324d',
+    background_color: branding?.colors?.background || '#ffffff',
+    theme_color: branding?.colors?.primary || '#17324d',
     icons: [
+      ...(iconImage?.url ? [{ src: iconImage.url, purpose: 'any' as const }] : []),
       { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
       { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
     ],
