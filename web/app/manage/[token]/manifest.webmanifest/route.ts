@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 
 function pwaIconUrl(url: string, size: number): string {
-  return url.replace(/\.jpg(?:\?.*)?$/, \`.icon-\${size}.png\`);
+  return url.replace(/\.jpg(?:\?.*)?$/, '.icon-' + size + '.png');
 }
 
 export async function GET(
