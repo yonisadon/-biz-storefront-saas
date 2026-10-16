@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 
 function pwaIconUrl(url: string, size: number): string {
-  return url.replace(/\\.jpg(?:\\?.*)?$/, `.icon-${size}.png`);
+  return url.replace(/\.jpg(?:\?.*)?$/, \`.icon-\${size}.png\`);
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   const title = `ניהול ${businessName}`;
   const description = `אזור הניהול הפרטי של ${businessName}`;
   const icon192 = appIcon ? pwaIconUrl(appIcon, 192) : undefined;
-  const socialImage = appIcon?.replace(/\\.jpg(?:\\?.*)?$/, '.og.jpg');
+  const socialImage = appIcon?.replace(/\.jpg(?:\?.*)?$/, '.og.jpg');
   const socialImages = socialImage ? [{ url: socialImage, alt: `ניהול ${businessName}` }] : undefined;
 
   return {
