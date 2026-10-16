@@ -13,13 +13,25 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   if (!TOKEN_RE.test(token)) return { title: 'ניהול העסק', robots: { index: false, follow: false } };
 
   let businessName = 'העסק';
+  let appIcon: string | undefined;
   try {
-    const response = await fetch(`${process.env.API_URL}/api/manage/${token}/business`, { cache: 'no-store' });
-    if (response.ok) {
-      const biz = await response.json() as ManageBusiness;
+    const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+    const [businessResponse, galleryResponse] = await Promise.all([
+      fetch(`${baseUrl}/business`, { cache: 'no-store' }),
+      fetch(`${baseUrl}/gallery`, { cache: 'no-store' }),
+    ]);
+    if (businessResponse.ok) {
+      const biz = await businessResponse.json() as ManageBusiness;
       businessName = biz.name || businessName;
+      if (galleryResponse.ok) {
+        const gallery = await galleryResponse.json() as { id: string; url: string }[];
+        const branding = biz.config?.branding;
+        appIcon = gallery.find((image) => image.id === branding?.icon_gallery_image_id)?.url
+          ?? gallery.find((image) => image.id === branding?.hero_gallery_image_id)?.url
+          ?? gallery[0]?.url;
+      }
     }
-  } catch { /* Keep a safe generic title if the API is temporarily unavailable. */ }
+  } catch { /* Keep safe generic metadata if the API is temporarily unavailable. */ }
 
   const title = `ניהול ${businessName}`;
   const description = `אזור הניהול הפרטי של ${businessName}`;
@@ -29,6 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
     description,
     applicationName: title,
     manifest: `/manage/${token}/manifest.webmanifest`,
+    icons: appIcon ? { icon: appIcon, apple: appIcon } : undefined,
     openGraph: {
       type: 'website',
       locale: 'he_IL',
