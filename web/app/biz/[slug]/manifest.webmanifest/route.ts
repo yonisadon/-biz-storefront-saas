@@ -19,6 +19,11 @@ export async function GET(
     ?? data.gallery[0];
   const iconUrl = iconImage?.url ?? data.og?.image_url ?? undefined;
 
+  const fallbackIcons: MetadataRoute.Manifest['icons'] = [
+    { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+    { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+  ];
+
   const manifest: MetadataRoute.Manifest = {
     id: startUrl,
     name: data.business.name,
@@ -31,11 +36,11 @@ export async function GET(
     display: 'standalone',
     background_color: data.branding?.colors?.background || '#ffffff',
     theme_color: data.branding?.colors?.primary || '#17324d',
-    icons: [
-      ...(iconUrl ? [{ src: iconUrl, purpose: 'any' as const }] : []),
-      { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-      { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-    ],
+    // Do not offer the platform's generic house icon when the business has its own image.
+    // Browsers often prefer a declared-size fallback over an image whose dimensions are unknown.
+    icons: iconUrl
+      ? [{ src: iconUrl, purpose: 'any' }, { src: iconUrl, purpose: 'maskable' }]
+      : fallbackIcons,
   };
 
   return Response.json(manifest, {

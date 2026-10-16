@@ -30,6 +30,11 @@ export async function GET(
     ?? gallery[0];
   const startUrl = `/manage/${token}`;
 
+  const fallbackIcons: MetadataRoute.Manifest['icons'] = [
+    { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+    { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+  ];
+
   const manifest: MetadataRoute.Manifest = {
     id: startUrl,
     name: `ניהול ${biz.name}`,
@@ -42,11 +47,10 @@ export async function GET(
     display: 'standalone',
     background_color: branding?.colors?.background || '#ffffff',
     theme_color: branding?.colors?.primary || '#17324d',
-    icons: [
-      ...(iconImage?.url ? [{ src: iconImage.url, purpose: 'any' as const }] : []),
-      { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-      { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-    ],
+    // Do not offer the platform's generic house icon when the business has its own image.
+    icons: iconImage?.url
+      ? [{ src: iconImage.url, purpose: 'any' }, { src: iconImage.url, purpose: 'maskable' }]
+      : fallbackIcons,
   };
 
   return Response.json(manifest, {
