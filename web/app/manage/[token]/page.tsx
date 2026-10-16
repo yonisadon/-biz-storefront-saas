@@ -35,6 +35,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
 
   const title = `ניהול ${businessName}`;
   const description = `אזור הניהול הפרטי של ${businessName}`;
+  const socialImages = appIcon ? [{ url: appIcon, alt: `האייקון של ${businessName}` }] : undefined;
 
   return {
     title,
@@ -48,8 +49,14 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
       title,
       description,
       siteName: title,
+      images: socialImages,
     },
-    twitter: { card: 'summary', title, description },
+    twitter: {
+      card: socialImages ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: socialImages,
+    },
     robots: { index: false, follow: false },
     referrer: 'no-referrer',
   };
