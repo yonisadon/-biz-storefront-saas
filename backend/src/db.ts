@@ -44,7 +44,9 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   if (!databaseName) {
     throw new HttpError(503, 'tenant_database_unavailable');
   }
-  if (!/^biz_[a-f0-9]{24}$/.test(databaseName)) {
+  const expectedDatabaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
+  if (databaseName !== expectedDatabaseName) {
+    // Do not trust a syntactically valid mapping if it points to another tenant's DB.
     throw new HttpError(503, 'tenant_database_unavailable');
   }
 
