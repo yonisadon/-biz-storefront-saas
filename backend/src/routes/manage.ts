@@ -91,9 +91,10 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                 count(*) OVER() AS total
            FROM leads l
           WHERE ($1::text IS NULL OR l.status = $1)
+            AND ($2::text IS NULL OR position(lower($2) in lower(coalesce(l.customer_name, '') || ' ' || coalesce(l.customer_phone, ''))) > 0)
           ORDER BY l.created_at DESC, l.id DESC
-          LIMIT $2 OFFSET $3`,
-        [q.status ?? null, q.limit, q.offset],
+          LIMIT $3 OFFSET $4`,
+        [q.status ?? null, q.search || null, q.limit, q.offset],
       );
       const total = rows[0] ? Number(rows[0].total) : 0;
       return {
