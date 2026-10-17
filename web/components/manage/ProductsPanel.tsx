@@ -12,12 +12,25 @@ export default function ProductsPanel({ token }: { token: string }) {
   const [items, setItems] = useState<MProduct[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<MProduct | 'new' | null>(null);
+  const [search, setSearch] = useState('');
+  const [visibility, setVisibility] = useState<'all' | 'active' | 'hidden'>('all');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
 
   const load = useCallback(async () => {
     try { setItems(await mcall<MProduct[]>(token, 'products')); setError(null); }
     catch { setError('לא הצלחנו לטעון את המוצרים.'); }
   }, [token]);
   useEffect(() => { load(); }, [load]);
+
+  const filteredItems = (items ?? []).map((p, index) => ({ p, index })).filter(({ p }) => {
+    const matchesSearch = p.name.toLocaleLowerCase('he').includes(search.trim().toLocaleLowerCase('he'));
+    const matchesVisibility = visibility === 'all' || (visibility === 'active' ? p.is_active : !p.is_active);
+    return matchesSearch && matchesVisibility;
+  });
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const pageItems = filteredItems.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const canReorder = !search.trim() && visibility === 'all';
 
   async function move(i: number, dir: -1 | 1) {
     if (!items) return;
@@ -62,8 +75,19 @@ export default function ProductsPanel({ token }: { token: string }) {
         </p>
       )}
 
+      <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label className="text-sm font-medium">חיפוש לפי שם
+          <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} placeholder="הקלידו שם מוצר או שירות" className="mt-1 min-h-10 w-full rounded-xl border border-gray-300 bg-white px-3 py-2" />
+        </label>
+        <label className="text-sm font-medium">הצגה
+          <select value={visibility} onChange={(e) => { setVisibility(e.target.value as 'all' | 'active' | 'hidden'); setPage(0); }} className="mt-1 min-h-10 w-full rounded-xl border border-gray-300 bg-white px-3 py-2">
+            <option value="all">הכל</option><option value="active">מוצגים באתר</option><option value="hidden">מוסתרים</option>
+          </select>
+        </label>
+      </div>
+      {items && <p className="mt-2 text-sm text-gray-500">{filteredItems.length} פריטים תואמים. {canReorder ? 'אפשר לשנות סדר בעזרת החצים.' : 'כדי לשנות סדר, נקו את החיפוש ובחרו ״הכל״.'}</p>}
       <ul className="mt-3 space-y-2">
-        {items?.map((p, i) => (
+        {pageItems.map(({ p, index: i }) => (
           <li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-shadow sm:flex-row sm:items-center ${p.is_active ? '' : 'opacity-60'}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {p.image_url ? <img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover" />
@@ -76,8 +100,8 @@ export default function ProductsPanel({ token }: { token: string }) {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end">
-              <button type="button" className={btn} onClick={() => move(i, -1)} disabled={i === 0} aria-label={`הזז את ${p.name} למעלה`}>↑</button>
-              <button type="button" className={btn} onClick={() => move(i, 1)} disabled={i === items.length - 1} aria-label={`הזז את ${p.name} למטה`}>↓</button>
+              <button type="button" className={btn} onClick={() => move(i, -1)} disabled={!canReorder || i === 0} aria-label={`הזז את ${p.name} למעלה`}>↑</button>
+              <button type="button" className={btn} onClick={() => move(i, 1)} disabled={!canReorder || i === items.length - 1} aria-label={`הזז את ${p.name} למטה`}>↓</button>
               <button type="button" className={btn} onClick={() => setEditing(p)}>עריכה</button>
               <button type="button" className={btn} onClick={() => toggleActive(p)}>{p.is_active ? 'הסתרה' : 'הצגה'}</button>
               <button type="button" className={`${btn} text-red-700`} onClick={() => remove(p)}>מחיקה</button>
@@ -85,6 +109,11 @@ export default function ProductsPanel({ token }: { token: string }) {
           </li>
         ))}
       </ul>
+      {filteredItems.length > PAGE_SIZE && <div className="mt-4 flex items-center justify-between gap-3">
+        <button type="button" disabled={page === 0} onClick={() => setPage((n) => Math.max(0, n - 1))} className={btn}>הקודם</button>
+        <span className="text-sm text-gray-500">עמוד {page + 1} מתוך {pageCount}</span>
+        <button type="button" disabled={page + 1 >= pageCount} onClick={() => setPage((n) => Math.min(pageCount - 1, n + 1))} className={btn}>הבא</button>
+      </div>}
 
       {editing && (
         <ProductDialog
