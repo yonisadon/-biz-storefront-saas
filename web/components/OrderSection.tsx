@@ -38,6 +38,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
 export default function OrderSection({ apiBase, items, quoteLabel, flow, openingHours }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [visibleCount, setVisibleCount] = useState(12);
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -137,7 +138,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
 
       {items.length > 0 && (
         <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-          {items.map((p) => {
+          {items.slice(0, visibleCount).map((p) => {
             const q = cart[p.id] ?? 0;
             return (
               <li key={p.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink/15 bg-surface">
@@ -172,9 +173,15 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
         </ul>
       )}
 
+      {items.length > visibleCount && <div className="mt-5 flex justify-center">
+        <button type="button" onClick={() => setVisibleCount((n) => Math.min(items.length, n + 12))} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5">
+          הצגת עוד פריטים ({items.length - visibleCount} נותרו)
+        </button>
+      </div>}
+
       {/* Sticky bar on bottom when cart has items */}
       {count > 0 && (
-        <div className="fixed bottom-0 inset-x-0 bg-surface border-t border-ink/15 p-4 shadow-lg flex items-center justify-between gap-4 z-40">
+        <div className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-between gap-4 border-t border-ink/15 bg-surface p-3 shadow-lg sm:p-4">
           <div>
             <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
