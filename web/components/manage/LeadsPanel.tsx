@@ -86,6 +86,23 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
     }
   }
 
+  async function deleteLead(id: string) {
+    if (!window.confirm('למחוק את הפנייה לצמיתות? הפריטים וההערות הקשורים אליה יימחקו גם הם.')) return;
+    setError(null);
+    try {
+      await mcall(token, `leads/${id}`, { method: 'DELETE' });
+      setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+      const remaining = data.leads.filter((lead) => lead.id !== id);
+      if (remaining.length === 0 && data.offset > 0) {
+        await load(filter, Math.max(0, data.offset - PAGE), search);
+      } else {
+        setData((prev) => ({ ...prev, total: Math.max(0, prev.total - 1), leads: prev.leads.filter((lead) => lead.id !== id) }));
+      }
+    } catch {
+      setError('מחיקת הפנייה נכשלה. נסו שוב.');
+    }
+  }
+
   const th = 'px-3 py-2 text-start font-medium';
 
   return (
@@ -137,6 +154,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               <div className="mt-3 flex items-center justify-between gap-3"><span className="text-sm text-gray-500">סכום משוער</span><span className="font-bold text-gray-900">{l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '—') : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}</span></div>
             </div>
             <LeadNotes token={token} leadId={l.id} />
+            <button type="button" onClick={() => deleteLead(l.id)} className="mt-3 min-h-10 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">מחיקת פנייה</button>
             <label className="mt-4 block text-sm font-semibold text-gray-700">סטטוס טיפול
               <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name || 'פנייה ב־WhatsApp'}`} onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
                 {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -151,12 +169,12 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
           <thead className="bg-gray-100 text-gray-600">
             <tr>
               <th className={th}>בחר</th><th className={th}>תאריך</th><th className={th}>לקוח</th><th className={th}>פריטים</th>
-              <th className={th}>סכום משוער</th><th className={th}>ערוץ</th><th className={th}>סטטוס</th>
+              <th className={th}>סכום משוער</th><th className={th}>ערוץ</th><th className={th}>סטטוס</th><th className={th}>פעולות</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.leads.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-500">אין פניות להצגה.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-gray-500">אין פניות להצגה.</td></tr>
             )}
             {data.leads.map((l) => (
               <tr key={l.id} className="align-top">
@@ -189,6 +207,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                     {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>
                 </td>
+                <td className="px-3 py-2"><button type="button" onClick={() => deleteLead(l.id)} className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-700">מחיקה</button></td>
               </tr>
             ))}
           </tbody>
