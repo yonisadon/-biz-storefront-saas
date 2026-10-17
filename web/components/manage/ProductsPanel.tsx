@@ -102,7 +102,7 @@ export default function ProductsPanel({ token }: { token: string }) {
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end">
               <button type="button" className={btn} onClick={() => move(i, -1)} disabled={!canReorder || i === 0} aria-label={`הזז את ${p.name} למעלה`}>↑</button>
-              <button type="button" className={btn} onClick={() => move(i, 1)} disabled={!canReorder || i === items.length - 1} aria-label={`הזז את ${p.name} למטה`}>↓</button>
+              <button type="button" className={btn} onClick={() => move(i, 1)} disabled={!canReorder || i === (items?.length ?? 0) - 1} aria-label={`הזז את ${p.name} למטה`}>↓</button>
               <button type="button" className={btn} onClick={() => setEditing(p)}>עריכה</button>
               <button type="button" className={btn} onClick={() => toggleActive(p)}>{p.is_active ? 'הסתרה' : 'הצגה'}</button>
               <button type="button" className={`${btn} text-red-700`} onClick={() => remove(p)}>מחיקה</button>
