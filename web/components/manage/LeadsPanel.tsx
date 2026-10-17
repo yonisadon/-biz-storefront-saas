@@ -12,16 +12,19 @@ const PAGE = 25;
 export default function LeadsPanel({ token, initial }: { token: string; initial: LeadsResponse }) {
   const [data, setData] = useState(initial);
   const [filter, setFilter] = useState<LeadStatus | ''>('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  async function load(status: LeadStatus | '', offset: number) {
+  async function load(status: LeadStatus | '', offset: number, searchTerm = search) {
     setLoading(true); setError(null);
     try {
       const qs = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
       if (status) qs.set('status', status);
+      if (searchTerm) qs.set('search', searchTerm);
       setData(await mcall<LeadsResponse>(token, `leads?${qs}`));
     } catch {
       setError('לא הצלחנו לטעון את הפניות.');
@@ -40,6 +43,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       do {
         const qs = new URLSearchParams({ limit: '100', offset: String(offset) });
         if (filter) qs.set('status', filter);
+        if (search) qs.set('search', search);
         const page = await mcall<LeadsResponse>(token, `leads?${qs}`);
         all.push(...page.leads);
         total = page.total;
@@ -86,10 +90,15 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
 
   return (
     <section aria-label="פניות">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="min-w-[220px] flex-1 text-sm">חיפוש לפי שם או טלפון
+          <input value={searchInput} maxLength={100} onChange={(e) => setSearchInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const next = searchInput.trim(); setSearch(next); setSelectedIds(new Set()); load(filter, 0, next); } }} placeholder="שם לקוח או מספר טלפון" className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2" />
+        </label>
+        <button type="button" disabled={loading} onClick={() => { const next = searchInput.trim(); setSearch(next); setSelectedIds(new Set()); load(filter, 0, next); }} className="min-h-10 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">חיפוש</button>
+        {(search || searchInput) && <button type="button" disabled={loading} onClick={() => { setSearchInput(''); setSearch(''); setSelectedIds(new Set()); load(filter, 0, ''); }} className="min-h-10 rounded-full border border-gray-300 px-3 py-2 text-sm">ניקוי</button>}
         <label className="text-sm">סינון לפי סטטוס:{' '}
           <select value={filter} disabled={loading}
-            onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); setSelectedIds(new Set()); load(v, 0); }}
+            onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); setSelectedIds(new Set()); load(v, 0, search); }}
             className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
             <option value="">הכל</option>
             {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -188,13 +197,13 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
 
       <div className="mt-3 flex items-center justify-between">
         <button type="button" disabled={loading || data.offset === 0}
-          onClick={() => load(filter, Math.max(0, data.offset - PAGE))}
+          onClick={() => load(filter, Math.max(0, data.offset - PAGE), search)}
           className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הקודם</button>
         <span className="text-sm text-gray-500">
           {data.total === 0 ? 0 : data.offset + 1}–{Math.min(data.offset + PAGE, data.total)} מתוך {data.total}
         </span>
         <button type="button" disabled={loading || data.offset + PAGE >= data.total}
-          onClick={() => load(filter, data.offset + PAGE)}
+          onClick={() => load(filter, data.offset + PAGE, search)}
           className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הבא</button>
       </div>
     </section>
