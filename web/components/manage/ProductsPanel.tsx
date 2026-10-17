@@ -86,6 +86,7 @@ export default function ProductsPanel({ token }: { token: string }) {
         </label>
       </div>
       {items && <p className="mt-2 text-sm text-gray-500">{filteredItems.length} פריטים תואמים. {canReorder ? 'אפשר לשנות סדר בעזרת החצים.' : 'כדי לשנות סדר, נקו את החיפוש ובחרו ״הכל״.'}</p>}
+      {items && filteredItems.length === 0 && <p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">לא נמצאו פריטים לפי החיפוש והסינון שבחרתם.</p>}
       <ul className="mt-3 space-y-2">
         {pageItems.map(({ p, index: i }) => (
           <li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm transition-shadow sm:flex-row sm:items-center ${p.is_active ? '' : 'opacity-60'}`}>
