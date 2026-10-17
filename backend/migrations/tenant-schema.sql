@@ -422,6 +422,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_images  TO app_runtime;
 -- Customer data is immutable for the seller; only the workflow status changes.
 GRANT SELECT, INSERT ON public.leads TO app_runtime;
 GRANT UPDATE (status) ON public.leads TO app_runtime;
+GRANT DELETE ON public.leads TO app_runtime; -- seller deletion of their own tenant's inquiries
 GRANT SELECT, INSERT ON public.lead_items TO app_runtime;
 
 GRANT SELECT, INSERT, DELETE ON public.lead_notes TO app_runtime;
