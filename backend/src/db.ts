@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { env } from './config';
+import { HttpError } from './errors';
 
 // The central database is the tenant registry only. Tenant data must never
 // fall back to this pool when a dedicated database mapping is missing.
@@ -35,16 +36,16 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   } catch (err) {
     const code = (err as { code?: string }).code;
     if (code === '42P01' || code === '3F000') {
-      throw new Error('Tenant database registry is unavailable; refusing to access tenant data.');
+      throw new HttpError(503, 'tenant_database_unavailable');
     }
     throw err;
   }
 
   if (!databaseName) {
-    throw new Error('Tenant has no dedicated database mapping; refusing to access tenant data.');
+    throw new HttpError(503, 'tenant_database_unavailable');
   }
   if (!/^biz_[a-f0-9]{24}$/.test(databaseName)) {
-    throw new Error('Tenant database mapping contains an invalid database name.');
+    throw new HttpError(503, 'tenant_database_unavailable');
   }
 
   const existing = tenantPools.get(databaseName);
