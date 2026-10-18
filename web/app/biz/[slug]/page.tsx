@@ -84,11 +84,11 @@ export default async function StorefrontPage({ params }: Props) {
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" style={themeVars(data.branding?.colors)}>
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main className="mx-auto max-w-6xl px-3 pb-10 pt-3 sm:px-6 sm:pt-6">
-      {data.gallery?.length > 0 && <div className="mb-7 sm:mb-9"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
-      <header className="mx-auto mb-8 max-w-4xl px-2 py-3 text-center sm:mb-10 sm:py-5">
+      {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
+      <header className="mx-auto mb-7 max-w-4xl rounded-[1.75rem] px-4 py-5 text-center sm:mb-9 sm:px-8 sm:py-7">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
-        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
+        {data.about?.trim() && <p className="mx-auto mt-3 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:mt-4 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
       </header>
       <div className="mb-5 flex justify-center">
         <PwaInstallButton label="התקנת אתר העסק" />
