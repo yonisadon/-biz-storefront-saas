@@ -133,6 +133,21 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(note);
   });
 
+  // Permanently delete one lead and its related items/notes (FKs cascade).
+  // The tenant-specific DB and RLS context ensure a seller cannot delete another tenant's lead.
+  app.delete('/leads/:id', async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'not_found');
+    return withTenant(req.tenantId, async (db) => {
+      const result = await db.query(
+        'DELETE FROM leads WHERE id = $1 RETURNING id',
+        [id],
+      );
+      if (!result.rowCount) throw new HttpError(404, 'not_found');
+      return reply.code(204).send();
+    });
+  });
+
   app.patch('/leads/:id', async (req) => {
     const id = (req.params as { id: string }).id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'not_found');

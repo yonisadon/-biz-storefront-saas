@@ -1,8 +1,9 @@
 import pg from 'pg';
 import { env } from './config';
+import { HttpError } from './errors';
 
-// The existing database remains the central registry and the compatibility
-// database for businesses created before per-business databases were enabled.
+// The central database is the tenant registry only. Tenant data must never
+// fall back to this pool when a dedicated database mapping is missing.
 export const pool = new pg.Pool({
   connectionString: env.APP_DATABASE_URL,
   max: 10,
@@ -20,9 +21,9 @@ function connectionStringForDatabase(databaseName: string) {
 }
 
 /**
- * Resolves a tenant to its dedicated database when it has been provisioned.
- * Tenants without a registry entry continue using the legacy database, allowing
- * a staged rollout without taking the existing storefront offline.
+ * Resolves a tenant to its dedicated database. Missing mappings, a missing
+ * registry table/schema, or an invalid database name are fatal: tenant data
+ * must never be served from the central registry or another tenant database.
  */
 async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   let databaseName: string | undefined;
@@ -33,15 +34,22 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
     );
     databaseName = result.rows[0]?.database_name;
   } catch (err) {
-    // Compatibility before the registry migration is applied. Provisioning
-    // itself will fail until the migration exists, but existing stores still run.
-    if ((err as { code?: string }).code === '42P01' || (err as { code?: string }).code === '3F000') {
-      return pool;
+    const code = (err as { code?: string }).code;
+    if (code === '42P01' || code === '3F000') {
+      throw new HttpError(503, 'tenant_database_unavailable');
     }
     throw err;
   }
 
-  if (!databaseName) return pool;
+  if (!databaseName) {
+    throw new HttpError(503, 'tenant_database_unavailable');
+  }
+  const expectedDatabaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
+  if (databaseName !== expectedDatabaseName) {
+    // Do not trust a syntactically valid mapping if it points to another tenant's DB.
+    throw new HttpError(503, 'tenant_database_unavailable');
+  }
+
   const existing = tenantPools.get(databaseName);
   if (existing) return existing;
 

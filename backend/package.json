@@ -7,6 +7,7 @@
     "start": "node dist/server.js",
     "issue-token": "tsx --env-file=.env scripts/issue-token.ts",
     "migrate-tenants": "tsx --env-file=.env scripts/migrate-tenants-to-databases.ts",
+    "grant-lead-delete": "tsx --env-file=.env scripts/grant-lead-delete.ts",
     "setup-tenant-registry": "tsx --env-file=.env scripts/setup-tenant-registry.ts",
     "prestart": "node dist/scripts/setup-tenant-registry.js"
   },
