@@ -83,9 +83,9 @@ export default async function StorefrontPage({ params }: Props) {
 
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" style={themeVars(data.branding?.colors)}>
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
-    <main className="mx-auto max-w-6xl px-3 pb-10 pt-3 sm:px-6 sm:pt-6">
+    <main className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
       {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
-      <header className="mx-auto mb-7 max-w-4xl rounded-[1.75rem] px-4 py-5 text-center sm:mb-9 sm:px-8 sm:py-7">
+      <header className="mx-auto mb-7 max-w-4xl rounded-[1.75rem] border border-ink/5 bg-gradient-to-b from-white/90 to-transparent px-4 py-5 text-center sm:mb-9 sm:px-8 sm:py-7">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
         {data.about?.trim() && <p className="mx-auto mt-3 max-w-2xl whitespace-pre-line text-base leading-7 text-ink/75 sm:mt-4 sm:text-lg sm:leading-8">{data.about.trim()}</p>}
@@ -93,7 +93,7 @@ export default async function StorefrontPage({ params }: Props) {
       <div className="mb-5 flex justify-center">
         <PwaInstallButton label="התקנת אתר העסק" />
       </div>
-      {serviceMode && services.length > 0 && <section aria-labelledby="services-heading" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
+      {serviceMode && services.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">
           <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">השירותים שלנו</h2>
           <p className="mt-2 text-sm leading-6 text-ink/65">בחרו את השירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
@@ -112,7 +112,7 @@ export default async function StorefrontPage({ params }: Props) {
           </li>)}
         </ul>
       </section>}
-      {!serviceMode && data.catalog?.items?.length ? <section className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
+      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} /></section> : null}
       {hasBusinessInfo && <section aria-labelledby="business-info-h" className="mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
@@ -138,6 +138,11 @@ export default async function StorefrontPage({ params }: Props) {
       </section>}
       {legalDocs.some((doc) => Boolean(doc?.custom_text?.trim())) && <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65"><a className="inline-flex min-h-10 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold transition hover:border-primary/40 hover:text-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}>מידע משפטי ונגישות</a></footer>}
     </main>
+    {(serviceMode && waNumber) || (!serviceMode && (data.catalog?.items?.length ?? 0) > 0) ? <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(15,23,42,0.10)] backdrop-blur sm:hidden">
+      {serviceMode && waNumber
+        ? <a href={`https://wa.me/${waNumber}?text=${encodeURIComponent(data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים.')}`} target="_blank" rel="noopener noreferrer" className="flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">דברו איתנו ב-WhatsApp</a>
+        : <a href="#catalog-section" className="flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לצפייה במוצרים ובשירותים</a>}
+    </div> : null}
     <AccessibilityToolbar statementHref={legalDocs[2]?.custom_text?.trim() ? (ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement') : undefined} />
   </div>;
 }
