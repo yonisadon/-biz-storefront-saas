@@ -40,7 +40,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
     <div className="fixed bottom-20 end-3 z-50 sm:bottom-5 sm:end-5">
       <button type="button" aria-expanded={open} aria-controls="a11y-panel" onClick={() => setOpen(!open)}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/15 bg-surface/95 text-ink shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:shadow-lg">
-        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2"/><path d="M4 8h16M12 8v4m0 0-4 8m4-8 4 8M8 12h8"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="3.5" r="2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="17" r="5" /><path d="M10 7v5h4l2 5M10 12l-3 4h5"/></svg>
       </button>
       {open && (
         <div id="a11y-panel" role="region" aria-label="כלי נגישות"
