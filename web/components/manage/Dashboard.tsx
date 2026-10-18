@@ -27,8 +27,8 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
       className="brand-root min-h-screen bg-surface text-ink"
       style={themeVars(biz.config?.branding?.colors)}
     >
-      <div className="mx-auto max-w-6xl p-3 sm:p-6">
-        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-4 shadow-sm sm:px-5">
+      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-7">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-[1.5rem] border border-ink/10 bg-white px-4 py-5 shadow-sm sm:rounded-[1.75rem] sm:px-6 sm:py-6">
           <div>
             <p className="text-xs font-semibold text-ink/55">אזור אישי לעסק</p>
             <h1 className="mt-1 text-xl font-extrabold tracking-tight">{biz.name}</h1>
@@ -43,7 +43,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
           </div>
         </header>
 
-        <nav className="mt-4 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
+        <nav className="sticky top-2 z-30 mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-ink/10 bg-surface/95 p-2 pb-2 shadow-sm backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
           {TABS.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
               className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-primary text-primary-fg shadow-sm' : 'bg-white text-ink ring-1 ring-ink/15 hover:bg-primary/5'}`}>
@@ -52,7 +52,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
           ))}
         </nav>
 
-        <div className="mt-4">
+        <div className="mt-5">
           {tab === 'leads' && <LeadsPanel token={token} initial={initialLeads} />}
           {tab === 'products' && <ProductsPanel token={token} />}
           {tab === 'gallery' && <GalleryPanel token={token} />}
