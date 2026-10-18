@@ -72,9 +72,9 @@ export default async function StorefrontPage({ params }: Props) {
   const serviceMode = data.site_mode === 'services_whatsapp';
   const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
   const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
-  const hasContact = Boolean(b?.phone || b?.email || (!serviceMode && b?.whatsapp_number) || social.instagram || social.facebook);
+  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = !serviceMode && waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
+  const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
@@ -86,9 +86,9 @@ export default async function StorefrontPage({ params }: Props) {
       {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
       <header className="mx-auto mb-6 max-w-4xl rounded-[1.75rem] border border-ink/10 bg-gradient-to-b from-white/95 to-surface/70 px-5 py-6 text-center shadow-sm sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
-        <h1 className="font-serif text-3xl font-bold leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
-        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-ink/5 bg-white/75 px-4 py-3 text-base font-medium leading-8 text-ink/80 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
-        {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink/15 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><span aria-hidden="true">↓</span> פרטי קשר ושעות פעילות</a>}
+        <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
+        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
+        {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-primary/20 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-secondary/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">יצירת קשר ופרטי העסק</a>}
       </header>
       {serviceMode && services.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">
