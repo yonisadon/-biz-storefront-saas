@@ -49,6 +49,10 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     whatsappIntro: initialWhatsAppIntro(flow),
   });
   const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
+  type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
+  const validFontStyles: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
+  const savedFontStyle = biz.config.branding?.font_style as FontStyle | undefined;
+  const [fontStyle, setFontStyle] = useState<FontStyle>(savedFontStyle && validFontStyles.includes(savedFontStyle) ? savedFontStyle : 'modern');
   const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -77,7 +81,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           config: {
             site_mode: siteMode,
             order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site, whatsapp_intro: f.whatsappIntro.trim() },
-            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors },
+            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
@@ -103,6 +107,25 @@ export default function BusinessPanel({ token, biz, onSaved }: {
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
         <PalettePicker value={palette} onChange={setPalette} />
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
+          <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות בכל עת; אם לא בוחרים, נשמר הסגנון המודרני כברירת מחדל.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: 'modern', title: 'מודרני', sample: 'נקי וברור', family: '"Heebo", Arial, sans-serif', note: 'חד ומאוזן' },
+              { id: 'rounded', title: 'מעוגל', sample: 'נעים וחברותי', family: '"Rubik", Arial, sans-serif', note: 'רך ונגיש' },
+              { id: 'elegant', title: 'אלגנטי', sample: 'יופי בפרטים', family: '"Frank Ruhl Libre", serif', note: 'כותרות עם אופי' },
+              { id: 'warm', title: 'חמים', sample: 'עסק עם לב', family: '"Assistant", Arial, sans-serif', note: 'אישי ומזמין' },
+            ] as const).map((option) => (
+              <label key={option.id} className={`relative flex min-h-24 cursor-pointer flex-col justify-center rounded-xl border p-3 transition ${fontStyle === option.id ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-400'}`}>
+                <input className="absolute end-2 top-2" type="radio" name="fontStyle" value={option.id} checked={fontStyle === option.id} onChange={() => setFontStyle(option.id)} />
+                <span className="text-sm font-bold" style={{ fontFamily: option.family }}>{option.title}</span>
+                <span className="mt-1 text-lg leading-6" style={{ fontFamily: option.family }}>{option.sample}</span>
+                <span className="mt-1 text-xs text-gray-500">{option.note}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
           <legend className="px-1 text-sm font-semibold">סוג האתר</legend>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
