@@ -37,7 +37,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
   );
 
   return (
-    <div className="fixed bottom-20 end-3 z-50 sm:bottom-5 sm:end-5">
+    <div className="fixed bottom-5 end-3 z-50 sm:bottom-5 sm:end-5">
       <button type="button" aria-label="פתיחת כלי נגישות" aria-expanded={open} aria-controls="a11y-panel" onClick={() => setOpen(!open)}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/15 bg-surface/95 text-ink shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:shadow-lg">
         <span aria-hidden="true" className="text-[1.9rem] leading-none">♿</span>
