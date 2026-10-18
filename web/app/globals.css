@@ -83,3 +83,15 @@ html.a11y-links a { text-decoration: underline !important; text-decoration-thick
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Customer-facing business identity follows the seller's selected brand palette. */
+.brand-root .business-title {
+  color: var(--brand-primary);
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif;
+  letter-spacing: -0.035em;
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
