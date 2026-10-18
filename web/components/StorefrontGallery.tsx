@@ -55,7 +55,7 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
         ))}
         {slides.length > 1 && <>
           <button type="button" onClick={() => move(-1)} aria-label="לתמונה הקודמת" className="absolute start-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-2xl text-white backdrop-blur-sm transition hover:bg-black/55 sm:opacity-0 sm:group-hover:opacity-100">›</button>
-          <button type="button" onClick={() => move(1)} aria-label="לתמונה הבאה" className="absolute end-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-2xl text-white backdrop-blur-sm transition hover:bg-black/55 sm:opacity-0 sm:group-hover:opacity-100">›</button>
+          <button type="button" onClick={() => move(1)} aria-label="לתמונה הבאה" className="absolute end-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-2xl text-white backdrop-blur-sm transition hover:bg-black/55 sm:opacity-0 sm:group-hover:opacity-100">‹</button>
           <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-1.5 bg-gradient-to-t from-black/45 to-transparent px-4 pb-3 pt-8" aria-label="בחירת תמונה">
             {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'h-2 rounded-full transition-all ' + (index === active ? 'w-6 bg-white' : 'w-2 bg-white/65 hover:bg-white')} />)}
           </div>
