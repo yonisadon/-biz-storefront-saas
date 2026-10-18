@@ -72,23 +72,23 @@ export default async function StorefrontPage({ params }: Props) {
   const serviceMode = data.site_mode === 'services_whatsapp';
   const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
   const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
-  const hasContact = Boolean(b?.phone || b?.email || (!serviceMode && b?.whatsapp_number) || social.instagram || social.facebook);
+  const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = !serviceMode && waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent(data.order_flow?.whatsapp_intro ?? 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:')}` : undefined;
+  const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
   const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
 
-  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" style={themeVars(data.branding?.colors)}>
+  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} style={themeVars(data.branding?.colors)}>
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
       {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
       <header className="mx-auto mb-6 max-w-4xl rounded-[1.75rem] border border-ink/10 bg-gradient-to-b from-white/95 to-surface/70 px-5 py-6 text-center shadow-sm sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
-        <h1 className="font-serif text-3xl font-bold leading-tight tracking-tight text-ink sm:text-5xl lg:text-6xl">{b?.name}</h1>
-        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-ink/5 bg-white/75 px-4 py-3 text-base font-medium leading-8 text-ink/80 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
-        {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-ink/15 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><span aria-hidden="true">↓</span> פרטי קשר ושעות פעילות</a>}
+        <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
+        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
+        {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-primary/20 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-secondary/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">יצירת קשר ופרטי העסק</a>}
       </header>
       {serviceMode && services.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">
@@ -96,14 +96,14 @@ export default async function StorefrontPage({ params }: Props) {
           <p className="mt-2 text-sm leading-6 text-ink/65">בחרו את השירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
         </div>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => <li key={service.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink/10 bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          {services.map((service) => <li key={service.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
             {service.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={service.image.url} alt={service.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
             <div className="flex flex-1 flex-col p-4">
               <h3 className="text-lg font-bold">{service.name}</h3>
-              {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/70">{service.description}</p>}
-              {service.price_agorot !== null && <p className="mt-3 font-bold">{ils(service.price_agorot)}</p>}
+              {service.description && <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{service.description}</p>}
+              {service.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(service.price_agorot)}</p>}
               <div className="mt-auto pt-4">
-                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:', service.name)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+                {waNumber && <a href={serviceWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:', service.name)} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
           </li>)}

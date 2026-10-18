@@ -137,11 +137,11 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
       </div>
 
       {items.length > 0 && (
-        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+        <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.slice(0, visibleCount).map((p) => {
             const q = cart[p.id] ?? 0;
             return (
-              <li key={p.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink/15 bg-surface">
+              <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
                 {p.image && (
                   <div className="relative aspect-[4/3]">
                     <Image src={p.image.url} alt={p.name} fill sizes="(min-width:640px) 50vw, 100vw" className="object-cover" />
@@ -154,14 +154,14 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{p.requires_appointment ? `שירות · תור ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
-                  {p.description && <p className="whitespace-pre-line text-sm text-ink/70">{p.description}</p>}
+                  {p.description && <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>}
                   <div className="mt-auto flex items-center justify-between gap-3 pt-2">
-                    <span className="font-bold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
+                    <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {canOrder && (q > 0 ? (
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
-                        className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
+                        className="storefront-card-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-fg transition hover:opacity-90">
                         {p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
                       </button>
                     ))}

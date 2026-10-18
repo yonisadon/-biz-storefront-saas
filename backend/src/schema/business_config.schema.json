@@ -4,16 +4,35 @@
     "version": {
       "type": "number"
     },
-    "site_mode": { "type": "string", "enum": ["catalog_order", "services_whatsapp"] },
+    "site_mode": {
+      "type": "string",
+      "enum": [
+        "catalog_order",
+        "services_whatsapp"
+      ]
+    },
     "order_flow": {
       "type": "object",
       "properties": {
-        "whatsapp_enabled": { "type": "boolean" },
-        "site_inquiry_enabled": { "type": "boolean" },
-        "whatsapp_intro": { "type": "string", "maxLength": 1000 },
-        "whatsapp_message_template": { "type": "string", "maxLength": 1000 }
+        "whatsapp_enabled": {
+          "type": "boolean"
+        },
+        "site_inquiry_enabled": {
+          "type": "boolean"
+        },
+        "whatsapp_intro": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "whatsapp_message_template": {
+          "type": "string",
+          "maxLength": 1000
+        }
       },
-      "required": ["whatsapp_enabled", "site_inquiry_enabled"]
+      "required": [
+        "whatsapp_enabled",
+        "site_inquiry_enabled"
+      ]
     },
     "opening_hours": {
       "type": "object"
@@ -21,50 +40,132 @@
     "branding": {
       "type": "object",
       "properties": {
-        "hero_gallery_image_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}$" },
-        "icon_gallery_image_id": { "type": "string", "pattern": "^[0-9a-fA-F-]{36}$" },
+        "hero_gallery_image_id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F-]{36}$"
+        },
+        "icon_gallery_image_id": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F-]{36}$"
+        },
         "colors": {
           "type": "object",
           "properties": {
-            "primary": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
-            "secondary": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
-            "accent": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
-            "background": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" },
-            "text": { "type": "string", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$" }
+            "primary": {
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+            },
+            "secondary": {
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+            },
+            "accent": {
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+            },
+            "background": {
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+            },
+            "text": {
+              "type": "string",
+              "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"
+            }
           },
-          "required": ["primary", "secondary", "accent", "background", "text"],
+          "required": [
+            "primary",
+            "secondary",
+            "accent",
+            "background",
+            "text"
+          ],
           "additionalProperties": false
+        },
+        "font_style": {
+          "type": "string",
+          "enum": [
+            "modern",
+            "rounded",
+            "elegant",
+            "warm"
+          ]
         }
       },
-      "required": ["colors"],
+      "required": [
+        "colors"
+      ],
       "additionalProperties": false
     },
     "social_links": {
       "type": "object",
       "properties": {
-        "instagram": { "type": "string", "maxLength": 500 },
-        "facebook": { "type": "string", "maxLength": 500 }
+        "instagram": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "facebook": {
+          "type": "string",
+          "maxLength": 500
+        }
       },
       "additionalProperties": false
     },
     "legal": {
       "type": "object",
       "properties": {
-        "terms_of_use": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
-        "privacy_policy": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false },
-        "accessibility_statement": { "type": "object", "properties": { "custom_text": { "type": "string", "maxLength": 20000 } }, "additionalProperties": false }
+        "terms_of_use": {
+          "type": "object",
+          "properties": {
+            "custom_text": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "additionalProperties": false
+        },
+        "privacy_policy": {
+          "type": "object",
+          "properties": {
+            "custom_text": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "additionalProperties": false
+        },
+        "accessibility_statement": {
+          "type": "object",
+          "properties": {
+            "custom_text": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },
     "business_profile": {
       "type": "object",
       "properties": {
-        "city": { "type": "string", "maxLength": 120 },
-        "street_address": { "type": "string", "maxLength": 250 },
-        "show_address": { "type": "boolean" }
+        "city": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "street_address": {
+          "type": "string",
+          "maxLength": 250
+        },
+        "show_address": {
+          "type": "boolean"
+        }
       },
       "additionalProperties": false
     }
   },
-  "required": ["version", "order_flow"]
+  "required": [
+    "version",
+    "order_flow"
+  ]
 }
