@@ -1,4 +1,5 @@
 export const BRAND_PALETTES = {
+  lavender: { label: 'סגול ולבן', description: 'מראה רך, אלגנטי ומודרני', colors: { primary: '#76539B', secondary: '#E8DDF2', accent: '#A78BC4', background: '#FCFAFE', text: '#30263A' } },
   rose: { label: 'ורוד אלגנטי', description: 'מתאים ליופי, טיפוח ואופנה', colors: { primary: '#A95768', secondary: '#F6E5E8', accent: '#81505A', background: '#FFFBFA', text: '#33272A' } },
   natural: { label: 'טבעי ומרגיע', description: 'מתאים לקליניקות, טיפול וייעוץ', colors: { primary: '#55745D', secondary: '#E5EDE5', accent: '#B27A4B', background: '#FAFBF8', text: '#27342A' } },
   luxury: { label: 'יוקרתי', description: 'גווני אבן, שחור וזהב', colors: { primary: '#80623F', secondary: '#EEE6DA', accent: '#B99A5E', background: '#FCFAF6', text: '#292722' } },
