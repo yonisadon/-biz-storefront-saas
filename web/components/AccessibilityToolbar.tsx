@@ -42,11 +42,11 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
         className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/20 bg-surface text-ink shadow-lg ring-1 ring-black/5 transition hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2"
         style={{ color: 'var(--brand-primary)' }}>
         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-6 w-6 shrink-0" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="4.5" r="1.65" fill="currentColor" stroke="none" />
-          <path d="M5 8.2 12 9.1 19 8.2" />
-          <path d="M12 9.1v5.1" />
-          <path d="m12 14.2-4.6 6.1" />
-          <path d="m12 14.2 4.6 6.1" />
+          <circle cx="10.5" cy="3.8" r="1.6" fill="currentColor" stroke="none" />
+          <path d="M10 6.4 8.1 11l4.2 2.1 2.8-3.2" />
+          <path d="m9.5 7.5 4.9 1.1 2.2 2.6" />
+          <path d="M7.8 11.1 6.8 14h6.5l2.1 2.8" />
+          <circle cx="13" cy="16.4" r="4.5" />
         </svg>
       </button>
       {open && (
