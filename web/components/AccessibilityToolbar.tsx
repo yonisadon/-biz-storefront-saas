@@ -37,14 +37,14 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
   );
 
   return (
-    <div className="fixed bottom-20 right-3 z-50 sm:bottom-24 sm:right-4">
+    <div className="fixed bottom-4 end-3 z-50 sm:bottom-5 sm:end-5">
       <button type="button" aria-expanded={open} aria-controls="a11y-panel" onClick={() => setOpen(!open)}
-        className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg shadow-lg">
-        <span aria-hidden="true" className="me-1">♿</span>נגישות
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/15 bg-surface/95 text-ink shadow-md backdrop-blur transition hover:-translate-y-0.5 hover:shadow-lg">
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="4" r="2"/><path d="M4 8h16M12 8v4m0 0-4 8m4-8 4 8M8 12h8"/></svg>
       </button>
       {open && (
         <div id="a11y-panel" role="region" aria-label="כלי נגישות"
-          className="mt-2 w-60 space-y-2 rounded-xl border border-ink/20 bg-surface p-3 text-ink shadow-xl">
+          className="absolute bottom-14 end-0 w-60 space-y-2 rounded-xl border border-ink/20 bg-surface p-3 text-ink shadow-xl">
           {row('large', 'הגדלת טקסט')}
           {row('contrast', 'ניגודיות גבוהה')}
           {row('links', 'הדגשת קישורים')}
