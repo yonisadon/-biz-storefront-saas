@@ -1,5 +1,10 @@
--- Add appointment fields to existing tenant databases without modifying existing product data.
+-- Align existing tenant databases with the current lead and appointment API.
+-- These changes are additive/relaxing and preserve all existing rows.
 -- Safe to run repeatedly; migration history is recorded by tenantMigrations.ts.
+ALTER TABLE public.leads
+  ALTER COLUMN customer_name DROP NOT NULL,
+  ALTER COLUMN customer_phone DROP NOT NULL;
+
 ALTER TABLE public.products
   ADD COLUMN IF NOT EXISTS requires_appointment boolean NOT NULL DEFAULT false;
 
