@@ -52,10 +52,11 @@ async function main() {
         const schema = await db.query(
           `SELECT to_regclass('public.businesses') AS businesses,
                   to_regclass('public.products') AS products,
+                  to_regclass('public.leads') AS leads,
                   to_regclass('public.portfolio_images') AS portfolio_images`,
         );
         const row = schema.rows[0];
-        if (!row.businesses || !row.products || !row.portfolio_images) {
+        if (!row.businesses || !row.products || !row.leads || !row.portfolio_images) {
           throw new Error(`Tenant database ${tenant.database_name} is missing expected core tables; stopped before applying migrations.`);
         }
       } finally {
