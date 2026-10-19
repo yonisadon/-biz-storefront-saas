@@ -125,6 +125,9 @@ CREATE TABLE IF NOT EXISTS public.products (
   description     text,
   price_agorot    integer CHECK (price_agorot IS NULL OR price_agorot >= 0),  -- ILS x100; NULL = quote
   image_asset_id  uuid,                                                      -- exactly one image
+  requires_appointment boolean NOT NULL DEFAULT false,
+  appointment_duration_minutes smallint NOT NULL DEFAULT 30
+    CHECK (appointment_duration_minutes IN (15, 30, 45, 60, 90, 120, 180, 240)),
   is_active       boolean NOT NULL DEFAULT true,
   sort_order      integer NOT NULL DEFAULT 0,
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -134,7 +137,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     REFERENCES public.media_assets (tenant_id, id) ON DELETE SET NULL (image_asset_id)
 );
 
--- 3.4 Portfolio gallery: max 10 images, enforced structurally by position 1..10.
+-- 3.4 Portfolio gallery: application limit is 7 images total. The DB keeps positions 1..10
+-- temporarily so legacy rows above 7 can be reviewed and removed manually; never delete them automatically.
 --     No rows => component not rendered (decided by app from row count).
 CREATE TABLE IF NOT EXISTS public.portfolio_images (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
