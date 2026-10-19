@@ -47,8 +47,8 @@ export function validateAppointmentSelection(args: {
   const requestedMinutes = toMinutes(timePart ?? '');
   if (!validDate || !Number.isFinite(requestedMinutes)) return 'invalid_appointment_time';
 
-  const dateForWeekday = new Date(`${datePart}T12:00:00`);
-  const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dateForWeekday.getDay()];
+  const dateForWeekday = new Date(`${datePart}T12:00:00Z`);
+  const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dateForWeekday.getUTCDay()];
   const ranges = openingHoursDays && typeof openingHoursDays === 'object'
     ? openingHoursDays[dayKey]
     : undefined;
