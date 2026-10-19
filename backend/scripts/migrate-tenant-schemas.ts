@@ -100,10 +100,22 @@ async function main() {
         );
         if (durationConstraint.rowCount) {
           const definition = String(durationConstraint.rows[0].definition);
-          for (const allowed of ['15', '30', '45', '60', '90', '120', '180', '240']) {
-            if (!definition.includes(allowed)) {
-              throw new Error(`Tenant database ${tenant.database_name} has an unexpected appointment duration constraint; stopped before applying migrations.`);
-            }
+          const foundValues = [...new Set(definition.match(/\d+/g) ?? [])].sort((a, b) => Number(a) - Number(b));
+          const expectedValues = ['15', '30', '45', '60', '90', '120', '180', '240'];
+          if (JSON.stringify(foundValues) !== JSON.stringify(expectedValues)) {
+            throw new Error(`Tenant database ${tenant.database_name} has an unexpected appointment duration constraint; stopped before applying migrations.`);
+          }
+        }
+
+        if (columns.has('products.appointment_duration_minutes')) {
+          const invalidDurations = await db.query(
+            `SELECT count(*)::int AS n
+               FROM public.products
+              WHERE appointment_duration_minutes IS NULL
+                 OR appointment_duration_minutes NOT IN (15, 30, 45, 60, 90, 120, 180, 240)`,
+          );
+          if (invalidDurations.rows[0].n > 0) {
+            throw new Error(`Tenant database ${tenant.database_name} contains appointment durations outside the supported set; stopped before applying migrations.`);
           }
         }
       } finally {
