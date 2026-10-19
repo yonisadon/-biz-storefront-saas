@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import { useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
-import type { DayHours, OrderFlow, Product } from '@/lib/types';
+import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null };
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
 type Step = 'choose' | 'site';
@@ -35,8 +35,13 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export default function OrderSection({ apiBase, items, quoteLabel, flow, openingHours }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
+  const [items, setItems] = useState<Product[]>(initialItems);
+  const [nextOffset, setNextOffset] = useState(initialItems.length);
+  const [hasMore, setHasMore] = useState(initiallyHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [visibleCount, setVisibleCount] = useState(12);
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
@@ -48,6 +53,18 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
   const [done, setDone] = useState<Done | null>(null);
 
   const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true); setCatalogError(null);
+    try {
+      const response = await fetch(`${apiBase}/catalog?limit=12&offset=${nextOffset}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('catalog_request_failed');
+      const page = await response.json() as PublicCatalogPage;
+      setItems((current) => { const known = new Set(current.map((item) => item.id)); return [...current, ...page.items.filter((item) => !known.has(item.id))]; });
+      setNextOffset(page.offset + page.items.length); setHasMore(page.has_more);
+    } catch { setCatalogError('לא הצלחנו לטעון מוצרים נוספים. נסו שוב.'); }
+    finally { setLoadingMore(false); }
+  }
   const byId = useMemo(() => new Map(items.map((p) => [p.id, p])), [items]);
   const lines = Object.entries(cart)
     .map(([id, q]) => ({ p: byId.get(id)!, q }))
