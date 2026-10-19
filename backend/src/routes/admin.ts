@@ -153,7 +153,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       );
 
       // Each new database gets the exact same schema as the current application.
-      const schema = readFileSync(join(__dirname, '../../migrations/tenant-schema.sql'), 'utf8');
+      const schema = readFileSync(join(process.cwd(), 'migrations/tenant-schema.sql'), 'utf8');
       await tenantAdmin.query(schema);
       await applyTenantMigrations(tenantAdmin);
 
