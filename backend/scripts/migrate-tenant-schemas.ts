@@ -59,6 +59,53 @@ async function main() {
         if (!row.businesses || !row.products || !row.leads || !row.portfolio_images) {
           throw new Error(`Tenant database ${tenant.database_name} is missing expected core tables; stopped before applying migrations.`);
         }
+
+        const tenantRow = await db.query('SELECT id FROM public.businesses WHERE id = $1', [tenant.tenant_id]);
+        if (!tenantRow.rowCount) {
+          throw new Error(`Tenant database ${tenant.database_name} does not contain its mapped business row; stopped before applying migrations.`);
+        }
+
+        const columnResult = await db.query(
+          `SELECT table_name, column_name, data_type, udt_name
+             FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name IN ('products', 'leads')`,
+        );
+        const columns = new Map(
+          columnResult.rows.map((column) => [
+            `${column.table_name}.${column.column_name}`,
+            column,
+          ]),
+        );
+        for (const required of ['leads.customer_name', 'leads.customer_phone']) {
+          if (!columns.has(required)) {
+            throw new Error(`Tenant database ${tenant.database_name} is missing required column ${required}; stopped before applying migrations.`);
+          }
+        }
+        for (const [name, expectedType] of [
+          ['products.requires_appointment', 'boolean'],
+          ['products.appointment_duration_minutes', 'smallint'],
+        ] as const) {
+          const column = columns.get(name);
+          if (column && column.data_type !== expectedType) {
+            throw new Error(`Tenant database ${tenant.database_name} has unexpected type for ${name}; expected ${expectedType}, found ${column.data_type}. Stopped before applying migrations.`);
+          }
+        }
+
+        const durationConstraint = await db.query(
+          `SELECT pg_get_constraintdef(oid) AS definition
+             FROM pg_constraint
+            WHERE conrelid = 'public.products'::regclass
+              AND conname = 'products_appointment_duration_minutes_check'`,
+        );
+        if (durationConstraint.rowCount) {
+          const definition = String(durationConstraint.rows[0].definition);
+          for (const allowed of ['15', '30', '45', '60', '90', '120', '180', '240']) {
+            if (!definition.includes(allowed)) {
+              throw new Error(`Tenant database ${tenant.database_name} has an unexpected appointment duration constraint; stopped before applying migrations.`);
+            }
+          }
+        }
       } finally {
         await db.end();
       }
