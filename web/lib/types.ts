@@ -32,7 +32,7 @@ export type PublicPayload = {
     show_out_of_hours_banner: boolean;
     banner_message: string | null;
   };
-  catalog: { quote_label: string; items: Product[] };
+  catalog: { quote_label: string; items: Product[]; total: number; limit: number | null; offset: number; has_more: boolean };
   gallery: GalleryImage[];
   sections: { about: boolean; gallery: boolean };
   og: { title: string; description: string | null; image_url: string | null };
@@ -81,3 +81,5 @@ export type MGalleryImage = {
   caption: string | null;
   url: string;
 };
+export type MProductsResponse = { items: MProduct[]; total: number; limit: number; offset: number };
+export type PublicCatalogPage = { items: Product[]; total: number; limit: number; offset: number; has_more: boolean };
