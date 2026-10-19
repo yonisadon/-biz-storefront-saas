@@ -146,7 +146,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               <a className="inline-flex min-h-10 items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">פתיחה בוואטסאפ</a>
             </div>}
             {l.customer_email && <p dir="ltr" className="mt-2 break-all text-start text-sm text-gray-600">{l.customer_email}</p>}
-            {l.metadata?.appointment_at && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900"><p>שעת תור מבוקשת: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>{l.metadata.appointment_duration_minutes && <p className="mt-1">משך תור משוער: {l.metadata.appointment_duration_minutes} דקות</p>}</div>}
+            {(l.metadata?.appointment_at || l.metadata?.appointment_needs_coordination) && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900">{l.metadata.appointment_at ? <p>שעת תור מבוקשת: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p> : <p>מועד התור יתואם מול הלקוח</p>}{l.metadata.appointment_duration_minutes && <p className="mt-1">משך תור משוער: {l.metadata.appointment_duration_minutes} דקות</p>}</div>}
             {l.message && <p className="mt-3 whitespace-pre-line rounded-xl bg-gray-50 p-3 text-sm leading-6 text-gray-700">{l.message}</p>}
             <div className="mt-3 border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-500">פריטים בפנייה</p>
