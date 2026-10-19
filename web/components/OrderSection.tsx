@@ -78,8 +78,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const appointmentTimeRequired = needsAppointment && hasAppointmentHours;
   const appointmentSlots = useMemo(() => {
     if (!appointmentDate || !hasAppointmentHours || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480) return [];
-    const date = new Date(`${appointmentDate}T12:00:00`);
-    const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
+    const date = new Date(`${appointmentDate}T12:00:00Z`);
+    const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getUTCDay()];
     const ranges = openingHours[key];
     if (!Array.isArray(ranges)) return [];
     const slots: string[] = [];
