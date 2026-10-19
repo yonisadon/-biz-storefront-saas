@@ -71,8 +71,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const count = lines.reduce((s, l) => s + l.q, 0);
   const needsAppointment = lines.some(({ p }) => p.kind === 'service' && p.requires_appointment);
   const appointmentDurationMinutes = lines.filter(({ p }) => p.kind === 'service' && p.requires_appointment).reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const hasAppointmentHours = useMemo(
+    () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
+    [openingHours],
+  );
+  const appointmentTimeRequired = needsAppointment && hasAppointmentHours;
   const appointmentSlots = useMemo(() => {
-    if (!appointmentDate || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480) return [];
+    if (!appointmentDate || !hasAppointmentHours || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480) return [];
     const date = new Date(`${appointmentDate}T12:00:00`);
     const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
     const ranges = openingHours[key];
@@ -85,7 +90,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       }
     }
     return slots;
-  }, [appointmentDate, openingHours, appointmentDurationMinutes]);
+  }, [appointmentDate, openingHours, appointmentDurationMinutes, hasAppointmentHours]);
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
@@ -109,7 +114,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setError(null);
     const phone = normalizeILPhone(form.phone);
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
-    if (needsAppointment && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
+    if (appointmentTimeRequired && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
     if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
@@ -120,7 +125,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           route,
           ...(route === 'site' ? { customer_name: form.name.trim(), customer_phone: form.phone, customer_email: form.email.trim() || undefined } : {}),
-          ...(needsAppointment ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
+          ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
@@ -229,17 +234,23 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
         {!done && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
-            <legend className="px-1 text-sm font-semibold">תיאום שעה מבוקשת</legend>
-            <p className="text-xs leading-5 text-ink/65">משך התור המבוקש: {appointmentDurationMinutes} דקות בסך הכול. בחרו מועד מתוך שעות הפעילות; זו בקשת תיאום בלבד והעסק יאשר את השעה מולכם.</p>
-            <label className="block text-sm font-medium">תאריך
-              <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
-            </label>
-            <label className="block text-sm font-medium">שעה
-              <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || appointmentSlots.length === 0} className={input}>
-                <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות זמינות ביום זה'}</option>
-                {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-              </select>
-            </label>
+            <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
+            {hasAppointmentHours ? (
+              <>
+                <p className="text-xs leading-5 text-ink/65">משך התור המבוקש: {appointmentDurationMinutes} דקות בסך הכול. בחרו מועד מתוך שעות הפעילות. זו בקשת תיאום בלבד והמוכר יאשר את השעה מולכם.</p>
+                <label className="block text-sm font-medium">תאריך
+                  <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
+                </label>
+                <label className="block text-sm font-medium">שעה
+                  <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || appointmentSlots.length === 0} className={input}>
+                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות זמינות ביום זה'}</option>
+                    {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <p className="text-sm leading-6 text-ink/75">העסק עדיין לא הגדיר שעות פעילות. אפשר לשלוח את הבקשה ללא מועד, והמוכר יתאם איתכם את התור. משך התור הכולל: {appointmentDurationMinutes} דקות.</p>
+            )}
           </fieldset>
         )}
 
