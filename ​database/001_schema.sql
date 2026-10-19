@@ -134,7 +134,9 @@ CREATE TABLE IF NOT EXISTS public.products (
     REFERENCES public.media_assets (tenant_id, id) ON DELETE SET NULL (image_asset_id)
 );
 
--- 3.4 Portfolio gallery: max 10 images, enforced structurally by position 1..10.
+-- 3.4 Portfolio gallery: application limit is 7 images total including the selected hero.
+-- Positions 1..10 remain DB-compatible for legacy rows; the app blocks new uploads after 7.
+-- Do not delete legacy rows automatically; businesses with >7 images need manual review.
 --     No rows => component not rendered (decided by app from row count).
 CREATE TABLE IF NOT EXISTS public.portfolio_images (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
