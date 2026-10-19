@@ -31,7 +31,6 @@ async function connect(connectionString: string): Promise<pg.Client> {
 
 async function main() {
   const registry = await connect(registryUrl!);
-  const admin = await connect(adminUrl!);
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
@@ -76,7 +75,6 @@ async function main() {
     }
     console.log('Tenant schema migrations completed. No tenant databases or business rows were deleted.');
   } finally {
-    await admin.end();
     await registry.end();
   }
 }
