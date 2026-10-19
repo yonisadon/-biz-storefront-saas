@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import { useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
-import type { DayHours, OrderFlow, Product } from '@/lib/types';
+import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null };
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
 type Step = 'choose' | 'site';
@@ -35,10 +35,14 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export default function OrderSection({ apiBase, items, quoteLabel, flow, openingHours }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
+  const [items, setItems] = useState<Product[]>(initialItems);
+  const [nextOffset, setNextOffset] = useState(initialItems.length);
+  const [hasMore, setHasMore] = useState(initiallyHasMore);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [visibleCount, setVisibleCount] = useState(12);
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -48,6 +52,18 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
   const [done, setDone] = useState<Done | null>(null);
 
   const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
+  async function loadMore() {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true); setCatalogError(null);
+    try {
+      const response = await fetch(`${apiBase}/catalog?limit=12&offset=${nextOffset}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('catalog_request_failed');
+      const page = await response.json() as PublicCatalogPage;
+      setItems((current) => { const known = new Set(current.map((item) => item.id)); return [...current, ...page.items.filter((item) => !known.has(item.id))]; });
+      setNextOffset(page.offset + page.items.length); setHasMore(page.has_more);
+    } catch { setCatalogError('לא הצלחנו לטעון מוצרים נוספים. נסו שוב.'); }
+    finally { setLoadingMore(false); }
+  }
   const byId = useMemo(() => new Map(items.map((p) => [p.id, p])), [items]);
   const lines = Object.entries(cart)
     .map(([id, q]) => ({ p: byId.get(id)!, q }))
@@ -138,7 +154,7 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
 
       {items.length > 0 && (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.slice(0, visibleCount).map((p) => {
+          {items.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
               <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
@@ -173,10 +189,12 @@ export default function OrderSection({ apiBase, items, quoteLabel, flow, opening
         </ul>
       )}
 
-      {items.length > visibleCount && <div className="mt-5 flex justify-center">
-        <button type="button" onClick={() => setVisibleCount((n) => Math.min(items.length, n + 12))} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5">
-          הצגת עוד פריטים ({items.length - visibleCount} נותרו)
-        </button>
+      {catalogTotal > 0 && <div className="mt-5 flex flex-col items-center gap-2">
+        <p className="text-sm text-ink/60">מוצגים {items.length} מתוך {catalogTotal} פריטים</p>
+        {catalogError && <p role="alert" className="text-sm text-red-700">{catalogError}</p>}
+        {hasMore && <button type="button" onClick={loadMore} disabled={loadingMore} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
+          {loadingMore ? 'טוען פריטים…' : 'הצגת עוד פריטים'}
+        </button>}
       </div>}
 
       {/* Sticky bar on bottom when cart has items */}

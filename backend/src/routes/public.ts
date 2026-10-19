@@ -4,11 +4,28 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
+import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 
 const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
+
+const PUBLIC_CATALOG_PAGE_SIZE = 12;
+async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0) {
+  const result = limit === null
+    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at`)
+    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at LIMIT $1 OFFSET $2`, [limit, offset]);
+  const items = result.rows.map((r) => ({
+    id: r.id, kind: r.kind, name: r.name, description: r.description, price_agorot: r.price_agorot,
+    requires_appointment: r.requires_appointment === true, appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
+    image: r.storage_key ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height } : null,
+  }));
+  let total = limit === null ? items.length : (result.rows[0] ? Number(result.rows[0].total) : 0);
+  if (limit !== null && items.length === 0 && offset > 0) total = Number((await db.query('SELECT count(*)::int AS total FROM products WHERE is_active')).rows[0].total);
+  return { items, total, limit, offset, has_more: limit !== null && offset + items.length < total };
+}
+
 
 async function loadBusiness(db: pg.PoolClient) {
   const { rows } = await db.query(
@@ -26,21 +43,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const siteMode = cfg.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
-  const products = (await db.query(
-    `SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height
-       FROM products p
-       LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id
-      WHERE p.is_active
-      ORDER BY p.sort_order, p.created_at`,
-  )).rows.map((r) => ({
-    id: r.id, kind: r.kind, name: r.name, description: r.description,
-    price_agorot: r.price_agorot, // null => quote
-    requires_appointment: r.requires_appointment === true,
-    appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
-    image: r.storage_key
-      ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height }
-      : null,
-  }));
+  const catalog = await loadPublicCatalog(db, siteMode === 'services_whatsapp' ? null : PUBLIC_CATALOG_PAGE_SIZE);
 
   const galleryRows = (await db.query(
     `SELECT pi.id, pi.position, pi.alt_text, pi.caption, m.storage_key, m.width, m.height
@@ -88,7 +91,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
       show_out_of_hours_banner: hours.out_of_hours_banner?.enabled !== false && openNow === false,
       banner_message: hours.out_of_hours_banner?.message ?? null,
     },
-    catalog: { quote_label: cfg.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL, items: products },
+    catalog: { quote_label: cfg.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL, ...catalog },
     gallery,                                      // [] => component hidden
     sections: { about: !!biz.about_text, gallery: gallery.length > 0 },
     og: {
@@ -104,8 +107,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
   async (app) => {
     app.addHook('preHandler', resolver);
 
-    // Config + catalog + gallery in one round trip
+    // Business config + first catalog page + gallery in one round trip.
     app.get('/', async (req) => withTenant(req.tenantId, buildPublicPayload));
+    app.get('/catalog', async (req) => {
+      const q = PublicCatalogQuery.parse(req.query);
+      return withTenant(req.tenantId, async (db) => loadPublicCatalog(db, q.limit, q.offset));
+    });
 
     // Legal texts are fetched separately (can be large). null => use platform default.
     app.get('/legal/:doc', async (req) => {

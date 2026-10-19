@@ -5,7 +5,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { processImage, sanitizeFilename } from '../images';
-import { GalleryPatch, OrderBody, ProductCreate, ProductPatch } from '../catalogSchemas';
+import { GalleryPatch, OrderBody, ProductCreate, ProductListQuery, ProductMove, ProductPatch } from '../catalogSchemas';
 import { mainKey, ogKey, storage, variantKeys } from '../storage';
 
 const MAX_PRODUCTS = 200;
@@ -92,9 +92,16 @@ const uploadLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } }
 
 export const catalogRoutes: FastifyPluginAsync = async (app) => {
   // ================= Products =================
-  app.get('/products', async (req) =>
-    withTenant(req.tenantId, async (db) =>
-      (await db.query(`${PRODUCT_SELECT} ORDER BY p.sort_order, p.created_at`)).rows.map(shapeProduct)));
+  app.get('/products', async (req) => {
+    const q = ProductListQuery.parse(req.query);
+    return withTenant(req.tenantId, async (db) => {
+      const active = q.status === 'all' ? null : q.status === 'active';
+      const where = `($1::text = '' OR p.name ILIKE '%' || $1 || '%') AND ($2::boolean IS NULL OR p.is_active = $2)`;
+      const total = Number((await db.query(`SELECT count(*)::int AS total FROM products p WHERE ${where}`, [q.search, active])).rows[0].total);
+      const rows = (await db.query(`${PRODUCT_SELECT} WHERE ${where} ORDER BY p.sort_order, p.created_at LIMIT $3 OFFSET $4`, [q.search, active, q.limit, q.offset])).rows;
+      return { items: rows.map(shapeProduct), total, limit: q.limit, offset: q.offset };
+    });
+  });
 
   app.post('/products', async (req, reply) => {
     const b = ProductCreate.parse(req.body);
@@ -127,6 +134,24 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       if (r.rowCount !== ids.length || ids.length !== total) throw new HttpError(400, 'order_mismatch');
     });
     return reply.code(204).send();
+  });
+
+  app.post('/products/:id/move', async (req) => {
+    const id = idParam(req);
+    const { direction } = ProductMove.parse(req.body);
+    return withTenant(req.tenantId, async (db) => {
+      const rows = (await db.query('SELECT id, sort_order FROM products ORDER BY sort_order, created_at FOR UPDATE')).rows as { id: string; sort_order: number }[];
+      const index = rows.findIndex((row) => row.id === id);
+      if (index < 0) throw new HttpError(404, 'not_found');
+      const otherIndex = index + (direction === 'up' ? -1 : 1);
+      if (otherIndex < 0 || otherIndex >= rows.length) return { moved: false };
+      const current = rows[index], other = rows[otherIndex];
+      const temporaryOrder = Math.max(...rows.map((row) => row.sort_order)) + 1;
+      await db.query('UPDATE products SET sort_order = $1 WHERE id = $2', [temporaryOrder, current.id]);
+      await db.query('UPDATE products SET sort_order = $1 WHERE id = $2', [current.sort_order, other.id]);
+      await db.query('UPDATE products SET sort_order = $1 WHERE id = $2', [other.sort_order, current.id]);
+      return { moved: true };
+    });
   });
 
   app.patch('/products/:id', async (req) => {
