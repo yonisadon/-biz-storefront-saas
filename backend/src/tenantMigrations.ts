@@ -12,7 +12,7 @@ const MIGRATION_FILE = /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i;
  */
 export async function applyTenantMigrations(
   db: DbClient,
-  migrationsDir = join(__dirname, '../migrations'),
+  migrationsDir = join(process.cwd(), 'migrations'),
 ): Promise<string[]> {
   const files = readdirSync(migrationsDir)
     .filter((file) => MIGRATION_FILE.test(file))
