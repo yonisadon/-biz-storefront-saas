@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
+import { applyTenantMigrations } from '../src/tenantMigrations';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -57,6 +58,7 @@ async function main() {
         tenantAdmin = new pg.Client({ connectionString: dbUrl(databaseName), ssl });
         await tenantAdmin.connect();
         await tenantAdmin.query(schema);
+        await applyTenantMigrations(tenantAdmin);
 
         const businessColumns = [
           'id', 'slug', 'name', 'status', 'whatsapp_number', 'phone', 'email',
