@@ -9,7 +9,9 @@
     "migrate-tenants": "tsx --env-file=.env scripts/migrate-tenants-to-databases.ts",
     "grant-lead-delete": "tsx --env-file=.env scripts/grant-lead-delete.ts",
     "setup-tenant-registry": "tsx --env-file=.env scripts/setup-tenant-registry.ts",
-    "prestart": "node dist/scripts/setup-tenant-registry.js"
+    "prestart": "node dist/scripts/setup-tenant-registry.js",
+    "migrate-tenant-schemas": "tsx --env-file=.env scripts/migrate-tenant-schemas.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
