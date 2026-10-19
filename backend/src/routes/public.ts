@@ -187,7 +187,14 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
              RETURNING id`,
             [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
-             JSON.stringify({ has_quote_items: hasQuote, ...(appointmentAt ? { appointment_at: appointmentAt, appointment_duration_minutes: appointmentDurationMinutes } : {}) })],
+             JSON.stringify({
+               has_quote_items: hasQuote,
+               ...(needsAppointment ? {
+                 appointment_duration_minutes: appointmentDurationMinutes,
+                 appointment_needs_coordination: !appointmentAt,
+                 ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
+               } : {}),
+             })],
           );
           const leadId: string = lead.rows[0].id;
 
@@ -230,11 +237,18 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             if (body.customer_phone) messageLines.push(`טלפון: ${toLocalPhone(body.customer_phone)}`);
             messageLines.push('', `סכום משוער: ${totalText}`);
             if (body.message) messageLines.push('', `הערה: ${body.message}`);
-            if (appointmentAt) {
-              messageLines.push(
-                `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
-                `משך תור משוער: ${appointmentDurationMinutes} דקות`,
-              );
+            if (needsAppointment) {
+              if (appointmentAt) {
+                messageLines.push(
+                  `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
+                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                );
+              } else {
+                messageLines.push(
+                  'מועד התור יתואם מול המוכר',
+                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                );
+              }
             }
             const text = messageLines.join('\n');
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
