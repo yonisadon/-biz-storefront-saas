@@ -64,7 +64,13 @@ async function main() {
       }
     }
 
-    console.log(`Preflight passed for ${tenants.length} tenant database(s). Applying additive migrations...`);
+    console.log(`Preflight passed for ${tenants.length} tenant database(s).`);
+    if (process.env.APPLY_TENANT_MIGRATIONS !== 'true') {
+      console.log('Dry run only: no changes were made. After backup and explicit approval, rerun with APPLY_TENANT_MIGRATIONS=true.');
+      return;
+    }
+
+    console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
       const db = await connect(databaseUrl(tenant.database_name));
       try {
