@@ -43,7 +43,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [loadingMore, setLoadingMore] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [visibleCount, setVisibleCount] = useState(12);
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -155,7 +154,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
       {items.length > 0 && (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.slice(0, visibleCount).map((p) => {
+          {items.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
               <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
@@ -190,10 +189,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         </ul>
       )}
 
-      {items.length > visibleCount && <div className="mt-5 flex justify-center">
-        <button type="button" onClick={() => setVisibleCount((n) => Math.min(items.length, n + 12))} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5">
-          הצגת עוד פריטים ({items.length - visibleCount} נותרו)
-        </button>
+      {catalogTotal > 0 && <div className="mt-5 flex flex-col items-center gap-2">
+        <p className="text-sm text-ink/60">מוצגים {items.length} מתוך {catalogTotal} פריטים</p>
+        {catalogError && <p role="alert" className="text-sm text-red-700">{catalogError}</p>}
+        {hasMore && <button type="button" onClick={loadMore} disabled={loadingMore} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
+          {loadingMore ? 'טוען פריטים…' : 'הצגת עוד פריטים'}
+        </button>}
       </div>}
 
       {/* Sticky bar on bottom when cart has items */}
