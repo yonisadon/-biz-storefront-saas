@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
+import { applyTenantMigrations } from '../tenantMigrations';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -154,6 +155,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       // Each new database gets the exact same schema as the current application.
       const schema = readFileSync(join(__dirname, '../../migrations/tenant-schema.sql'), 'utf8');
       await tenantAdmin.query(schema);
+      await applyTenantMigrations(tenantAdmin);
 
       const business = await registry.query(
         `SELECT id, slug, name, status, whatsapp_number, phone, email, about_text,
