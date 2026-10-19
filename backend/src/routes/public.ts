@@ -4,6 +4,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
+import { validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
@@ -149,7 +150,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const ids = [...qty.keys()];
           const found = ids.length
             ? (await db.query(
-                'SELECT id, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+                'SELECT id, kind, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
                 [ids],
               )).rows
             : [];
@@ -164,27 +165,20 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
-          const needsAppointment = found.some((p) => p.requires_appointment === true);
+          const needsAppointment = found.some((p) => p.kind === 'service' && p.requires_appointment === true);
           const appointmentAt = body.appointment_at;
-          const appointmentDurationMinutes = found.filter((p) => p.requires_appointment === true)
+          const appointmentDurationMinutes = found.filter((p) => p.kind === 'service' && p.requires_appointment === true)
             .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
-          if (needsAppointment && !appointmentAt) throw new HttpError(400, 'appointment_required');
-          if (appointmentAt) {
-            if (!needsAppointment) throw new HttpError(400, 'appointment_not_applicable');
-            const [datePart, timePart] = appointmentAt.split('T');
-            const date = new Date(`${datePart}T12:00:00`);
-            const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getDay()];
-            const ranges = biz.config?.opening_hours?.days?.[dayKey];
-            const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-            const requestedMinutes = toMinutes(timePart);
-            const validSlot = appointmentDurationMinutes > 0 && appointmentDurationMinutes <= 480 && Array.isArray(ranges) && ranges.some((r: { open: string; close: string }) => requestedMinutes >= toMinutes(r.open) && requestedMinutes + appointmentDurationMinutes <= toMinutes(r.close) && (requestedMinutes - toMinutes(r.open)) % appointmentDurationMinutes === 0);
-            const requestedDate = new Date(`${datePart}T12:00:00Z`);
-            const validDate = Number.isFinite(requestedDate.getTime()) && requestedDate.toISOString().slice(0, 10) === datePart;
-            const parts = new Intl.DateTimeFormat('en-CA', { timeZone: biz.timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
-            const part = (type: string) => parts.find((x) => x.type === type)?.value ?? '';
-            const nowLocal = `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
-            if (!validDate || !validSlot || appointmentAt <= nowLocal) throw new HttpError(400, 'invalid_appointment_time');
-          }
+          const appointmentError = validateAppointmentSelection({
+            needsAppointment,
+            appointmentAt,
+            durationMinutes: appointmentDurationMinutes,
+            openingHoursDays: biz.config?.opening_hours?.days,
+            timezone: biz.timezone,
+          });
+          if (appointmentError === 'appointment_required') throw new HttpError(400, 'appointment_required');
+          if (appointmentError === 'appointment_not_applicable') throw new HttpError(400, 'appointment_not_applicable');
+          if (appointmentError) throw new HttpError(400, 'invalid_appointment_time');
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           const lead = await db.query(
             `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
@@ -193,7 +187,14 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
              RETURNING id`,
             [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
-             JSON.stringify({ has_quote_items: hasQuote, ...(appointmentAt ? { appointment_at: appointmentAt, appointment_duration_minutes: appointmentDurationMinutes } : {}) })],
+             JSON.stringify({
+               has_quote_items: hasQuote,
+               ...(needsAppointment ? {
+                 appointment_duration_minutes: appointmentDurationMinutes,
+                 appointment_needs_coordination: !appointmentAt,
+                 ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
+               } : {}),
+             })],
           );
           const leadId: string = lead.rows[0].id;
 
@@ -219,7 +220,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const itemsText = found.map((p) => {
               const q = qty.get(p.id)!;
               const price = p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q);
-              const duration = p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
+              const duration = p.kind === 'service' && p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
               return `• ${p.name} × ${q}${duration} — ${price}`;
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
@@ -236,11 +237,18 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             if (body.customer_phone) messageLines.push(`טלפון: ${toLocalPhone(body.customer_phone)}`);
             messageLines.push('', `סכום משוער: ${totalText}`);
             if (body.message) messageLines.push('', `הערה: ${body.message}`);
-            if (appointmentAt) {
-              messageLines.push(
-                `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
-                `משך תור משוער: ${appointmentDurationMinutes} דקות`,
-              );
+            if (needsAppointment) {
+              if (appointmentAt) {
+                messageLines.push(
+                  `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
+                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                );
+              } else {
+                messageLines.push(
+                  'מועד התור יתואם מול המוכר',
+                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                );
+              }
             }
             const text = messageLines.join('\n');
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;

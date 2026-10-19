@@ -125,6 +125,9 @@ CREATE TABLE IF NOT EXISTS public.products (
   description     text,
   price_agorot    integer CHECK (price_agorot IS NULL OR price_agorot >= 0),  -- ILS x100; NULL = quote
   image_asset_id  uuid,                                                      -- exactly one image
+  requires_appointment boolean NOT NULL DEFAULT false,
+  appointment_duration_minutes smallint NOT NULL DEFAULT 30
+    CHECK (appointment_duration_minutes IN (15, 30, 45, 60, 90, 120, 180, 240)),
   is_active       boolean NOT NULL DEFAULT true,
   sort_order      integer NOT NULL DEFAULT 0,
   created_at      timestamptz NOT NULL DEFAULT now(),
@@ -134,7 +137,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     REFERENCES public.media_assets (tenant_id, id) ON DELETE SET NULL (image_asset_id)
 );
 
--- 3.4 Portfolio gallery: max 10 images, enforced structurally by position 1..10.
+-- 3.4 Portfolio gallery: application limit is 7 images total. The DB keeps positions 1..10
+-- temporarily so legacy rows above 7 can be reviewed and removed manually; never delete them automatically.
 --     No rows => component not rendered (decided by app from row count).
 CREATE TABLE IF NOT EXISTS public.portfolio_images (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -470,21 +474,3 @@ COMMIT;
 --   ROLLBACK;
 --   SELECT count(*) FROM products;                      -- 0 (no tenant => fail-closed)
 -- =====================================================================
-
--- Keep the tenant template aligned with the incremental migrations currently used
--- by the live application (002_allow_whatsapp_leads_without_contact,
--- 003_service_appointment_requests, 004_appointment_duration).
-BEGIN;
-ALTER TABLE public.leads
-  ALTER COLUMN customer_name DROP NOT NULL,
-  ALTER COLUMN customer_phone DROP NOT NULL;
-ALTER TABLE public.products
-  ADD COLUMN IF NOT EXISTS requires_appointment boolean NOT NULL DEFAULT false;
-ALTER TABLE public.products
-  ADD COLUMN IF NOT EXISTS appointment_duration_minutes smallint NOT NULL DEFAULT 30;
-ALTER TABLE public.products
-  DROP CONSTRAINT IF EXISTS products_appointment_duration_minutes_check;
-ALTER TABLE public.products
-  ADD CONSTRAINT products_appointment_duration_minutes_check
-  CHECK (appointment_duration_minutes IN (15, 30, 45, 60, 90, 120, 180, 240));
-COMMIT;

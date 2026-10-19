@@ -56,12 +56,14 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         if (['=', '+', '-', '@', '\\t', '\\r'].includes(text[0] ?? '')) text = "'" + text;
         return '"' + text.replace(/"/g, '""') + '"';
       };
-      const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)'];
+      const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)', 'מועד תור', 'משך תור (דקות)'];
       const rows = exportRows.map((l) => [
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
         l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', STATUS_LABEL[l.status], l.message,
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
         l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
+        l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : l.metadata?.appointment_needs_coordination ? 'לתיאום מול הלקוח' : '',
+        l.metadata?.appointment_duration_minutes ?? '',
       ]);
       const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
@@ -146,7 +148,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               <a className="inline-flex min-h-10 items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">פתיחה בוואטסאפ</a>
             </div>}
             {l.customer_email && <p dir="ltr" className="mt-2 break-all text-start text-sm text-gray-600">{l.customer_email}</p>}
-            {l.metadata?.appointment_at && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900"><p>שעת תור מבוקשת: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>{l.metadata.appointment_duration_minutes && <p className="mt-1">משך תור משוער: {l.metadata.appointment_duration_minutes} דקות</p>}</div>}
+            {(l.metadata?.appointment_at || l.metadata?.appointment_needs_coordination) && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900">{l.metadata.appointment_at ? <p>שעת תור מבוקשת: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p> : <p>מועד התור יתואם מול הלקוח</p>}{l.metadata.appointment_duration_minutes && <p className="mt-1">משך תור משוער: {l.metadata.appointment_duration_minutes} דקות</p>}</div>}
             {l.message && <p className="mt-3 whitespace-pre-line rounded-xl bg-gray-50 p-3 text-sm leading-6 text-gray-700">{l.message}</p>}
             <div className="mt-3 border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-500">פריטים בפנייה</p>
