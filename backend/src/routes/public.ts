@@ -150,7 +150,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const ids = [...qty.keys()];
           const found = ids.length
             ? (await db.query(
-                'SELECT id, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+                'SELECT id, kind, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
                 [ids],
               )).rows
             : [];
@@ -165,9 +165,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
-          const needsAppointment = found.some((p) => p.requires_appointment === true);
+          const needsAppointment = found.some((p) => p.kind === 'service' && p.requires_appointment === true);
           const appointmentAt = body.appointment_at;
-          const appointmentDurationMinutes = found.filter((p) => p.requires_appointment === true)
+          const appointmentDurationMinutes = found.filter((p) => p.kind === 'service' && p.requires_appointment === true)
             .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
           const appointmentError = validateAppointmentSelection({
             needsAppointment,
@@ -220,7 +220,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const itemsText = found.map((p) => {
               const q = qty.get(p.id)!;
               const price = p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q);
-              const duration = p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
+              const duration = p.kind === 'service' && p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
               return `• ${p.name} × ${q}${duration} — ${price}`;
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
