@@ -113,8 +113,11 @@ async function main() {
 
     console.log(`Preflight passed for ${tenants.length} tenant database(s).`);
     if (process.env.APPLY_TENANT_MIGRATIONS !== 'true') {
-      console.log('Dry run only: no changes were made. After backup and explicit approval, rerun with APPLY_TENANT_MIGRATIONS=true.');
+      console.log('Dry run only: no changes were made. After a verified backup and explicit approval, set both APPLY_TENANT_MIGRATIONS=true and TENANT_MIGRATION_BACKUP_CONFIRMED=true.');
       return;
+    }
+    if (process.env.TENANT_MIGRATION_BACKUP_CONFIRMED !== 'true') {
+      throw new Error('Refusing to apply tenant migrations without TENANT_MIGRATION_BACKUP_CONFIRMED=true after verifying a restorable backup.');
     }
 
     console.log('Applying additive tenant migrations...');
