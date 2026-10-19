@@ -26,6 +26,16 @@ test('configured opening hours require a selected appointment time', () => {
   }), 'appointment_required');
 });
 
+test('a business with hours on some days still requires a time when the selected day is closed', () => {
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    durationMinutes: 60,
+    openingHoursDays: { sun: [], mon: [{ open: '12:00', close: '16:00' }] },
+    timezone: 'Asia/Jerusalem',
+    now: futureNow,
+  }), 'appointment_required');
+});
+
 test('a valid appointment within the opening range is accepted', () => {
   assert.equal(validateAppointmentSelection({
     needsAppointment: true,
