@@ -46,7 +46,7 @@ export type Lead = {
   submission_channel: 'whatsapp' | 'site';
   status: LeadStatus;
   estimated_total_agorot: number | null;
-  metadata: { has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number };
+  metadata: { has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number; appointment_needs_coordination?: boolean };
   created_at: string;
   items: { name: string; unit_price_agorot: number | null; quantity: number }[];
 };
