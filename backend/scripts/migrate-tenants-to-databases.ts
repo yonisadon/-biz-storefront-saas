@@ -27,7 +27,7 @@ async function main() {
   let tenantAdmin: pg.Client | undefined;
 
   try {
-    const schema = readFileSync(join(__dirname, '../migrations/tenant-schema.sql'), 'utf8');
+    const schema = readFileSync(join(process.cwd(), 'migrations/tenant-schema.sql'), 'utf8');
     const businesses = await registry.query(
       `SELECT id, slug, name, status, whatsapp_number, phone, email, about_text,
               locale, timezone, config
