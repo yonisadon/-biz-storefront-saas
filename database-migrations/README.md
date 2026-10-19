@@ -9,4 +9,4 @@ For per-tenant schema changes:
 - Update `backend/migrations/tenant-schema.sql` for newly created tenant databases as well.
 - Do not run legacy SQL against Railway or tenant databases without reviewing the target database and obtaining explicit approval.
 
-The `migrate-tenant-schemas` command preflights all mapped tenant databases first. It performs a dry run by default. Actual changes require the explicit environment flag `APPLY_TENANT_MIGRATIONS=true` after a suitable backup and approval.
+The `migrate-tenant-schemas` command preflights all mapped tenant databases first. It performs a dry run by default. Actual changes require both `APPLY_TENANT_MIGRATIONS=true` and `TENANT_MIGRATION_BACKUP_CONFIRMED=true`, after a restorable backup has been verified and explicit approval has been granted.
