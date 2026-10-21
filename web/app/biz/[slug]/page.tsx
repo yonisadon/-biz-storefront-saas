@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
-import DemoNoyNailsShowcase from '@/components/DemoNoyNailsShowcase';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
@@ -71,13 +70,6 @@ export default async function StorefrontPage({ params }: Props) {
   const profile = data.business_profile ?? {};
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
   const serviceMode = data.site_mode === 'services_whatsapp';
-  const isNoyNailsDemo = resolvedParams.slug === 'noy-nails';
-  const demoGallery = isNoyNailsDemo ? [
-    { id: 'noy-demo-french', url: 'https://images.unsplash.com/photo-1772322586754-34c9e6f5be6f?auto=format&fit=crop&w=1800&q=85', alt: 'עיצוב ציפורניים פרנץ׳ אלגנטי', caption: 'פרנץ׳ אלגנטי', width: 1800, height: 1200 },
-    { id: 'noy-demo-floral', url: 'https://images.unsplash.com/photo-1762373349045-c2decd4ec3f3?auto=format&fit=crop&w=1800&q=85', alt: 'מניקור עם עיצוב עדין', caption: 'עיצוב עדין', width: 1800, height: 1200 },
-    { id: 'noy-demo-manicure', url: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=1800&q=85', alt: 'טיפול מניקור מקצועי', caption: 'מניקור מקצועי', width: 1800, height: 1200 },
-  ] : [];
-  const storefrontGallery = isNoyNailsDemo ? [...demoGallery, ...data.gallery].slice(0, 7) : data.gallery;
   const services = data.catalog?.items?.filter((item) => item.kind === 'service') ?? [];
   const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
@@ -89,10 +81,9 @@ export default async function StorefrontPage({ params }: Props) {
   const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
 
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} style={themeVars(data.branding?.colors)}>
-    {isNoyNailsDemo && <div role="note" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-950">אתר הדגמה — חלק מהתמונות, השירותים והמחירים מוצגים להמחשה בלבד.</div>}
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
-      {storefrontGallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={storefrontGallery} heroId={isNoyNailsDemo ? 'noy-demo-french' : data.branding?.hero_gallery_image_id} /></div>}
+      {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
       <header className="mx-auto mb-6 max-w-4xl rounded-[1.75rem] border border-ink/10 bg-gradient-to-b from-white/95 to-surface/70 px-5 py-6 text-center shadow-sm sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
@@ -119,7 +110,6 @@ export default async function StorefrontPage({ params }: Props) {
         </ul>
       </section>}
       {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} /></section> : null}
-      {isNoyNailsDemo && waNumber && <DemoNoyNailsShowcase whatsappNumber={waNumber} />}
       {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
