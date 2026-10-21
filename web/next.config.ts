@@ -13,6 +13,11 @@ const config: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'biz-storefront-saas-production.up.railway.app',
         pathname: '/media/**',
       },
