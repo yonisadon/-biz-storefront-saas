@@ -216,9 +216,33 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             );
           }
 
+          let appointmentReserved = false;
+          if (bookingMode === 'availability' && appointmentAt) {
+            try {
+              await db.query(
+                `INSERT INTO appointments
+                   (tenant_id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status)
+                 VALUES
+                   (app.current_tenant_id(), $1, $2, $3, $4,
+                    ($5::timestamp AT TIME ZONE $6),
+                    (($5::timestamp AT TIME ZONE $6) + ($7::int * interval '1 minute')),
+                    'website', 'reserved')`,
+                [leadId, appointmentServices.length === 1 ? appointmentServices[0].id : null,
+                 appointmentServices.map((p) => p.name).join(' + '), body.customer_phone,
+                 appointmentAt, biz.timezone, appointmentDurationMinutes],
+              );
+              appointmentReserved = true;
+            } catch (error) {
+              if ((error as { code?: string }).code === '23P01' || (error as { code?: string }).code === '23505') {
+                throw new HttpError(409, 'slot_taken', 'המועד נתפס בינתיים. בחרו מועד אחר.');
+              }
+              throw error;
+            }
+          }
+
           const out: Record<string, unknown> = {
             lead_id: leadId, route: body.route, status,
-            estimated_total_agorot: estimated, has_quote_items: hasQuote,
+            estimated_total_agorot: estimated, has_quote_items: hasQuote, appointment_reserved: appointmentReserved,
           };
 
           if (body.route === 'site') {
