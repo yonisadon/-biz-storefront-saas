@@ -1,13 +1,13 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean };
 type Route = 'whatsapp' | 'site';
-type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string };
+type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
 type Step = 'choose' | 'site';
 
 type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?: string; whatsapp_url?: string; success_message?: string };
@@ -21,6 +21,8 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
+  if (d?.error === 'slot_taken') return 'השעה נתפסה בינתיים. בחרו מועד פנוי אחר.';
+  if (d?.error === 'mixed_booking_modes') return 'אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.';
   return 'לא הצלחנו לשלוח. נסו שוב.';
 }
 
@@ -46,6 +48,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
+  const [serverAppointmentSlots, setServerAppointmentSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,15 +73,21 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     .map(([id, q]) => ({ p: byId.get(id)!, q }))
     .filter((l) => l.p);
   const count = lines.reduce((s, l) => s + l.q, 0);
-  const needsAppointment = lines.some(({ p }) => p.kind === 'service' && p.requires_appointment);
-  const appointmentDurationMinutes = lines.filter(({ p }) => p.kind === 'service' && p.requires_appointment).reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const modeOf = (p: Product) => p.booking_mode ?? (p.requires_appointment ? 'free_datetime' : 'none');
+  const appointmentLines = lines.filter(({ p }) => p.kind === 'service' && modeOf(p) !== 'none');
+  const appointmentModes = [...new Set(appointmentLines.map(({ p }) => modeOf(p)))];
+  const bookingMode = appointmentModes[0] ?? 'none';
+  const needsAppointment = appointmentLines.length > 0;
+  const needsReservedAppointment = bookingMode === 'availability';
+  const appointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
     [openingHours],
   );
-  const appointmentTimeRequired = needsAppointment && hasAppointmentHours;
-  const appointmentSlots = useMemo(() => {
-    if (!appointmentDate || !hasAppointmentHours || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480) return [];
+  const appointmentTimeRequired = needsAppointment && (needsReservedAppointment || hasAppointmentHours);
+  const localAppointmentSlots = useMemo(() => {
+    if (!appointmentDate || !hasAppointmentHours || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480 || needsReservedAppointment) return [];
     const date = new Date(`${appointmentDate}T12:00:00Z`);
     const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getUTCDay()];
     const ranges = openingHours[key];
@@ -90,7 +100,30 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       }
     }
     return slots;
-  }, [appointmentDate, openingHours, appointmentDurationMinutes, hasAppointmentHours]);
+  }, [appointmentDate, openingHours, appointmentDurationMinutes, hasAppointmentHours, needsReservedAppointment]);
+  useEffect(() => {
+    if (!needsReservedAppointment || !appointmentDate || !cartSignature) {
+      setServerAppointmentSlots([]);
+      setSlotsLoading(false);
+      return;
+    }
+    const params = new URLSearchParams({ date: appointmentDate, items: cartSignature });
+    let cancelled = false;
+    setSlotsLoading(true);
+    fetch(`${apiBase}/availability?${params.toString()}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as { slots?: string[] } | null;
+        if (!response.ok) throw new Error('availability_failed');
+        if (!cancelled) {
+          setServerAppointmentSlots(Array.isArray(data?.slots) ? data!.slots! : []);
+          setAppointmentTime((current) => Array.isArray(data?.slots) && data.slots.includes(current) ? current : '');
+        }
+      })
+      .catch(() => { if (!cancelled) { setServerAppointmentSlots([]); setAppointmentTime(''); } })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
+  }, [apiBase, appointmentDate, cartSignature, needsReservedAppointment]);
+  const appointmentSlots = needsReservedAppointment ? serverAppointmentSlots : localAppointmentSlots;
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
@@ -119,12 +152,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
     setBusy(route);
     try {
+      if (appointmentModes.length > 1) { setError('אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.'); return; }
+      if (needsReservedAppointment && !form.phone.trim()) { setError('כדי לשמור תור ביומן, יש להזין מספר טלפון.'); return; }
       const res = await fetch(`${apiBase}/leads`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           route,
-          ...(route === 'site' ? { customer_name: form.name.trim(), customer_phone: form.phone, customer_email: form.email.trim() || undefined } : {}),
+          ...(route === 'site' || needsReservedAppointment ? { customer_phone: form.phone, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
           ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
@@ -134,8 +169,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!res.ok) return setError(errorText(res.status, data));
 
       if (data?.route === 'whatsapp' && data.whatsapp_url) {
-        setDone({ route: 'whatsapp', url: data.whatsapp_url });
-        window.location.assign(data.whatsapp_url);
+        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.' });
       } else {
         setCart({});
         setDone({ route: 'site', message: data?.success_message ?? 'הפנייה נשלחה בהצלחה.' });
@@ -237,19 +271,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
             {hasAppointmentHours ? (
               <>
-                <p className="text-xs leading-5 text-ink/65">משך התור המבוקש: {appointmentDurationMinutes} דקות בסך הכול. בחרו מועד מתוך שעות הפעילות. זו בקשת תיאום בלבד והמוכר יאשר את השעה מולכם.</p>
+                <p className="text-xs leading-5 text-ink/65">משך התור: {appointmentDurationMinutes} דקות בסך הכול. {needsReservedAppointment ? 'בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.' : 'בחרו מועד מבוקש. הוא לא תופס את היומן והעסק יתאם אתכם.'}</p>
                 <label className="block text-sm font-medium">תאריך
                   <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
                 </label>
                 <label className="block text-sm font-medium">שעה
-                  <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || appointmentSlots.length === 0} className={input}>
-                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות זמינות ביום זה'}</option>
+                  <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || slotsLoading || appointmentSlots.length === 0} className={input}>
+                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : slotsLoading ? 'בודקים שעות פנויות…' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות פנויות ביום זה'}</option>
                     {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
                   </select>
                 </label>
               </>
             ) : (
-              <p className="text-sm leading-6 text-ink/75">העסק עדיין לא הגדיר שעות פעילות. אפשר לשלוח את הבקשה ללא מועד, והמוכר יתאם איתכם את התור. משך התור הכולל: {appointmentDurationMinutes} דקות.</p>
+              <p className="text-sm leading-6 text-ink/75">{needsReservedAppointment ? 'לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. פנו לעסק ישירות כדי לתאם.' : `העסק עדיין לא הגדיר שעות פעילות. אפשר לשלוח את הבקשה ללא מועד, והמוכר יתאם איתכם את התור. משך התור הכולל: ${appointmentDurationMinutes} דקות.`}</p>
             )}
           </fieldset>
         )}
@@ -257,7 +291,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         {done ? (
           <div className="py-4 text-center">
             <p className="mb-4 text-lg font-medium text-green-700">
-              {done.route === 'whatsapp' ? 'פותחים את WhatsApp. יש לשלוח את ההודעה כדי להשלים את הפנייה.' : done.message}
+              {done.message}
             </p>
             {done.route === 'whatsapp' && <a href={done.url} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
             <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
@@ -285,8 +319,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
             <div>
-              <label htmlFor="lead-name" className="block text-sm font-medium">שם מלא *</label>
-              <input id="lead-name" name="name" autoComplete="name" type="text" required className={input} value={form.name} onChange={setField('name')} />
+              <label htmlFor="lead-name" className="block text-sm font-medium">שם (רשות)</label>
+              <input id="lead-name" name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
             </div>
             <div>
               <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
