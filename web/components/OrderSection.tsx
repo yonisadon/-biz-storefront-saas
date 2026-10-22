@@ -153,23 +153,23 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setError(null);
     const phone = normalizeILPhone(form.phone);
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
+    if (appointmentModes.length > 1) return setError('אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.');
+    if (needsReservedAppointment && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. יש לפנות לעסק ישירות.');
     if (appointmentTimeRequired && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
-    if (route === 'site' && (!form.name.trim() || !phone)) return setError(!form.name.trim() ? 'נא להזין שם מלא.' : 'נא להזין מספר טלפון ישראלי תקין.');
+    if (route === 'site' && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
+    if (needsReservedAppointment && !phone) return setError('כדי לשמור תור ביומן, יש להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
     try {
-      if (appointmentModes.length > 1) { setError('אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.'); return; }
-      if (needsReservedAppointment && !hasAppointmentHours) { setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. יש לפנות לעסק ישירות.'); return; }
       const requestKey = idempotencyKey || crypto.randomUUID();
       if (!idempotencyKey) setIdempotencyKey(requestKey);
-      if (needsReservedAppointment && !form.phone.trim()) { setError('כדי לשמור תור ביומן, יש להזין מספר טלפון.'); return; }
       const res = await fetch(`${apiBase}/leads`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           route,
           idempotency_key: requestKey,
-          ...(route === 'site' || needsReservedAppointment ? { customer_phone: form.phone, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
+          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
           ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
