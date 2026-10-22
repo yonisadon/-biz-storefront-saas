@@ -169,7 +169,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           route,
           idempotency_key: requestKey,
-          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
+          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone ?? undefined, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
           ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
