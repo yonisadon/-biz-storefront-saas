@@ -24,12 +24,12 @@ BEGIN
       ADD CONSTRAINT products_booking_mode_check
       CHECK (booking_mode IN ('none', 'free_datetime', 'availability'));
   END IF;
-END $;
+END $$;
 
 CREATE OR REPLACE FUNCTION app.sync_product_booking_mode()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+AS $$
 BEGIN
   IF NEW.kind <> 'service' THEN
     NEW.booking_mode := 'none';
@@ -48,7 +48,7 @@ BEGIN
     NEW.requires_appointment := NEW.booking_mode <> 'none';
   END IF;
   RETURN NEW;
-END $;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_products_booking_mode ON public.products;
 CREATE TRIGGER trg_products_booking_mode
