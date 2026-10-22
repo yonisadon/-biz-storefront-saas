@@ -165,10 +165,18 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
-          const needsAppointment = found.some((p) => p.kind === 'service' && (p.booking_mode ? p.booking_mode !== 'none' : p.requires_appointment === true));
+          const appointmentServices = found.filter((p) => p.kind === 'service')
+            .map((p) => ({ ...p, mode: p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none') }))
+            .filter((p) => p.mode !== 'none');
+          const selectedModes = [...new Set(appointmentServices.map((p) => p.mode))];
+          if (selectedModes.length > 1) throw new HttpError(400, 'mixed_booking_modes');
+          const bookingMode = selectedModes[0] ?? 'none';
+          const needsAppointment = bookingMode !== 'none';
           const appointmentAt = body.appointment_at;
-          const appointmentDurationMinutes = found.filter((p) => p.kind === 'service' && (p.booking_mode ? p.booking_mode !== 'none' : p.requires_appointment === true))
+          const appointmentDurationMinutes = appointmentServices
             .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
+          if (bookingMode === 'availability' && !body.customer_phone) throw new HttpError(400, 'contact_required');
+          if (bookingMode === 'availability' && !appointmentAt) throw new HttpError(400, 'appointment_required');
           const appointmentError = validateAppointmentSelection({
             needsAppointment,
             appointmentAt,
