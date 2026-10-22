@@ -129,8 +129,15 @@ async function main() {
       console.log('Dry run only: no changes were made. Use the explicit --apply flag only in the configured Railway pre-deploy migration step.');
       return;
     }
-    if (process.env.TENANT_MIGRATION_BACKUP_CONFIRMED !== 'true') {
-      throw new Error('Refusing to apply tenant migrations without TENANT_MIGRATION_BACKUP_CONFIRMED=true after verifying a restorable backup.');
+    const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
+    const noBackupExplicitlyAccepted = process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP === 'true';
+    if (!backupConfirmed && !noBackupExplicitlyAccepted) {
+      throw new Error(
+        'Refusing to apply tenant migrations without a verified backup. For an explicitly accepted disposable/test environment only, set TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true.',
+      );
+    }
+    if (!backupConfirmed && noBackupExplicitlyAccepted) {
+      console.warn('WARNING: proceeding with tenant migrations WITHOUT a verified backup because TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true was explicitly set.');
     }
 
     console.log('Applying additive tenant migrations...');
