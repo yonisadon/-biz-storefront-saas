@@ -15,9 +15,14 @@ type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?:
 function errorText(status: number, d: ApiErrorPayload | null): string {
   if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
   if (status === 403) return 'מסלול ההזמנה הזה אינו זמין כרגע.';
+  if (d?.error === 'appointment_required') return 'בחרו תאריך ושעה לשירות שסימנתם.';
+  if (d?.error === 'invalid_appointment_time') return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
+  if (d?.error === 'contact_required') return 'כדי לשמור תור ביומן, יש להזין מספר טלפון.';
+  if (d?.error === 'appointment_not_applicable') return 'לא ניתן לבחור מועד עבור הפריטים שנבחרו.';
   const msgs: string[] = (d?.issues ?? []).map((i) => i.message);
   if (msgs.includes('invalid_il_phone')) return 'מספר הטלפון אינו תקין.';
   if (msgs.includes('items_or_message_required')) return 'בחרו פריט או כתבו הודעה.';
+  if (msgs.includes('contact_required')) return 'נא להזין מספר טלפון תקין.';
   if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
