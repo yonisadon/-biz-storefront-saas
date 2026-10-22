@@ -26,7 +26,7 @@ export default function ProductsPanel({ token }: { token: string }) {
   {data?.items.length===0&&<p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">{search||status!=='all'?'לא נמצאו פריטים שמתאימים לחיפוש או לסינון.':'עדיין אין מוצרים. הוסיפו את הראשון כדי שהאתר יציג קטלוג.'}</p>}
   <ul className="mt-3 space-y-2">{data?.items.map((p,i)=><li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center ${p.is_active?'':'opacity-60'}`}>
    {/* eslint-disable-next-line @next/next/no-img-element */}{p.image_url?<img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover"/>:<div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">אין תמונה</div>}
-   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?'הצעת מחיר':ils(p.price_agorot)} · {p.kind==='service'?'שירות':'מוצר'}{p.requires_appointment?` · תור ${p.appointment_duration_minutes} דק׳`:''}{!p.is_active&&' · מוסתר באתר'}</div></div>
+   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?'הצעת מחיר':ils(p.price_agorot)} · {p.kind==='service'?'שירות':'מוצר'}{p.booking_mode==='availability'?' · שריון ביומן':p.booking_mode==='free_datetime'?' · מועד מבוקש ללא שריון':''}{p.booking_mode!=='none'?` · ${p.appointment_duration_minutes} דק׳`:''}{!p.is_active&&' · מוסתר באתר'}</div></div>
    <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end"><button type="button" className={btn} onClick={()=>move(p,'up')} disabled={loading||data.offset+i===0||Boolean(search)||status!=='all'} aria-label={`הזז את ${p.name} למעלה`}>↑</button><button type="button" className={btn} onClick={()=>move(p,'down')} disabled={loading||data.offset+i>=data.total-1||Boolean(search)||status!=='all'} aria-label={`הזז את ${p.name} למטה`}>↓</button><button type="button" className={btn} onClick={()=>setEditing(p)}>עריכה</button><button type="button" className={btn} onClick={()=>toggleActive(p)} disabled={loading}>{p.is_active?'הסתרה':'הצגה'}</button><button type="button" className={`${btn} text-red-700`} onClick={()=>remove(p)} disabled={loading}>מחיקה</button></div>
   </li>)}</ul>
   {data&&data.total>0&&<div className="mt-4 flex items-center justify-center gap-4"><button type="button" disabled={loading||data.offset===0} onClick={()=>void load(Math.max(0,data.offset-PAGE))} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הקודם</button><span className="text-sm text-gray-500">{data.offset+1}–{Math.min(data.offset+data.items.length,data.total)} מתוך {data.total}</span><button type="button" disabled={loading||data.offset+data.items.length>=data.total} onClick={()=>void load(data.offset+PAGE)} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הבא</button></div>}
@@ -45,7 +45,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [quote, setQuote] = useState(product ? product.price_agorot === null : false);
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
-  const [requiresAppointment, setRequiresAppointment] = useState(product?.requires_appointment ?? false);
+  const [bookingMode, setBookingMode] = useState<'none' | 'free_datetime' | 'availability'>(product?.booking_mode ?? (product?.requires_appointment ? 'free_datetime' : 'none'));
   const [appointmentDurationMinutes, setAppointmentDurationMinutes] = useState(product?.appointment_duration_minutes ?? 30);
   const [file, setFile] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -86,7 +86,8 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       }
       price = Math.round(v * 100);
     }
-    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, requires_appointment: kind === 'service' && requiresAppointment, appointment_duration_minutes: kind === 'service' && requiresAppointment ? appointmentDurationMinutes : 30 };
+    const mode = kind === 'service' ? bookingMode : 'none';
+    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, booking_mode: mode, requires_appointment: mode !== 'none', appointment_duration_minutes: mode !== 'none' ? appointmentDurationMinutes : 30 };
 
     setBusy(true); setMsg(null);
     let id = current?.id;
@@ -123,7 +124,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         </div>
 
         <label className="block text-sm font-medium">סוג
-          <select className={input} value={kind} onChange={(e) => setKind(e.target.value as 'product' | 'service')}>
+          <select className={input} value={kind} onChange={(e) => setKind(e.target.value as 'product' | 'service'); if (e.target.value === 'product') setBookingMode('none');}>
             <option value="product">מוצר</option>
             <option value="service">שירות</option>
           </select>
@@ -168,8 +169,16 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
           <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB. התמונה נדחסת אוטומטית.</p>
         </div>
 
-        {kind === 'service' && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={requiresAppointment} onChange={(e) => setRequiresAppointment(e.target.checked)} className="mt-1" /><span><span className="font-medium">נדרש תיאום שעה</span><span className="block text-xs text-gray-500">הלקוח יתבקש לבחור תאריך ושעה מתוך שעות הפעילות. זו בקשת תיאום, לא אישור אוטומטי של התור.</span></span></label>}
-        {kind === 'service' && requiresAppointment && (
+        {kind === 'service' && <label className="block text-sm font-medium">אופן תיאום השירות
+          <select className={input} value={bookingMode} onChange={(e) => setBookingMode(e.target.value as 'none' | 'free_datetime' | 'availability')}>
+            <option value="none">ללא בחירת תאריך ושעה</option>
+            <option value="free_datetime">בחירת מועד מבוקש — ללא שריון ביומן</option>
+            <option value="availability">בחירה מתוך שעות פנויות — שריון ביומן</option>
+          </select>
+          {bookingMode === 'free_datetime' && <span className="mt-1 block text-xs font-normal text-gray-500">הלקוח בוחר מועד מבוקש. המועד לא תופס את היומן ולקוחות אחרים יכולים לבחור אותו.</span>}
+          {bookingMode === 'availability' && <span className="mt-1 block text-xs font-normal text-gray-500">הלקוח בוחר שעה פנויה, והשעה נשמרת ביומן עם שמירת הפנייה. נדרשות שעות פעילות מוגדרות.</span>}
+        </label>}
+        {kind === 'service' && bookingMode !== 'none' && (
           <label className="block text-sm font-medium">משך התור
             <select className={input} value={appointmentDurationMinutes} onChange={(e) => setAppointmentDurationMinutes(Number(e.target.value))}>
               <option value={15}>15 דקות — עד 4 תורים בשעה</option>
