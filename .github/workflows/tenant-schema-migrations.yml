@@ -1,0 +1,59 @@
+name: Tenant schema migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/src/tenantMigrations.ts'
+      - 'backend/scripts/migrate-tenant-schemas.ts'
+      - '.github/workflows/tenant-schema-migrations.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tenant-schema-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply pending tenant migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+      SUPERADMIN_DATABASE_URL: ${{ secrets.SUPERADMIN_DATABASE_URL }}
+      DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+      TENANT_MIGRATION_BACKUP_CONFIRMED: ${{ secrets.TENANT_MIGRATION_BACKUP_CONFIRMED }}
+    steps:
+      - name: Validate required secrets and backup confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$DATABASE_ADMIN_URL" || -z "$SUPERADMIN_DATABASE_URL" ]]; then
+            echo "::error::Configure DATABASE_ADMIN_URL and SUPERADMIN_DATABASE_URL in GitHub Actions secrets."
+            exit 1
+          fi
+          if [[ "$TENANT_MIGRATION_BACKUP_CONFIRMED" != "true" ]]; then
+            echo "::error::After verifying a restorable database backup, set TENANT_MIGRATION_BACKUP_CONFIRMED=true in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Preflight and apply pending migrations
+        run: npm run migrate-tenant-schemas:deploy
