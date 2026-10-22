@@ -174,6 +174,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
                                             'approved', 'rejected', 'completed', 'cancelled')),
   estimated_total_agorot  integer CHECK (estimated_total_agorot IS NULL OR estimated_total_agorot >= 0),
   metadata                jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(metadata) = 'object'),
+  idempotency_key         uuid,
   created_at              timestamptz NOT NULL DEFAULT now(),
   updated_at              timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, id)
@@ -288,6 +289,8 @@ CREATE INDEX IF NOT EXISTS idx_leads_tenant_status_created
   ON public.leads (tenant_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_leads_tenant_created
   ON public.leads (tenant_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_leads_tenant_idempotency
+  ON public.leads (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_lead_items_tenant_lead
   ON public.lead_items (tenant_id, lead_id);
 CREATE INDEX IF NOT EXISTS idx_lead_notes_tenant_lead
