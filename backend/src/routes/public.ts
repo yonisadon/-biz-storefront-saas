@@ -238,7 +238,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const ids = [...qty.keys()];
           const found = ids.length
             ? (await db.query(
-                'SELECT id, kind, name, price_agorot, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+                'SELECT id, kind, name, price_agorot, requires_appointment, booking_mode, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
                 [ids],
               )).rows
             : [];
