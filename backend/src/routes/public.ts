@@ -287,6 +287,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
              JSON.stringify({
                has_quote_items: hasQuote,
                ...(needsAppointment ? {
+                 booking_mode: bookingMode,
                  appointment_duration_minutes: appointmentDurationMinutes,
                  appointment_needs_coordination: !appointmentAt,
                  ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
@@ -304,11 +305,13 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               estimated_total_agorot: existing.estimated_total_agorot,
               has_quote_items: existing.metadata?.has_quote_items === true,
               duplicate: true,
-              success_message: existing.metadata?.appointment_at
-                ? (existing.metadata?.appointment_needs_coordination
-                  ? 'הבקשה כבר נשמרה. המועד המבוקש אינו משוריין ביומן.'
-                  : 'הבקשה כבר נשמרה. אם התור משוריין, לשינוי או לביטול יש לפנות לעסק ישירות.')
-                : 'הפנייה כבר נשמרה בהצלחה.',
+              success_message: existing.metadata?.booking_mode === 'availability'
+                ? 'התור כבר נשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
+                : existing.metadata?.booking_mode === 'free_datetime'
+                  ? (existing.metadata?.appointment_at
+                    ? 'הבקשה כבר נשמרה. התאריך והשעה המבוקשים אינם משוריינים ביומן.'
+                    : 'הבקשה כבר נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
+                  : 'הפנייה כבר נשמרה בהצלחה.',
             };
           }
           const leadId: string = lead.rows[0].id;
@@ -356,7 +359,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             out.success_message = appointmentReserved
               ? 'התור נקבע ונשמר בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק בטלפון או ב־WhatsApp. לא ניתן לבטל דרך האתר.'
               : bookingMode === 'free_datetime'
-                ? 'הבקשה נשמרה. התאריך והשעה שבחרתם הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                ? (appointmentAt
+                  ? 'הבקשה נשמרה. התאריך והשעה שבחרתם הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                  : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
                 : flow.site_success_message ?? 'הפנייה נשלחה בהצלחה, נחזור אליך בהקדם.';
           } else {
             const quoteLabel = biz.config?.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL;
@@ -398,7 +403,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             out.success_message = appointmentReserved
               ? 'התור נקבע ונשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
               : bookingMode === 'free_datetime'
-                ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                ? (appointmentAt
+                  ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                  : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
                 : 'הפנייה נשמרה. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.';
           }
           return out;
