@@ -12,7 +12,8 @@
     "prestart": "node dist/scripts/setup-tenant-registry.js",
     "migrate-tenant-schemas": "tsx --env-file=.env scripts/migrate-tenant-schemas.ts",
     "cleanup-expired-appointments": "tsx --env-file=.env scripts/cleanup-expired-appointments.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "migrate-tenant-schemas:deploy": "tsx scripts/migrate-tenant-schemas.ts --apply"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",

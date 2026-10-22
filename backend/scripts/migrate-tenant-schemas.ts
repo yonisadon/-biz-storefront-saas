@@ -124,8 +124,9 @@ async function main() {
     }
 
     console.log(`Preflight passed for ${tenants.length} tenant database(s).`);
-    if (process.env.APPLY_TENANT_MIGRATIONS !== 'true') {
-      console.log('Dry run only: no changes were made. After a verified backup and explicit approval, set both APPLY_TENANT_MIGRATIONS=true and TENANT_MIGRATION_BACKUP_CONFIRMED=true.');
+    const applyRequested = process.argv.includes('--apply');
+    if (!applyRequested) {
+      console.log('Dry run only: no changes were made. Use the explicit --apply flag only in the configured Railway pre-deploy migration step.');
       return;
     }
     if (process.env.TENANT_MIGRATION_BACKUP_CONFIRMED !== 'true') {
