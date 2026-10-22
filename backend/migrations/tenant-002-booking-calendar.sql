@@ -24,7 +24,36 @@ BEGIN
       ADD CONSTRAINT products_booking_mode_check
       CHECK (booking_mode IN ('none', 'free_datetime', 'availability'));
   END IF;
-END $$;
+END $;
+
+CREATE OR REPLACE FUNCTION app.sync_product_booking_mode()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+  IF NEW.kind <> 'service' THEN
+    NEW.booking_mode := 'none';
+    NEW.requires_appointment := false;
+  ELSIF TG_OP = 'INSERT' THEN
+    IF NEW.booking_mode = 'none' AND NEW.requires_appointment THEN
+      NEW.booking_mode := 'free_datetime';
+    ELSE
+      NEW.requires_appointment := NEW.booking_mode <> 'none';
+    END IF;
+  ELSIF NEW.booking_mode IS DISTINCT FROM OLD.booking_mode THEN
+    NEW.requires_appointment := NEW.booking_mode <> 'none';
+  ELSIF NEW.requires_appointment IS DISTINCT FROM OLD.requires_appointment THEN
+    NEW.booking_mode := CASE WHEN NEW.requires_appointment THEN 'free_datetime' ELSE 'none' END;
+  ELSE
+    NEW.requires_appointment := NEW.booking_mode <> 'none';
+  END IF;
+  RETURN NEW;
+END $;
+
+DROP TRIGGER IF EXISTS trg_products_booking_mode ON public.products;
+CREATE TRIGGER trg_products_booking_mode
+  BEFORE INSERT OR UPDATE ON public.products
+  FOR EACH ROW EXECUTE FUNCTION app.sync_product_booking_mode();
 
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS idempotency_key uuid;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_leads_tenant_idempotency
