@@ -176,7 +176,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       };
       // Column names are hard-coded; legacy clients map the old boolean to free_datetime.
       for (const c of ['kind', 'name', 'description', 'price_agorot', 'is_active', 'requires_appointment', 'booking_mode', 'appointment_duration_minutes'] as const) {
-        if (normalizedPatch[c] !== undefined) { vals.push(normalizedPatch[c]); sets.push(`${c} = ${vals.length}`); }
+        if (normalizedPatch[c] !== undefined) { vals.push(normalizedPatch[c]); sets.push(`${c} = $${vals.length}`); }
       }
       vals.push(id);
       const r = await db.query(`UPDATE products SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING id`, vals);
