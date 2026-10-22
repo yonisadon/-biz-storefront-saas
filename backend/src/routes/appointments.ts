@@ -137,6 +137,13 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
              FROM products WHERE id = $1 AND is_active = true FOR SHARE`,
           [serviceId],
         )).rows[0] : null;
+        if ((!service || service.kind !== 'service') && patch.status === 'cancelled' && !patch.service_id && !patch.start_at) {
+          const cancelled = await db.query(
+            "UPDATE appointments SET status = 'cancelled' WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
+            [id],
+          );
+          return cancelled.rows[0];
+        }
         if (!service || service.kind !== 'service') throw new HttpError(400, 'invalid_service');
         const startAt = patch.start_at ?? (await db.query(
           `SELECT to_char($1::timestamptz AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS value`,
