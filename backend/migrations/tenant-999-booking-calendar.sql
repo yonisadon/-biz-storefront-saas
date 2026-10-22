@@ -8,7 +8,8 @@ UPDATE public.products
      WHEN kind = 'service' AND requires_appointment THEN 'free_datetime'
      ELSE 'none'
    END
- WHERE booking_mode IS NULL;
+ WHERE booking_mode IS NULL
+    OR (booking_mode = 'none' AND kind = 'service' AND requires_appointment);
 ALTER TABLE public.products ALTER COLUMN booking_mode SET DEFAULT 'none';
 ALTER TABLE public.products ALTER COLUMN booking_mode SET NOT NULL;
 
