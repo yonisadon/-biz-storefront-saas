@@ -278,8 +278,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           const lead = await db.query(
             `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
-                                submission_channel, status, estimated_total_agorot, metadata)
-             VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                                submission_channel, status, estimated_total_agorot, metadata, idempotency_key)
+             VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::uuid)
+             ON CONFLICT DO NOTHING
              RETURNING id`,
             [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
              body.message ?? null, body.route, status, estimated,
@@ -290,8 +291,26 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                  appointment_needs_coordination: !appointmentAt,
                  ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
                } : {}),
-             })],
+             }), body.idempotency_key ?? null],
           );
+          if (!lead.rows[0]) {
+            const existing = (await db.query(
+              'SELECT id, status, estimated_total_agorot, metadata FROM leads WHERE idempotency_key = $1',
+              [body.idempotency_key],
+            )).rows[0];
+            if (!existing) throw new HttpError(409, 'duplicate_request');
+            return {
+              lead_id: existing.id, route: body.route, status: existing.status,
+              estimated_total_agorot: existing.estimated_total_agorot,
+              has_quote_items: existing.metadata?.has_quote_items === true,
+              duplicate: true,
+              success_message: existing.metadata?.appointment_at
+                ? (existing.metadata?.appointment_needs_coordination
+                  ? 'הבקשה כבר נשמרה. המועד המבוקש אינו משוריין ביומן.'
+                  : 'הבקשה כבר נשמרה. אם התור משוריין, לשינוי או לביטול יש לפנות לעסק ישירות.')
+                : 'הפנייה כבר נשמרה בהצלחה.',
+            };
+          }
           const leadId: string = lead.rows[0].id;
 
           if (found.length) {
