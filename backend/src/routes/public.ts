@@ -246,7 +246,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           };
 
           if (body.route === 'site') {
-            out.success_message = flow.site_success_message ?? 'הפנייה נשלחה בהצלחה, נחזור אליך בהקדם.';
+            out.success_message = appointmentReserved
+              ? 'התור נקבע ונשמר בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק בטלפון או ב־WhatsApp. לא ניתן לבטל דרך האתר.'
+              : bookingMode === 'free_datetime'
+                ? 'הבקשה נשמרה. התאריך והשעה שבחרתם הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                : flow.site_success_message ?? 'הפנייה נשלחה בהצלחה, נחזור אליך בהקדם.';
           } else {
             const quoteLabel = biz.config?.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL;
             const itemsText = found.map((p) => {
@@ -284,6 +288,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             }
             const text = messageLines.join('\n');
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
+            out.success_message = appointmentReserved
+              ? 'התור נקבע ונשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
+              : bookingMode === 'free_datetime'
+                ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
+                : 'הפנייה נשמרה. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.';
           }
           return out;
         });
