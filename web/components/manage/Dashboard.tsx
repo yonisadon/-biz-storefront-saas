@@ -5,15 +5,16 @@ import { themeVars } from '@/lib/theme';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import type { LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
+import CalendarPanel from './CalendarPanel';
 import GalleryPanel from './GalleryPanel';
 import HoursPanel from './HoursPanel';
 import LeadsPanel from './LeadsPanel';
 import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
 
-type Tab = 'leads' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
+type Tab = 'leads' | 'calendar' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
+  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads }: {
@@ -54,6 +55,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
 
         <div className="mt-5">
           {tab === 'leads' && <LeadsPanel token={token} initial={initialLeads} />}
+          {tab === 'calendar' && <CalendarPanel token={token} biz={biz} />}
           {tab === 'products' && <ProductsPanel token={token} />}
           {tab === 'gallery' && <GalleryPanel token={token} />}
           {tab === 'hours' && <HoursPanel token={token} biz={biz} onSaved={setBiz} />}
