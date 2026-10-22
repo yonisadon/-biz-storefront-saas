@@ -50,6 +50,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   const [blockEnd, setBlockEnd] = useState('13:00');
   const [blockReason, setBlockReason] = useState('');
   const [editingTimes, setEditingTimes] = useState<Record<string, string>>({});
+  const [editingServices, setEditingServices] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,16 +113,18 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     finally { setBusy(false); }
   }
 
-  async function saveTime(item: Appointment) {
-    const start_at = editingTimes[item.id];
-    if (!start_at) return;
+  async function saveAppointment(item: Appointment) {
+    const start_at = editingTimes[item.id] || undefined;
+    const service_id = editingServices[item.id] || item.service_id || undefined;
+    if (!start_at && !editingServices[item.id]) return;
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ start_at }) });
-      setMessage('מועד התור עודכן.');
+      await mcall(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ ...(start_at ? { start_at } : {}), ...(service_id ? { service_id } : {}) }) });
+      setMessage('פרטי התור עודכנו.');
       setEditingTimes((v) => { const n = { ...v }; delete n[item.id]; return n; });
+      setEditingServices((v) => { const n = { ...v }; delete n[item.id]; return n; });
       await load();
-    } catch { setError('לא ניתן לשמור את המועד. ייתכן שהוא תפוס או מחוץ לשעות הפעילות; התור המקורי לא שונה.'); }
+    } catch { setError('לא ניתן לשמור את השינוי. ייתכן שהמועד תפוס או מחוץ לשעות הפעילות; התור המקורי לא שונה.'); }
     finally { setBusy(false); }
   }
 
@@ -198,7 +201,11 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
         <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{localLabel(item.start_at)}–{localLabel(item.end_at)} · {item.service_name}</p><p className="mt-1 text-sm text-gray-600" dir="ltr">{item.customer_phone} · {item.source === 'manual' ? 'תור ידני' : 'הגיע מהאתר'}</p><p className="mt-1 text-xs text-gray-500">{item.status === 'reserved' ? 'משוריין' : 'בוטל'}</p></div>
           <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void changeStatus(item, item.status === 'reserved' ? 'cancelled' : 'reserved')} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs">{item.status === 'reserved' ? 'ביטול ושחרור שעה' : 'החזרה ליומן'}</button><button type="button" disabled={busy} onClick={() => void deleteAppointment(item)} className="rounded-full border border-red-200 px-3 py-1.5 text-xs text-red-700">מחיקה</button></div>
         </div>
-        {item.status === 'reserved' && <div className="mt-3 flex flex-wrap gap-2"><input type="datetime-local" aria-label="מועד חדש" className={field} value={editingTimes[item.id] ?? ''} onChange={(e) => setEditingTimes((v) => ({ ...v, [item.id]: e.target.value }))}/><button type="button" disabled={busy || !editingTimes[item.id]} onClick={() => void saveTime(item)} className="rounded-full bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">עדכון מועד</button></div>}
+        {item.status === 'reserved' && <div className="mt-3 flex flex-wrap gap-2">
+          <label className="text-xs text-gray-600">שירות<select aria-label="שירות חדש" className={field} value={editingServices[item.id] ?? item.service_id ?? ''} onChange={(e) => setEditingServices((v) => ({ ...v, [item.id]: e.target.value }))}><option value="">שירות לא זמין</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
+          <label className="text-xs text-gray-600">מועד חדש<input type="datetime-local" aria-label="מועד חדש" className={field} value={editingTimes[item.id] ?? ''} onChange={(e) => setEditingTimes((v) => ({ ...v, [item.id]: e.target.value }))}/></label>
+          <button type="button" disabled={busy || (!editingTimes[item.id] && !editingServices[item.id])} onClick={() => void saveAppointment(item)} className="self-end rounded-full bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">שמירת שינויים</button>
+        </div>}
       </div>)}</div>
     </div>
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
