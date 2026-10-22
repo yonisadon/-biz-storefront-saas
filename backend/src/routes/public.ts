@@ -15,11 +15,11 @@ const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 const PUBLIC_CATALOG_PAGE_SIZE = 12;
 async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0) {
   const result = limit === null
-    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at`)
+    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at`)
     : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at LIMIT $1 OFFSET $2`, [limit, offset]);
   const items = result.rows.map((r) => ({
     id: r.id, kind: r.kind, name: r.name, description: r.description, price_agorot: r.price_agorot,
-    requires_appointment: r.requires_appointment === true, appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
+    requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
     image: r.storage_key ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height } : null,
   }));
   let total = limit === null ? items.length : (result.rows[0] ? Number(result.rows[0].total) : 0);
@@ -165,9 +165,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
-          const needsAppointment = found.some((p) => p.kind === 'service' && p.requires_appointment === true);
+          const needsAppointment = found.some((p) => p.kind === 'service' && (p.booking_mode ? p.booking_mode !== 'none' : p.requires_appointment === true));
           const appointmentAt = body.appointment_at;
-          const appointmentDurationMinutes = found.filter((p) => p.kind === 'service' && p.requires_appointment === true)
+          const appointmentDurationMinutes = found.filter((p) => p.kind === 'service' && (p.booking_mode ? p.booking_mode !== 'none' : p.requires_appointment === true))
             .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
           const appointmentError = validateAppointmentSelection({
             needsAppointment,
