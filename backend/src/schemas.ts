@@ -34,8 +34,9 @@ export const LeadInput = z.object({
   })).max(50).default([]),
   company_website: z.string().max(200).optional(), // honeypot: real users leave it empty
 }).strict()
-  .refine((v) => v.route !== 'site' || (!!v.customer_name && !!v.customer_phone), {
-    message: 'contact_required', path: ['customer_name'],
+  // The only required customer contact field is a phone number.
+  .refine((v) => v.route !== 'site' || !!v.customer_phone, {
+    message: 'contact_required', path: ['customer_phone'],
   })
   .refine((v) => v.items.length > 0 || !!v.message, {
     message: 'items_or_message_required', path: ['items'],
