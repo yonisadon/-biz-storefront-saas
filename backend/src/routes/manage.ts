@@ -160,6 +160,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         [status, id],
       );
       if (!r.rows[0]) throw new HttpError(404, 'not_found'); // also hit for other tenants' ids
+      if (status === 'rejected' || status === 'cancelled') {
+        await db.query(
+          "UPDATE appointments SET status = 'cancelled' WHERE lead_id = $1 AND status = 'reserved'",
+          [id],
+        );
+      }
       return r.rows[0];
     });
   });
