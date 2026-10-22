@@ -11,6 +11,7 @@
     "setup-tenant-registry": "tsx --env-file=.env scripts/setup-tenant-registry.ts",
     "prestart": "node dist/scripts/setup-tenant-registry.js",
     "migrate-tenant-schemas": "tsx --env-file=.env scripts/migrate-tenant-schemas.ts",
+    "cleanup-expired-appointments": "tsx --env-file=.env scripts/cleanup-expired-appointments.ts",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
