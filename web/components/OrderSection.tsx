@@ -300,6 +300,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         ) : step === 'choose' ? (
           <div className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {needsReservedAppointment && (
+              <div>
+                <label htmlFor="reserved-phone" className="block text-sm font-medium">מספר טלפון לשמירת התור *</label>
+                <input id="reserved-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+                <p className="mt-1 text-xs text-ink/60">התור נשמר ביומן לפני המעבר ל־WhatsApp. לשינוי או לביטול יש לפנות לעסק ישירות.</p>
+              </div>
+            )}
             {flow.whatsapp_enabled && (
               <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                 className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52] px-4 py-3 font-bold text-white hover:bg-[#117443] disabled:opacity-50">
