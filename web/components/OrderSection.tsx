@@ -137,6 +137,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     : hasQuote ? `${ils(total)} + ${quoteLabel}` : ils(total);
 
   const setQty = (id: string, q: number) => {
+    setIdempotencyKey('');
     setAppointmentTime('');
     setCart((c) => {
       const n = { ...c };
@@ -146,8 +147,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   };
 
   const setField = (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setIdempotencyKey('');
       setForm((f) => ({ ...f, [k]: e.target.value }));
+    };
 
   async function submit(route: Route) {
     setError(null);
@@ -284,10 +287,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <>
                 <p className="text-xs leading-5 text-ink/65">משך התור: {appointmentDurationMinutes} דקות בסך הכול. {needsReservedAppointment ? 'בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.' : 'בחרו מועד מבוקש. הוא לא תופס את היומן והעסק יתאם אתכם.'}</p>
                 <label className="block text-sm font-medium">תאריך
-                  <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
+                  <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setIdempotencyKey(''); setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
                 </label>
                 <label className="block text-sm font-medium">שעה
-                  <select required value={appointmentTime} onChange={(e) => setAppointmentTime(e.target.value)} disabled={!appointmentDate || slotsLoading || appointmentSlots.length === 0} className={input}>
+                  <select required value={appointmentTime} onChange={(e) => { setIdempotencyKey(''); setAppointmentTime(e.target.value); }} disabled={!appointmentDate || slotsLoading || appointmentSlots.length === 0} className={input}>
                     <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : slotsLoading ? 'בודקים שעות פנויות…' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות פנויות ביום זה'}</option>
                     {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
                   </select>
