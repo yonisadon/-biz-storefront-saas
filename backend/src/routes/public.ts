@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync, preHandlerAsyncHookHandler } from 'fastify';
 import type pg from 'pg';
+import { z } from 'zod';
 import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
@@ -16,7 +17,7 @@ const PUBLIC_CATALOG_PAGE_SIZE = 12;
 async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0) {
   const result = limit === null
     ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at`)
-    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at LIMIT $1 OFFSET $2`, [limit, offset]);
+    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at LIMIT $1 OFFSET $2`, [limit, offset]);
   const items = result.rows.map((r) => ({
     id: r.id, kind: r.kind, name: r.name, description: r.description, price_agorot: r.price_agorot,
     requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
@@ -121,6 +122,93 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       return withTenant(req.tenantId, async (db) => {
         const biz = await loadBusiness(db);
         return { doc, custom_text: biz.config?.legal?.[doc]?.custom_text ?? null };
+      });
+    });
+
+    // Return candidate times for the selected cart. Reserved availability-mode slots
+    // are checked against both appointments and seller time blocks on the server.
+    app.get('/availability', async (req) => {
+      const query = z.object({
+        date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+        items: z.string().min(1).max(3000),
+      }).parse(req.query);
+      const selected = query.items.split(',').map((entry) => {
+        const match = /^([0-9a-f-]{36}):(\\d{1,4})$/i.exec(entry);
+        if (!match) throw new HttpError(400, 'invalid_items');
+        const quantity = Number(match[2]);
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) throw new HttpError(400, 'invalid_items');
+        return { id: match[1], quantity };
+      });
+      if (selected.length > 50 || new Set(selected.map((item) => item.id)).size !== selected.length) {
+        throw new HttpError(400, 'invalid_items');
+      }
+
+      return withTenant(req.tenantId, async (db) => {
+        const biz = await loadBusiness(db);
+        const ids = selected.map((item) => item.id);
+        const rows = ids.length ? (await db.query(
+          'SELECT id, kind, name, booking_mode, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+          [ids],
+        )).rows : [];
+        if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
+        const qty = new Map(selected.map((item) => [item.id, item.quantity]));
+        const services = rows.filter((item) => item.kind === 'service')
+          .map((item) => ({ ...item, mode: item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none') }))
+          .filter((item) => item.mode !== 'none');
+        const modes = [...new Set(services.map((item) => item.mode))];
+        if (modes.length > 1) throw new HttpError(400, 'mixed_booking_modes');
+        const mode = modes[0] ?? 'none';
+        if (mode === 'none') throw new HttpError(400, 'appointment_not_applicable');
+        const duration = services.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
+
+        const days = biz.config?.opening_hours?.days;
+        const date = new Date(`${query.date}T12:00:00Z`);
+        if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== query.date) {
+          throw new HttpError(400, 'invalid_date');
+        }
+        const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getUTCDay()];
+        const ranges = days && typeof days === 'object' ? days[dayKey] : undefined;
+        if (!Array.isArray(ranges)) return { date: query.date, mode, duration_minutes: duration, slots: [] };
+
+        const toMinutes = (value: unknown) => {
+          if (typeof value !== 'string' || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value)) return Number.NaN;
+          return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+        };
+        const slots: string[] = [];
+        for (const range of ranges) {
+          if (!range || typeof range !== 'object') continue;
+          const open = toMinutes((range as { open?: unknown }).open);
+          const close = toMinutes((range as { close?: unknown }).close);
+          if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
+          for (let minute = open; minute + duration <= close; minute += duration) {
+            const slot = `${query.date}T${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+            if (validateAppointmentSelection({
+              needsAppointment: true, appointmentAt: slot, durationMinutes: duration,
+              openingHoursDays: days, timezone: biz.timezone,
+            })) continue;
+            if (mode === 'availability') {
+              const availability = await db.query(
+                `SELECT NOT EXISTS (
+                   SELECT 1 FROM appointments a
+                    WHERE a.status = 'reserved'
+                      AND tstzrange(a.start_at, a.end_at, '[)') &&
+                          tstzrange(($1::timestamp AT TIME ZONE $2),
+                            (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+                 ) AND NOT EXISTS (
+                   SELECT 1 FROM appointment_blocks b
+                    WHERE tstzrange(b.start_at, b.end_at, '[)') &&
+                          tstzrange(($1::timestamp AT TIME ZONE $2),
+                            (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+                 ) AS available`,
+                [slot, biz.timezone, duration],
+              );
+              if (availability.rows[0]?.available !== true) continue;
+            }
+            slots.push(slot.slice(11));
+          }
+        }
+        return { date: query.date, mode, duration_minutes: duration, slots };
       });
     });
 
