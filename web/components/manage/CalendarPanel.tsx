@@ -49,6 +49,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   const [blockStart, setBlockStart] = useState('12:00');
   const [blockEnd, setBlockEnd] = useState('13:00');
   const [blockReason, setBlockReason] = useState('');
+  const [allDayBlock, setAllDayBlock] = useState(false);
   const [editingTimes, setEditingTimes] = useState<Record<string, string>>({});
   const [editingServices, setEditingServices] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -137,17 +138,24 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   }
 
   async function createBlock() {
-    if (!blockStart || !blockEnd || blockEnd <= blockStart) return setError('שעת סיום החסימה חייבת להיות אחרי שעת ההתחלה.');
+    if (!allDayBlock && (!blockStart || !blockEnd || blockEnd <= blockStart)) return setError('שעת סיום החסימה חייבת להיות אחרי שעת ההתחלה.');
     setBusy(true); setError(null); setMessage(null);
     try {
+      const nextDateValue = new Date(`${date}T12:00:00Z`);
+      nextDateValue.setUTCDate(nextDateValue.getUTCDate() + 1);
+      const nextDate = `${nextDateValue.getUTCFullYear()}-${String(nextDateValue.getUTCMonth() + 1).padStart(2, '0')}-${String(nextDateValue.getUTCDate()).padStart(2, '0')}`;
       const result = await mcall<TimeBlock>(token, 'appointment-blocks', {
         method: 'POST',
-        body: JSON.stringify({ start_at: `${date}T${blockStart}`, end_at: `${date}T${blockEnd}`, reason: blockReason }),
+        body: JSON.stringify({
+          start_at: allDayBlock ? `${date}T00:00` : `${date}T${blockStart}`,
+          end_at: allDayBlock ? `${nextDate}T00:00` : `${date}T${blockEnd}`,
+          reason: blockReason,
+        }),
       });
       setMessage(result.conflicting_appointments
         ? `החסימה נשמרה, אבל קיימים ${result.conflicting_appointments} תורים משוריינים בטווח. הם לא בוטלו; יש לטפל בהם ידנית.`
         : 'החסימה נשמרה ותמנע קביעות חדשות בטווח.');
-      setBlockReason('');
+      setBlockReason(''); setAllDayBlock(false);
       await load();
     } catch { setError('שמירת החסימה נכשלה.'); }
     finally { setBusy(false); }
@@ -185,9 +193,10 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
         <h3 className="font-bold">חסימת זמן</h3><p className="mt-1 text-xs text-gray-500">חסימה מונעת תורים חדשים. תורים קיימים נשארים משוריינים ומוצגת אזהרה.</p>
+        <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={allDayBlock} onChange={(e) => setAllDayBlock(e.target.checked)}/> חסימת יום מלא</label>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className="text-sm">משעה<input type="time" className={`${field} mt-1 w-full`} value={blockStart} onChange={(e) => setBlockStart(e.target.value)}/></label>
-          <label className="text-sm">עד שעה<input type="time" className={`${field} mt-1 w-full`} value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}/></label>
+          <label className="text-sm">משעה<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockStart} onChange={(e) => setBlockStart(e.target.value)}/></label>
+          <label className="text-sm">עד שעה<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}/></label>
         </div>
         <label className="mt-3 block text-sm">סיבה (לא חובה)<input className={`${field} mt-1 w-full`} value={blockReason} onChange={(e) => setBlockReason(e.target.value)} maxLength={300} placeholder="למשל: הפסקה"/></label>
         <button type="button" onClick={() => void createBlock()} disabled={busy} className="mt-3 min-h-11 w-full rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">שמירת חסימה</button>
