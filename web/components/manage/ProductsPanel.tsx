@@ -124,7 +124,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         </div>
 
         <label className="block text-sm font-medium">סוג
-          <select className={input} value={kind} onChange={(e) => setKind(e.target.value as 'product' | 'service'); if (e.target.value === 'product') setBookingMode('none');}>
+          <select className={input} value={kind} onChange={(e) => { const next = e.target.value as 'product' | 'service'; setKind(next); if (next === 'product') setBookingMode('none'); }}>
             <option value="product">מוצר</option>
             <option value="service">שירות</option>
           </select>
