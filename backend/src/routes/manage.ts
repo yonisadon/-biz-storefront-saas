@@ -43,6 +43,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
       const sets: string[] = [];
       const vals: unknown[] = [];
+      let futureReservedAppointments = 0;
+      let openingHoursChanged = false;
       // column names below are hard-coded, never user input
       const set = (col: string, v: unknown, cast = '') => {
         vals.push(v);
@@ -57,6 +59,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
       if (patch.config) {
         // Sections you send replace the whole section; others are kept. version is fixed.
+        openingHoursChanged = Object.prototype.hasOwnProperty.call(patch.config, 'opening_hours');
+        if (openingHoursChanged) {
+          futureReservedAppointments = Number((await db.query(
+            "SELECT count(*)::int AS n FROM appointments WHERE status = 'reserved' AND end_at > now()",
+          )).rows[0].n);
+        }
         const merged = { ...cur.config, ...patch.config, version: 1 };
         const errors = validateConfig(merged);
         if (errors) throw new HttpError(422, 'invalid_config', 'Config failed validation', errors);
@@ -72,7 +80,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
           RETURNING name, phone, whatsapp_number, email, about_text, config`,
         vals,
       );
-      return r.rows[0];
+      return {
+        ...r.rows[0],
+        ...(openingHoursChanged && futureReservedAppointments > 0
+          ? { warnings: { future_reserved_appointments: futureReservedAppointments } }
+          : {}),
+      };
     });
   });
 
