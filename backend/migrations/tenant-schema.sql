@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   price_agorot    integer CHECK (price_agorot IS NULL OR price_agorot >= 0),  -- ILS x100; NULL = quote
   image_asset_id  uuid,                                                      -- exactly one image
   requires_appointment boolean NOT NULL DEFAULT false,
+  booking_mode text NOT NULL DEFAULT 'none'
+    CONSTRAINT products_booking_mode_check CHECK (booking_mode IN ('none', 'free_datetime', 'availability')),
   appointment_duration_minutes smallint NOT NULL DEFAULT 30
     CHECK (appointment_duration_minutes IN (15, 30, 45, 60, 90, 120, 180, 240)),
   is_active       boolean NOT NULL DEFAULT true,
@@ -193,7 +195,54 @@ CREATE TABLE IF NOT EXISTS public.lead_items (
     REFERENCES public.products (tenant_id, id) ON DELETE SET NULL (product_id)
 );
 
--- 3.7 Seller notes on leads (spec 2.2 lists "notes" as isolated data)
+-- 3.7 Reserved appointments and seller-defined time blocks.
+-- A tenant database contains one business, so the exclusion constraint can
+-- enforce time overlap directly without cross-tenant keys.
+CREATE TABLE IF NOT EXISTS public.appointments (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  lead_id        uuid,
+  service_id     uuid,
+  service_name   text NOT NULL CHECK (length(btrim(service_name)) > 0),
+  customer_phone app.il_phone NOT NULL,
+  start_at       timestamptz NOT NULL,
+  end_at         timestamptz NOT NULL,
+  source          text NOT NULL CHECK (source IN ('website', 'manual')),
+  status          text NOT NULL DEFAULT 'reserved' CHECK (status IN ('reserved', 'cancelled')),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_at > start_at),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, lead_id),
+  FOREIGN KEY (tenant_id, lead_id)
+    REFERENCES public.leads (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, service_id)
+    REFERENCES public.products (tenant_id, id) ON DELETE SET NULL (service_id),
+  CONSTRAINT appointments_no_reserved_overlap
+    EXCLUDE USING gist (tstzrange(start_at, end_at, '[)') WITH &&)
+    WHERE (status = 'reserved')
+);
+
+CREATE TABLE IF NOT EXISTS public.appointment_blocks (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  start_at    timestamptz NOT NULL,
+  end_at      timestamptz NOT NULL,
+  reason      text CHECK (reason IS NULL OR length(btrim(reason)) <= 300),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_at > start_at),
+  UNIQUE (tenant_id, id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_tenant_start
+  ON public.appointments (tenant_id, start_at) WHERE status = 'reserved';
+CREATE INDEX IF NOT EXISTS idx_appointments_tenant_lead
+  ON public.appointments (tenant_id, lead_id) WHERE lead_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_appointment_blocks_tenant_start
+  ON public.appointment_blocks (tenant_id, start_at);
+
+-- 3.8 Seller notes on leads (spec 2.2 lists "notes" as isolated data)
 CREATE TABLE IF NOT EXISTS public.lead_notes (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
@@ -258,7 +307,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_domains_one_primary
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['businesses','products','leads','lead_notes','portfolio_images']
+  FOREACH t IN ARRAY ARRAY['businesses','products','leads','lead_notes','portfolio_images','appointments','appointment_blocks']
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%1$s_updated_at ON public.%1$I', t);
     EXECUTE format(
@@ -275,7 +324,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['products','leads','lead_items','lead_notes',
-                           'media_assets','portfolio_images']
+                           'media_assets','portfolio_images','appointments','appointment_blocks']
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE public.%I FORCE  ROW LEVEL SECURITY', t);
@@ -422,6 +471,8 @@ GRANT UPDATE (name, whatsapp_number, phone, email, about_text, config)
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.products          TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.media_assets      TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_images  TO app_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointments       TO app_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointment_blocks TO app_runtime;
 
 -- Customer data is immutable for the seller; only the workflow status changes.
 GRANT SELECT, INSERT ON public.leads TO app_runtime;
