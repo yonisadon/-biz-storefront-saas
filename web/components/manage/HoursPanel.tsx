@@ -49,7 +49,7 @@ export default function HoursPanel({ token, biz, onSaved }: {
     if (problem) return setMsg({ ok: false, text: problem });
     setBusy(true); setMsg(null);
     try {
-      const saved = await mcall<Partial<ManageBusiness>>(token, 'business', {
+      const saved = await mcall<Partial<ManageBusiness> & { warnings?: { future_reserved_appointments: number } }>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({
           // Replaces the whole opening_hours section, so send days AND banner together
@@ -62,7 +62,10 @@ export default function HoursPanel({ token, biz, onSaved }: {
         }),
       });
       onSaved({ ...biz, ...saved });
-      setMsg({ ok: true, text: 'שעות הפעילות נשמרו.' });
+      const count = saved.warnings?.future_reserved_appointments ?? 0;
+      setMsg({ ok: true, text: count > 0
+        ? `שעות הפעילות נשמרו. קיימים ${count} תורים משוריינים עתידיים; הם נשארו בתוקף. בדקו ידנית אם הם מתנגשים עם השעות החדשות.`
+        : 'שעות הפעילות נשמרו.' });
     } catch { setMsg({ ok: false, text: 'השמירה נכשלה. נסו שוב.' }); }
     finally { setBusy(false); }
   }

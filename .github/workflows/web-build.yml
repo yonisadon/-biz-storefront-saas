@@ -7,7 +7,7 @@ on:
       - 'web/**'
       - '.github/workflows/web-build.yml'
   push:
-    branches: [main]
+    branches: ['**']
     paths:
       - 'web/**'
       - '.github/workflows/web-build.yml'

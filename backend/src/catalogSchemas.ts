@@ -7,6 +7,7 @@ const optText = (max: number) =>
 
 const price = z.number().int().min(0).max(10_000_000).nullable(); // agorot, null = quote
 const appointmentDuration = z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120), z.literal(180), z.literal(240)]);
+export const BookingMode = z.enum(['none', 'free_datetime', 'availability']);
 
 export const ProductCreate = z.object({
   kind: z.enum(['product', 'service']).default('product'),
@@ -15,6 +16,7 @@ export const ProductCreate = z.object({
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
   requires_appointment: z.boolean().default(false),
+  booking_mode: BookingMode.optional(),
   appointment_duration_minutes: appointmentDuration.default(30),
 }).strict();
 
@@ -25,6 +27,7 @@ export const ProductPatch = z.object({
   price_agorot: price.optional(),
   is_active: z.boolean().optional(),
   requires_appointment: z.boolean().optional(),
+  booking_mode: BookingMode.optional(),
   appointment_duration_minutes: appointmentDuration.optional(),
 }).strict().refine((o) => Object.values(o).some((v) => v !== undefined), { message: 'empty_patch' });
 

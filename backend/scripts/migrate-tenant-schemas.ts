@@ -137,7 +137,43 @@ async function main() {
       const db = await connect(databaseUrl(tenant.database_name));
       try {
         const applied = await applyTenantMigrations(db);
-        console.log(`${tenant.database_name}: ${applied.length ? applied.join(', ') : 'already up to date'}`);
+        const postflight = await db.query(
+          `SELECT to_regclass('public.appointments') AS appointments,
+                  to_regclass('public.appointment_blocks') AS appointment_blocks,
+                  to_regclass('public.products') AS products,
+                  to_regclass('public.leads') AS leads`,
+        );
+        const post = postflight.rows[0];
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.leads) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking tables are missing.`);
+        }
+        const requiredColumns = await db.query(
+          `SELECT table_name, column_name
+             FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND ((table_name = 'products' AND column_name = 'booking_mode')
+                OR (table_name = 'leads' AND column_name = 'idempotency_key')
+                OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source'))
+                OR (table_name = 'appointment_blocks' AND column_name IN ('start_at', 'end_at')))`,
+        );
+        const present = new Set(requiredColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
+        for (const required of [
+          'products.booking_mode', 'leads.idempotency_key',
+          'appointments.lead_id', 'appointments.start_at', 'appointments.end_at',
+          'appointments.status', 'appointments.source',
+          'appointment_blocks.start_at', 'appointment_blocks.end_at',
+        ]) {
+          if (!present.has(required)) throw new Error(`Postflight failed for ${tenant.database_name}: missing ${required}.`);
+        }
+        const overlapConstraint = await db.query(
+          `SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'public.appointments'::regclass
+              AND conname = 'appointments_no_reserved_overlap'`,
+        );
+        if (!overlapConstraint.rowCount) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: overlap protection is missing.`);
+        }
+        console.log(`${tenant.database_name}: ${applied.length ? applied.join(', ') : 'already up to date'}; booking postflight passed`);
       } finally {
         await db.end();
       }

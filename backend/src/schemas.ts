@@ -21,6 +21,7 @@ const phoneOptional = z.string().max(40).optional().transform((v, ctx) => {
 
 export const LeadInput = z.object({
   route: z.enum(['whatsapp', 'site']),
+  idempotency_key: z.string().uuid().optional(),
   customer_name: z.string().trim().min(1).max(120).optional(),
   customer_phone: phoneOptional,
   customer_email: z.string().trim().max(254).optional()
@@ -34,8 +35,9 @@ export const LeadInput = z.object({
   })).max(50).default([]),
   company_website: z.string().max(200).optional(), // honeypot: real users leave it empty
 }).strict()
-  .refine((v) => v.route !== 'site' || (!!v.customer_name && !!v.customer_phone), {
-    message: 'contact_required', path: ['customer_name'],
+  // The only required customer contact field is a phone number.
+  .refine((v) => v.route !== 'site' || !!v.customer_phone, {
+    message: 'contact_required', path: ['customer_phone'],
   })
   .refine((v) => v.items.length > 0 || !!v.message, {
     message: 'items_or_message_required', path: ['items'],

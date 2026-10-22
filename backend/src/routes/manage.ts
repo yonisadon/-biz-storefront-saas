@@ -4,7 +4,8 @@ import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
 import { BusinessPatch, LeadListQuery, LeadNoteInput, LeadStatusPatch } from '../schemas';
 import { resolveByToken } from '../tenant';
-import { catalogRoutes } from './catalog'; // <-- 1. הוספת האימפורט הזה
+import { catalogRoutes } from './catalog';
+import { appointmentRoutes } from './appointments';
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -14,7 +15,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     reply.header('Referrer-Policy', 'no-referrer');
   });
 
-  await app.register(catalogRoutes); // <-- 2. הוספת השורה הזו כאן!
+  await app.register(catalogRoutes);
+  await app.register(appointmentRoutes);
 
   // ---- Business profile ----
   app.get('/business', async (req) =>
@@ -41,6 +43,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
       const sets: string[] = [];
       const vals: unknown[] = [];
+      let futureReservedAppointments = 0;
+      let openingHoursChanged = false;
       // column names below are hard-coded, never user input
       const set = (col: string, v: unknown, cast = '') => {
         vals.push(v);
@@ -55,6 +59,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
       if (patch.config) {
         // Sections you send replace the whole section; others are kept. version is fixed.
+        openingHoursChanged = Object.prototype.hasOwnProperty.call(patch.config, 'opening_hours');
+        if (openingHoursChanged) {
+          futureReservedAppointments = Number((await db.query(
+            "SELECT count(*)::int AS n FROM appointments WHERE status = 'reserved' AND end_at > now()",
+          )).rows[0].n);
+        }
         const merged = { ...cur.config, ...patch.config, version: 1 };
         const errors = validateConfig(merged);
         if (errors) throw new HttpError(422, 'invalid_config', 'Config failed validation', errors);
@@ -70,7 +80,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
           RETURNING name, phone, whatsapp_number, email, about_text, config`,
         vals,
       );
-      return r.rows[0];
+      return {
+        ...r.rows[0],
+        ...(openingHoursChanged && futureReservedAppointments > 0
+          ? { warnings: { future_reserved_appointments: futureReservedAppointments } }
+          : {}),
+      };
     });
   });
 
@@ -158,6 +173,12 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         [status, id],
       );
       if (!r.rows[0]) throw new HttpError(404, 'not_found'); // also hit for other tenants' ids
+      if (status === 'rejected' || status === 'cancelled') {
+        await db.query(
+          "UPDATE appointments SET status = 'cancelled' WHERE lead_id = $1 AND status = 'reserved'",
+          [id],
+        );
+      }
       return r.rows[0];
     });
   });
