@@ -52,6 +52,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
 
@@ -153,12 +154,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setBusy(route);
     try {
       if (appointmentModes.length > 1) { setError('אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.'); return; }
+      if (needsReservedAppointment && !hasAppointmentHours) { setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. יש לפנות לעסק ישירות.'); return; }
+      const requestKey = idempotencyKey || crypto.randomUUID();
+      if (!idempotencyKey) setIdempotencyKey(requestKey);
       if (needsReservedAppointment && !form.phone.trim()) { setError('כדי לשמור תור ביומן, יש להזין מספר טלפון.'); return; }
       const res = await fetch(`${apiBase}/leads`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           route,
+          idempotency_key: requestKey,
           ...(route === 'site' || needsReservedAppointment ? { customer_phone: form.phone, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
           ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
@@ -168,6 +173,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
+      setIdempotencyKey('');
       if (data?.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.' });
       } else {
