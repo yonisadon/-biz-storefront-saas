@@ -129,11 +129,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
     // are checked against both appointments and seller time blocks on the server.
     app.get('/availability', async (req) => {
       const query = z.object({
-        date: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         items: z.string().min(1).max(3000),
       }).parse(req.query);
       const selected = query.items.split(',').map((entry) => {
-        const match = /^([0-9a-f-]{36}):(\\d{1,4})$/i.exec(entry);
+        const match = /^([0-9a-f-]{36}):(\d{1,4})$/i.exec(entry);
         if (!match) throw new HttpError(400, 'invalid_items');
         const quantity = Number(match[2]);
         if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) throw new HttpError(400, 'invalid_items');
@@ -172,7 +172,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         if (!Array.isArray(ranges)) return { date: query.date, mode, duration_minutes: duration, slots: [] };
 
         const toMinutes = (value: unknown) => {
-          if (typeof value !== 'string' || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value)) return Number.NaN;
+          if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return Number.NaN;
           return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
         };
         const slots: string[] = [];
