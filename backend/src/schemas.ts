@@ -21,6 +21,7 @@ const phoneOptional = z.string().max(40).optional().transform((v, ctx) => {
 
 export const LeadInput = z.object({
   route: z.enum(['whatsapp', 'site']),
+  idempotency_key: z.string().uuid().optional(),
   customer_name: z.string().trim().min(1).max(120).optional(),
   customer_phone: phoneOptional,
   customer_email: z.string().trim().max(254).optional()
