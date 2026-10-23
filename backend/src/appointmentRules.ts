@@ -26,6 +26,20 @@ function localNow(now: Date, timezone: string): string {
   return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
 }
 
+/**
+ * Candidate start times use a fixed wall-clock quarter-hour grid. Duration only
+ * determines whether the appointment fits before closing; it never controls cadence.
+ */
+export function quarterHourStartMinutes(openMinutes: number, closeMinutes: number, durationMinutes: number): number[] {
+  if (!Number.isFinite(openMinutes) || !Number.isFinite(closeMinutes)
+    || !Number.isInteger(durationMinutes) || durationMinutes <= 0 || durationMinutes > 480) return [];
+  const slots: number[] = [];
+  for (let minute = Math.ceil(openMinutes / 15) * 15; minute + durationMinutes <= closeMinutes; minute += 15) {
+    slots.push(minute);
+  }
+  return slots;
+}
+
 export function validateAppointmentSelection(args: {
   needsAppointment: boolean;
   appointmentAt?: string;
@@ -61,7 +75,9 @@ export function validateAppointmentSelection(args: {
       return Number.isFinite(open) && Number.isFinite(close)
         && requestedMinutes >= open
         && requestedMinutes + durationMinutes <= close
-        && (requestedMinutes - open) % durationMinutes === 0;
+        // Appointment start times use a fixed 15-minute clock grid, independent
+        // of the selected service duration. This avoids duration-based drift.
+        && requestedMinutes % 15 === 0;
     });
 
   let nowLocal: string;

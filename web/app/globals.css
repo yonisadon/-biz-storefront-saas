@@ -66,11 +66,31 @@ a {
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
 }
 
-/* Accessibility toolbar preferences: real, visible changes. */
-html.a11y-large { font-size: 112.5%; }
-html.a11y-large body { line-height: 1.65; }
-html.a11y-contrast { filter: contrast(1.35); }
-html.a11y-links a { text-decoration: underline !important; text-decoration-thickness: 2px !important; text-underline-offset: 3px !important; }
+/* Accessibility toolbar preferences: user-controlled, persistent, and independent. */
+html.a11y-font-1 { font-size: 112.5%; }
+html.a11y-font-2 { font-size: 125%; }
+html.a11y-font-3 { font-size: 137.5%; }
+html.a11y-spacing .brand-root { line-height: 1.85; }
+html.a11y-spacing .brand-root :is(p, li, label, input, textarea, button, a) { letter-spacing: 0.015em; word-spacing: 0.12em; }
+html.a11y-readable-font .brand-root { font-family: Arial, Helvetica, sans-serif !important; }
+html.a11y-readable-font .brand-root :is(button, input, select, textarea) { font-family: Arial, Helvetica, sans-serif !important; }
+html.a11y-links .brand-root a { text-decoration: underline !important; text-decoration-thickness: 2px !important; text-underline-offset: 3px !important; }
+html.a11y-focus :focus-visible { outline: 4px solid #ffbf00 !important; outline-offset: 3px !important; box-shadow: 0 0 0 2px #111 !important; }
+html.a11y-contrast .brand-root {
+  --brand-background: #fff !important;
+  --brand-text: #000 !important;
+  --brand-primary: #003f3a !important;
+  --brand-primary-fg: #fff !important;
+  --brand-secondary: #ededed !important;
+  --brand-accent: #ffbf00 !important;
+}
+html.a11y-contrast .brand-root :is(button, input, select, textarea, a) { border-color: #111; }
+html.a11y-reduce-motion *, html.a11y-reduce-motion *::before, html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
 
 
 /* Shared storefront polish and reduced-motion support. */

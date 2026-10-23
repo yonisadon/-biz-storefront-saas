@@ -5,7 +5,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
-import { validateAppointmentSelection } from '../appointmentRules';
+import { quarterHourStartMinutes, validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
@@ -155,11 +155,13 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const services = rows.filter((item) => item.kind === 'service')
           .map((item) => ({ ...item, mode: item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none') }))
           .filter((item) => item.mode !== 'none');
-        const modes = [...new Set(services.map((item) => item.mode))];
-        if (modes.length > 1) throw new HttpError(400, 'mixed_booking_modes');
-        const mode = modes[0] ?? 'none';
+        const reservedServices = services.filter((item) => item.mode === 'availability');
+        const freeDatetimeServices = services.filter((item) => item.mode === 'free_datetime');
+        const mode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
         if (mode === 'none') throw new HttpError(400, 'appointment_not_applicable');
-        const duration = services.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        // Only reserved services consume calendar time when booking modes are mixed.
+        const durationServices = reservedServices.length ? reservedServices : freeDatetimeServices;
+        const duration = durationServices.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
         if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
 
         const days = biz.config?.opening_hours?.days;
@@ -181,7 +183,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const open = toMinutes((range as { open?: unknown }).open);
           const close = toMinutes((range as { close?: unknown }).close);
           if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
-          for (let minute = open; minute + duration <= close; minute += duration) {
+          // Offer starts on the wall-clock quarter-hour grid, not every service duration.
+          // Starting at 09:43 therefore rounds up to 09:45 rather than drifting by duration.
+          for (const minute of quarterHourStartMinutes(open, close, duration)) {
             const slot = `${query.date}T${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
             if (validateAppointmentSelection({
               needsAppointment: true, appointmentAt: slot, durationMinutes: duration,
@@ -257,12 +261,18 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             .map((p) => ({ ...p, mode: p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none') }))
             .filter((p) => p.mode !== 'none');
           const selectedModes = [...new Set(appointmentServices.map((p) => p.mode))];
-          if (selectedModes.length > 1) throw new HttpError(400, 'mixed_booking_modes');
-          const bookingMode = selectedModes[0] ?? 'none';
-          const needsAppointment = bookingMode !== 'none';
+          const reservedServices = appointmentServices.filter((p) => p.mode === 'availability');
+          const freeDatetimeServices = appointmentServices.filter((p) => p.mode === 'free_datetime');
+          const bookingMode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
+          const needsAppointment = appointmentServices.length > 0;
           const appointmentAt = body.appointment_at;
-          const appointmentDurationMinutes = appointmentServices
+          const reservedDurationMinutes = reservedServices
             .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
+          const freeDatetimeDurationMinutes = freeDatetimeServices
+            .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
+          // A mixed order reserves only the availability-mode services. Free-datetime
+          // services remain visible in the lead/WhatsApp message but do not block time.
+          const appointmentDurationMinutes = reservedServices.length ? reservedDurationMinutes : freeDatetimeDurationMinutes;
           if (bookingMode === 'availability' && !body.customer_phone) throw new HttpError(400, 'contact_required');
           if (bookingMode === 'availability' && !appointmentAt) throw new HttpError(400, 'appointment_required');
           const appointmentError = validateAppointmentSelection({
@@ -288,7 +298,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                has_quote_items: hasQuote,
                ...(needsAppointment ? {
                  booking_mode: bookingMode,
+                 booking_modes: selectedModes,
                  appointment_duration_minutes: appointmentDurationMinutes,
+                 ...(freeDatetimeServices.length && reservedServices.length ? {
+                   unreserved_service_duration_minutes: freeDatetimeDurationMinutes,
+                   unreserved_service_names: freeDatetimeServices.map((p) => p.name),
+                 } : {}),
                  appointment_needs_coordination: !appointmentAt,
                  ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
                } : {}),
@@ -327,7 +342,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           }
 
           let appointmentReserved = false;
-          if (bookingMode === 'availability' && appointmentAt) {
+          if (reservedServices.length && appointmentAt) {
             try {
               await db.query(
                 `INSERT INTO appointments
@@ -337,9 +352,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                     ($5::timestamp AT TIME ZONE $6),
                     (($5::timestamp AT TIME ZONE $6) + ($7::int * interval '1 minute')),
                     'website', 'reserved')`,
-                [leadId, appointmentServices.length === 1 ? appointmentServices[0].id : null,
-                 appointmentServices.map((p) => p.name).join(' + '), body.customer_phone,
-                 appointmentAt, biz.timezone, appointmentDurationMinutes],
+                [leadId, reservedServices.length === 1 ? reservedServices[0].id : null,
+                 reservedServices.map((p) => p.name).join(' + '), body.customer_phone,
+                 appointmentAt, biz.timezone, reservedDurationMinutes],
               );
               appointmentReserved = true;
             } catch (error) {
@@ -368,7 +383,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const itemsText = found.map((p) => {
               const q = qty.get(p.id)!;
               const price = p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q);
-              const duration = p.kind === 'service' && p.requires_appointment === true ? ` · תור ${((p.appointment_duration_minutes ?? 30) * q)} דקות` : '';
+              const itemMode = p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none');
+              const itemDuration = (p.appointment_duration_minutes ?? 30) * q;
+              const duration = p.kind !== 'service' || itemMode === 'none' ? ''
+                : itemMode === 'availability' ? ` · תור ביומן ${itemDuration} דקות`
+                  : ` · מועד מבוקש בלבד ${itemDuration} דקות`;
               return `• ${p.name} × ${q}${duration} — ${price}`;
             }).join('\n');
             const totalText = estimated === null ? quoteLabel
@@ -389,12 +408,22 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               if (appointmentAt) {
                 messageLines.push(
                   `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
-                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                  reservedServices.length
+                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
+                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
                 );
               } else {
                 messageLines.push(
                   'מועד התור יתואם מול המוכר',
-                  `משך תור משוער: ${appointmentDurationMinutes} דקות`,
+                  reservedServices.length
+                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
+                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
+                );
+              }
+              if (reservedServices.length && freeDatetimeServices.length) {
+                messageLines.push(
+                  `שירותים נוספים ללא שריון ביומן: ${freeDatetimeServices.map((p) => p.name).join(', ')}`,
+                  'שירותים אלה נכללים בפנייה אך אינם מוסיפים זמן לשריון ביומן.',
                 );
               }
             }

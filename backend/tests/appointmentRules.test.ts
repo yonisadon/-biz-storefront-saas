@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasConfiguredOpeningHours, validateAppointmentSelection } from '../src/appointmentRules';
+import { hasConfiguredOpeningHours, quarterHourStartMinutes, validateAppointmentSelection } from '../src/appointmentRules';
 
 const mondayHours = { mon: [{ open: '12:00', close: '16:00' }] };
 const futureNow = new Date('2026-10-18T00:00:00.000Z');
@@ -67,6 +67,60 @@ test('past appointment requests are rejected', () => {
     timezone: 'Asia/Jerusalem',
     now: new Date('2026-10-18T12:00:00.000Z'),
   }), 'invalid_appointment_time');
+});
+
+
+test('slot candidates round up to the next clock quarter and advance by 15 minutes', () => {
+  assert.deepEqual(
+    quarterHourStartMinutes(9 * 60 + 43, 12 * 60, 45),
+    [9 * 60 + 45, 10 * 60, 10 * 60 + 15, 10 * 60 + 30, 10 * 60 + 45, 11 * 60, 11 * 60 + 15],
+  );
+  assert.deepEqual(quarterHourStartMinutes(9 * 60, 10 * 60, 60), [9 * 60]);
+  assert.deepEqual(quarterHourStartMinutes(9 * 60, 10 * 60, 61), []);
+});
+
+test('appointment starts use a fixed 15-minute grid independent of service duration', () => {
+  const hours = { mon: [{ open: '09:00', close: '12:00' }] };
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T09:45',
+    durationMinutes: 45,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:39:00.000Z'),
+  }), null);
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T09:43',
+    durationMinutes: 45,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:39:00.000Z'),
+  }), 'invalid_appointment_time');
+});
+
+test('a combined reserved duration may end exactly at closing but not exceed it', () => {
+  const hours = { mon: [{ open: '12:00', close: '16:00' }] };
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T14:15',
+    durationMinutes: 105,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: futureNow,
+  }), null);
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T14:30',
+    durationMinutes: 105,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: futureNow,
+  }), 'invalid_appointment_time');
+});
+
+test('a combined duration above the supported eight-hour limit has no valid slots', () => {
+  assert.deepEqual(quarterHourStartMinutes(9 * 60, 18 * 60, 481), []);
 });
 
 test('a selected appointment time is rejected for items that do not require appointments', () => {
