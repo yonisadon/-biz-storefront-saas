@@ -5,7 +5,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
-import { validateAppointmentSelection } from '../appointmentRules';
+import { quarterHourStartMinutes, validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
@@ -185,7 +185,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
           // Offer starts on the wall-clock quarter-hour grid, not every service duration.
           // Starting at 09:43 therefore rounds up to 09:45 rather than drifting by duration.
-          for (let minute = Math.ceil(open / 15) * 15; minute + duration <= close; minute += 15) {
+          for (const minute of quarterHourStartMinutes(open, close, duration)) {
             const slot = `${query.date}T${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
             if (validateAppointmentSelection({
               needsAppointment: true, appointmentAt: slot, durationMinutes: duration,
