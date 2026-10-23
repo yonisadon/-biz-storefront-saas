@@ -213,7 +213,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
-                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{p.requires_appointment ? `שירות · תור ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
+                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
                   {p.description && <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>}
