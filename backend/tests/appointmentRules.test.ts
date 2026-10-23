@@ -99,6 +99,30 @@ test('appointment starts use a fixed 15-minute grid independent of service durat
   }), 'invalid_appointment_time');
 });
 
+test('a combined reserved duration may end exactly at closing but not exceed it', () => {
+  const hours = { mon: [{ open: '12:00', close: '16:00' }] };
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T14:15',
+    durationMinutes: 105,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: futureNow,
+  }), null);
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T14:30',
+    durationMinutes: 105,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: futureNow,
+  }), 'invalid_appointment_time');
+});
+
+test('a combined duration above the supported eight-hour limit has no valid slots', () => {
+  assert.deepEqual(quarterHourStartMinutes(9 * 60, 18 * 60, 481), []);
+});
+
 test('a selected appointment time is rejected for items that do not require appointments', () => {
   assert.equal(validateAppointmentSelection({
     needsAppointment: false,
