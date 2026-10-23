@@ -82,33 +82,23 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const modeOf = (p: Product) => p.booking_mode ?? (p.requires_appointment ? 'free_datetime' : 'none');
   const appointmentLines = lines.filter(({ p }) => p.kind === 'service' && modeOf(p) !== 'none');
   const appointmentModes = [...new Set(appointmentLines.map(({ p }) => modeOf(p)))];
-  const bookingMode = appointmentModes[0] ?? 'none';
   const needsAppointment = appointmentLines.length > 0;
-  const needsReservedAppointment = bookingMode === 'availability';
-  const appointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const reservedAppointmentLines = appointmentLines.filter(({ p }) => modeOf(p) === 'availability');
+  const freeDatetimeLines = appointmentLines.filter(({ p }) => modeOf(p) === 'free_datetime');
+  const needsReservedAppointment = reservedAppointmentLines.length > 0;
+  const needsFreeDatetimeAppointment = freeDatetimeLines.length > 0;
+  const bookingMode = needsReservedAppointment ? 'availability' : needsFreeDatetimeAppointment ? 'free_datetime' : 'none';
+  const reservedAppointmentDurationMinutes = reservedAppointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const freeDatetimeDurationMinutes = freeDatetimeLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const appointmentDurationMinutes = needsReservedAppointment ? reservedAppointmentDurationMinutes : freeDatetimeDurationMinutes;
   const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
     [openingHours],
   );
   const appointmentTimeRequired = needsAppointment && (needsReservedAppointment || hasAppointmentHours);
-  const localAppointmentSlots = useMemo(() => {
-    if (!appointmentDate || !hasAppointmentHours || !openingHours || appointmentDurationMinutes <= 0 || appointmentDurationMinutes > 480 || needsReservedAppointment) return [];
-    const date = new Date(`${appointmentDate}T12:00:00Z`);
-    const key = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getUTCDay()];
-    const ranges = openingHours[key];
-    if (!Array.isArray(ranges)) return [];
-    const slots: string[] = [];
-    for (const range of ranges) {
-      const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
-      for (let minute = toMinutes(range.open); minute + appointmentDurationMinutes <= toMinutes(range.close); minute += appointmentDurationMinutes) {
-        slots.push(`${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`);
-      }
-    }
-    return slots;
-  }, [appointmentDate, openingHours, appointmentDurationMinutes, hasAppointmentHours, needsReservedAppointment]);
   useEffect(() => {
-    if (!needsReservedAppointment || !appointmentDate || !cartSignature) {
+    if (!needsAppointment || !appointmentDate || !cartSignature) {
       setServerAppointmentSlots([]);
       setSlotsLoading(false);
       return;
@@ -128,8 +118,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       .catch(() => { if (!cancelled) { setServerAppointmentSlots([]); setAppointmentTime(''); } })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };
-  }, [apiBase, appointmentDate, cartSignature, needsReservedAppointment]);
-  const appointmentSlots = needsReservedAppointment ? serverAppointmentSlots : localAppointmentSlots;
+  }, [apiBase, appointmentDate, cartSignature, needsAppointment]);
+  // Both reserved and free-datetime services use the same server-generated
+  // quarter-hour grid. Only availability-mode services block calendar time.
+  const appointmentSlots = serverAppointmentSlots;
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
@@ -156,7 +148,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setError(null);
     const phone = normalizeILPhone(form.phone);
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
-    if (appointmentModes.length > 1) return setError('אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.');
     if (needsReservedAppointment && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. יש לפנות לעסק ישירות.');
     if (appointmentTimeRequired && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
     if (route === 'site' && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
@@ -181,11 +172,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
+      // The server has confirmed persistence. Clear the order immediately so
+      // returning from WhatsApp cannot accidentally submit the same cart again.
       setIdempotencyKey('');
+      setCart({});
+      setAppointmentDate('');
+      setAppointmentTime('');
+      setServerAppointmentSlots([]);
       if (data?.route === 'whatsapp' && data.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.' });
       } else {
-        setCart({});
         setDone({ route: 'site', message: data?.success_message ?? 'הפנייה נשלחה בהצלחה.' });
       }
     } catch {
@@ -274,7 +270,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         {!done && (
           <div className="mb-4 rounded-xl bg-gray-50 p-3">
             <ul className="space-y-1.5 text-sm">
-              {lines.map(({ p, q }) => <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}{p.kind === 'service' && p.requires_appointment ? <span className="block text-xs text-ink/60">משך: {p.appointment_duration_minutes * q} דקות</span> : null}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>)}
+              {lines.map(({ p, q }) => {
+                const mode = p.kind === 'service' ? modeOf(p) : 'none';
+                const durationLabel = mode === 'availability' ? 'משך שמשוריין ביומן' : mode === 'free_datetime' ? 'משך מבוקש, ללא שריון' : '';
+                return <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>;
+              })}
             </ul>
             {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
           </div>
@@ -285,7 +285,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
             {hasAppointmentHours ? (
               <>
-                <p className="text-xs leading-5 text-ink/65">משך התור: {appointmentDurationMinutes} דקות בסך הכול. {needsReservedAppointment ? 'בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.' : 'בחרו מועד מבוקש. הוא לא תופס את היומן והעסק יתאם אתכם.'}</p>
+                <p className="text-xs leading-5 text-ink/65">{needsReservedAppointment ? `משך השריון ביומן: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.` : `משך השירותים שמבקשים לתאם: ${freeDatetimeDurationMinutes} דקות. המועד המבוקש לא תופס את היומן והעסק יתאם אתכם.`}{needsReservedAppointment && needsFreeDatetimeAppointment ? ` שירותים נוספים ללא שריון: ${freeDatetimeLines.map(({ p }) => p.name).join(', ')}; הם לא מוסיפים זמן לשריון ביומן.` : ''}</p>
                 <label className="block text-sm font-medium">תאריך
                   <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setIdempotencyKey(''); setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
                 </label>
@@ -307,7 +307,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p className="mb-4 text-lg font-medium text-green-700">
               {done.message}
             </p>
-            {done.route === 'whatsapp' && <a href={done.url} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
+            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
             <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
               className="ms-2 min-h-11 rounded-xl border border-ink/25 px-5 py-2">סגור</button>
           </div>
