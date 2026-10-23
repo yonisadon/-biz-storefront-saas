@@ -69,6 +69,27 @@ test('past appointment requests are rejected', () => {
   }), 'invalid_appointment_time');
 });
 
+
+test('appointment starts use a fixed 15-minute grid independent of service duration', () => {
+  const hours = { mon: [{ open: '09:00', close: '12:00' }] };
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T09:45',
+    durationMinutes: 45,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:39:00.000Z'),
+  }), null);
+  assert.equal(validateAppointmentSelection({
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T09:43',
+    durationMinutes: 45,
+    openingHoursDays: hours,
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:39:00.000Z'),
+  }), 'invalid_appointment_time');
+});
+
 test('a selected appointment time is rejected for items that do not require appointments', () => {
   assert.equal(validateAppointmentSelection({
     needsAppointment: false,
