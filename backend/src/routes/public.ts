@@ -408,12 +408,16 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               if (appointmentAt) {
                 messageLines.push(
                   `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
-                  `משך הזמן המשוריין ביומן: ${appointmentDurationMinutes} דקות`,
+                  reservedServices.length
+                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
+                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
                 );
               } else {
                 messageLines.push(
                   'מועד התור יתואם מול המוכר',
-                  `משך השירותים המבוקשים: ${appointmentDurationMinutes} דקות`,
+                  reservedServices.length
+                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
+                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
                 );
               }
               if (reservedServices.length && freeDatetimeServices.length) {
