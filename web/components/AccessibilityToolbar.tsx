@@ -24,10 +24,11 @@ const OFF: Prefs = {
 
 function normalizePrefs(value: unknown): Prefs {
   if (!value || typeof value !== 'object') return OFF;
-  const candidate = value as Partial<Prefs>;
+  const candidate = value as Record<string, unknown>;
   const scale = Number(candidate.fontScale);
   return {
-    fontScale: ([0, 1, 2, 3].includes(scale) ? scale : candidate.fontScale === true ? 1 : 0) as Prefs['fontScale'],
+    // Keep the previous one-step "large" preference when upgrading stored settings.
+    fontScale: ([0, 1, 2, 3].includes(scale) ? scale : candidate.large === true ? 1 : 0) as Prefs['fontScale'],
     contrast: candidate.contrast === true,
     links: candidate.links === true,
     spacing: candidate.spacing === true,
