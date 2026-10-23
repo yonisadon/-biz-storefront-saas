@@ -27,7 +27,6 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
   if (d?.error === 'slot_taken') return 'השעה נתפסה בינתיים. בחרו מועד פנוי אחר.';
-  if (d?.error === 'mixed_booking_modes') return 'אי אפשר לשלב באותה הזמנה שירותים עם סוגי תיאום שונים. שלחו כל סוג תיאום בנפרד.';
   return 'לא הצלחנו לשלוח. נסו שוב.';
 }
 
@@ -81,13 +80,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const count = lines.reduce((s, l) => s + l.q, 0);
   const modeOf = (p: Product) => p.booking_mode ?? (p.requires_appointment ? 'free_datetime' : 'none');
   const appointmentLines = lines.filter(({ p }) => p.kind === 'service' && modeOf(p) !== 'none');
-  const appointmentModes = [...new Set(appointmentLines.map(({ p }) => modeOf(p)))];
   const needsAppointment = appointmentLines.length > 0;
   const reservedAppointmentLines = appointmentLines.filter(({ p }) => modeOf(p) === 'availability');
   const freeDatetimeLines = appointmentLines.filter(({ p }) => modeOf(p) === 'free_datetime');
   const needsReservedAppointment = reservedAppointmentLines.length > 0;
   const needsFreeDatetimeAppointment = freeDatetimeLines.length > 0;
-  const bookingMode = needsReservedAppointment ? 'availability' : needsFreeDatetimeAppointment ? 'free_datetime' : 'none';
   const reservedAppointmentDurationMinutes = reservedAppointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const freeDatetimeDurationMinutes = freeDatetimeLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const appointmentDurationMinutes = needsReservedAppointment ? reservedAppointmentDurationMinutes : freeDatetimeDurationMinutes;
