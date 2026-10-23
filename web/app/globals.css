@@ -83,7 +83,6 @@ html.a11y-contrast .brand-root {
   --brand-secondary: #ededed;
   --brand-accent: #ffbf00;
 }
-html.a11y-contrast .brand-root :is(p, span, li, label, h1, h2, h3, h4, small) { color: #000; }
 html.a11y-contrast .brand-root :is(button, input, select, textarea, a) { border-color: #111; }
 html.a11y-reduce-motion *, html.a11y-reduce-motion *::before, html.a11y-reduce-motion *::after {
   animation-duration: 0.01ms !important;
