@@ -61,7 +61,9 @@ export function validateAppointmentSelection(args: {
       return Number.isFinite(open) && Number.isFinite(close)
         && requestedMinutes >= open
         && requestedMinutes + durationMinutes <= close
-        && (requestedMinutes - open) % durationMinutes === 0;
+        // Appointment start times use a fixed 15-minute clock grid, independent
+        // of the selected service duration. This avoids duration-based drift.
+        && requestedMinutes % 15 === 0;
     });
 
   let nowLocal: string;
