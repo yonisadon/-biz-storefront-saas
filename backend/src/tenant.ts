@@ -47,8 +47,14 @@ export const resolveBySlug: preHandlerAsyncHookHandler = async (req) => {
 
 // Public site on a verified custom domain: /api/site/...
 export const resolveByHost: preHandlerAsyncHookHandler = async (req) => {
-  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '');
-  const host = raw.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim();
+  let host = '';
+  try {
+    host = new URL(raw.includes('://') ? raw : `https://${raw}`).hostname
+      .toLowerCase().replace(/\.$/, '');
+  } catch {
+    throw new HttpError(404, 'not_found');
+  }
   if (!host) throw new HttpError(404, 'not_found');
   const id = await scalar('SELECT app.resolve_tenant_by_domain($1) AS t', [host]);
   if (!id) throw new HttpError(404, 'not_found');
