@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { resolveTxt } from 'node:dns/promises';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import pg from 'pg';
 import { z } from 'zod';
@@ -21,6 +22,51 @@ const CreateBusiness = z.object({
     text: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
   }).strict() }).optional(),
 }).strict();
+
+
+
+const DomainInput = z.object({
+  domain: z.string().trim().min(4).max(253),
+}).strict();
+
+function normalizeDomain(input: string): string {
+  const raw = input.trim().toLowerCase().replace(/\\.$/, '');
+  // Accept a bare hostname only; no URL, path, port, wildcard, or IP literal.
+  if (raw.includes('://') || raw.includes('/') || raw.includes(':') || raw.includes('*')) {
+    throw new HttpError(400, 'invalid_domain');
+  }
+  let hostname = '';
+  try { hostname = new URL(`https://${raw}`).hostname.toLowerCase().replace(/\\.$/, ''); }
+  catch { throw new HttpError(400, 'invalid_domain'); }
+  if (!hostname || hostname.length > 253 || !/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$/.test(hostname)) {
+    throw new HttpError(400, 'invalid_domain');
+  }
+  return hostname;
+}
+
+async function getTenantDatabase(registry: pg.Client, tenantId: string): Promise<string> {
+  const row = await registry.query(
+    'SELECT database_name FROM app.tenant_databases WHERE tenant_id = $1',
+    [tenantId],
+  );
+  const databaseName = row.rows[0]?.database_name as string | undefined;
+  if (!databaseName || !/^biz_[a-f0-9]{24}$/.test(databaseName)) {
+    throw new HttpError(404, 'business_not_found');
+  }
+  return databaseName;
+}
+
+async function hasDomainVerification(domain: string, tenantId: string): Promise<boolean> {
+  try {
+    const records = await resolveTxt(`_torahtrainer-verification.${domain}`);
+    const expected = `torahtrainer-verification=${tenantId}`;
+    return records.some((record) => record.join('').trim() === expected);
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === 'ENODATA' || code === 'ENOTFOUND' || code === 'ENOTIMP' || code === 'ESERVFAIL') return false;
+    throw err;
+  }
+}
 
 function phone(value: string | undefined): string | null {
   if (!value?.trim()) return null;
@@ -222,4 +268,124 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       if (registry) await registry.end().catch(() => {});
     }
   });
+
+  // ---- Custom domains (central registry + tenant DB stay synchronized) ----
+  app.get('/businesses/:id/domains', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const result = await registry.query(
+        'SELECT domain, is_verified, is_primary FROM public.business_domains WHERE tenant_id = $1 ORDER BY is_primary DESC, domain',
+        [tenantId],
+      );
+      return { domains: result.rows };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/businesses/:id/domains', async (req, reply) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    const { domain: rawDomain } = DomainInput.parse(req.body);
+    const domain = normalizeDomain(rawDomain);
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    let insertedRegistry = false;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const databaseName = await getTenantDatabase(registry, tenantId);
+      const business = await registry.query('SELECT id FROM public.businesses WHERE id = $1', [tenantId]);
+      if (!business.rowCount) throw new HttpError(404, 'business_not_found');
+      await registry.query(
+        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, false, false)',
+        [tenantId, domain],
+      );
+      insertedRegistry = true;
+      tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+      await tenant.query(
+        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, false, false)',
+        [tenantId, domain],
+      );
+      return reply.code(201).send({
+        domain,
+        verified: false,
+        verification: {
+          type: 'TXT',
+          name: `_torahtrainer-verification.${domain}`,
+          value: `torahtrainer-verification=${tenantId}`,
+        },
+        next_step: 'Add the TXT record, wait for DNS propagation, then call the verify endpoint.',
+      });
+    } catch (err) {
+      if (insertedRegistry && registry) {
+        await registry.query('DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2 AND NOT is_verified', [tenantId, domain]).catch(() => {});
+      }
+      if ((err as { code?: string }).code === '23505') throw new HttpError(409, 'domain_already_registered');
+      if (err instanceof HttpError) throw err;
+      req.log.error({ err }, 'custom domain registration failed');
+      throw new HttpError(500, 'domain_registration_failed');
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/businesses/:id/domains/:domain/verify', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    const domain = normalizeDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const databaseName = await getTenantDatabase(registry, tenantId);
+      const domainRow = await registry.query(
+        'SELECT id FROM public.business_domains WHERE tenant_id = $1 AND domain = $2',
+        [tenantId, domain],
+      );
+      if (!domainRow.rowCount) throw new HttpError(404, 'domain_not_registered');
+      if (!(await hasDomainVerification(domain, tenantId))) {
+        throw new HttpError(409, 'dns_verification_not_found', 'TXT verification record was not found');
+      }
+      tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+      await registry.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      await tenant.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      return { domain, verified: true, note: 'DNS ownership verified. The domain still must be connected to the web hosting provider and pointed to its target.' };
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.delete('/businesses/:id/domains/:domain', async (req, reply) => {
+    const tenantId = String((req.params as { id: string }).id);
+    const domain = normalizeDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const databaseName = await getTenantDatabase(registry, tenantId);
+      tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+      const result = await registry.query('DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2 RETURNING domain', [tenantId, domain]);
+      if (!result.rowCount) throw new HttpError(404, 'domain_not_registered');
+      await tenant.query('DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      return reply.code(204).send();
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
 };
