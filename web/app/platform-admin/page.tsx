@@ -15,6 +15,8 @@ type CreatedBusiness = {
   status: string;
 };
 
+type BusinessOption = { id: string; name: string; slug: string; status: string; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
 export default function PlatformAdminPage() {
@@ -32,6 +34,11 @@ export default function PlatformAdminPage() {
   const [domainSetup, setDomainSetup] = useState<DomainSetup | null>(null);
   const [domainMessage, setDomainMessage] = useState('');
   const [domainLoading, setDomainLoading] = useState(false);
+  const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState('');
+  const [businessesMessage, setBusinessesMessage] = useState('');
+  const targetBusinessId = created?.id ?? selectedBusinessId;
+  const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,6 +77,7 @@ export default function PlatformAdminPage() {
         throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן ליצור את העסק כרגע.');
       }
       setCreated(data as CreatedBusiness);
+      setSelectedBusinessId((data as CreatedBusiness).id);
       setName('');
       setSlug('');
       setPhone('');
@@ -172,7 +180,29 @@ export default function PlatformAdminPage() {
         )}
 
 
-        {created && (
+        <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
+          <h2 className="text-lg font-bold">בחירת עסק קיים</h2>
+          <p className="text-sm text-slate-600">אם האתר כבר הוקם, אפשר לבחור אותו כאן — אין צורך ליצור עסק נוסף.</p>
+          <button type="button" disabled={!adminToken.trim() || domainLoading} onClick={async () => {
+            setDomainLoading(true); setBusinessesMessage('');
+            try {
+              const response = await fetch('/api/admin/businesses', { headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store' });
+              const data = await response.json().catch(() => null);
+              if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לטעון את רשימת העסקים.');
+              setBusinesses((data?.businesses ?? []) as BusinessOption[]);
+              setBusinessesMessage(`נטענו ${(data?.businesses ?? []).length} עסקים.`);
+            } catch (err) { setBusinessesMessage(err instanceof Error ? err.message : 'אירעה שגיאה.'); }
+            finally { setDomainLoading(false); }
+          }} className="rounded-xl border border-slate-300 px-4 py-2 font-semibold disabled:opacity-60">טעינת עסקים קיימים</button>
+          {businesses.length > 0 && <select aria-label="בחירת עסק קיים" value={selectedBusinessId} onChange={(e) => { setSelectedBusinessId(e.target.value); setDomainSetup(null); setDomainMessage(''); }} className="w-full rounded-xl border border-slate-300 px-3 py-3">
+            <option value="">בחר עסק…</option>
+            {businesses.map((business) => <option key={business.id} value={business.id}>{business.name} — /biz/{business.slug}</option>)}
+          </select>}
+          {businessesMessage && <p className="text-sm text-slate-600">{businessesMessage}</p>}
+          {targetBusinessId && targetBusiness && <div className="space-y-1 text-sm"><p className="font-semibold">דומיינים רשומים:</p>{targetBusiness.domains.length ? targetBusiness.domains.map((item) => <p key={item.domain} dir="ltr">{item.domain} — {item.is_verified ? 'מאומת' : 'ממתין לאימות'}</p>) : <p className="text-slate-500">עדיין אין דומיין לעסק הזה.</p>}</div>}
+        </section>
+
+        {targetBusinessId && (
           <section className="mt-6 space-y-4 rounded-2xl border border-blue-200 bg-white p-5 sm:p-7">
             <h2 className="text-xl font-bold">חיבור דומיין של העסק</h2>
             <p className="text-sm leading-6 text-slate-600">
@@ -184,7 +214,7 @@ export default function PlatformAdminPage() {
               setDomainMessage('');
               setDomainSetup(null);
               try {
-                const response = await fetch(`/api/admin/businesses/${created.id}/domains`, {
+                const response = await fetch(`/api/admin/businesses/${targetBusinessId}/domains`, {
                   method: 'POST',
                   headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
                   body: JSON.stringify({ domain: domain.trim() }),
@@ -226,7 +256,7 @@ export default function PlatformAdminPage() {
                   setDomainLoading(true);
                   setDomainMessage('');
                   try {
-                    const response = await fetch(`/api/admin/businesses/${created.id}/domains/${encodeURIComponent(domainSetup.domain)}/verify`, {
+                    const response = await fetch(`/api/admin/businesses/${targetBusinessId}/domains/${encodeURIComponent(domainSetup.domain)}/verify`, {
                       method: 'POST',
                       headers: { authorization: `Bearer ${adminToken.trim()}` },
                       cache: 'no-store',
