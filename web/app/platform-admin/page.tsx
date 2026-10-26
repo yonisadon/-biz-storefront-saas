@@ -37,7 +37,7 @@ export default function PlatformAdminPage() {
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [businessesMessage, setBusinessesMessage] = useState('');
-  const targetBusinessId = created?.id ?? selectedBusinessId;
+  const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
