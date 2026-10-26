@@ -9,8 +9,14 @@ export async function getCtx(slug: string): Promise<Ctx> {
   if (!SLUG_RE.test(slug)) notFound();
   if (slug === '_site') {
     const h = await headers();
-    const host = (h.get('x-forwarded-host') ?? h.get('host') ?? '')
-      .split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+    const rawHost = (h.get('x-forwarded-host') ?? h.get('host') ?? '').split(',')[0].trim();
+    let host = '';
+    try {
+      host = new URL(rawHost.includes('://') ? rawHost : `https://${rawHost}`).hostname
+        .toLowerCase().replace(/\.$/, '');
+    } catch {
+      notFound();
+    }
     if (!host) notFound();
     return { path: '/api/site', host, origin: `https://${host}`, base: '' };
   }
