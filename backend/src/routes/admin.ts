@@ -269,6 +269,28 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+
+  app.get('/businesses', async (req) => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const result = await registry.query(
+        `SELECT b.id, b.name, b.slug, b.status,
+                COALESCE(json_agg(json_build_object('domain', d.domain, 'is_verified', d.is_verified, 'is_primary', d.is_primary)
+                  ORDER BY d.is_primary DESC, d.domain) FILTER (WHERE d.id IS NOT NULL), '[]'::json) AS domains
+           FROM public.businesses b
+           LEFT JOIN public.business_domains d ON d.tenant_id = b.id
+          GROUP BY b.id, b.name, b.slug, b.status
+          ORDER BY b.created_at DESC`,
+      );
+      return { businesses: result.rows };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
   // ---- Custom domains (central registry + tenant DB stay synchronized) ----
   app.get('/businesses/:id/domains', async (req) => {
     const tenantId = String((req.params as { id: string }).id);
