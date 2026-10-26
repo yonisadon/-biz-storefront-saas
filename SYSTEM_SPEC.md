@@ -8,6 +8,15 @@
 
 # יומן שינויים מרכזי — מקור אמת לפי תאריך
 
+## 2026-10-26 — הכנת ניתוב לדומיינים מותאמים (ענף עבודה)
+- **מטרה:** לאפשר לאתר ציבורי להיפתח בדומיין העסק תוך שימוש באותו Frontend/Backend ובאותו מסד נתונים ייעודי שכבר משויך לעסק; אין ליצור שירות Railway או פרויקט Frontend לכל דומיין.
+- **מה כבר היה קיים ב-main לפני השינוי:** middleware מנתב hostname לא מוכר ל-`/biz/_site`; `web/lib/api.ts` שולח hostname ל-`/api/site`; ה-Backend פותר hostname באמצעות `app.resolve_tenant_by_domain`; הסכמה כוללת `public.business_domains` עם `is_verified` ו-`is_primary`. לכן אין ליצור טבלה/פונקציית resolver כפולה לפני בדיקת הסנכרון בין Registry למסד העסק.
+- **שינויי הכנה בענף `feature/custom-domain-routing-readiness`:** נרמול hostname אחיד יותר (אותיות קטנות, הסרת נקודה סופית ופורט/URL), וזיהוי דומייני הפלטפורמה גם מתוך `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `NEXT_PUBLIC_PLATFORM_URL`, `PUBLIC_BASE_URL` בנוסף ל-`PLATFORM_HOSTS`.
+- **עדיין לא ממומש/מאומת:** מסך/API מלאים לניהול בקשות דומיין, אימות DNS מול Vercel, סנכרון רשומת הדומיין בין Registry למסד העסק, והגדרות Production ב-Vercel/Railway. לא בוצע שינוי במסד נתונים ולא בוצעה פריסה.
+- **בדיקות קבלה לפני מיזוג:** להריץ Web lint/build ו-Backend build/tests; לבדוק שדומיין הפלטפורמה ממשיך לשרת את מסכי הפלטפורמה, ש-`/biz/{slug}` ממשיך לעבוד, ושדומיין לא מאומת/לא משויך מחזיר 404 בלי להציג עסק שגוי. חיבור דומיין אמיתי רק לאחר שהקוד נבדק והוגדרו רשומות DNS/דומיין ב-Vercel.
+- **הגדרות Vercel נדרשות לפני ניסוי Production:** `PLATFORM_HOSTS` צריך לכלול את כל שמות המארח הרשמיים של הפלטפורמה (ללא `https://` וללא נתיב), מופרדים בפסיקים. משתני Vercel האוטומטיים הם גיבוי בלבד.
+- **סטטוס:** שינויים בענף בלבד; לא מוזגו ולא נפרסו. אין לטעון שתמיכת דומיינים מוכנה לשימוש לקוחות עד להשלמת ניהול/אימות הדומיין ובדיקות End-to-End.
+
 ## 2026-10-23 — תורים במרווחי רבע שעה, סל מעורב ושדרוג סרגל הנגישות
 
 - **ענף ו-PR:** השינויים מתבצעים בענף `fix/appointment-slot-grid-and-mixed-booking`, PR #36: https://github.com/yonisadon/-biz-storefront-saas/pull/36. ה-PR נשאר פתוח ולא מוזג; אין להסיק שהשינויים נמצאים ב-`main`, ב-Vercel Production או ב-Railway.
