@@ -379,8 +379,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         throw new HttpError(409, 'dns_verification_not_found', 'TXT verification record was not found');
       }
       tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-      await registry.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      // Update tenant copy first; if registry update fails, public routing remains fail-closed.
       await tenant.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      await registry.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
       return { domain, verified: true, note: 'DNS ownership verified. The domain still must be connected to the web hosting provider and pointed to its target.' };
     } finally {
       if (tenant) await tenant.end().catch(() => {});
