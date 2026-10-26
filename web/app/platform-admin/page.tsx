@@ -15,6 +15,8 @@ type CreatedBusiness = {
   status: string;
 };
 
+type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
+
 export default function PlatformAdminPage() {
   const [adminToken, setAdminToken] = useState('');
   const [name, setName] = useState('');
@@ -26,12 +28,18 @@ export default function PlatformAdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<CreatedBusiness | null>(null);
+  const [domain, setDomain] = useState('');
+  const [domainSetup, setDomainSetup] = useState<DomainSetup | null>(null);
+  const [domainMessage, setDomainMessage] = useState('');
+  const [domainLoading, setDomainLoading] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError('');
     setCreated(null);
+    setDomainSetup(null);
+    setDomainMessage('');
     try {
       const response = await fetch('/api/admin/businesses', {
         method: 'POST',
@@ -160,6 +168,89 @@ export default function PlatformAdminPage() {
               <a className="break-all text-blue-700 underline" href={created.management_url} target="_blank" rel="noreferrer">{created.management_url}</a>
               <p className="mt-2 text-xs leading-5 text-amber-800">הקישור מכיל הרשאת גישה פרטית. העבר אותו לבעל העסק בערוץ מאובטח ואל תפרסם אותו.</p>
             </div>
+          </section>
+        )}
+
+
+        {created && (
+          <section className="mt-6 space-y-4 rounded-2xl border border-blue-200 bg-white p-5 sm:p-7">
+            <h2 className="text-xl font-bold">חיבור דומיין של העסק</h2>
+            <p className="text-sm leading-6 text-slate-600">
+              קודם רושמים את הדומיין ומאמתים בעלות באמצעות רשומת DNS מסוג TXT. לאחר מכן צריך לחבר את הדומיין בפרויקט Vercel ולהגדיר את רשומת ה-DNS שלו.
+            </p>
+            <form className="flex flex-col gap-3 sm:flex-row" onSubmit={async (event) => {
+              event.preventDefault();
+              setDomainLoading(true);
+              setDomainMessage('');
+              setDomainSetup(null);
+              try {
+                const response = await fetch(`/api/admin/businesses/${created.id}/domains`, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+                  body: JSON.stringify({ domain: domain.trim() }),
+                  cache: 'no-store',
+                });
+                const data = await response.json().catch(() => null);
+                if (!response.ok) {
+                  const messages: Record<string, string> = {
+                    domain_already_registered: 'הדומיין כבר רשום במערכת.',
+                    invalid_domain: 'יש להזין דומיין תקין בלבד, ללא https:// או נתיב.',
+                    business_not_found: 'העסק לא נמצא במערכת.',
+                  };
+                  throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן לרשום את הדומיין.');
+                }
+                setDomainSetup(data as DomainSetup);
+                setDomain('');
+              } catch (err) {
+                setDomainMessage(err instanceof Error ? err.message : 'אירעה שגיאה.');
+              } finally {
+                setDomainLoading(false);
+              }
+            }}>
+              <input aria-label="דומיין העסק" required value={domain} onChange={(e) => setDomain(e.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-3 text-left outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                placeholder="www.example.co.il" dir="ltr" />
+              <button type="submit" disabled={domainLoading}
+                className="rounded-xl bg-blue-700 px-4 py-3 font-semibold text-white disabled:opacity-60">
+                {domainLoading ? 'רושם…' : 'רישום דומיין'}
+              </button>
+            </form>
+            {domainMessage && <p role="alert" className="text-sm text-red-700">{domainMessage}</p>}
+            {domainSetup && (
+              <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                <p className="font-semibold">הוסף אצל ספק הדומיין את רשומת ה-TXT הבאה:</p>
+                <div><p className="text-xs text-slate-500">שם / Host</p><code className="block break-all" dir="ltr">{domainSetup.verification.name}</code></div>
+                <div><p className="text-xs text-slate-500">ערך / Value</p><code className="block break-all" dir="ltr">{domainSetup.verification.value}</code></div>
+                <p className="text-sm leading-6 text-slate-600">לאחר שמירת הרשומה והפצת ה-DNS, לחץ על בדיקת אימות. האימות עשוי לקחת זמן בהתאם לספק הדומיין.</p>
+                <button type="button" disabled={domainLoading} onClick={async () => {
+                  setDomainLoading(true);
+                  setDomainMessage('');
+                  try {
+                    const response = await fetch(`/api/admin/businesses/${created.id}/domains/${encodeURIComponent(domainSetup.domain)}/verify`, {
+                      method: 'POST',
+                      headers: { authorization: `Bearer ${adminToken.trim()}` },
+                      cache: 'no-store',
+                    });
+                    const data = await response.json().catch(() => null);
+                    if (!response.ok) {
+                      const messages: Record<string, string> = {
+                        dns_verification_not_found: 'רשומת האימות עדיין לא נמצאה. בדוק את שם הרשומה והערך ונסה שוב בהמשך.',
+                      };
+                      throw new Error(messages[data?.error] ?? data?.message ?? 'האימות נכשל.');
+                    }
+                    setDomainSetup({ ...domainSetup, verified: true });
+                    setDomainMessage('הדומיין אומת. עדיין צריך לחבר אותו בפרויקט Vercel ולהגדיר DNS לפני שהוא יגיש את האתר.');
+                  } catch (err) {
+                    setDomainMessage(err instanceof Error ? err.message : 'אירעה שגיאה.');
+                  } finally {
+                    setDomainLoading(false);
+                  }
+                }} className="rounded-xl border border-blue-700 px-4 py-2 font-semibold text-blue-800 disabled:opacity-60">
+                  {domainLoading ? 'בודק…' : domainSetup.verified ? 'הדומיין אומת' : 'בדיקת אימות DNS'}
+                </button>
+                {domainMessage && <p role="status" className="text-sm text-slate-700">{domainMessage}</p>}
+              </div>
+            )}
           </section>
         )}
 
