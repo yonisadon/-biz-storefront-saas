@@ -28,12 +28,13 @@ function configuredPlatformHosts(): Set<string> {
 export function middleware(req: NextRequest) {
   const platformHosts = configuredPlatformHosts();
 
-  // Prefer the actual Host header, but if a proxy supplies a platform hostname
-  // there, use a non-platform forwarded host so a customer domain still reaches
-  // its storefront. Never trust incoming x-original-host: overwrite it below.
+  // Vercel/proxies may expose the original customer hostname separately from
+  // the internal Host. Consider all host headers, then choose a non-platform
+  // hostname whenever one is present. Never trust incoming x-original-host.
   const candidates = [
-    req.headers.get('host'),
+    req.headers.get('x-vercel-forwarded-host'),
     req.headers.get('x-forwarded-host'),
+    req.headers.get('host'),
     req.nextUrl.host,
   ].map(normalizeHost).filter(Boolean);
 
@@ -41,14 +42,10 @@ export function middleware(req: NextRequest) {
     ?? candidates[0]
     ?? '';
 
-  // Fail closed when no usable hostname is available. Only known platform hosts
-  // may fall through to the platform app (including /platform-admin).
   if (!host) return new NextResponse('Not Found', { status: 404 });
   if (platformHosts.has(host)) return NextResponse.next();
 
-  // Every non-platform hostname is treated as a public storefront host.
-  // Unknown/unverified domains are rejected by the /api/site tenant resolver;
-  // they must never fall back to the platform home or super-admin page.
+  // Non-platform hosts must resolve through the verified tenant-by-domain API.
   const url = req.nextUrl.clone();
   url.pathname = `/biz/_site${url.pathname === '/' ? '' : url.pathname}`;
 
