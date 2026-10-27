@@ -9,7 +9,12 @@ export async function getCtx(slug: string): Promise<Ctx> {
   if (!SLUG_RE.test(slug)) notFound();
   if (slug === '_site') {
     const h = await headers();
-    const rawHost = (h.get('x-forwarded-host') ?? h.get('host') ?? '').split(',')[0].trim();
+    const rawHost = (
+      h.get('x-original-host') ??
+      h.get('host') ??
+      h.get('x-forwarded-host') ??
+      ''
+    ).split(',')[0].trim();
     let host = '';
     try {
       host = new URL(rawHost.includes('://') ? rawHost : `https://${rawHost}`).hostname
