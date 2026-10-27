@@ -317,25 +317,55 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       const databaseName = await getTenantDatabase(registry, tenantId);
       const business = await registry.query('SELECT id FROM public.businesses WHERE id = $1', [tenantId]);
       if (!business.rowCount) throw new HttpError(404, 'business_not_found');
-      await registry.query(
-        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, false, false)',
-        [tenantId, domain],
+      const existingRegistry = await registry.query(
+        'SELECT tenant_id, is_verified FROM public.business_domains WHERE domain = $1',
+        [domain],
       );
-      insertedRegistry = true;
+      if (existingRegistry.rowCount && existingRegistry.rows[0].tenant_id !== tenantId) {
+        throw new HttpError(409, 'domain_already_registered');
+      }
+
       tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-      await tenant.query(
-        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, false, false)',
-        [tenantId, domain],
+      const existingTenant = await tenant.query(
+        'SELECT tenant_id FROM public.business_domains WHERE domain = $1',
+        [domain],
       );
-      return reply.code(201).send({
+      if (existingTenant.rowCount && existingTenant.rows[0].tenant_id !== tenantId) {
+        throw new HttpError(409, 'domain_already_registered');
+      }
+
+      // The central registry is authoritative. Re-running registration repairs a
+      // partial prior write instead of getting stuck on a duplicate-key error.
+      const verified = Boolean(existingRegistry.rows[0]?.is_verified);
+      if (!existingRegistry.rowCount) {
+        await registry.query(
+          'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, false, false)',
+          [tenantId, domain],
+        );
+        insertedRegistry = true;
+      }
+      if (!existingTenant.rowCount) {
+        await tenant.query(
+          'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, $3, false)',
+          [tenantId, domain, verified],
+        );
+      } else {
+        await tenant.query(
+          'UPDATE public.business_domains SET is_verified = $3 WHERE tenant_id = $1 AND domain = $2',
+          [tenantId, domain, verified],
+        );
+      }
+      return reply.code(existingRegistry.rowCount && existingTenant.rowCount ? 200 : 201).send({
         domain,
-        verified: false,
+        verified,
         verification: {
           type: 'TXT',
           name: `_torahtrainer-verification.${domain}`,
           value: `torahtrainer-verification=${tenantId}`,
         },
-        next_step: 'Add the TXT record, wait for DNS propagation, then call the verify endpoint.',
+        next_step: verified
+          ? 'DNS ownership is already verified. Connect the domain to Vercel and configure its DNS records.'
+          : 'Add the TXT record, wait for DNS propagation, then call the verify endpoint.',
       });
     } catch (err) {
       if (insertedRegistry && registry) {
@@ -393,9 +423,18 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
       const databaseName = await getTenantDatabase(registry, tenantId);
       tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-      const result = await registry.query('DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2 RETURNING domain', [tenantId, domain]);
-      if (!result.rowCount) throw new HttpError(404, 'domain_not_registered');
-      await tenant.query('DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      // Delete the tenant copy first. If the central delete fails, a retry can
+      // still remove the registry row; doing this in the opposite order could
+      // strand an unremovable tenant copy after the registry row disappeared.
+      const tenantResult = await tenant.query(
+        'DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2 RETURNING domain',
+        [tenantId, domain],
+      );
+      const registryResult = await registry.query(
+        'DELETE FROM public.business_domains WHERE tenant_id = $1 AND domain = $2 RETURNING domain',
+        [tenantId, domain],
+      );
+      if (!tenantResult.rowCount && !registryResult.rowCount) throw new HttpError(404, 'domain_not_registered');
       return reply.code(204).send();
     } finally {
       if (tenant) await tenant.end().catch(() => {});
