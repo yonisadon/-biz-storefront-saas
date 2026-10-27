@@ -1,5 +1,3 @@
-import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers';
-
 function normalizeHost(value: string | null | undefined): string {
   if (!value) return '';
   const first = value.split(',')[0].trim().toLowerCase();
@@ -12,7 +10,7 @@ function normalizeHost(value: string | null | undefined): string {
   }
 }
 
-export function resolveRequestHost(headers: Pick<Headers, 'get'> | ReadonlyHeaders): { host: string; isPlatform: boolean } {
+export function resolveRequestHost(headers: { get(name: string): string | null }): { host: string; isPlatform: boolean } {
   const platformValues = [
     process.env.PLATFORM_HOSTS ?? '',
     process.env.VERCEL_URL ?? '',
