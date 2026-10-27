@@ -9,6 +9,7 @@ import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { applyTenantMigrations } from '../tenantMigrations';
+import { normalizeDomain } from '../domain';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -29,19 +30,10 @@ const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
 
-function normalizeDomain(input: string): string {
-  const raw = input.trim().toLowerCase().replace(/\\.$/, '');
-  // Accept a bare hostname only; no URL, path, port, wildcard, or IP literal.
-  if (raw.includes('://') || raw.includes('/') || raw.includes(':') || raw.includes('*')) {
-    throw new HttpError(400, 'invalid_domain');
-  }
-  let hostname = '';
-  try { hostname = new URL(`https://${raw}`).hostname.toLowerCase().replace(/\\.$/, ''); }
-  catch { throw new HttpError(400, 'invalid_domain'); }
-  if (!hostname || hostname.length > 253 || !/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$/.test(hostname)) {
-    throw new HttpError(400, 'invalid_domain');
-  }
-  return hostname;
+function requireDomain(input: string): string {
+  const domain = normalizeDomain(input);
+  if (!domain) throw new HttpError(400, 'invalid_domain');
+  return domain;
 }
 
 async function getTenantDatabase(registry: pg.Client, tenantId: string): Promise<string> {
@@ -314,7 +306,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const tenantId = String((req.params as { id: string }).id);
     if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
     const { domain: rawDomain } = DomainInput.parse(req.body);
-    const domain = normalizeDomain(rawDomain);
+    const domain = requireDomain(rawDomain);
     if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
     const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
     let registry: pg.Client | undefined;
@@ -361,7 +353,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/businesses/:id/domains/:domain/verify', async (req) => {
     const tenantId = String((req.params as { id: string }).id);
-    const domain = normalizeDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
+    const domain = requireDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
     if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
     if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
     const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
