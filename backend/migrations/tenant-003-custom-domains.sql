@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.business_domains (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_business_domains_tenant
+CREATE INDEX IF NOT EXISTS idx_domains_tenant
   ON public.business_domains (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_business_domains_one_primary
   ON public.business_domains (tenant_id) WHERE is_primary;
