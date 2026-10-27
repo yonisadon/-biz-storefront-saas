@@ -47,7 +47,7 @@ export const resolveBySlug: preHandlerAsyncHookHandler = async (req) => {
 
 // Public site on a verified custom domain: /api/site/...
 export const resolveByHost: preHandlerAsyncHookHandler = async (req) => {
-  const raw = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim();
+  const raw = String(req.headers['x-original-host'] ?? req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim();
   let host = '';
   try {
     host = new URL(raw.includes('://') ? raw : `https://${raw}`).hostname
