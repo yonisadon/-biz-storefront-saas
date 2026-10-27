@@ -11,12 +11,12 @@ function normalizeHost(value: string | null | undefined): string {
 }
 
 export function resolveRequestHost(headers: { get(name: string): string | null }): { host: string; isPlatform: boolean } {
+  // Keep in sync with middleware.ts: only explicit platform hosts and the
+  // per-deployment VERCEL_URL are platform-owned. The production/public URL
+  // variables may refer to the custom domain itself.
   const platformValues = [
     process.env.PLATFORM_HOSTS ?? '',
     process.env.VERCEL_URL ?? '',
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? '',
-    process.env.NEXT_PUBLIC_PLATFORM_URL ?? '',
-    process.env.PUBLIC_BASE_URL ?? '',
     'localhost',
     '127.0.0.1',
   ];
