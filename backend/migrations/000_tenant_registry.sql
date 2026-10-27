@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.business_domains (
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   domain text NOT NULL UNIQUE
     CHECK (domain = lower(domain)
-      AND domain ~ '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$'),
+      AND domain ~ '^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$'),
   is_verified boolean NOT NULL DEFAULT false,
   is_primary boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
