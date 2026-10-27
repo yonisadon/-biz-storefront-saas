@@ -149,11 +149,12 @@ async function main() {
           `SELECT to_regclass('public.appointments') AS appointments,
                   to_regclass('public.appointment_blocks') AS appointment_blocks,
                   to_regclass('public.products') AS products,
-                  to_regclass('public.leads') AS leads`,
+                  to_regclass('public.leads') AS leads,
+                  to_regclass('public.business_domains') AS business_domains`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.leads) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking tables are missing.`);
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.leads || !post.business_domains) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain tables are missing.`);
         }
         const requiredColumns = await db.query(
           `SELECT table_name, column_name
