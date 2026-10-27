@@ -25,7 +25,7 @@ export async function getCtx(slug: string): Promise<Ctx> {
 async function get<T>(ctx: Ctx, sub: string, revalidate: number): Promise<T | null> {
   const qs = ctx.host ? `?h=${encodeURIComponent(ctx.host)}` : '';
   const res = await fetch(`${API}${ctx.path}${sub}${qs}`, {
-    headers: ctx.host ? { 'x-forwarded-host': ctx.host } : {},
+    headers: ctx.host ? { 'x-original-host': ctx.host, 'x-forwarded-host': ctx.host } : {},
     next: { revalidate },
   });
   if (res.status === 404) return null;
