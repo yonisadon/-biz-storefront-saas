@@ -273,6 +273,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                 COALESCE(json_agg(json_build_object('domain', d.domain, 'is_verified', d.is_verified, 'is_primary', d.is_primary)
                   ORDER BY d.is_primary DESC, d.domain) FILTER (WHERE d.id IS NOT NULL), '[]'::json) AS domains
            FROM public.businesses b
+           JOIN app.tenant_databases td ON td.tenant_id = b.id
            LEFT JOIN public.business_domains d ON d.tenant_id = b.id
           GROUP BY b.id, b.name, b.slug, b.status
           ORDER BY b.created_at DESC`,
@@ -401,8 +402,18 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         throw new HttpError(409, 'dns_verification_not_found', 'TXT verification record was not found');
       }
       tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-      // Update tenant copy first; if registry update fails, public routing remains fail-closed.
-      await tenant.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
+      // Repair a missing tenant copy before enabling central routing. If the
+      // central update fails, the domain remains unverified in the registry.
+      const tenantUpdated = await tenant.query(
+        'UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2 RETURNING domain',
+        [tenantId, domain],
+      );
+      if (!tenantUpdated.rowCount) {
+        await tenant.query(
+          'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, true, false)',
+          [tenantId, domain],
+        );
+      }
       await registry.query('UPDATE public.business_domains SET is_verified = true WHERE tenant_id = $1 AND domain = $2', [tenantId, domain]);
       return { domain, verified: true, note: 'DNS ownership verified. The domain still must be connected to the web hosting provider and pointed to its target.' };
     } finally {
