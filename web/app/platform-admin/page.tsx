@@ -78,6 +78,12 @@ export default function PlatformAdminPage() {
       }
       setCreated(data as CreatedBusiness);
       setSelectedBusinessId((data as CreatedBusiness).id);
+      setBusinesses((current) => {
+        const item = data as CreatedBusiness;
+        const existing = current.find((business) => business.id === item.id);
+        const option: BusinessOption = { id: item.id, name: item.name, slug: item.slug, status: item.status, domains: existing?.domains ?? [] };
+        return existing ? current.map((business) => business.id === item.id ? option : business) : [option, ...current];
+      });
       setName('');
       setSlug('');
       setPhone('');
@@ -230,6 +236,14 @@ export default function PlatformAdminPage() {
                   throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן לרשום את הדומיין.');
                 }
                 setDomainSetup(data as DomainSetup);
+                setBusinesses((current) => current.map((business) => {
+                  if (business.id !== targetBusinessId) return business;
+                  const item = { domain: data.domain as string, is_verified: Boolean(data.verified), is_primary: false };
+                  const domains = business.domains.some((existing) => existing.domain === item.domain)
+                    ? business.domains.map((existing) => existing.domain === item.domain ? { ...existing, is_verified: item.is_verified } : existing)
+                    : [...business.domains, item];
+                  return { ...business, domains };
+                }));
                 setDomain('');
               } catch (err) {
                 setDomainMessage(err instanceof Error ? err.message : 'אירעה שגיאה.');
@@ -269,6 +283,10 @@ export default function PlatformAdminPage() {
                       throw new Error(messages[data?.error] ?? data?.message ?? 'האימות נכשל.');
                     }
                     setDomainSetup({ ...domainSetup, verified: true });
+                    setBusinesses((current) => current.map((business) => business.id !== targetBusinessId ? business : ({
+                      ...business,
+                      domains: business.domains.map((item) => item.domain === domainSetup.domain ? { ...item, is_verified: true } : item),
+                    })));
                     setDomainMessage('הדומיין אומת. עדיין צריך לחבר אותו בפרויקט Vercel ולהגדיר DNS לפני שהוא יגיש את האתר.');
                   } catch (err) {
                     setDomainMessage(err instanceof Error ? err.message : 'אירעה שגיאה.');
