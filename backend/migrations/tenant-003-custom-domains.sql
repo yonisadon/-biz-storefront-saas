@@ -13,6 +13,6 @@ CREATE TABLE IF NOT EXISTS public.business_domains (
 
 CREATE INDEX IF NOT EXISTS idx_domains_tenant
   ON public.business_domains (tenant_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_business_domains_one_primary
+CREATE UNIQUE INDEX IF NOT EXISTS uq_domains_one_primary
   ON public.business_domains (tenant_id) WHERE is_primary;
 GRANT SELECT ON public.business_domains TO app_runtime;
