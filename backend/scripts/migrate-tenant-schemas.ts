@@ -19,18 +19,46 @@ function expectedDatabaseName(tenantId: string): string {
   return `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
 }
 
-async function connect(connectionString: string): Promise<pg.Client> {
-  const client = new pg.Client({
-    connectionString,
-    ssl,
-    connectionTimeoutMillis: 5000,
-  });
-  await client.connect();
-  return client;
+const TRANSIENT_DB_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH',
+  '57P03', '08001', '08006',
+]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function connect(connectionString: string, label: string): Promise<pg.Client> {
+  const maxAttempts = 12;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const client = new pg.Client({
+      connectionString,
+      ssl,
+      connectionTimeoutMillis: 5000,
+    });
+
+    try {
+      await client.connect();
+      if (attempt > 1) {
+        console.log(`Connected to ${label} after ${attempt} attempts.`);
+      }
+      return client;
+    } catch (err) {
+      await client.end().catch(() => {});
+      const code = (err as { code?: string }).code;
+      if (!code || !TRANSIENT_DB_CODES.has(code) || attempt === maxAttempts) throw err;
+
+      const delayMs = Math.min(1000 * attempt, 5000);
+      console.warn(
+        `PostgreSQL connection to ${label} is not ready (attempt ${attempt}/${maxAttempts}; code ${code}); retrying in ${delayMs}ms.`,
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw new Error(`PostgreSQL connection to ${label} did not become available.`);
 }
 
 async function main() {
-  const registry = await connect(registryUrl!);
+  const registry = await connect(registryUrl!, 'tenant registry');
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
@@ -47,7 +75,7 @@ async function main() {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) {
         throw new Error(`Unexpected database mapping for tenant ${tenant.tenant_id}; stopped before applying migrations.`);
       }
-      const db = await connect(databaseUrl(tenant.database_name));
+      const db = await connect(databaseUrl(tenant.database_name), `tenant database ${tenant.database_name}`);
       try {
         const schema = await db.query(
           `SELECT to_regclass('public.businesses') AS businesses,
@@ -142,7 +170,7 @@ async function main() {
 
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
-      const db = await connect(databaseUrl(tenant.database_name));
+      const db = await connect(databaseUrl(tenant.database_name), `tenant database ${tenant.database_name}`);
       try {
         const applied = await applyTenantMigrations(db);
         const postflight = await db.query(
