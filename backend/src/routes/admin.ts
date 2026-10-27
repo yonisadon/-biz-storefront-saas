@@ -383,7 +383,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete('/businesses/:id/domains/:domain', async (req, reply) => {
     const tenantId = String((req.params as { id: string }).id);
-    const domain = normalizeDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
+    const domain = requireDomain(decodeURIComponent(String((req.params as { domain: string }).domain)));
     if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
     if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
     const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
