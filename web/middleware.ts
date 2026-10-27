@@ -13,12 +13,14 @@ function normalizeHost(value: string | null | undefined): string {
 }
 
 function configuredPlatformHosts(): Set<string> {
+  // PLATFORM_HOSTS is the explicit source of truth for platform-owned hosts.
+  // Do not classify VERCEL_PROJECT_PRODUCTION_URL, NEXT_PUBLIC_PLATFORM_URL or
+  // PUBLIC_BASE_URL as platform hosts: Vercel may set/configure these to the
+  // custom production domain, which would incorrectly route that domain to
+  // /platform-admin instead of the tenant storefront.
   const values = [
     process.env.PLATFORM_HOSTS ?? '',
     process.env.VERCEL_URL ?? '',
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? '',
-    process.env.NEXT_PUBLIC_PLATFORM_URL ?? '',
-    process.env.PUBLIC_BASE_URL ?? '',
     'localhost',
     '127.0.0.1',
   ];
