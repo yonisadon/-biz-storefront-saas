@@ -4,9 +4,9 @@ function normalizeHost(value: string | null | undefined): string {
   if (!first) return '';
   try {
     const url = new URL(first.includes('://') ? first : `https://${first}`);
-    return url.hostname.toLowerCase().replace(/\\.$/, '');
+    return url.hostname.toLowerCase().replace(/\.$/, '');
   } catch {
-    return first.replace(/:\\d+$/, '').replace(/\\.$/, '');
+    return first.replace(/:\d+$/, '').replace(/\.$/, '');
   }
 }
 
@@ -24,8 +24,10 @@ export function resolveRequestHost(headers: { get(name: string): string | null }
     platformValues.flatMap((value) => value.split(',')).map(normalizeHost).filter(Boolean),
   );
   const candidates = [
-    headers.get('host'),
+    headers.get('x-original-host'),
+    headers.get('x-vercel-forwarded-host'),
     headers.get('x-forwarded-host'),
+    headers.get('host'),
   ].map(normalizeHost).filter(Boolean);
   const host = candidates.find((candidate) => !platformHosts.has(candidate)) ?? candidates[0] ?? '';
   return { host, isPlatform: Boolean(host) && platformHosts.has(host) };
