@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-function normalizeHost(value: string | undefined): string {
+function normalizeHost(value: string | null | undefined): string {
   if (!value) return '';
   const first = value.split(',')[0].trim().toLowerCase();
   if (!first) return '';
