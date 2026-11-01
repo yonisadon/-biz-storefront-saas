@@ -62,7 +62,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     e.preventDefault(); setMsg(null);
     if (!f.name.trim()) return setMsg({ ok: false, text: 'שם העסק הוא שדה חובה.' });
     if (f.wa && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'כדי להפעיל מסלול וואטסאפ יש להזין מספר וואטסאפ.' });
-    if (siteMode === 'services_whatsapp' && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'במצב שירותים בלבד יש להזין מספר WhatsApp.' });
+    if (siteMode === 'services_whatsapp' && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'במצב הצגת פריטים ופנייה ב-WhatsApp יש להזין מספר WhatsApp.' });
     if (siteMode === 'catalog_order' && !f.wa && !f.site) return setMsg({ ok: false, text: 'חייב להישאר לפחות מסלול הזמנה אחד פעיל.' });
 
     setSaving(true);
@@ -129,7 +129,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
           <legend className="px-1 text-sm font-semibold">סוג האתר</legend>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
-          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'services_whatsapp'} onChange={() => setSiteMode('services_whatsapp')} /><span><strong>הצגת שירותים ופנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">בלי סל, טופס הזמנה או בחירת תור באתר. כל שירות יפנה לשיחה ב-WhatsApp.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'services_whatsapp'} onChange={() => setSiteMode('services_whatsapp')} /><span><strong>הצגת מוצרים ושירותים ופנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">כל המוצרים והשירותים הפעילים יוצגו באתר. כל פריט יפנה לשיחה ב-WhatsApp, ללא סל, טופס הזמנה או בחירת תור באתר.</span></span></label>
         </fieldset>
         <label className="block text-sm font-medium">שם העסק
           <input className={input} value={f.name} onChange={(e) => set('name', e.target.value)} />
