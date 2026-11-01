@@ -61,6 +61,12 @@ a {
   outline: 3px solid var(--brand-accent);
   outline-offset: 2px;
 }
+/* Brand accent colors vary by tenant; use a two-tone focus ring that stays visible on every palette. */
+.brand-root :focus-visible {
+  outline: 3px solid #111 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 2px #fff !important;
+}
 
 ::selection {
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
