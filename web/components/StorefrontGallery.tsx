@@ -50,7 +50,6 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
           <div className="absolute inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8" aria-label="בקרת גלריית התמונות">
             <button
               type="button"
-              aria-pressed={!autoPlay}
               onClick={() => setAutoPlay((value) => !value)}
               className="min-h-11 rounded-full border border-white/80 bg-black/70 px-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
