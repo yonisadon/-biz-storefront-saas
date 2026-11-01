@@ -61,7 +61,7 @@ $$;
 CREATE OR REPLACE FUNCTION app.set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+  AS $
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
@@ -71,7 +71,7 @@ END $$;
 CREATE OR REPLACE FUNCTION app.sync_product_booking_mode()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $
+  AS $
 BEGIN
   IF NEW.kind <> 'service' THEN
     NEW.booking_mode := 'none';
