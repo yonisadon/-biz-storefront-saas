@@ -8,13 +8,25 @@ import OrderSection from '@/components/OrderSection';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
 import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
+import type { Product } from '@/lib/types';
 
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
 
-function itemWhatsAppHref(number: string, intro: string, itemKind: 'product' | 'service', itemName: string): string {
-  const label = itemKind === 'service' ? 'שירות' : 'מוצר';
-  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(intro + String.fromCharCode(10, 10) + label + ': ' + itemName);
+function itemWhatsAppHref(number: string, intro: string, item: Product, itemUrl: string): string {
+  const label = item.kind === 'service' ? 'שירות' : 'מוצר';
+  const lines = [
+    intro.trim(),
+    '',
+    `סוג פריט: ${label}`,
+    `שם הפריט: ${item.name}`,
+    ...(item.description?.trim() ? [`תיאור: ${item.description.trim()}`] : []),
+    ...(item.price_agorot !== null ? [`מחיר: ${ils(item.price_agorot)}`] : []),
+    `קישור ישיר לפריט: ${itemUrl}`,
+    '',
+    'אשמח לקבל פרטים נוספים לגבי זמינות ואפשרויות רכישה.',
+  ];
+  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(lines.join('\n'));
 }
 
 function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
@@ -104,7 +116,7 @@ export default async function StorefrontPage({ params }: Props) {
           <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
         </div>
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {whatsappItems.map((item) => <li key={item.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
+          {whatsappItems.map((item) => <li key={item.id} id={`item-${item.id}`} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden rounded-2xl border bg-white target:ring-4 target:ring-primary/40">
             {item.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={item.image.url} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
             <div className="flex flex-1 flex-col p-4">
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
@@ -112,7 +124,7 @@ export default async function StorefrontPage({ params }: Props) {
               {item.description && <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{item.description}</p>}
               {item.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(item.price_agorot)}</p>}
               <div className="mt-auto pt-4">
-                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item.kind, item.name)} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, `${ctx.origin}${ctx.base}#item-${encodeURIComponent(item.id)}`)} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
           </li>)}
