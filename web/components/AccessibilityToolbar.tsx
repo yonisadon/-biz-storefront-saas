@@ -109,6 +109,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
         type="button"
         aria-label="פתיחת כלי נגישות"
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-controls="a11y-panel"
         onClick={() => setOpen((value) => !value)}
         className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/20 bg-surface text-ink shadow-lg ring-1 ring-black/5 transition hover:shadow-xl focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -148,7 +149,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
             {toggle('reduceMotion', 'צמצום אנימציות')}
           </div>
           <button type="button" onClick={() => update(OFF)} className="min-h-11 w-full rounded-lg border border-ink/25 px-3 py-2 text-start text-sm font-semibold">איפוס כל ההגדרות</button>
-          {statementHref && <a href={statementHref} className="block min-h-11 px-1 pt-1 text-sm underline underline-offset-4">הצהרת נגישות</a>}
+          {statementHref && <a href={statementHref} className="block min-h-11 px-1 pt-1 text-sm underline underline-offset-4">מידע משפטי ונגישות</a>}
           <p className="text-xs leading-5 text-ink/70">הכלים משנים את תצוגת האתר בלבד ואינם מחליפים התאמות נגישות בתוכן עצמו.</p>
         </section>
       )}
