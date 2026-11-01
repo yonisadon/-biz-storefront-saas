@@ -16,7 +16,7 @@ type Props = { params: Promise<{ slug: string }> };
 function itemWhatsAppHref(number: string, intro: string, item: Product, itemUrl: string): string {
   const label = item.kind === 'service' ? 'שירות' : 'מוצר';
   const lines = [
-    intro.trim(),
+    intro.trim() || 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:',
     '',
     `סוג פריט: ${label}`,
     `שם הפריט: ${item.name}`,
