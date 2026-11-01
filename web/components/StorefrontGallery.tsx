@@ -16,8 +16,23 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
   }, [heroId, images]);
 
   useEffect(() => {
-    if (slides.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    setAutoPlay(true);
+    if (slides.length < 2) return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const stopForReducedMotion = () => {
+      if (media.matches || document.documentElement.classList.contains('a11y-reduce-motion')) {
+        setAutoPlay(false);
+      }
+    };
+    if (!media.matches && !document.documentElement.classList.contains('a11y-reduce-motion')) {
+      setAutoPlay(true);
+    }
+    const observer = new MutationObserver(stopForReducedMotion);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    media.addEventListener('change', stopForReducedMotion);
+    return () => {
+      observer.disconnect();
+      media.removeEventListener('change', stopForReducedMotion);
+    };
   }, [slides.length]);
 
   useEffect(() => {
