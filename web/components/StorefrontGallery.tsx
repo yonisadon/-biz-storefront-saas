@@ -8,6 +8,7 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
   const slides = images.slice(0, 7);
   const heroIndex = Math.max(0, slides.findIndex((image) => image.id === heroId));
   const [active, setActive] = useState(heroIndex);
+  const [autoPlay, setAutoPlay] = useState(false);
   const touchStart = useRef<number | null>(null);
 
   useEffect(() => {
@@ -15,10 +16,30 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
   }, [heroId, images]);
 
   useEffect(() => {
-    if (slides.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (slides.length < 2) return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const stopForReducedMotion = () => {
+      if (media.matches || document.documentElement.classList.contains('a11y-reduce-motion')) {
+        setAutoPlay(false);
+      }
+    };
+    if (!media.matches && !document.documentElement.classList.contains('a11y-reduce-motion')) {
+      setAutoPlay(true);
+    }
+    const observer = new MutationObserver(stopForReducedMotion);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    media.addEventListener('change', stopForReducedMotion);
+    return () => {
+      observer.disconnect();
+      media.removeEventListener('change', stopForReducedMotion);
+    };
+  }, [slides.length]);
+
+  useEffect(() => {
+    if (!autoPlay || slides.length < 2) return;
     const timer = window.setInterval(() => setActive((current) => (current + 1) % slides.length), 5000);
     return () => window.clearInterval(timer);
-  }, [slides.length]);
+  }, [autoPlay, slides.length]);
 
   if (!slides[active]) return null;
 
@@ -41,8 +62,17 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
           </div>
         ))}
         {slides.length > 1 && (
-          <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center gap-1.5 bg-gradient-to-t from-black/45 to-transparent px-4 pb-3 pt-8" aria-label="בחירת תמונה">
-            {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'h-2 rounded-full transition-all ' + (index === active ? 'w-6 bg-white' : 'w-2 bg-white/65 hover:bg-white')} />)}
+          <div className="absolute inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8" aria-label="בקרת גלריית התמונות">
+            <button
+              type="button"
+              onClick={() => setAutoPlay((value) => !value)}
+              className="min-h-11 rounded-full border border-white/80 bg-black/70 px-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              {autoPlay ? 'עצירת החלפה אוטומטית' : 'הפעלת החלפה אוטומטית'}
+            </button>
+            <div className="flex items-center justify-center gap-1.5" role="group" aria-label="בחירת תמונה">
+              {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'h-3 min-w-3 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ' + (index === active ? 'w-6 bg-white' : 'w-3 bg-white/75 hover:bg-white')} />)}
+            </div>
           </div>
         )}
       </div>
