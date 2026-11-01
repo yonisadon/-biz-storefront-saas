@@ -258,10 +258,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+      <dialog ref={dlg} aria-labelledby="order-dialog-title" className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">המשך להזמנה</h3>
-          <button type="button" onClick={() => dlg.current?.close()} className="text-xl p-1">✕</button>
+          <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
+          <button type="button" onClick={() => dlg.current?.close()} aria-label="סגירת חלון ההזמנה" className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
         {!done && (
