@@ -34,8 +34,9 @@ export default async function LegalPage({ params }: Props) {
 
   return (
     <div className="brand-root min-h-screen bg-surface text-ink" style={themeVars(biz.branding?.colors)}>
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-        <a href={ctx.base || '/'} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">← חזרה לאתר {biz.business.name}</a>
+      <a href="#legal-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
+      <main id="legal-main" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+        <a href={ctx.base || '/'} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">← חזרה לאתר {biz.business.name}</a>
         <header className="mt-5 rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8">
           <p className="text-sm font-semibold text-primary">מידע מטעם העסק</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">מידע משפטי ונגישות</h1>
@@ -50,6 +51,7 @@ export default async function LegalPage({ params }: Props) {
             <div className="mt-4 whitespace-pre-line break-words text-sm leading-7 text-ink/85 sm:text-base">{text}</div>
           </section>)}
         </div> : <p className="mt-4 rounded-2xl border border-dashed border-ink/20 p-6 text-center text-sm leading-6 text-ink/70">העסק עדיין לא פרסם מסמכים בעמוד זה.</p>}
+        {!accessibility?.custom_text?.trim() && <p role="note" className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950">לתשומת לבכם: העסק עדיין לא הזין הצהרת נגישות. המידע בעמוד זה אינו מהווה הצהרה על עמידה בדרישות הנגישות.</p>}
       </main>
     </div>
   );
