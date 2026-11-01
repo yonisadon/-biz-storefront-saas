@@ -61,16 +61,18 @@ $$;
 CREATE OR REPLACE FUNCTION app.set_updated_at()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $1BEGIN
+AS $
+BEGIN
   NEW.updated_at := now();
   RETURN NEW;
-END $;
+END $$;
 
 -- Keep the old requires_appointment boolean compatible with explicit booking modes.
 CREATE OR REPLACE FUNCTION app.sync_product_booking_mode()
 RETURNS trigger
 LANGUAGE plpgsql
-AS $1BEGIN
+AS $
+BEGIN
   IF NEW.kind <> 'service' THEN
     NEW.booking_mode := 'none';
     NEW.requires_appointment := false;
@@ -88,7 +90,7 @@ AS $1BEGIN
     NEW.requires_appointment := NEW.booking_mode <> 'none';
   END IF;
   RETURN NEW;
-END $;
+END $$;
 
 -- ---------------------------------------------------------------------
 -- 3. Tables
@@ -340,7 +342,7 @@ BEGIN
       'CREATE TRIGGER trg_%1$s_updated_at BEFORE UPDATE ON public.%1$I
          FOR EACH ROW EXECUTE FUNCTION app.set_updated_at()', t);
   END LOOP;
-END $;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_products_booking_mode ON public.products;
 CREATE TRIGGER trg_products_booking_mode
