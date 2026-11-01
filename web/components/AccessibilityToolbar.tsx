@@ -103,7 +103,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
   );
 
   return (
-    <div className="fixed bottom-28 end-3 z-50 sm:bottom-5 sm:end-5">
+    <div className="fixed bottom-28 end-3 z-50 sm:bottom-auto sm:end-5 sm:top-24">
       <button
         ref={triggerRef}
         type="button"
@@ -126,7 +126,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
           role="dialog"
           aria-modal="false"
           aria-labelledby="a11y-title"
-          className="absolute bottom-14 end-0 max-h-[min(75vh,36rem)] w-[min(19rem,calc(100vw-1.5rem))] space-y-3 overflow-y-auto rounded-xl border border-ink/20 bg-surface p-3 text-ink shadow-xl"
+          className="absolute bottom-14 end-0 max-h-[min(75vh,36rem)] w-[min(19rem,calc(100vw-1.5rem))] space-y-3 overflow-y-auto rounded-xl border border-ink/20 bg-surface p-3 text-ink shadow-xl sm:bottom-auto sm:top-14"
         >
           <div className="flex items-center justify-between gap-2">
             <h2 id="a11y-title" className="text-base font-bold">כלי נגישות</h2>
