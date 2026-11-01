@@ -43,6 +43,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
 
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
+  const openerRef = useRef<HTMLButtonElement>(null);
   const [items, setItems] = useState<Product[]>(initialItems);
   const [nextOffset, setNextOffset] = useState(initialItems.length);
   const [hasMore, setHasMore] = useState(initiallyHasMore);
@@ -250,15 +251,15 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
           </div>
-          <button type="button" onClick={openContinuation}
-            className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
+          <button ref={openerRef} type="button" onClick={openContinuation}
+            className="min-h-11 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
             המשך להזמנה
           </button>
         </div>
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} aria-labelledby="order-dialog-title" className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => openerRef.current?.focus()} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label="סגירת חלון ההזמנה" className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
