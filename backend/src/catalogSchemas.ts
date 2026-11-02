@@ -48,6 +48,7 @@ export const ProductListQuery = z.object({
 }).strict();
 export const ProductMove = z.object({ direction: z.enum(['up', 'down']) }).strict();
 export const PublicCatalogQuery = z.object({
+  search: z.string().trim().max(100).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(12),
   offset: z.coerce.number().int().min(0).default(0),
 }).strict();
