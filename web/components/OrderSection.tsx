@@ -235,7 +235,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         <h2 id="catalog-h" className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
       </div>
 
-      {(catalogTotal > 0 || search.trim()) && (
+      {catalogTotal >= 5 && (
         <div className="mt-4">
           <label htmlFor="storefront-product-search" className="sr-only">חיפוש מוצרים ושירותים</label>
           <input id="storefront-product-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או תיאור…" className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
@@ -263,10 +263,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     )}
                   </div>
                   {p.description && (p.description.trim().length > 150 ? (
-                    <details className="text-sm leading-6 text-ink/70">
+                    <details className="group text-sm leading-6 text-ink/70">
                       <summary className="cursor-pointer list-none whitespace-pre-line">
-                        <span className="line-clamp-3">{p.description}</span>
-                        <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2">קרא עוד</span>
+                        <span className="line-clamp-3 group-open:hidden">{p.description}</span>
+                        <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2 group-open:hidden">קרא עוד</span>
+                        <span className="mt-1 hidden font-semibold text-primary underline underline-offset-2 group-open:inline">קרא פחות</span>
                       </summary>
                       <p className="mt-2 whitespace-pre-line">{p.description}</p>
                     </details>
