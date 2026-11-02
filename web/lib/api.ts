@@ -25,7 +25,20 @@ export async function getCtx(slug: string): Promise<Ctx> {
     if (!host) notFound();
     return { path: '/api/site', host, origin: `https://${host}`, base: '' };
   }
-  return { path: `/api/biz/${slug}`, origin: process.env.PUBLIC_BASE_URL!, base: `/biz/${slug}` };
+  const h = await headers();
+  const forwardedHost = (h.get('x-forwarded-host') ?? '').split(',')[0].trim();
+  const requestHost = (forwardedHost || h.get('host') || '').split(',')[0].trim();
+  const forwardedProto = (h.get('x-forwarded-proto') ?? '').split(',')[0].trim();
+  let origin = process.env.PUBLIC_BASE_URL ?? '';
+  if (requestHost) {
+    try {
+      origin = new URL(`${forwardedProto || 'https'}://${requestHost}`).origin;
+    } catch {
+      // Keep the configured public base URL as a safe fallback.
+    }
+  }
+  if (!origin) throw new Error('public_origin_unavailable');
+  return { path: `/api/biz/${slug}`, origin: origin.replace(/\/$/, ''), base: `/biz/${slug}` };
 }
 async function get<T>(ctx: Ctx, sub: string, revalidate: number): Promise<T | null> {
   const qs = ctx.host ? `?h=${encodeURIComponent(ctx.host)}` : '';
