@@ -29,6 +29,12 @@ function itemWhatsAppHref(number: string, intro: string, item: Product, itemUrl:
   return 'https://wa.me/' + number + '?text=' + encodeURIComponent(lines.join('\n'));
 }
 
+function publicItemUrl(origin: string, base: string, itemId: string): string {
+  const url = new URL(base || '/', origin);
+  url.hash = `item-${itemId}`;
+  return url.toString();
+}
+
 function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
   if (!value) return undefined;
   try {
@@ -122,17 +128,18 @@ export default async function StorefrontPage({ params }: Props) {
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
               <h3 className="text-lg font-bold">{item.name}</h3>
               {item.description && (item.description.trim().length > 150 ? (
-                <details className="mt-2 text-sm leading-7 text-ink/70">
+                <details className="group mt-2 text-sm leading-7 text-ink/70">
                   <summary className="cursor-pointer list-none">
-                    <span className="line-clamp-3">{item.description}</span>
-                    <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2">קרא עוד</span>
+                    <span className="line-clamp-3 group-open:hidden">{item.description}</span>
+                    <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2 group-open:hidden">קרא עוד</span>
+                    <span className="mt-1 hidden font-semibold text-primary underline underline-offset-2 group-open:inline">קרא פחות</span>
                   </summary>
                   <p className="mt-2 whitespace-pre-line">{item.description}</p>
                 </details>
               ) : <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{item.description}</p>)}
               {item.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(item.price_agorot)}</p>}
               <div className="mt-auto pt-4">
-                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, `${ctx.origin}${ctx.base}#item-${encodeURIComponent(item.id)}`)} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
+                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
           </li>)}
