@@ -14,17 +14,24 @@ const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את �
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 
 const PUBLIC_CATALOG_PAGE_SIZE = 12;
-async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0) {
+async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0, search = '') {
+  const term = search.trim();
+  const where = term ? `WHERE p.is_active AND (p.name ILIKE '%' || $1 || '%' OR COALESCE(p.description, '') ILIKE '%' || $1 || '%')` : 'WHERE p.is_active';
   const result = limit === null
-    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at`)
-    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id WHERE p.is_active ORDER BY p.sort_order, p.created_at LIMIT $1 OFFSET $2`, [limit, offset]);
+    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at`, term ? [term] : [])
+    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at LIMIT ${term ? '$2' : '$1'} OFFSET ${term ? '$3' : '$2'}`, term ? [term, limit, offset] : [limit, offset]);
   const items = result.rows.map((r) => ({
     id: r.id, kind: r.kind, name: r.name, description: r.description, price_agorot: r.price_agorot,
     requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
     image: r.storage_key ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height } : null,
   }));
   let total = limit === null ? items.length : (result.rows[0] ? Number(result.rows[0].total) : 0);
-  if (limit !== null && items.length === 0 && offset > 0) total = Number((await db.query('SELECT count(*)::int AS total FROM products WHERE is_active')).rows[0].total);
+  if (limit !== null && items.length === 0 && offset > 0) {
+    const count = term
+      ? await db.query(`SELECT count(*)::int AS total FROM products WHERE is_active AND (name ILIKE '%' || $1 || '%' OR COALESCE(description, '') ILIKE '%' || $1 || '%')`, [term])
+      : await db.query('SELECT count(*)::int AS total FROM products WHERE is_active');
+    total = Number(count.rows[0].total);
+  }
   return { items, total, limit, offset, has_more: limit !== null && offset + items.length < total };
 }
 
@@ -113,7 +120,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
     app.get('/', async (req) => withTenant(req.tenantId, buildPublicPayload));
     app.get('/catalog', async (req) => {
       const q = PublicCatalogQuery.parse(req.query);
-      return withTenant(req.tenantId, async (db) => loadPublicCatalog(db, q.limit, q.offset));
+      return withTenant(req.tenantId, async (db) => loadPublicCatalog(db, q.limit, q.offset, q.search));
     });
 
     // Legal texts are fetched separately (can be large). null => use platform default.
