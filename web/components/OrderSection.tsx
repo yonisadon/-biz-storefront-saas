@@ -49,6 +49,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [hasMore, setHasMore] = useState(initiallyHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [searchTotal, setSearchTotal] = useState(catalogTotal);
+  const [searching, setSearching] = useState(false);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
@@ -62,15 +65,49 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [done, setDone] = useState<Done | null>(null);
 
   const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
+  useEffect(() => {
+    const term = search.trim();
+    if (!term) {
+      setItems(initialItems);
+      setNextOffset(initialItems.length);
+      setHasMore(initiallyHasMore);
+      setSearchTotal(catalogTotal);
+      setCatalogError(null);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    setCatalogError(null);
+    const params = new URLSearchParams({ search: term, limit: '12', offset: '0' });
+    fetch(`${apiBase}/catalog?${params.toString()}`, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('catalog_search_failed');
+        return await response.json() as PublicCatalogPage;
+      })
+      .then((page) => {
+        if (cancelled) return;
+        setItems(page.items);
+        setNextOffset(page.offset + page.items.length);
+        setHasMore(page.has_more);
+        setSearchTotal(page.total);
+      })
+      .catch(() => { if (!cancelled) setCatalogError('לא הצלחנו לחפש כרגע. נסו שוב.'); })
+      .finally(() => { if (!cancelled) setSearching(false); });
+    return () => { cancelled = true; };
+  }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal]);
+
   async function loadMore() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true); setCatalogError(null);
     try {
-      const response = await fetch(`${apiBase}/catalog?limit=12&offset=${nextOffset}`, { cache: 'no-store' });
+      const params = new URLSearchParams({ limit: '12', offset: String(nextOffset) });
+      if (search.trim()) params.set('search', search.trim());
+      const response = await fetch(`${apiBase}/catalog?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('catalog_request_failed');
       const page = await response.json() as PublicCatalogPage;
       setItems((current) => { const known = new Set(current.map((item) => item.id)); return [...current, ...page.items.filter((item) => !known.has(item.id))]; });
-      setNextOffset(page.offset + page.items.length); setHasMore(page.has_more);
+      setNextOffset(page.offset + page.items.length); setHasMore(page.has_more); setSearchTotal(page.total);
     } catch { setCatalogError('לא הצלחנו לטעון מוצרים נוספים. נסו שוב.'); }
     finally { setLoadingMore(false); }
   }
@@ -195,9 +232,17 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id="catalog-h" className="text-2xl font-bold">{items.length ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
-
+        <h2 id="catalog-h" className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
       </div>
+
+      {(catalogTotal > 0 || search.trim()) && (
+        <div className="mt-4">
+          <label htmlFor="storefront-product-search" className="sr-only">חיפוש מוצרים ושירותים</label>
+          <input id="storefront-product-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או תיאור…" className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+        </div>
+      )}
+      {searching && <p role="status" className="mt-3 text-sm text-ink/65">מחפשים פריטים…</p>}
+      {!searching && search.trim() && items.length === 0 && !catalogError && <p className="mt-4 text-sm text-ink/65">לא נמצאו פריטים התואמים לחיפוש.</p>}
 
       {items.length > 0 && (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -217,7 +262,15 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
-                  {p.description && <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>}
+                  {p.description && (p.description.trim().length > 150 ? (
+                    <details className="text-sm leading-6 text-ink/70">
+                      <summary className="cursor-pointer list-none whitespace-pre-line">
+                        <span className="line-clamp-3">{p.description}</span>
+                        <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2">קרא עוד</span>
+                      </summary>
+                      <p className="mt-2 whitespace-pre-line">{p.description}</p>
+                    </details>
+                  ) : <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>)}
                   <div className="mt-auto flex items-center justify-between gap-3 pt-2">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {canOrder && (q > 0 ? (
@@ -236,8 +289,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         </ul>
       )}
 
-      {catalogTotal > 0 && <div className="mt-5 flex flex-col items-center gap-2">
-        <p className="text-sm text-ink/60">מוצגים {items.length} מתוך {catalogTotal} פריטים</p>
+      {(search.trim() ? searchTotal : catalogTotal) > 0 && <div className="mt-5 flex flex-col items-center gap-2">
+        <p className="text-sm text-ink/60">מוצגים {items.length} מתוך {search.trim() ? searchTotal : catalogTotal} פריטים</p>
         {catalogError && <p role="alert" className="text-sm text-red-700">{catalogError}</p>}
         {hasMore && <button type="button" onClick={loadMore} disabled={loadingMore} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
           {loadingMore ? 'טוען פריטים…' : 'הצגת עוד פריטים'}
