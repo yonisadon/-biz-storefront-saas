@@ -523,6 +523,7 @@ GRANT UPDATE (name, whatsapp_number, phone, email, about_text, config)
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.products          TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.media_assets      TO app_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.product_images    TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_images  TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointments       TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointment_blocks TO app_runtime;
