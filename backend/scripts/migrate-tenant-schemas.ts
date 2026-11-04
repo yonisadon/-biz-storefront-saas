@@ -2,6 +2,7 @@ import pg from 'pg';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { applyTenantMigrations } from '../src/tenantMigrations';
+import { hasAllowedNoBackupMigrationPending } from '../src/tenantMigrationPolicy';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -165,7 +166,11 @@ async function main() {
       const migrationFiles = readdirSync(migrationDir)
         .filter((file) => /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i.test(file))
         .sort();
-      let targetMigrationPending = false;
+      const targetMigration = 'tenant-004-product-images-details.sql';
+      if (!migrationFiles.includes(targetMigration)) {
+        throw new Error('Refusing no-backup migration: expected tenant-004 migration file is missing.');
+      }
+      const pendingByTenant: string[][] = [];
       // One narrowly scoped exception: tenant-004 may run without a backup.
       // Every tenant DB must have no other pending migration.
       for (const tenant of tenants) {
@@ -178,20 +183,17 @@ async function main() {
           }
           const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
           const appliedVersions = new Set(appliedRows.rows.map((row) => String(row.version)));
-          const pending = migrationFiles.filter((file) => !appliedVersions.has(file));
-          const unexpected = pending.filter((file) => file !== 'tenant-004-product-images-details.sql');
-          if (unexpected.length) {
-            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': other pending migration(s): ' + unexpected.join(', ') + '.');
-          }
-          if (pending.includes('tenant-004-product-images-details.sql')) targetMigrationPending = true;
+          pendingByTenant.push(migrationFiles.filter((file) => !appliedVersions.has(file)));
         } finally {
           await db.end();
         }
       }
-      if (!targetMigrationPending) {
-        throw new Error('Refusing no-backup migration: tenant-004-product-images-details.sql is not pending on any tenant database.');
+      const targetMigrationPending = hasAllowedNoBackupMigrationPending(pendingByTenant, targetMigration);
+      if (targetMigrationPending) {
+        console.warn('WARNING: proceeding without a verified backup for tenant-004-product-images-details.sql only. All other pending tenant migrations are blocked.');
+      } else {
+        console.log('tenant-004-product-images-details.sql is already applied on every tenant database; no migration changes are needed.');
       }
-      console.warn('WARNING: proceeding without a verified backup for tenant-004-product-images-details.sql only. All other pending tenant migrations are blocked.');
     }
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
