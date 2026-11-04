@@ -44,6 +44,8 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [description, setDescription] = useState(product?.description ?? '');
   const [details, setDetails] = useState<{ label: string; value: string }[]>(product?.details ?? []);
   const [extraFiles, setExtraFiles] = useState<Blob[]>([]);
+  const [removePrimaryPending, setRemovePrimaryPending] = useState(false);
+  const [removeAdditionalPending, setRemoveAdditionalPending] = useState<string[]>([]);
   const [extraPreviews, setExtraPreviews] = useState<string[]>([]);
   const extraPreviewUrls = useRef<string[]>([]);
   const [quote, setQuote] = useState(product ? product.price_agorot === null : false);
@@ -103,22 +105,14 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     }
   }
 
-  async function removeAdditionalImage(imageId: string) {
-    if (!current) return;
-    try {
-      await mcall(token, `products/${current.id}/additional-images/${imageId}`, { method: 'DELETE' });
-      setCurrent({ ...current, additional_images: current.additional_images.filter((image) => image.id !== imageId) });
-      onChanged();
-    } catch { setMsg('הסרת התמונה הנוספת נכשלה.'); }
+  function removeAdditionalImage(imageId: string) {
+    setRemoveAdditionalPending((items) => items.includes(imageId) ? items : [...items, imageId]);
+    setMsg(null);
   }
 
-  async function removeImage() {
-    if (!current) return;
-    try {
-      await mcall(token, `products/${current.id}/image`, { method: 'DELETE' });
-      setCurrent({ ...current, image_url: null });
-      onChanged();
-    } catch { setMsg('הסרת התמונה נכשלה.'); }
+  function removeImage() {
+    setRemovePrimaryPending(true);
+    setMsg(null);
   }
 
   async function save(e: React.FormEvent) {
@@ -147,6 +141,16 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       }
     } catch { setBusy(false); return setMsg('שמירת המוצר נכשלה.'); }
 
+    // Defer removals until the product fields have saved successfully, so a failed PATCH
+    // never leaves an image deleted while the form reports that saving failed.
+    if (current && removePrimaryPending) {
+      try { await mcall(token, `products/${id}/image`, { method: 'DELETE' }); setCurrent((item) => item ? { ...item, image_url: null } : item); }
+      catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת התמונה הראשית נכשלה. נסו שוב.'); }
+    }
+    for (const imageId of removeAdditionalPending) {
+      try { await mcall(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
+      catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת תמונה נוספת נכשלה. נסו שוב.'); }
+    }
     if (file) {
       try { await mupload(token, `products/${id}/image`, file); }
       catch (err) {
@@ -174,7 +178,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   }
 
   const input = 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2';
-  const shownImage = preview ?? current?.image_url ?? null;
+  const shownImage = preview ?? (removePrimaryPending ? null : current?.image_url) ?? null;
 
   return (
     <dialog ref={ref} onClose={onClosed}
@@ -238,13 +242,13 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
                 {shownImage ? 'החלפת תמונה' : 'בחירת תמונה'}
                 <input type="file" accept={ACCEPT} className="sr-only" onChange={pick} />
               </label>
-              {current?.image_url && !file && (
+              {current?.image_url && !removePrimaryPending && !file && (
                 <button type="button" onClick={removeImage} className="rounded-full px-3 py-1.5 text-sm text-red-700 ring-1 ring-gray-300">הסרת תמונה</button>
               )}
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(current?.additional_images ?? []).map((image) => (
+            {(current?.additional_images ?? []).filter((image) => !removeAdditionalPending.includes(image.id)).map((image) => (
               <div key={image.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
@@ -273,6 +277,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
               <input type="file" accept={ACCEPT} multiple className="sr-only" onChange={pickAdditional} />
             </label>
           )}
+          {(removePrimaryPending || removeAdditionalPending.length > 0) && <p className="mt-1 text-xs text-amber-700">הסרת התמונות תתבצע רק לאחר שמירת פרטי המוצר.</p>}
           <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB לתמונה. התמונה הראשית נשארת ללא שינוי כשמוסיפים תמונות נוספות.</p>
         </div>
 
