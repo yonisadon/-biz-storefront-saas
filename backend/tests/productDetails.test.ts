@@ -30,3 +30,10 @@ test('product patch defaults missing details unchanged and accepts empty details
   assert.equal(ProductPatch.parse({ name: 'Updated' }).details, undefined);
   assert.deepEqual(ProductPatch.parse({ details: [] }).details, []);
 });
+
+import { productPatchAssignment } from '../src/productPatchSql';
+
+test('product patch uses positional parameters and casts details parameter to jsonb', () => {
+  assert.equal(productPatchAssignment('name', 2), 'name = $2');
+  assert.equal(productPatchAssignment('details', 4), 'details = $4::jsonb');
+});
