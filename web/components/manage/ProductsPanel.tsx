@@ -136,9 +136,17 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         return setMsg(`המוצר נשמר, אבל העלאת התמונה נכשלה: ${uploadErrorText(err)}`);
       }
     }
-    for (const extra of extraFiles) {
-      try { await mupload(token, `products/${id}/additional-images`, extra); }
-      catch (err) {
+    for (const extra of [...extraFiles]) {
+      try {
+        const uploaded = await mupload<{ id: string; position: number; url: string; width: number | null; height: number | null }>(token, `products/${id}/additional-images`, extra);
+        setCurrent((item) => item ? { ...item, additional_images: [...item.additional_images, uploaded] } : item);
+        setExtraFiles((items) => items.slice(1));
+        setExtraPreviews((items) => {
+          const [first, ...rest] = items;
+          if (first) { URL.revokeObjectURL(first); extraPreviewUrls.current = extraPreviewUrls.current.filter((url) => url !== first); }
+          return rest;
+        });
+      } catch (err) {
         setBusy(false); onChanged();
         return setMsg(`המוצר נשמר, אך העלאת תמונה נוספת נכשלה: ${uploadErrorText(err)}`);
       }
