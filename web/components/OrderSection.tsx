@@ -53,13 +53,13 @@ function ProductImageGallery({ product }: { product: Product }) {
   const move = (delta: number) => setActive((index) => (index + delta + images.length) % images.length);
   return (
     <div>
-      <button type="button" onClick={() => show(0)} aria-label={`הגדלת תמונת ${product.name}`} className="relative block aspect-[4/3] w-full cursor-zoom-in bg-gray-50">
-        <Image src={images[0].url} alt={product.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" />
+      <button type="button" onClick={() => show(active)} aria-label={`הגדלת תמונת ${product.name}`} className="relative block aspect-[4/3] w-full cursor-zoom-in bg-gray-50">
+        <Image src={images[active].url} alt={product.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" />
       </button>
       {images.length > 1 && (
         <div className="flex gap-2 overflow-x-auto p-2" role="group" aria-label="תמונות נוספות">
           {images.map((image, index) => (
-            <button key={image.id} type="button" onClick={() => show(index)} aria-label={`הצגת תמונה ${index + 1} מתוך ${images.length}`} aria-pressed={active === index}
+            <button key={image.id} type="button" onClick={() => setActive(index)} aria-label={`הצגת תמונה ${index + 1} מתוך ${images.length}`} aria-pressed={active === index}
               className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-transparent aria-pressed:border-primary focus-visible:outline-2 focus-visible:outline-offset-2">
               <Image src={image.url} alt="" fill sizes="56px" className="object-cover" />
             </button>
