@@ -42,6 +42,9 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [kind, setKind] = useState<'product' | 'service'>(product?.kind ?? 'product');
   const [name, setName] = useState(product?.name ?? '');
   const [description, setDescription] = useState(product?.description ?? '');
+  const [details, setDetails] = useState<{ label: string; value: string }[]>(product?.details ?? []);
+  const [extraFiles, setExtraFiles] = useState<Blob[]>([]);
+  const [extraPreviews, setExtraPreviews] = useState<string[]>([]);
   const [quote, setQuote] = useState(product ? product.price_agorot === null : false);
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
@@ -53,7 +56,10 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => { ref.current?.showModal(); }, []);
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => () => {
+    if (preview) URL.revokeObjectURL(preview);
+    extraPreviews.forEach((url) => URL.revokeObjectURL(url));
+  }, [preview, extraPreviews]);
 
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -63,6 +69,28 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       const blob = await prepareImage(f);
       setFile(blob); setPreview(URL.createObjectURL(blob)); setMsg(null);
     } catch (err) { setMsg(uploadErrorText(err)); }
+  }
+
+  async function pickAdditional(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    const available = 2 - (current?.additional_images.length ?? 0) - extraFiles.length;
+    if (files.length > available) return setMsg('אפשר להוסיף עד 2 תמונות נוספות (3 תמונות בסך הכול).');
+    try {
+      const prepared = await Promise.all(files.map((file) => prepareImage(file)));
+      setExtraFiles((items) => [...items, ...prepared]);
+      setExtraPreviews((items) => [...items, ...prepared.map((blob) => URL.createObjectURL(blob))]);
+      setMsg(null);
+    } catch (err) { setMsg(uploadErrorText(err)); }
+  }
+
+  async function removeAdditionalImage(imageId: string) {
+    if (!current) return;
+    try {
+      await mcall(token, `products/${current.id}/additional-images/${imageId}`, { method: 'DELETE' });
+      setCurrent({ ...current, additional_images: current.additional_images.filter((image) => image.id !== imageId) });
+      onChanged();
+    } catch { setMsg('הסרת התמונה הנוספת נכשלה.'); }
   }
 
   async function removeImage() {
@@ -87,7 +115,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       price = Math.round(v * 100);
     }
     const mode = kind === 'service' ? bookingMode : 'none';
-    const payload = { kind, name: n, description: description.trim() || null, price_agorot: price, is_active: active, booking_mode: mode, requires_appointment: mode !== 'none', appointment_duration_minutes: mode !== 'none' ? appointmentDurationMinutes : 30 };
+    const payload = { kind, name: n, description: description.trim() || null, details: details.filter((item) => item.label.trim() && item.value.trim()), price_agorot: price, is_active: active, booking_mode: mode, requires_appointment: mode !== 'none', appointment_duration_minutes: mode !== 'none' ? appointmentDurationMinutes : 30 };
 
     setBusy(true); setMsg(null);
     let id = current?.id;
@@ -105,6 +133,13 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       catch (err) {
         setBusy(false); onChanged();
         return setMsg(`המוצר נשמר, אבל העלאת התמונה נכשלה: ${uploadErrorText(err)}`);
+      }
+    }
+    for (const extra of extraFiles) {
+      try { await mupload(token, `products/${id}/additional-images`, extra); }
+      catch (err) {
+        setBusy(false); onChanged();
+        return setMsg(`המוצר נשמר, אך העלאת תמונה נוספת נכשלה: ${uploadErrorText(err)}`);
       }
     }
     setBusy(false); onChanged();
@@ -136,6 +171,21 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
           <textarea className={input} rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
 
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-medium">פרטים נוספים (רשות)</legend>
+          {details.map((item, index) => (
+            <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <input className={input + ' min-w-0'} aria-label={`שם מאפיין ${index + 1}`} maxLength={50} placeholder="מאפיין" value={item.label}
+                onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, label: e.target.value } : row))} />
+              <input className={input + ' min-w-0'} aria-label={`ערך מאפיין ${index + 1}`} maxLength={250} placeholder="ערך" value={item.value}
+                onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, value: e.target.value } : row))} />
+              <button type="button" onClick={() => setDetails((items) => items.filter((_, i) => i !== index))} className="px-2 text-sm text-red-700" aria-label="הסרת מאפיין">✕</button>
+            </div>
+          ))}
+          {details.length < 20 && <button type="button" onClick={() => setDetails((items) => [...items, { label: '', value: '' }])} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">+ הוספת מאפיין</button>}
+          <p className="text-xs text-gray-500">אפשר להוסיף מאפיינים חופשיים כמו מותג, דגם, צבע, חומר או מידות.</p>
+        </fieldset>
+
         <fieldset>
           <legend className="text-sm font-medium">מחיר</legend>
           <label className="mt-1 flex items-center gap-2 text-sm">
@@ -151,7 +201,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         </fieldset>
 
         <div>
-          <div className="text-sm font-medium">תמונה (אחת)</div>
+          <div className="text-sm font-medium">תמונות מוצר (עד 3)</div>
           <div className="mt-1 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {shownImage ? <img src={shownImage} alt="" className="h-20 w-20 rounded-lg object-cover" />
@@ -166,7 +216,29 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
               )}
             </div>
           </div>
-          <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB. התמונה נדחסת אוטומטית.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(current?.additional_images ?? []).map((image) => (
+              <div key={image.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                <button type="button" onClick={() => removeAdditionalImage(image.id)} aria-label="הסרת תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
+              </div>
+            ))}
+            {extraPreviews.map((url, index) => (
+              <div key={url} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                <button type="button" onClick={() => { setExtraFiles((items) => items.filter((_, i) => i !== index)); setExtraPreviews((items) => items.filter((_, i) => i !== index)); }} aria-label="ביטול תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
+              </div>
+            ))}
+          </div>
+          {(current?.additional_images.length ?? 0) + extraFiles.length < 2 && (
+            <label className="mt-2 inline-flex cursor-pointer rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300">
+              + הוספת תמונה נוספת
+              <input type="file" accept={ACCEPT} multiple className="sr-only" onChange={pickAdditional} />
+            </label>
+          )}
+          <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB לתמונה. התמונה הראשית נשארת ללא שינוי כשמוסיפים תמונות נוספות.</p>
         </div>
 
         {kind === 'service' && <label className="block text-sm font-medium">אופן תיאום השירות
