@@ -17,10 +17,10 @@ export async function mcall<T>(
   return body as T;
 }
 
-export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg'): Promise<T> {
+export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg', method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const fd = new FormData();
   fd.append('file', file, filename); // no content-type header: the browser adds the boundary
-  const res = await fetch(`/api/manage/${token}/${path}`, { method: 'POST', body: fd, cache: 'no-store' });
+  const res = await fetch(`/api/manage/${token}/${path}`, { method, body: fd, cache: 'no-store' });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
