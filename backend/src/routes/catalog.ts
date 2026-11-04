@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
 import { env } from '../config';
 import { withTenant } from '../db';
+import { productPatchAssignment } from '../productPatchSql';
 import { HttpError } from '../errors';
 import { processImage, sanitizeFilename } from '../images';
 import { GalleryPatch, OrderBody, ProductCreate, ProductListQuery, ProductMove, ProductPatch } from '../catalogSchemas';
@@ -190,7 +191,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
           // node-postgres serializes JS arrays as PostgreSQL arrays (e.g. {}), not JSON arrays.
           // JSONB details must be sent as JSON text so [] remains a JSON array and passes the DB constraint.
           vals.push(c === 'details' ? JSON.stringify(normalizedPatch[c]) : normalizedPatch[c]);
-          sets.push(`${c} = $${vals.length}${c === 'details' ? '::jsonb' : ''}`);
+          sets.push(productPatchAssignment(c, vals.length));
         }
       }
       vals.push(id);
