@@ -1,4 +1,6 @@
 import pg from 'pg';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { applyTenantMigrations } from '../src/tenantMigrations';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
@@ -158,16 +160,39 @@ async function main() {
       return;
     }
     const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
-    const noBackupExplicitlyAccepted = process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP === 'true';
-    if (!backupConfirmed && !noBackupExplicitlyAccepted) {
-      throw new Error(
-        'Refusing to apply tenant migrations without a verified backup. For an explicitly accepted disposable/test environment only, set TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true.',
-      );
+    if (!backupConfirmed) {
+      const migrationDir = join(process.cwd(), 'migrations');
+      const migrationFiles = readdirSync(migrationDir)
+        .filter((file) => /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i.test(file))
+        .sort();
+      let targetMigrationPending = false;
+      // One narrowly scoped exception: tenant-004 may run without a backup.
+      // Every tenant DB must have no other pending migration.
+      for (const tenant of tenants) {
+        const label = 'tenant database ' + tenant.database_name + ' migration gate';
+        const db = await connect(databaseUrl(tenant.database_name), label);
+        try {
+          const ledger = await db.query("SELECT to_regclass('public.tenant_schema_migrations') AS ledger");
+          if (!ledger.rows[0].ledger) {
+            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': migration ledger is missing.');
+          }
+          const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
+          const appliedVersions = new Set(appliedRows.rows.map((row) => String(row.version)));
+          const pending = migrationFiles.filter((file) => !appliedVersions.has(file));
+          const unexpected = pending.filter((file) => file !== 'tenant-004-product-images-details.sql');
+          if (unexpected.length) {
+            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': other pending migration(s): ' + unexpected.join(', ') + '.');
+          }
+          if (pending.includes('tenant-004-product-images-details.sql')) targetMigrationPending = true;
+        } finally {
+          await db.end();
+        }
+      }
+      if (!targetMigrationPending) {
+        throw new Error('Refusing no-backup migration: tenant-004-product-images-details.sql is not pending on any tenant database.');
+      }
+      console.warn('WARNING: proceeding without a verified backup for tenant-004-product-images-details.sql only. All other pending tenant migrations are blocked.');
     }
-    if (!backupConfirmed && noBackupExplicitlyAccepted) {
-      console.warn('WARNING: proceeding with tenant migrations WITHOUT a verified backup because TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true was explicitly set.');
-    }
-
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
       const db = await connect(databaseUrl(tenant.database_name), `tenant database ${tenant.database_name}`);
@@ -177,12 +202,35 @@ async function main() {
           `SELECT to_regclass('public.appointments') AS appointments,
                   to_regclass('public.appointment_blocks') AS appointment_blocks,
                   to_regclass('public.products') AS products,
+                  to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
                   to_regclass('public.business_domains') AS business_domains`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.leads || !post.business_domains) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain tables are missing.`);
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
+        }
+        const productDetailsColumn = await db.query(
+          `SELECT data_type, is_nullable
+             FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'details'`,
+        );
+        if (!productDetailsColumn.rowCount || productDetailsColumn.rows[0].data_type !== 'jsonb' || productDetailsColumn.rows[0].is_nullable !== 'NO') {
+          throw new Error(`Postflight failed for ${tenant.database_name}: products.details is missing or has an unexpected definition.`);
+        }
+        const productImagesSecurity = await db.query(
+          `SELECT c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'product_images' AND p.policyname = 'tenant_isolation') AS tenant_policy,
+                  has_table_privilege('app_runtime', 'public.product_images', 'SELECT') AS can_select,
+                  has_table_privilege('app_runtime', 'public.product_images', 'INSERT') AS can_insert,
+                  has_table_privilege('app_runtime', 'public.product_images', 'UPDATE') AS can_update,
+                  has_table_privilege('app_runtime', 'public.product_images', 'DELETE') AS can_delete
+             FROM pg_class c WHERE c.oid = 'public.product_images'::regclass`,
+        );
+        const security = productImagesSecurity.rows[0];
+        if (!security?.relrowsecurity || !security.relforcerowsecurity || !security.tenant_policy ||
+            !security.can_select || !security.can_insert || !security.can_update || !security.can_delete) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: product_images tenant isolation or app_runtime permissions are incomplete.`);
         }
         const requiredColumns = await db.query(
           `SELECT table_name, column_name

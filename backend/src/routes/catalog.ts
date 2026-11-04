@@ -61,6 +61,7 @@ async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Pro
     `DELETE FROM media_assets m
       WHERE m.id = $1
         AND NOT EXISTS (SELECT 1 FROM products p WHERE p.image_asset_id = m.id)
+        AND NOT EXISTS (SELECT 1 FROM product_images pi WHERE pi.asset_id = m.id)
         AND NOT EXISTS (SELECT 1 FROM portfolio_images g WHERE g.asset_id = m.id)
       RETURNING m.storage_key`,
     [assetId],
@@ -69,14 +70,23 @@ async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Pro
 }
 
 const PRODUCT_SELECT = `
-  SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, p.is_active, p.sort_order, m.storage_key
+  SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, p.is_active, p.sort_order,
+         m.storage_key, m.width, m.height,
+         COALESCE((
+           SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
+             FROM product_images pi
+             JOIN media_assets pm ON pm.tenant_id = pi.tenant_id AND pm.id = pi.asset_id
+            WHERE pi.tenant_id = p.tenant_id AND pi.product_id = p.id
+         ), '[]'::json) AS extra_images
     FROM products p
     LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id`;
 
 const shapeProduct = (r: any) => ({
-  id: r.id, kind: r.kind, name: r.name, description: r.description,
+  id: r.id, kind: r.kind, name: r.name, description: r.description, details: r.details ?? [],
   price_agorot: r.price_agorot, requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30, is_active: r.is_active, sort_order: r.sort_order,
   image_url: r.storage_key ? mediaUrl(r.storage_key) : null,
+  image_width: r.width ?? null, image_height: r.height ?? null,
+  additional_images: (r.extra_images ?? []).map((image: any) => ({ id: image.id, url: mediaUrl(image.storage_key), width: image.width, height: image.height, position: image.position })),
 });
 
 const GALLERY_SELECT = `
@@ -110,11 +120,11 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       if (n.rows[0].n >= MAX_PRODUCTS) throw new HttpError(409, 'product_limit');
       const bookingMode = b.kind === 'product' ? 'none' : b.booking_mode ?? (b.requires_appointment ? 'free_datetime' : 'none');
       const ins = await db.query(
-        `INSERT INTO products (tenant_id, kind, name, description, price_agorot, is_active, requires_appointment, booking_mode, appointment_duration_minutes, sort_order)
-         VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8,
+        `INSERT INTO products (tenant_id, kind, name, description, details, price_agorot, is_active, requires_appointment, booking_mode, appointment_duration_minutes, sort_order)
+         VALUES (app.current_tenant_id(), $1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9,
                  (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM products))
          RETURNING id`,
-        [b.kind, b.name, b.description, b.price_agorot, b.is_active, bookingMode !== 'none', bookingMode, b.appointment_duration_minutes],
+        [b.kind, b.name, b.description, JSON.stringify(b.details), b.price_agorot, b.is_active, bookingMode !== 'none', bookingMode, b.appointment_duration_minutes],
       );
       return (await db.query(`${PRODUCT_SELECT} WHERE p.id = $1`, [ins.rows[0].id])).rows[0];
     });
@@ -175,7 +185,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
             : patch.requires_appointment,
       };
       // Column names are hard-coded; legacy clients map the old boolean to free_datetime.
-      for (const c of ['kind', 'name', 'description', 'price_agorot', 'is_active', 'requires_appointment', 'booking_mode', 'appointment_duration_minutes'] as const) {
+      for (const c of ['kind', 'name', 'description', 'details', 'price_agorot', 'is_active', 'requires_appointment', 'booking_mode', 'appointment_duration_minutes'] as const) {
         if (normalizedPatch[c] !== undefined) { vals.push(normalizedPatch[c]); sets.push(`${c} = $${vals.length}`); }
       }
       vals.push(id);
@@ -188,9 +198,14 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/products/:id', async (req, reply) => {
     const id = idParam(req);
     const keys = await withTenant(req.tenantId, async (db) => {
-      const r = await db.query('DELETE FROM products WHERE id = $1 RETURNING image_asset_id', [id]);
-      if (!r.rows[0]) throw new HttpError(404, 'not_found');
-      return dropAssetIfOrphan(db, r.rows[0].image_asset_id);
+      const product = await db.query('SELECT image_asset_id FROM products WHERE id = $1 FOR UPDATE', [id]);
+      if (!product.rows[0]) throw new HttpError(404, 'not_found');
+      const extras = await db.query('SELECT asset_id FROM product_images WHERE product_id = $1', [id]);
+      await db.query('DELETE FROM products WHERE id = $1', [id]);
+      const assetIds = [product.rows[0].image_asset_id, ...extras.rows.map((row) => row.asset_id)];
+      const keys: string[] = [];
+      for (const assetId of assetIds) keys.push(...await dropAssetIfOrphan(db, assetId));
+      return keys;
     });
     await removeQuietly(req, keys);
     return reply.code(204).send();
@@ -234,6 +249,82 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       if (!cur.rows[0]) throw new HttpError(404, 'not_found');
       await db.query('UPDATE products SET image_asset_id = NULL WHERE id = $1', [id]);
       return dropAssetIfOrphan(db, cur.rows[0].image_asset_id);
+    });
+    await removeQuietly(req, keys);
+    return reply.code(204).send();
+  });
+
+  // ---- additional product images: two optional images beside the legacy primary image ----
+  app.post('/products/:id/additional-images', uploadLimit, async (req, reply) => {
+    const id = idParam(req);
+    const { buffer, filename } = await readUpload(req);
+    const asset = await storeImage(req.tenantId, buffer);
+    let result: { image: unknown; oldKeys: string[] };
+    try {
+      result = await withTenant(req.tenantId, async (db) => {
+        const product = await db.query('SELECT image_asset_id FROM products WHERE id = $1 FOR UPDATE', [id]);
+        if (!product.rows[0]) throw new HttpError(404, 'not_found');
+        const used = await db.query('SELECT position FROM product_images WHERE product_id = $1 ORDER BY position', [id]);
+        const occupied = new Set(used.rows.map((row) => Number(row.position)));
+        const position = [2, 3].find((value) => !occupied.has(value));
+        if (!position) throw new HttpError(409, 'product_images_full');
+        await insertAsset(db, asset, filename);
+        const inserted = await db.query(
+          'INSERT INTO product_images (tenant_id, product_id, asset_id, position) VALUES (app.current_tenant_id(), $1, $2, $3) RETURNING id, position',
+          [id, asset.id, position],
+        );
+        return {
+          image: { id: inserted.rows[0].id, position, url: mediaUrl(asset.key), width: asset.width, height: asset.height },
+          oldKeys: [],
+        };
+      });
+    } catch (err) {
+      await removeQuietly(req, variantKeys(asset.key));
+      throw err;
+    }
+    return reply.code(201).send(result.image);
+  });
+
+  app.put('/products/:id/additional-images/:imageId', uploadLimit, async (req) => {
+    const id = idParam(req);
+    const imageId = (req.params as { imageId: string }).imageId;
+    if (!UUID_RE.test(imageId)) throw new HttpError(404, 'not_found');
+    const { buffer, filename } = await readUpload(req);
+    const asset = await storeImage(req.tenantId, buffer);
+    try {
+      const result = await withTenant(req.tenantId, async (db) => {
+        const current = await db.query(
+          'SELECT asset_id FROM product_images WHERE id = $1 AND product_id = $2 FOR UPDATE',
+          [imageId, id],
+        );
+        if (!current.rows[0]) throw new HttpError(404, 'not_found');
+        await insertAsset(db, asset, filename);
+        await db.query(
+          'UPDATE product_images SET asset_id = $1 WHERE id = $2 AND product_id = $3',
+          [asset.id, imageId, id],
+        );
+        const oldKeys = await dropAssetIfOrphan(db, current.rows[0].asset_id);
+        return { oldKeys };
+      });
+      await removeQuietly(req, result.oldKeys);
+      return { id: imageId, url: mediaUrl(asset.key), width: asset.width, height: asset.height };
+    } catch (err) {
+      await removeQuietly(req, variantKeys(asset.key));
+      throw err;
+    }
+  });
+
+  app.delete('/products/:id/additional-images/:imageId', async (req, reply) => {
+    const id = idParam(req);
+    const imageId = (req.params as { imageId: string }).imageId;
+    if (!UUID_RE.test(imageId)) throw new HttpError(404, 'not_found');
+    const keys = await withTenant(req.tenantId, async (db) => {
+      const removed = await db.query(
+        'DELETE FROM product_images WHERE id = $1 AND product_id = $2 RETURNING asset_id',
+        [imageId, id],
+      );
+      if (!removed.rows[0]) throw new HttpError(404, 'not_found');
+      return dropAssetIfOrphan(db, removed.rows[0].asset_id);
     });
     await removeQuietly(req, keys);
     return reply.code(204).send();

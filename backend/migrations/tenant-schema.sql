@@ -148,8 +148,9 @@ CREATE TABLE IF NOT EXISTS public.products (
   kind            text NOT NULL DEFAULT 'product' CHECK (kind IN ('product', 'service')),
   name            text NOT NULL CHECK (length(btrim(name)) > 0),
   description     text,
+  details         jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(details) = 'array'),
   price_agorot    integer CHECK (price_agorot IS NULL OR price_agorot >= 0),  -- ILS x100; NULL = quote
-  image_asset_id  uuid,                                                      -- exactly one image
+  image_asset_id  uuid,                                                      -- primary image
   requires_appointment boolean NOT NULL DEFAULT false,
   booking_mode text NOT NULL DEFAULT 'none'
     CONSTRAINT products_booking_mode_check CHECK (booking_mode IN ('none', 'free_datetime', 'availability')),
@@ -164,7 +165,26 @@ CREATE TABLE IF NOT EXISTS public.products (
     REFERENCES public.media_assets (tenant_id, id) ON DELETE SET NULL (image_asset_id)
 );
 
--- 3.4 Portfolio gallery: application limit is 7 images total. The DB keeps positions 1..10
+-- 3.4 Additional product images. The legacy image_asset_id remains the primary image.
+CREATE TABLE IF NOT EXISTS public.product_images (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  product_id  uuid NOT NULL,
+  asset_id    uuid NOT NULL,
+  position    smallint NOT NULL CHECK (position IN (2, 3)),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, product_id, position),
+  FOREIGN KEY (tenant_id, product_id)
+    REFERENCES public.products (tenant_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (tenant_id, asset_id)
+    REFERENCES public.media_assets (tenant_id, id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_images_tenant_product
+  ON public.product_images (tenant_id, product_id, position);
+
+-- 3.5 Portfolio gallery: application limit is 7 images total. The DB keeps positions 1..10
 -- temporarily so legacy rows above 7 can be reviewed and removed manually; never delete them automatically.
 --     No rows => component not rendered (decided by app from row count).
 CREATE TABLE IF NOT EXISTS public.portfolio_images (
@@ -335,7 +355,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_domains_one_primary
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['businesses','products','leads','lead_notes','portfolio_images','appointments','appointment_blocks']
+  FOREACH t IN ARRAY ARRAY['businesses','products','leads','lead_notes','product_images','portfolio_images','appointments','appointment_blocks']
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%1$s_updated_at ON public.%1$I', t);
     EXECUTE format(
@@ -357,7 +377,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['products','leads','lead_items','lead_notes',
-                           'media_assets','portfolio_images','appointments','appointment_blocks']
+                           'media_assets','product_images','portfolio_images','appointments','appointment_blocks']
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE public.%I FORCE  ROW LEVEL SECURITY', t);
@@ -503,6 +523,7 @@ GRANT UPDATE (name, whatsapp_number, phone, email, about_text, config)
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.products          TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.media_assets      TO app_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.product_images    TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.portfolio_images  TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointments       TO app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.appointment_blocks TO app_runtime;

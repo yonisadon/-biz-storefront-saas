@@ -6,11 +6,13 @@ export type Product = {
   kind: 'product' | 'service';
   name: string;
   description: string | null;
+  details: { label: string; value: string }[];
   price_agorot: number | null;
   requires_appointment: boolean;
   booking_mode: 'none' | 'free_datetime' | 'availability';
   appointment_duration_minutes: number;
   image: { url: string; width: number | null; height: number | null } | null;
+  additional_images: { id: string; url: string; width: number | null; height: number | null; position: number }[];
 };
 export type GalleryImage = {
   id: string; url: string; alt: string | null; caption: string | null;
@@ -67,10 +69,14 @@ export type MProduct = {
   kind: 'product' | 'service';
   name: string;
   description: string | null;
+  details: { label: string; value: string }[];
   price_agorot: number | null;
   is_active: boolean;
   sort_order: number;
   image_url: string | null;
+  image_width?: number | null;
+  image_height?: number | null;
+  additional_images: { id: string; url: string; width: number | null; height: number | null; position: number }[];
   requires_appointment: boolean;
   booking_mode: 'none' | 'free_datetime' | 'availability';
   appointment_duration_minutes: number;

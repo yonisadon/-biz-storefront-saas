@@ -41,6 +41,60 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
+function ProductImageGallery({ product }: { product: Product }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const images = [
+    ...(product.image ? [{ id: 'primary', url: product.image.url, width: product.image.width, height: product.image.height }] : []),
+    ...(product.additional_images ?? []),
+  ];
+  const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [lightboxOpen]);
+  if (!images.length) return null;
+  const show = (index: number) => { setActive(index); dialog.current?.showModal(); setLightboxOpen(true); };
+  const move = (delta: number) => setActive((index) => (index + delta + images.length) % images.length);
+  return (
+    <div>
+      <button type="button" onClick={() => show(active)} aria-label={`הגדלת תמונת ${product.name}`} className="relative block aspect-[4/3] w-full cursor-zoom-in bg-gray-50">
+        <Image src={images[active].url} alt={product.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" />
+      </button>
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto p-2" role="group" aria-label="תמונות נוספות">
+          {images.map((image, index) => (
+            <button key={image.id} type="button" onClick={() => setActive(index)} aria-label={`הצגת תמונה ${index + 1} מתוך ${images.length}`} aria-pressed={active === index}
+              className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-transparent aria-pressed:border-primary focus-visible:outline-2 focus-visible:outline-offset-2">
+              <Image src={image.url} alt="" fill sizes="56px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+      <dialog ref={dialog} aria-label={`תמונות מוצר: ${product.name}`} onClose={() => setLightboxOpen(false)} onKeyDown={(event) => {
+        if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
+        if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
+      }} className="m-auto max-h-[95dvh] w-[calc(100%-1rem)] max-w-4xl rounded-2xl bg-black p-3 text-white backdrop:bg-black/80">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="text-sm">{product.name} · {active + 1} / {images.length}</span>
+          <button type="button" onClick={() => dialog.current?.close()} className="min-h-11 min-w-11 rounded-lg border border-white/40" aria-label="סגירת תמונה מוגדלת">✕</button>
+        </div>
+        <div className="relative mx-auto aspect-[4/3] max-h-[75dvh] w-full">
+          <Image src={images[active].url} alt={`${product.name}, תמונה ${active + 1}`} fill sizes="90vw" className="object-contain" />
+        </div>
+        {images.length > 1 && (
+          <div className="mt-3 flex items-center justify-between">
+            <button type="button" onClick={() => move(-1)} className="min-h-11 rounded-lg border border-white/40 px-4">הקודמת</button>
+            <button type="button" onClick={() => move(1)} className="min-h-11 rounded-lg border border-white/40 px-4">הבאה</button>
+          </div>
+        )}
+      </dialog>
+    </div>
+  );
+}
+
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -250,11 +304,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             const q = cart[p.id] ?? 0;
             return (
               <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
-                {p.image && (
-                  <div className="relative aspect-[4/3]">
-                    <Image src={p.image.url} alt={p.name} fill sizes="(min-width:640px) 50vw, 100vw" className="object-cover" />
-                  </div>
-                )}
+                <ProductImageGallery product={p} />
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{p.name}</h3>
@@ -272,6 +322,20 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <p className="mt-2 whitespace-pre-line">{p.description}</p>
                     </details>
                   ) : <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>)}
+                  {p.details?.length > 0 && (
+                    <div className="border-t border-ink/10 pt-2 text-sm">
+                      <h4 className="mb-2 font-semibold">פרטים נוספים</h4>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                        {p.details.slice(0, 4).map((detail, index) => <div key={index} className="min-w-0"><dt className="text-xs text-ink/60">{detail.label}</dt><dd className="break-words font-medium">{detail.value}</dd></div>)}
+                      </dl>
+                      {p.details.length > 4 && <details className="mt-2">
+                        <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">כל הפרטים</summary>
+                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                          {p.details.slice(4).map((detail, index) => <div key={index} className="min-w-0"><dt className="text-xs text-ink/60">{detail.label}</dt><dd className="break-words font-medium">{detail.value}</dd></div>)}
+                        </dl>
+                      </details>}
+                    </div>
+                  )}
                   <div className="mt-auto flex items-center justify-between gap-3 pt-2">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {canOrder && (q > 0 ? (
@@ -325,7 +389,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {lines.map(({ p, q }) => {
                 const mode = p.kind === 'service' ? modeOf(p) : 'none';
                 const durationLabel = mode === 'availability' ? 'משך שמשוריין ביומן' : mode === 'free_datetime' ? 'משך מבוקש, ללא שריון' : '';
-                return <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>;
+                return <li key={p.id} className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 flex-1">{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
+                  <span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
+                  {!done && p.kind === 'service' && (
+                    <div className="flex w-full items-center justify-between gap-3 border-t border-gray-200 pt-2">
+                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p.id, next)} />
+                      <button type="button" onClick={() => setQty(p.id, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת השירות</button>
+                    </div>
+                  )}
+                </li>;
               })}
             </ul>
             {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}

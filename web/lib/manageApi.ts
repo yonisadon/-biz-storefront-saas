@@ -17,10 +17,10 @@ export async function mcall<T>(
   return body as T;
 }
 
-export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg'): Promise<T> {
+export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg', method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const fd = new FormData();
   fd.append('file', file, filename); // no content-type header: the browser adds the boundary
-  const res = await fetch(`/api/manage/${token}/${path}`, { method: 'POST', body: fd, cache: 'no-store' });
+  const res = await fetch(`/api/manage/${token}/${path}`, { method, body: fd, cache: 'no-store' });
   const body = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, body);
   return body as T;
@@ -34,7 +34,10 @@ export function uploadErrorText(err: unknown): string {
         ? 'קבצים מונפשים אינם נתמכים.' : 'סוג הקובץ אינו נתמך. אפשר להעלות JPG, PNG או WebP.';
       case 422: return 'לא הצלחנו לקרוא את התמונה. נסו קובץ אחר.';
       case 409: return err.body?.error === 'gallery_full'
-        ? 'הגלריה מלאה (עד 7 תמונות).' : 'הפעולה התנגשה בשינוי אחר, נסו שוב.';
+        ? 'הגלריה מלאה (עד 7 תמונות).'
+        : err.body?.error === 'product_images_full'
+          ? 'כבר הועלו 3 תמונות למוצר.'
+          : 'הפעולה התנגשה בשינוי אחר, נסו שוב.';
       case 404: return 'הפריט לא נמצא.';
       case 429: return 'יותר מדי העלאות. נסו שוב בעוד דקה.';
     }

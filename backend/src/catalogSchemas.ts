@@ -9,10 +9,16 @@ const price = z.number().int().min(0).max(10_000_000).nullable(); // agorot, nul
 const appointmentDuration = z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120), z.literal(180), z.literal(240)]);
 export const BookingMode = z.enum(['none', 'free_datetime', 'availability']);
 
+const productDetails = z.array(z.object({
+  label: z.string().trim().min(1).max(50),
+  value: z.string().trim().min(1).max(250),
+}).strict()).max(20).default([]);
+
 export const ProductCreate = z.object({
   kind: z.enum(['product', 'service']).default('product'),
   name: z.string().trim().min(1).max(120),
   description: optText(2000).transform((v) => v ?? null),
+  details: productDetails,
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
   requires_appointment: z.boolean().default(false),
@@ -24,6 +30,7 @@ export const ProductPatch = z.object({
   kind: z.enum(['product', 'service']).optional(),
   name: z.string().trim().min(1).max(120).optional(),
   description: optText(2000),
+  details: productDetails.optional(),
   price_agorot: price.optional(),
   is_active: z.boolean().optional(),
   requires_appointment: z.boolean().optional(),
