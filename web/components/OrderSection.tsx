@@ -325,7 +325,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {lines.map(({ p, q }) => {
                 const mode = p.kind === 'service' ? modeOf(p) : 'none';
                 const durationLabel = mode === 'availability' ? 'משך שמשוריין ביומן' : mode === 'free_datetime' ? 'משך מבוקש, ללא שריון' : '';
-                return <li key={p.id} className="flex justify-between gap-3"><span>{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span><span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span></li>;
+                return <li key={p.id} className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 flex-1">{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
+                  <span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
+                  {!done && p.kind === 'service' && (
+                    <div className="flex w-full items-center justify-between gap-3 border-t border-gray-200 pt-2">
+                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p.id, next)} />
+                      <button type="button" onClick={() => setQty(p.id, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת השירות</button>
+                    </div>
+                  )}
+                </li>;
               })}
             </ul>
             {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
