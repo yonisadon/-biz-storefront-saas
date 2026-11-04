@@ -90,7 +90,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     try {
       const prepared = await prepareImage(file);
       const updated = await mupload<{ id: string; position: number; url: string; width: number | null; height: number | null }>(
-        token, `products/${current.id}/additional-images/${imageId}`, prepared, 'PUT',
+        token, `products/${current.id}/additional-images/${imageId}`, prepared, 'photo.jpg', 'PUT',
       );
       setCurrent((item) => item ? {
         ...item,
