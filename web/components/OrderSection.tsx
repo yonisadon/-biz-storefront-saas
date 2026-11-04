@@ -48,8 +48,15 @@ function ProductImageGallery({ product }: { product: Product }) {
     ...(product.additional_images ?? []),
   ];
   const [active, setActive] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [lightboxOpen]);
   if (!images.length) return null;
-  const show = (index: number) => { setActive(index); dialog.current?.showModal(); };
+  const show = (index: number) => { setActive(index); dialog.current?.showModal(); setLightboxOpen(true); };
   const move = (delta: number) => setActive((index) => (index + delta + images.length) % images.length);
   return (
     <div>
@@ -66,7 +73,7 @@ function ProductImageGallery({ product }: { product: Product }) {
           ))}
         </div>
       )}
-      <dialog ref={dialog} aria-label={`תמונות מוצר: ${product.name}`} onKeyDown={(event) => {
+      <dialog ref={dialog} aria-label={`תמונות מוצר: ${product.name}`} onClose={() => setLightboxOpen(false)} onKeyDown={(event) => {
         if (event.key === 'ArrowRight') { event.preventDefault(); move(1); }
         if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }
       }} className="m-auto max-h-[95dvh] w-[calc(100%-1rem)] max-w-4xl rounded-2xl bg-black p-3 text-white backdrop:bg-black/80">
