@@ -285,6 +285,35 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(result.image);
   });
 
+  app.put('/products/:id/additional-images/:imageId', uploadLimit, async (req) => {
+    const id = idParam(req);
+    const imageId = (req.params as { imageId: string }).imageId;
+    if (!UUID_RE.test(imageId)) throw new HttpError(404, 'not_found');
+    const { buffer, filename } = await readUpload(req);
+    const asset = await storeImage(req.tenantId, buffer);
+    try {
+      const result = await withTenant(req.tenantId, async (db) => {
+        const current = await db.query(
+          'SELECT asset_id FROM product_images WHERE id = $1 AND product_id = $2 FOR UPDATE',
+          [imageId, id],
+        );
+        if (!current.rows[0]) throw new HttpError(404, 'not_found');
+        await insertAsset(db, asset, filename);
+        await db.query(
+          'UPDATE product_images SET asset_id = $1 WHERE id = $2 AND product_id = $3',
+          [asset.id, imageId, id],
+        );
+        const oldKeys = await dropAssetIfOrphan(db, current.rows[0].asset_id);
+        return { oldKeys };
+      });
+      await removeQuietly(req, result.oldKeys);
+      return { id: imageId, url: mediaUrl(asset.key), width: asset.width, height: asset.height };
+    } catch (err) {
+      await removeQuietly(req, variantKeys(asset.key));
+      throw err;
+    }
+  });
+
   app.delete('/products/:id/additional-images/:imageId', async (req, reply) => {
     const id = idParam(req);
     const imageId = (req.params as { imageId: string }).imageId;
