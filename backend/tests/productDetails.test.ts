@@ -24,3 +24,9 @@ test('product details reject empty labels, empty values and more than 20 rows', 
   const tooMany = Array.from({ length: 21 }, (_, i) => ({ label: `Field ${i}`, value: 'value' }));
   assert.throws(() => ProductCreate.parse({ name: 'Product', details: tooMany }));
 });
+
+
+test('product patch defaults missing details unchanged and accepts empty details array', () => {
+  assert.equal(ProductPatch.parse({ name: 'Updated' }).details, undefined);
+  assert.deepEqual(ProductPatch.parse({ details: [] }).details, []);
+});

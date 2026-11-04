@@ -186,7 +186,12 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       };
       // Column names are hard-coded; legacy clients map the old boolean to free_datetime.
       for (const c of ['kind', 'name', 'description', 'details', 'price_agorot', 'is_active', 'requires_appointment', 'booking_mode', 'appointment_duration_minutes'] as const) {
-        if (normalizedPatch[c] !== undefined) { vals.push(normalizedPatch[c]); sets.push(`${c} = $${vals.length}`); }
+        if (normalizedPatch[c] !== undefined) {
+          // node-postgres serializes JS arrays as PostgreSQL arrays (e.g. {}), not JSON arrays.
+          // JSONB details must be sent as JSON text so [] remains a JSON array and passes the DB constraint.
+          vals.push(c === 'details' ? JSON.stringify(normalizedPatch[c]) : normalizedPatch[c]);
+          sets.push(`${c} = ${vals.length}${c === 'details' ? '::jsonb' : ''}`);
+        }
       }
       vals.push(id);
       const r = await db.query(`UPDATE products SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING id`, vals);
