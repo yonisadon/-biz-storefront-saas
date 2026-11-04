@@ -85,6 +85,24 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     } catch (err) { setMsg(uploadErrorText(err)); }
   }
 
+  async function replaceAdditionalImage(imageId: string, file: File) {
+    if (!current) return;
+    try {
+      const prepared = await prepareImage(file);
+      const updated = await mupload<{ id: string; position: number; url: string; width: number | null; height: number | null }>(
+        token, `products/${current.id}/additional-images/${imageId}`, prepared, 'PUT',
+      );
+      setCurrent((item) => item ? {
+        ...item,
+        additional_images: item.additional_images.map((image) => image.id === imageId ? updated : image),
+      } : item);
+      setMsg(null);
+      onChanged();
+    } catch (err) {
+      setMsg(`החלפת התמונה הנוספת נכשלה: ${uploadErrorText(err)}`);
+    }
+  }
+
   async function removeAdditionalImage(imageId: string) {
     if (!current) return;
     try {
@@ -230,6 +248,14 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
               <div key={image.id} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                <label className="absolute inset-x-0 bottom-0 cursor-pointer rounded-b-lg bg-black/70 py-1 text-center text-[10px] font-medium text-white">
+                  החלפה
+                  <input type="file" accept={ACCEPT} className="sr-only" aria-label="החלפת תמונה נוספת" onChange={(e) => {
+                    const selected = e.target.files?.[0];
+                    e.target.value = '';
+                    if (selected) void replaceAdditionalImage(image.id, selected);
+                  }} />
+                </label>
                 <button type="button" onClick={() => removeAdditionalImage(image.id)} aria-label="הסרת תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
               </div>
             ))}
