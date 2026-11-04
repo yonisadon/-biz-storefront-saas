@@ -190,7 +190,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
           // node-postgres serializes JS arrays as PostgreSQL arrays (e.g. {}), not JSON arrays.
           // JSONB details must be sent as JSON text so [] remains a JSON array and passes the DB constraint.
           vals.push(c === 'details' ? JSON.stringify(normalizedPatch[c]) : normalizedPatch[c]);
-          sets.push(`${c} = ${vals.length}${c === 'details' ? '::jsonb' : ''}`);
+          sets.push(`${c} = $${vals.length}${c === 'details' ? '::jsonb' : ''}`);
         }
       }
       vals.push(id);
