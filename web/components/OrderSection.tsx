@@ -93,8 +93,8 @@ function ProductImageGallery({ product }: { product: Product }) {
         <div className="relative mx-auto flex h-[min(68dvh,720px)] w-full items-center justify-center overflow-hidden rounded-xl bg-black">
           <Image src={images[active].url} alt={`${product.name}, תמונה ${active + 1}`} fill sizes="90vw" className="object-contain" />
           {images.length > 1 && <>
-            <button type="button" onClick={() => move(-1)} className="absolute start-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הקודמת">‹</button>
-            <button type="button" onClick={() => move(1)} className="absolute end-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הבאה">›</button>
+            <button type="button" onClick={() => move(-1)} className="absolute start-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הקודמת">›</button>
+            <button type="button" onClick={() => move(1)} className="absolute end-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הבאה">‹</button>
           </>}
         </div>
         {images.length > 1 && (
