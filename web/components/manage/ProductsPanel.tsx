@@ -45,6 +45,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [details, setDetails] = useState<{ label: string; value: string }[]>(product?.details ?? []);
   const [extraFiles, setExtraFiles] = useState<Blob[]>([]);
   const [extraPreviews, setExtraPreviews] = useState<string[]>([]);
+  const extraPreviewUrls = useRef<string[]>([]);
   const [quote, setQuote] = useState(product ? product.price_agorot === null : false);
   const [priceStr, setPriceStr] = useState(product?.price_agorot != null ? String(product.price_agorot / 100) : '');
   const [active, setActive] = useState(product?.is_active ?? true);
@@ -56,10 +57,8 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => { ref.current?.showModal(); }, []);
-  useEffect(() => () => {
-    if (preview) URL.revokeObjectURL(preview);
-    extraPreviews.forEach((url) => URL.revokeObjectURL(url));
-  }, [preview, extraPreviews]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  useEffect(() => () => { extraPreviewUrls.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
 
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -78,8 +77,10 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     if (files.length > available) return setMsg('אפשר להוסיף עד 2 תמונות נוספות (3 תמונות בסך הכול).');
     try {
       const prepared = await Promise.all(files.map((file) => prepareImage(file)));
+      const urls = prepared.map((blob) => URL.createObjectURL(blob));
+      extraPreviewUrls.current = [...extraPreviewUrls.current, ...urls];
       setExtraFiles((items) => [...items, ...prepared]);
-      setExtraPreviews((items) => [...items, ...prepared.map((blob) => URL.createObjectURL(blob))]);
+      setExtraPreviews((items) => [...items, ...urls]);
       setMsg(null);
     } catch (err) { setMsg(uploadErrorText(err)); }
   }
@@ -228,7 +229,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
               <div key={url} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                <button type="button" onClick={() => { setExtraFiles((items) => items.filter((_, i) => i !== index)); setExtraPreviews((items) => items.filter((_, i) => i !== index)); }} aria-label="ביטול תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
+                <button type="button" onClick={() => { URL.revokeObjectURL(url); extraPreviewUrls.current = extraPreviewUrls.current.filter((item) => item !== url); setExtraFiles((items) => items.filter((_, i) => i !== index)); setExtraPreviews((items) => items.filter((_, i) => i !== index)); }} aria-label="ביטול תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
               </div>
             ))}
           </div>
