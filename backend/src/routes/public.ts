@@ -18,12 +18,20 @@ async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset
   const term = search.trim();
   const where = term ? `WHERE p.is_active AND (p.name ILIKE '%' || $1 || '%' OR COALESCE(p.description, '') ILIKE '%' || $1 || '%')` : 'WHERE p.is_active';
   const result = limit === null
-    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at`, term ? [term] : [])
+    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height,
+                COALESCE((
+                  SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
+                    FROM product_images pi
+                    JOIN media_assets pm ON pm.tenant_id = pi.tenant_id AND pm.id = pi.asset_id
+                   WHERE pi.tenant_id = p.tenant_id AND pi.product_id = p.id
+                ), '[]'::json) AS extra_images
+           FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at`, term ? [term] : [])
     : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at LIMIT ${term ? '$2' : '$1'} OFFSET ${term ? '$3' : '$2'}`, term ? [term, limit, offset] : [limit, offset]);
   const items = result.rows.map((r) => ({
-    id: r.id, kind: r.kind, name: r.name, description: r.description, price_agorot: r.price_agorot,
+    id: r.id, kind: r.kind, name: r.name, description: r.description, details: r.details ?? [], price_agorot: r.price_agorot,
     requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
     image: r.storage_key ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height } : null,
+    additional_images: (r.extra_images ?? []).map((image: any) => ({ id: image.id, url: mediaUrl(env.MEDIA_BASE_URL, image.storage_key), width: image.width, height: image.height, position: image.position })),
   }));
   let total = limit === null ? items.length : (result.rows[0] ? Number(result.rows[0].total) : 0);
   if (limit !== null && items.length === 0 && offset > 0) {
