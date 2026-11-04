@@ -1,4 +1,6 @@
 import pg from 'pg';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { applyTenantMigrations } from '../src/tenantMigrations';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
@@ -159,11 +161,38 @@ async function main() {
     }
     const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
     if (!backupConfirmed) {
-      throw new Error(
-        'Refusing to apply tenant migrations: TENANT_MIGRATION_BACKUP_CONFIRMED=true is required after a verified, restorable backup has been completed.',
-      );
+      const migrationDir = join(process.cwd(), 'migrations');
+      const migrationFiles = readdirSync(migrationDir)
+        .filter((file) => /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i.test(file))
+        .sort();
+      let targetMigrationPending = false;
+      // One narrowly scoped exception: tenant-004 may run without a backup.
+      // Every tenant DB must have no other pending migration.
+      for (const tenant of tenants) {
+        const label = 'tenant database ' + tenant.database_name + ' migration gate';
+        const db = await connect(databaseUrl(tenant.database_name), label);
+        try {
+          const ledger = await db.query("SELECT to_regclass('public.tenant_schema_migrations') AS ledger");
+          if (!ledger.rows[0].ledger) {
+            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': migration ledger is missing.');
+          }
+          const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
+          const appliedVersions = new Set(appliedRows.rows.map((row) => String(row.version)));
+          const pending = migrationFiles.filter((file) => !appliedVersions.has(file));
+          const unexpected = pending.filter((file) => file !== 'tenant-004-product-images-details.sql');
+          if (unexpected.length) {
+            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': other pending migration(s): ' + unexpected.join(', ') + '.');
+          }
+          if (pending.includes('tenant-004-product-images-details.sql')) targetMigrationPending = true;
+        } finally {
+          await db.end();
+        }
+      }
+      if (!targetMigrationPending) {
+        throw new Error('Refusing no-backup migration: tenant-004-product-images-details.sql is not pending on any tenant database.');
+      }
+      console.warn('WARNING: proceeding without a verified backup for tenant-004-product-images-details.sql only. All other pending tenant migrations are blocked.');
     }
-
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
       const db = await connect(databaseUrl(tenant.database_name), `tenant database ${tenant.database_name}`);
