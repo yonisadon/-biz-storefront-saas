@@ -177,12 +177,35 @@ async function main() {
           `SELECT to_regclass('public.appointments') AS appointments,
                   to_regclass('public.appointment_blocks') AS appointment_blocks,
                   to_regclass('public.products') AS products,
+                  to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
                   to_regclass('public.business_domains') AS business_domains`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.leads || !post.business_domains) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain tables are missing.`);
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
+        }
+        const productDetailsColumn = await db.query(
+          `SELECT data_type, is_nullable
+             FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'products' AND column_name = 'details'`,
+        );
+        if (!productDetailsColumn.rowCount || productDetailsColumn.rows[0].data_type !== 'jsonb' || productDetailsColumn.rows[0].is_nullable !== 'NO') {
+          throw new Error(`Postflight failed for ${tenant.database_name}: products.details is missing or has an unexpected definition.`);
+        }
+        const productImagesSecurity = await db.query(
+          `SELECT c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'product_images' AND p.policyname = 'tenant_isolation') AS tenant_policy,
+                  has_table_privilege('app_runtime', 'public.product_images', 'SELECT') AS can_select,
+                  has_table_privilege('app_runtime', 'public.product_images', 'INSERT') AS can_insert,
+                  has_table_privilege('app_runtime', 'public.product_images', 'UPDATE') AS can_update,
+                  has_table_privilege('app_runtime', 'public.product_images', 'DELETE') AS can_delete
+             FROM pg_class c WHERE c.oid = 'public.product_images'::regclass`,
+        );
+        const security = productImagesSecurity.rows[0];
+        if (!security?.relrowsecurity || !security.relforcerowsecurity || !security.tenant_policy ||
+            !security.can_select || !security.can_insert || !security.can_update || !security.can_delete) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: product_images tenant isolation or app_runtime permissions are incomplete.`);
         }
         const requiredColumns = await db.query(
           `SELECT table_name, column_name
