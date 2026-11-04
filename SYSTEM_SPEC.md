@@ -1208,3 +1208,11 @@
 - **בדיקות:** נוספו בדיקות יחידה למצב no-op, למצב שבו tenant-004 ממתינה ולחסימת מיגרציה אחרת. נדרש CI מלא לפני מיזוג.
 - **שמירת מוצרים:** קוד PR #53 ב-`main` כולל JSON.stringify ל-`details` ב-PATCH וגם ב-POST. לוגי Railway מראים שהבקשות עדיין טופלו על ידי תהליך פעיל ישן בזמן שהפריסה החדשה נכשלה; לכן אין להסיק שהקוד המתוקן כבר פעיל. יש לוודא פריסת Railway מוצלחת ולאחריה לבדוק יצירת מוצר חדש ועריכת מוצר קיים.
 - **סטטוס:** תיקון שער המיגרציה בענף `fix/tenant-migration-noop-deploy`; טרם אושר CI, טרם נפתח PR, לא מוזגו שינויים ולא בוצעה פריסה. אין שינוי נתונים במסדי tenant במסגרת שינוי הקוד הזה.
+
+## Product PATCH SQL parameter binding correction (2026-11-04)
+
+- Railway runtime logs after deployment `e07c9004` showed product PATCH requests failing with PostgreSQL error `cannot cast type integer to jsonb` at `backend/src/routes/catalog.ts`.
+- Root cause: the dynamic PATCH assignment builder emitted the parameter index as a bare integer (for example, `details = 1::jsonb`) instead of a PostgreSQL bind placeholder (for example, `details = $1::jsonb`). This affected every dynamically updated product column, not only `details`.
+- Corrected the assignment builder to prefix every index with `$`, retaining the JSONB cast only for `details`.
+- The earlier tenant migration is confirmed applied on all three tenant databases; Railway preflight passed and reported no migration changes required. This runtime failure is a SQL query construction bug, not evidence of a missing image migration.
+- Status: code correction committed to branch `fix/product-patch-sql-placeholder`; awaiting CI and review. Do not declare product editing fixed until Railway is deployed and both product creation and editing are tested successfully.
