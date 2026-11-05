@@ -430,3 +430,12 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root[data-storefront-theme="creative"] .storefront-items-list[data-layout="grid"] > li:nth-child(3n + 2) {
   transform: none;
 }
+
+
+/* Luxury layout: apply portrait ratio to the actual image, not the wrapper containing thumbnails. */
+.brand-root .storefront-items-list[data-layout="luxury_catalog"] > li[data-has-image="true"] > :first-child:not(.relative) {
+  aspect-ratio: auto;
+}
+.brand-root .storefront-items-list[data-layout="luxury_catalog"] > li[data-has-image="true"] > :first-child > button:first-child {
+  aspect-ratio: 4 / 5;
+}
