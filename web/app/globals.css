@@ -439,3 +439,44 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root .storefront-items-list[data-layout="luxury_catalog"] > li[data-has-image="true"] > :first-child > button:first-child {
   aspect-ratio: 4 / 5;
 }
+
+
+/* Follow-up from real storefront review: remove narrow-grid mode and keep list text horizontal. */
+.brand-root .storefront-items-list[data-layout="list"] > li {
+  grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+  align-items: start;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :first-child {
+  min-width: 0;
+  width: 100%;
+  min-height: 0;
+  align-self: start;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :first-child > button:first-child {
+  aspect-ratio: 4 / 5;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :last-child {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li h3 {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li p,
+.brand-root .storefront-items-list[data-layout="list"] > li dt,
+.brand-root .storefront-items-list[data-layout="list"] > li dd {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
