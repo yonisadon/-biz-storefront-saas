@@ -54,7 +54,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   type ItemLayout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
   type GalleryLayout = 'slider' | 'thumbnails';
   const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
-  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'grid', 'carousel', 'luxury_catalog'];
+  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'carousel', 'luxury_catalog'];
   const savedTheme = biz.config.branding?.storefront_theme as StorefrontTheme | undefined;
   const savedGalleryLayout = biz.config.branding?.hero_gallery_layout as GalleryLayout | undefined;
   const savedProductLayout = biz.config.branding?.product_layout as ItemLayout | undefined;

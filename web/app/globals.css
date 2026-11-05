@@ -439,3 +439,120 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root .storefront-items-list[data-layout="luxury_catalog"] > li[data-has-image="true"] > :first-child > button:first-child {
   aspect-ratio: 4 / 5;
 }
+
+
+/* Follow-up from real storefront review: remove narrow-grid mode and keep list text horizontal. */
+.brand-root .storefront-items-list[data-layout="list"] > li {
+  grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+  align-items: start;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :first-child {
+  min-width: 0;
+  width: 100%;
+  min-height: 0;
+  align-self: start;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :first-child > button:first-child {
+  aspect-ratio: 4 / 5;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li > :last-child {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li h3 {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li p,
+.brand-root .storefront-items-list[data-layout="list"] > li dt,
+.brand-root .storefront-items-list[data-layout="list"] > li dd {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Content resilience across every product/service layout. */
+.brand-root .storefront-items-list > li.storefront-card h3 {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  writing-mode: horizontal-tb;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list > li.storefront-card > div:last-child {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.brand-root .storefront-items-list > li.storefront-card > div:last-child > div:last-child {
+  margin-top: auto;
+}
+
+/* Cards, gallery tiles and carousel cards share a row height; actions stay aligned. */
+.brand-root .storefront-items-list[data-layout="cards"] > li.storefront-card,
+.brand-root .storefront-items-list[data-layout="gallery"] > li.storefront-card,
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card {
+  align-self: stretch;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] {
+  align-items: stretch;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card {
+  display: flex;
+  flex-direction: column;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card > :first-child {
+  flex: 0 0 auto;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card > div:last-child {
+  flex: 1 1 auto;
+}
+
+/* Long text must wrap in every content slot, not only the product heading. */
+.brand-root .storefront-items-list > li.storefront-card :is(h3, p, dt, dd, summary, span) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.brand-root .storefront-items-list > li.storefront-card [class*="grid-cols-"] {
+  min-width: 0;
+}
+.brand-root .storefront-items-list > li.storefront-card details dl > div {
+  min-width: 0;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+}
+.brand-root .storefront-items-list > li.storefront-card .storefront-card-price {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.brand-root .storefront-items-list > li.storefront-card .storefront-card-action {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.brand-root .storefront-items-list > li.storefront-card [class*="rounded-full"][class*="text-xs"] {
+  max-width: 45%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+@media (max-width: 420px) {
+  .brand-root .storefront-items-list > li.storefront-card details dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .25rem;
+  }
+}

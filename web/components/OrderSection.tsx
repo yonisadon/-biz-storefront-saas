@@ -87,7 +87,7 @@ function ProductImageGallery({ product }: { product: Product }) {
       }} className="m-auto max-h-[96dvh] w-[calc(100%-1rem)] max-w-5xl rounded-2xl border border-white/10 bg-neutral-950 p-3 text-white shadow-2xl backdrop:bg-black/85 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold sm:text-base">{product.name}</p>
+            <p className="min-w-0 whitespace-normal break-words text-sm font-semibold [overflow-wrap:anywhere] sm:text-base">{product.name}</p>
             <p className="text-xs text-white/65">תצוגת תמונה מוגדלת · {active + 1} מתוך {images.length}</p>
           </div>
           <button type="button" onClick={() => dialog.current?.close()} autoFocus className="grid min-h-11 min-w-11 place-items-center rounded-full border border-white/30 bg-white/10 text-xl transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="סגירת גלריית התמונות">✕</button>
@@ -339,7 +339,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 <ProductImageGallery product={p} />
                 <div className="flex min-w-0 flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold">{p.name}</h3>
+                    <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}

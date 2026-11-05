@@ -14,7 +14,6 @@ const layouts: { id: Layout; title: string; description: string }[] = [
   { id: 'cards', title: 'כרטיסיות קלאסיות', description: 'העיצוב המוכר: תמונה, שם, תיאור ופעולה בכרטיס ברור.' },
   { id: 'gallery', title: 'גלריית מוצרים', description: 'דגש על התמונות; פרטי המוצר נשארים נגישים ומתחת לתמונה.' },
   { id: 'list', title: 'רשימה', description: 'תמונה לצד פרטי הפריט, בגובה טבעי לפי התוכן.' },
-  { id: 'grid', title: 'רשת', description: 'כמה כרטיסים בשורה, ללא חיתוך טקסט או גובה כפוי.' },
   { id: 'carousel', title: 'קרוסלה', description: 'גלילה אופקית; כל כרטיס בגובה התוכן שלו.' },
   { id: 'luxury_catalog', title: 'קטלוג יוקרתי', description: 'תמונות גדולות ומעט פריטים בכל שורה.' },
 ];
