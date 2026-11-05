@@ -90,6 +90,10 @@
             "warm"
           ]
         },
+        "business_title_color": {
+          "type": "string",
+          "enum": ["brand", "black"]
+        },
         "storefront_theme": {
           "type": "string",
           "enum": ["soft", "flat", "editorial", "creative"]
