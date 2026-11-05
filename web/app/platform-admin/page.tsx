@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import PalettePicker from '@/components/PalettePicker';
+import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
 import { BRAND_PALETTES, type PaletteId } from '@/lib/palettes';
 
 type CreatedBusiness = {
@@ -27,6 +28,9 @@ export default function PlatformAdminPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [email, setEmail] = useState('');
   const [palette, setPalette] = useState<PaletteId>('natural');
+  const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
+  const [productLayout, setProductLayout] = useState<'list' | 'grid' | 'carousel' | 'luxury_catalog'>('grid');
+  const [serviceLayout, setServiceLayout] = useState<'list' | 'grid' | 'carousel' | 'luxury_catalog'>('grid');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<CreatedBusiness | null>(null);
@@ -60,7 +64,7 @@ export default function PlatformAdminPage() {
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
-          branding: { colors: BRAND_PALETTES[palette].colors },
+          branding: { colors: BRAND_PALETTES[palette].colors, storefront_theme: storefrontTheme, product_layout: productLayout, service_layout: serviceLayout },
         }),
         cache: 'no-store',
       });
@@ -90,6 +94,9 @@ export default function PlatformAdminPage() {
       setWhatsappNumber('');
       setEmail('');
       setPalette('natural');
+      setStorefrontTheme('soft');
+      setProductLayout('grid');
+      setServiceLayout('grid');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה לא צפויה.');
     } finally {
@@ -138,6 +145,7 @@ export default function PlatformAdminPage() {
           </div>
 
           <PalettePicker value={palette} onChange={setPalette} />
+          <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>

@@ -21,7 +21,11 @@ const CreateBusiness = z.object({
     primary: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i), secondary: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
     accent: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i), background: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
     text: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
-  }).strict() }).optional(),
+  }).strict(),
+    storefront_theme: z.enum(['soft', 'flat', 'editorial', 'creative']).optional(),
+    product_layout: z.enum(['list', 'grid', 'carousel', 'luxury_catalog']).optional(),
+    service_layout: z.enum(['list', 'grid', 'carousel', 'luxury_catalog']).optional(),
+  }).strict().optional(),
 }).strict();
 
 

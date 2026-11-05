@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean };
+type Layout = 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
 type Step = 'choose' | 'site';
@@ -43,6 +44,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
 
 function ProductImageGallery({ product }: { product: Product }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const touchStart = useRef<number | null>(null);
   const images = [
     ...(product.image ? [{ id: 'primary', url: product.image.url, width: product.image.width, height: product.image.height }] : []),
     ...(product.additional_images ?? []),
@@ -90,12 +92,17 @@ function ProductImageGallery({ product }: { product: Product }) {
           </div>
           <button type="button" onClick={() => dialog.current?.close()} autoFocus className="grid min-h-11 min-w-11 place-items-center rounded-full border border-white/30 bg-white/10 text-xl transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="סגירת גלריית התמונות">✕</button>
         </div>
-        <div className="relative mx-auto flex h-[min(68dvh,720px)] w-full items-center justify-center overflow-hidden rounded-xl bg-black">
+        <div
+          className="relative mx-auto flex h-[min(68dvh,720px)] w-full touch-pan-y items-center justify-center overflow-hidden rounded-xl bg-black"
+          onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
+          onTouchEnd={(event) => {
+            if (touchStart.current === null || images.length < 2) return;
+            const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current;
+            if (Math.abs(delta) > 45) move(delta < 0 ? 1 : -1);
+            touchStart.current = null;
+          }}
+        >
           <Image src={images[active].url} alt={`${product.name}, תמונה ${active + 1}`} fill sizes="90vw" className="object-contain" />
-          {images.length > 1 && <>
-            <button type="button" onClick={() => move(-1)} className="absolute start-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הקודמת">›</button>
-            <button type="button" onClick={() => move(1)} className="absolute end-3 grid min-h-11 min-w-11 place-items-center rounded-full bg-black/65 text-2xl text-white shadow-lg transition hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-white" aria-label="התמונה הבאה">‹</button>
-          </>}
         </div>
         {images.length > 1 && (
           <div className="mt-3 flex justify-center gap-2 overflow-x-auto pb-1" role="group" aria-label="בחירת תמונה בגלריה">
@@ -113,7 +120,7 @@ function ProductImageGallery({ product }: { product: Product }) {
   );
 }
 
-export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const [items, setItems] = useState<Product[]>(initialItems);
@@ -317,11 +324,18 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {!searching && search.trim() && items.length === 0 && !catalogError && <p className="mt-4 text-sm text-ink/65">לא נמצאו פריטים התואמים לחיפוש.</p>}
 
       {items.length > 0 && (
-        <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((p) => {
+        <div className="mt-5 space-y-8">
+          {(['product', 'service'] as const).map((kind) => {
+            const groupItems = items.filter((item) => item.kind === kind);
+            if (!groupItems.length) return null;
+            const layout = kind === 'product' ? productLayout : serviceLayout;
+            return <section key={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
+              {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
+              <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
+          {groupItems.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
-              <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
+              <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
                 <ProductImageGallery product={p} />
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -343,13 +357,17 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {p.details?.length > 0 && (
                     <div className="border-t border-ink/10 pt-2 text-sm">
                       <h4 className="mb-2 font-semibold">פרטים נוספים</h4>
-                      <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                        {p.details.slice(0, 4).map((detail, index) => <div key={index} className="min-w-0"><dt className="text-xs text-ink/60">{detail.label}</dt><dd className="break-words font-medium">{detail.value}</dd></div>)}
+                      <dl className="divide-y divide-ink/10">
+                        {p.details.slice(0, 4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0 last:pb-0">
+                          <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                        </div>)}
                       </dl>
                       {p.details.length > 4 && <details className="mt-2">
                         <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">כל הפרטים</summary>
-                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
-                          {p.details.slice(4).map((detail, index) => <div key={index} className="min-w-0"><dt className="text-xs text-ink/60">{detail.label}</dt><dd className="break-words font-medium">{detail.value}</dd></div>)}
+                        <dl className="mt-2 divide-y divide-ink/10">
+                          {p.details.slice(4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2">
+                            <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                          </div>)}
                         </dl>
                       </details>}
                     </div>
@@ -369,7 +387,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               </li>
             );
           })}
-        </ul>
+              </ul>
+            </section>;
+          })}
+        </div>
       )}
 
       {(search.trim() ? searchTotal : catalogTotal) > 0 && <div className="mt-5 flex flex-col items-center gap-2">

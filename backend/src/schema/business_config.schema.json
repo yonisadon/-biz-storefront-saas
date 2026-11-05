@@ -89,6 +89,18 @@
             "elegant",
             "warm"
           ]
+        },
+        "storefront_theme": {
+          "type": "string",
+          "enum": ["soft", "flat", "editorial", "creative"]
+        },
+        "product_layout": {
+          "type": "string",
+          "enum": ["list", "grid", "carousel", "luxury_catalog"]
+        },
+        "service_layout": {
+          "type": "string",
+          "enum": ["list", "grid", "carousel", "luxury_catalog"]
         }
       },
       "required": [
