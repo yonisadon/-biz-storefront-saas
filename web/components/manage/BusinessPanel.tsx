@@ -51,15 +51,18 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   });
   const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
   type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
-  type ItemLayout = 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+  type ItemLayout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+  type GalleryLayout = 'slider' | 'thumbnails';
   const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
-  const validLayouts: ItemLayout[] = ['list', 'grid', 'carousel', 'luxury_catalog'];
+  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'grid', 'carousel', 'luxury_catalog'];
   const savedTheme = biz.config.branding?.storefront_theme as StorefrontTheme | undefined;
+  const savedGalleryLayout = biz.config.branding?.hero_gallery_layout as GalleryLayout | undefined;
   const savedProductLayout = biz.config.branding?.product_layout as ItemLayout | undefined;
   const savedServiceLayout = biz.config.branding?.service_layout as ItemLayout | undefined;
   const [storefrontTheme, setStorefrontTheme] = useState<StorefrontTheme>(savedTheme && validThemes.includes(savedTheme) ? savedTheme : 'soft');
-  const [productLayout, setProductLayout] = useState<ItemLayout>(savedProductLayout && validLayouts.includes(savedProductLayout) ? savedProductLayout : 'grid');
-  const [serviceLayout, setServiceLayout] = useState<ItemLayout>(savedServiceLayout && validLayouts.includes(savedServiceLayout) ? savedServiceLayout : 'grid');
+  const [galleryLayout, setGalleryLayout] = useState<GalleryLayout>(savedGalleryLayout === 'thumbnails' ? 'thumbnails' : 'slider');
+  const [productLayout, setProductLayout] = useState<ItemLayout>(savedProductLayout && validLayouts.includes(savedProductLayout) ? savedProductLayout : 'cards');
+  const [serviceLayout, setServiceLayout] = useState<ItemLayout>(savedServiceLayout && validLayouts.includes(savedServiceLayout) ? savedServiceLayout : 'cards');
   type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
   const validFontStyles: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
   const savedFontStyle = biz.config.branding?.font_style as FontStyle | undefined;
@@ -92,7 +95,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           config: {
             site_mode: siteMode,
             order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site, whatsapp_intro: f.whatsappIntro.trim() },
-            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, storefront_theme: storefrontTheme, product_layout: productLayout, service_layout: serviceLayout },
+            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
@@ -118,7 +121,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
         <PalettePicker value={palette} onChange={setPalette} />
-        <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
+        <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
           <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
           <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות בכל עת; אם לא בוחרים, נשמר הסגנון המודרני כברירת מחדל.</p>
