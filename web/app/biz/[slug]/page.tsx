@@ -110,7 +110,7 @@ export default async function StorefrontPage({ params }: Props) {
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main id="storefront-main" tabIndex={-1} className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
       <div className="storefront-intro" data-has-gallery={data.gallery?.length > 0 ? 'true' : 'false'}>
-      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
+      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></div>}
       <header className="storefront-hero mx-auto mb-6 max-w-4xl px-5 py-6 text-center sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
@@ -127,13 +127,13 @@ export default async function StorefrontPage({ params }: Props) {
           {(['product', 'service'] as const).map((kind) => {
             const groupItems = whatsappItems.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
-            const layout = kind === 'product' ? data.branding?.product_layout ?? 'grid' : data.branding?.service_layout ?? 'grid';
+            const layout = kind === 'product' ? data.branding?.product_layout ?? 'cards' : data.branding?.service_layout ?? 'cards';
             return <div key={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} data-has-image={item.image?.url ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
             {item.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={item.image.url} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
-            <div className="flex flex-1 flex-col p-4">
+            <div className="flex min-w-0 flex-col gap-2 p-4">
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
               <h3 className="text-lg font-bold">{item.name}</h3>
               {item.description && (item.description.trim().length > 150 ? (
@@ -146,24 +146,16 @@ export default async function StorefrontPage({ params }: Props) {
                   <p className="mt-2 whitespace-pre-line">{item.description}</p>
                 </details>
               ) : <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{item.description}</p>)}
-              {item.details?.length > 0 && <div className="mt-3 border-t border-ink/10 pt-3 text-sm">
-                <h4 className="mb-2 font-semibold">פרטים נוספים</h4>
-                <dl className="divide-y divide-ink/10">
-                  {item.details.slice(0, 4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0 last:pb-0">
-                    <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+              {item.details?.length > 0 && <details className="mt-2 border-t border-ink/10 pt-3 text-sm">
+                <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({item.details.length})</summary>
+                <dl className="mt-2 divide-y divide-ink/10">
+                  {item.details.map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0">
+                    <dt className="min-w-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
                   </div>)}
                 </dl>
-                {item.details.length > 4 && <details className="mt-2">
-                  <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">כל הפרטים</summary>
-                  <dl className="mt-2 divide-y divide-ink/10">
-                    {item.details.slice(4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2">
-                      <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
-                    </div>)}
-                  </dl>
-                </details>}
-              </div>}
+              </details>}
               {item.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(item.price_agorot)}</p>}
-              <div className="mt-auto pt-4">
+              <div className="pt-2">
                 {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
@@ -173,7 +165,7 @@ export default async function StorefrontPage({ params }: Props) {
           })}
         </div>
       </section>}
-      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={data.branding?.product_layout ?? 'grid'} serviceLayout={data.branding?.service_layout ?? 'grid'} /></section> : null}
+      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={data.branding?.product_layout ?? 'cards'} serviceLayout={data.branding?.service_layout ?? 'cards'} /></section> : null}
       {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
