@@ -20,17 +20,18 @@ test('legacy tenant config remains valid without storefront theme fields', () =>
 });
 
 test('all supported storefront themes and independent item layouts validate', () => {
-  for (const storefront_theme of ['soft', 'flat', 'editorial', 'creative']) {
-    const errors = validateConfig({
-      ...baseConfig,
-      branding: {
-        colors,
-        storefront_theme,
-        product_layout: 'luxury_catalog',
-        service_layout: 'list',
-      },
-    });
-    assert.equal(errors, null, errors?.join('; '));
+  const themes = ['soft', 'flat', 'editorial', 'creative'] as const;
+  const layouts = ['list', 'grid', 'carousel', 'luxury_catalog'] as const;
+  for (const storefront_theme of themes) {
+    for (const product_layout of layouts) {
+      for (const service_layout of layouts) {
+        const errors = validateConfig({
+          ...baseConfig,
+          branding: { colors, storefront_theme, product_layout, service_layout },
+        });
+        assert.equal(errors, null, errors?.join('; '));
+      }
+    }
   }
 });
 
