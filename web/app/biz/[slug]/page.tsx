@@ -137,6 +137,22 @@ export default async function StorefrontPage({ params }: Props) {
                   <p className="mt-2 whitespace-pre-line">{item.description}</p>
                 </details>
               ) : <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{item.description}</p>)}
+              {item.details?.length > 0 && <div className="mt-3 border-t border-ink/10 pt-3 text-sm">
+                <h4 className="mb-2 font-semibold">פרטים נוספים</h4>
+                <dl className="divide-y divide-ink/10">
+                  {item.details.slice(0, 4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0 last:pb-0">
+                    <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                  </div>)}
+                </dl>
+                {item.details.length > 4 && <details className="mt-2">
+                  <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">כל הפרטים</summary>
+                  <dl className="mt-2 divide-y divide-ink/10">
+                    {item.details.slice(4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2">
+                      <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                    </div>)}
+                  </dl>
+                </details>}
+              </div>}
               {item.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(item.price_agorot)}</p>}
               <div className="mt-auto pt-4">
                 {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
