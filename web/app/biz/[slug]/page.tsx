@@ -104,13 +104,13 @@ export default async function StorefrontPage({ params }: Props) {
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
   const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
 
-  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} style={themeVars(data.branding?.colors)}>
+  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main id="storefront-main" tabIndex={-1} className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
       {data.gallery?.length > 0 && <div className="mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} /></div>}
-      <header className="mx-auto mb-6 max-w-4xl rounded-[1.75rem] border border-ink/10 bg-gradient-to-b from-white/95 to-surface/70 px-5 py-6 text-center shadow-sm sm:mb-8 sm:px-10 sm:py-8">
+      <header className="storefront-hero mx-auto mb-6 max-w-4xl px-5 py-6 text-center sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
         {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
@@ -121,8 +121,15 @@ export default async function StorefrontPage({ params }: Props) {
           <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
           <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
         </div>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {whatsappItems.map((item) => <li key={item.id} id={`item-${item.id}`} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden rounded-2xl border bg-white target:ring-4 target:ring-primary/40">
+        <div className="space-y-8">
+          {(['product', 'service'] as const).map((kind) => {
+            const groupItems = whatsappItems.filter((item) => item.kind === kind);
+            if (!groupItems.length) return null;
+            const layout = kind === 'product' ? data.branding?.product_layout ?? 'grid' : data.branding?.service_layout ?? 'grid';
+            return <div key={kind}>
+              {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
+              <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
+          {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
             {item.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={item.image.url} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
             <div className="flex flex-1 flex-col p-4">
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
@@ -159,7 +166,10 @@ export default async function StorefrontPage({ params }: Props) {
               </div>
             </div>
           </li>)}
-        </ul>
+              </ul>
+            </div>;
+          })}
+        </div>
       </section>}
       {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} /></section> : null}
       {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
