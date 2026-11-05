@@ -335,7 +335,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           {groupItems.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
-              <li key={p.id} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
+              <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
                 <ProductImageGallery product={p} />
                 <div className="flex flex-1 flex-col gap-2 p-4">
                   <div className="flex items-start justify-between gap-2">
