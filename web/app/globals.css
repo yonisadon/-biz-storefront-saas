@@ -119,6 +119,7 @@ html.a11y-reduce-motion *, html.a11y-reduce-motion *::before, html.a11y-reduce-m
 .brand-root[data-font-style="elegant"] { font-family: "Assistant", "Heebo", Arial, sans-serif; }
 .brand-root[data-font-style="warm"] { font-family: "Assistant", "Heebo", Arial, sans-serif; }
 .brand-root .business-title { color: var(--brand-primary); font-family: inherit; letter-spacing: -0.035em; }
+.brand-root[data-business-title-color="black"] .business-title { color: #000; }
 .brand-root[data-font-style="elegant"] .business-title,
 .brand-root[data-font-style="elegant"] h2 { font-family: "Frank Ruhl Libre", "Assistant", serif; letter-spacing: -0.015em; }
 .brand-root[data-font-style="warm"] .business-title,
@@ -555,4 +556,58 @@ html.a11y-contrast .brand-root :focus-visible {
     grid-template-columns: minmax(0, 1fr);
     gap: .25rem;
   }
+}
+
+
+/* Shared description and control rules: content stays horizontal and wraps safely in every theme. */
+.brand-root :is(.storefront-description, .storefront-read-more, .storefront-read-more-preview, .storefront-read-more-expanded) {
+  min-width: 0;
+  max-width: 100%;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-align: start;
+}
+.brand-root .storefront-read-more > summary {
+  display: block;
+  max-width: 100%;
+  cursor: pointer;
+  list-style: none;
+  writing-mode: horizontal-tb !important;
+  white-space: normal;
+}
+.brand-root .storefront-read-more > summary::-webkit-details-marker { display: none; }
+.brand-root .storefront-read-more-preview,
+.brand-root .storefront-read-more-expanded {
+  white-space: pre-line;
+}
+.brand-root .storefront-read-more-more,
+.brand-root .storefront-read-more-less {
+  display: inline-block;
+  margin-top: .25rem;
+  font-weight: 700;
+  color: var(--brand-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  writing-mode: horizontal-tb !important;
+  white-space: normal;
+}
+.brand-root .storefront-read-more-less { display: none; }
+.brand-root .storefront-read-more[open] .storefront-read-more-more { display: none; }
+.brand-root .storefront-read-more[open] .storefront-read-more-less { display: inline-block; }
+.brand-root .storefront-card-action,
+.brand-root .storefront-hero > a {
+  max-width: 100%;
+  min-width: 0;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list > li.storefront-card { min-width: 0; }
+.brand-root .storefront-items-list > li.storefront-card :is(h3, p, dt, dd, summary, span, a, button) {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed;
 }
