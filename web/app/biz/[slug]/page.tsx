@@ -5,6 +5,7 @@ import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
+import ReadMoreText from '@/components/ReadMoreText';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
 import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
@@ -107,7 +108,7 @@ export default async function StorefrontPage({ params }: Props) {
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
   const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
 
-  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} style={themeVars(data.branding?.colors)}>
+  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
@@ -117,7 +118,7 @@ export default async function StorefrontPage({ params }: Props) {
       <header className="storefront-hero mx-auto mb-6 max-w-4xl px-5 py-6 text-center sm:mb-8 sm:px-10 sm:py-8">
         <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
-        {data.about?.trim() && <p className="mx-auto mt-4 max-w-2xl whitespace-pre-line rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg">{data.about.trim()}</p>}
+        {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-4 max-w-2xl rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg" />}
         {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-primary/20 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-secondary/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">יצירת קשר ופרטי העסק</a>}
       </header>
       </div>
@@ -139,16 +140,7 @@ export default async function StorefrontPage({ params }: Props) {
             <div className="flex min-w-0 flex-col gap-2 p-4">
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
               <h3 className="text-lg font-bold">{item.name}</h3>
-              {item.description && (item.description.trim().length > 150 ? (
-                <details className="group mt-2 text-sm leading-7 text-ink/70">
-                  <summary className="cursor-pointer list-none">
-                    <span className="line-clamp-3 group-open:hidden">{item.description}</span>
-                    <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2 group-open:hidden">קרא עוד</span>
-                    <span className="mt-1 hidden font-semibold text-primary underline underline-offset-2 group-open:inline">קרא פחות</span>
-                  </summary>
-                  <p className="mt-2 whitespace-pre-line">{item.description}</p>
-                </details>
-              ) : <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/70">{item.description}</p>)}
+              {item.description && <ReadMoreText text={item.description} className="storefront-description mt-2 text-sm leading-7 text-ink/70" />}
               {item.details?.length > 0 && <details className="mt-2 border-t border-ink/10 pt-3 text-sm">
                 <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({item.details.length})</summary>
                 <dl className="mt-2 divide-y divide-ink/10">
