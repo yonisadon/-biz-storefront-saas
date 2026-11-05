@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import ReadMoreText from '@/components/ReadMoreText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
@@ -344,16 +345,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
-                  {p.description && (p.description.trim().length > 150 ? (
-                    <details className="group text-sm leading-6 text-ink/70">
-                      <summary className="cursor-pointer list-none whitespace-pre-line">
-                        <span className="line-clamp-3 group-open:hidden">{p.description}</span>
-                        <span className="mt-1 inline-block font-semibold text-primary underline underline-offset-2 group-open:hidden">קרא עוד</span>
-                        <span className="mt-1 hidden font-semibold text-primary underline underline-offset-2 group-open:inline">קרא פחות</span>
-                      </summary>
-                      <p className="mt-2 whitespace-pre-line">{p.description}</p>
-                    </details>
-                  ) : <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>)}
+                  {p.description && <ReadMoreText text={p.description} className="storefront-description text-sm leading-6 text-ink/70" />}
                   {p.details?.length > 0 && (
                     <details className="border-t border-ink/10 pt-3 text-sm">
                       <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
