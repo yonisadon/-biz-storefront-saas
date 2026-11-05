@@ -16,7 +16,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
   }, [heroId, images]);
 
   useEffect(() => {
-    if (slides.length < 2) return;
+    if (layout === 'thumbnails' || slides.length < 2) { setAutoPlay(false); return; }
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const stopForReducedMotion = () => {
       if (media.matches || document.documentElement.classList.contains('a11y-reduce-motion')) {
