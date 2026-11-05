@@ -24,7 +24,7 @@ export type PublicPayload = {
     email: string | null; locale: string; timezone: string;
   };
   about: string | null;
-  branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>>; hero_gallery_image_id?: string; icon_gallery_image_id?: string; font_style?: 'modern' | 'rounded' | 'elegant' | 'warm' };
+  branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>>; hero_gallery_image_id?: string; icon_gallery_image_id?: string; font_style?: 'modern' | 'rounded' | 'elegant' | 'warm'; storefront_theme?: 'soft' | 'flat' | 'editorial' | 'creative'; product_layout?: 'list' | 'grid' | 'carousel' | 'luxury_catalog'; service_layout?: 'list' | 'grid' | 'carousel' | 'luxury_catalog' };
   social_links?: { instagram?: string; facebook?: string };
   business_profile?: { city?: string; street_address?: string; show_address?: boolean };
   site_mode: 'catalog_order' | 'services_whatsapp';
