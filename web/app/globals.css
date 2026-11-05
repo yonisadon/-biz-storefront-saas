@@ -480,3 +480,44 @@ html.a11y-contrast .brand-root :focus-visible {
   overflow-wrap: break-word;
   word-break: normal;
 }
+
+/* Content resilience across every product/service layout. */
+.brand-root .storefront-items-list > li.storefront-card h3 {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  writing-mode: horizontal-tb;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list > li.storefront-card > div:last-child {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.brand-root .storefront-items-list > li.storefront-card > div:last-child > div:last-child {
+  margin-top: auto;
+}
+
+/* Cards, gallery tiles and carousel cards share a row height; actions stay aligned. */
+.brand-root .storefront-items-list[data-layout="cards"] > li.storefront-card,
+.brand-root .storefront-items-list[data-layout="gallery"] > li.storefront-card,
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card {
+  align-self: stretch;
+  height: 100%;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] {
+  align-items: stretch;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card {
+  display: flex;
+  flex-direction: column;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card > :first-child {
+  flex: 0 0 auto;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card > div:last-child {
+  flex: 1 1 auto;
+}
