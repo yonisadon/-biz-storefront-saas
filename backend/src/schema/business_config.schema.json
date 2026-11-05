@@ -94,9 +94,9 @@
           "type": "string",
           "enum": ["soft", "flat", "editorial", "creative"]
         },
-        "product_layout": {
+        "hero_gallery_layout": {\n          "type": "string",\n          "enum": ["slider", "thumbnails"]\n        },\n        "product_layout": {
           "type": "string",
-          "enum": ["list", "grid", "carousel", "luxury_catalog"]
+          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
         },
         "service_layout": {
           "type": "string",
