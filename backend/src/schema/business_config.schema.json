@@ -100,7 +100,7 @@
         },
         "service_layout": {
           "type": "string",
-          "enum": ["list", "grid", "carousel", "luxury_catalog"]
+          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
         }
       },
       "required": [
