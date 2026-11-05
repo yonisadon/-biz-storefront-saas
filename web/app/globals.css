@@ -520,3 +520,39 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root .storefront-items-list[data-layout="carousel"] > li.storefront-card > div:last-child {
   flex: 1 1 auto;
 }
+
+/* Long text must wrap in every content slot, not only the product heading. */
+.brand-root .storefront-items-list > li.storefront-card :is(h3, p, dt, dd, summary, span) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.brand-root .storefront-items-list > li.storefront-card [class*="grid-cols-"] {
+  min-width: 0;
+}
+.brand-root .storefront-items-list > li.storefront-card details dl > div {
+  min-width: 0;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+}
+.brand-root .storefront-items-list > li.storefront-card .storefront-card-price {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.brand-root .storefront-items-list > li.storefront-card .storefront-card-action {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.brand-root .storefront-items-list > li.storefront-card [class*="rounded-full"][class*="text-xs"] {
+  max-width: 45%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+@media (max-width: 420px) {
+  .brand-root .storefront-items-list > li.storefront-card details dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: .25rem;
+  }
+}
