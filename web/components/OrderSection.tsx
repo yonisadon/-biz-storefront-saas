@@ -339,7 +339,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 <ProductImageGallery product={p} />
                 <div className="flex min-w-0 flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold">{p.name}</h3>
+                    <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
