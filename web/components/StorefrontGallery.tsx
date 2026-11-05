@@ -33,7 +33,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
       observer.disconnect();
       media.removeEventListener('change', stopForReducedMotion);
     };
-  }, [slides.length]);
+  }, [slides.length, layout]);
 
   useEffect(() => {
     if (layout === 'thumbnails' || !autoPlay || slides.length < 2) return;
