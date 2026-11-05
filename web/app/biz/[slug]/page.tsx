@@ -89,6 +89,9 @@ export default async function StorefrontPage({ params }: Props) {
   const profile = data.business_profile ?? {};
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
   const serviceMode = data.site_mode === 'services_whatsapp';
+  // Legacy tenants may still have the retired grid setting saved; render them with safe classic cards.
+  const productLayout = data.branding?.product_layout === 'grid' ? 'cards' : data.branding?.product_layout ?? 'cards';
+  const serviceLayout = data.branding?.service_layout === 'grid' ? 'cards' : data.branding?.service_layout ?? 'cards';
   const whatsappItems = data.catalog?.items ?? [];
   const hasProducts = whatsappItems.some((item) => item.kind === 'product');
   const hasServices = whatsappItems.some((item) => item.kind === 'service');
@@ -127,7 +130,7 @@ export default async function StorefrontPage({ params }: Props) {
           {(['product', 'service'] as const).map((kind) => {
             const groupItems = whatsappItems.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
-            const layout = kind === 'product' ? data.branding?.product_layout ?? 'cards' : data.branding?.service_layout ?? 'cards';
+            const layout = kind === 'product' ? productLayout : serviceLayout;
             return <div key={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
@@ -165,7 +168,7 @@ export default async function StorefrontPage({ params }: Props) {
           })}
         </div>
       </section>}
-      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={data.branding?.product_layout ?? 'cards'} serviceLayout={data.branding?.service_layout ?? 'cards'} /></section> : null}
+      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
       {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
