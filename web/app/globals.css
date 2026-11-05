@@ -291,3 +291,13 @@ html.a11y-contrast .brand-root :focus-visible {
   .brand-root[data-storefront-theme="flat"] .storefront-hero,
   .brand-root[data-storefront-theme="creative"] .storefront-hero { text-align: center; }
 }
+
+.brand-root .storefront-intro[data-has-gallery="false"] .storefront-hero { grid-column: 1 / -1; }
+.brand-root[data-storefront-theme="flat"] .storefront-gallery-wrap :is(section, div.relative) { border-radius: 0; box-shadow: none; }
+.brand-root[data-storefront-theme="editorial"] .storefront-gallery-wrap :is(section, div.relative) { border-radius: 0; box-shadow: none; }
+.brand-root[data-storefront-theme="creative"] .storefront-gallery-wrap :is(section, div.relative) { border-radius: .4rem 2rem .4rem 2rem; box-shadow: none; }
+.brand-root .storefront-items-list[data-layout="list"] > li:not([data-has-image="true"]) { display: flex; }
+.brand-root .storefront-items-list[data-layout="list"] > li:not([data-has-image="true"]) > :first-child { min-height: 0; }
+@media (max-width: 767px) {
+  .brand-root .storefront-intro[data-has-gallery="false"] .storefront-hero { grid-column: 1; }
+}
