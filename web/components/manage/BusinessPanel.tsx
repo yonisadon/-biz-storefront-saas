@@ -67,6 +67,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   const validFontStyles: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
   const savedFontStyle = biz.config.branding?.font_style as FontStyle | undefined;
   const [fontStyle, setFontStyle] = useState<FontStyle>(savedFontStyle && validFontStyles.includes(savedFontStyle) ? savedFontStyle : 'modern');
+  const [businessTitleColor, setBusinessTitleColor] = useState<'brand' | 'black'>(biz.config.branding?.business_title_color === 'black' ? 'black' : 'brand');
   const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -95,7 +96,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           config: {
             site_mode: siteMode,
             order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site, whatsapp_intro: f.whatsappIntro.trim() },
-            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
+            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, business_title_color: businessTitleColor, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
@@ -139,6 +140,22 @@ export default function BusinessPanel({ token, biz, onSaved }: {
                 <span className="mt-1 text-xs text-gray-500">{option.note}</span>
               </label>
             ))}
+          </div>
+        </fieldset>
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">צבע שם העסק</legend>
+          <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר. צבעי הכפתורים, המחירים ושאר המיתוג נשארים ללא שינוי.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className={"flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm " + (businessTitleColor === 'brand' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200')}>
+              <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'brand'} onChange={() => setBusinessTitleColor('brand')} />
+              <span>צבע המותג</span>
+              <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300" style={{ background: BRAND_PALETTES[palette].colors.primary }} />
+            </label>
+            <label className={"flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm " + (businessTitleColor === 'black' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200')}>
+              <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'black'} onChange={() => setBusinessTitleColor('black')} />
+              <span>שחור</span>
+              <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300 bg-black" />
+            </label>
           </div>
         </fieldset>
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
