@@ -409,3 +409,24 @@ html.a11y-contrast .brand-root :focus-visible {
   .brand-root .storefront-items-list[data-layout="gallery"] > li > div:last-child { padding: .75rem; }
   .brand-root .storefront-items-list[data-layout="gallery"] > li h3 { font-size: .95rem; line-height: 1.4; }
 }
+
+
+/* Prevent image wrappers from inheriting fixed ratios that can crop their thumbnail rows. */
+.brand-root .storefront-items-list[data-layout="cards"] > li[data-has-image="true"] > :first-child,
+.brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child,
+.brand-root .storefront-items-list[data-layout="grid"] > li[data-has-image="true"] > :first-child,
+.brand-root .storefront-items-list[data-layout="carousel"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: auto;
+}
+.brand-root .storefront-items-list[data-layout="cards"] > li[data-has-image="true"] > :first-child > button:first-child,
+.brand-root .storefront-items-list[data-layout="grid"] > li[data-has-image="true"] > :first-child > button:first-child,
+.brand-root .storefront-items-list[data-layout="carousel"] > li[data-has-image="true"] > :first-child > button:first-child {
+  aspect-ratio: 4 / 3;
+}
+.brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child > button:first-child,
+.brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child.relative {
+  aspect-ratio: 1 / 1;
+}
+.brand-root[data-storefront-theme="creative"] .storefront-items-list[data-layout="grid"] > li:nth-child(3n + 2) {
+  transform: none;
+}
