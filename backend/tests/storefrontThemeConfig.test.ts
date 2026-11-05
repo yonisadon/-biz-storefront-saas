@@ -21,7 +21,7 @@ test('legacy tenant config remains valid without storefront theme fields', () =>
 
 test('all supported storefront themes and independent item layouts validate', () => {
   const themes = ['soft', 'flat', 'editorial', 'creative'] as const;
-  const layouts = ['list', 'grid', 'carousel', 'luxury_catalog'] as const;
+  const layouts = ['cards', 'gallery', 'list', 'grid', 'carousel', 'luxury_catalog'] as const;\n  const galleryLayouts = ['slider', 'thumbnails'] as const;
   for (const storefront_theme of themes) {
     for (const product_layout of layouts) {
       for (const service_layout of layouts) {
@@ -42,7 +42,7 @@ test('unsupported storefront theme and item layout values are rejected', () => {
   });
   assert.ok(invalidTheme?.some((error) => error.includes('storefront_theme')));
 
-  const invalidLayout = validateConfig({
+  const invalidGalleryLayout = validateConfig({\n    ...baseConfig,\n    branding: { colors, hero_gallery_layout: 'masonry' },\n  });\n  assert.ok(invalidGalleryLayout?.some((error) => error.includes('hero_gallery_layout')));\n\n  const invalidLayout = validateConfig({
     ...baseConfig,
     branding: { colors, product_layout: 'masonry' },
   });
