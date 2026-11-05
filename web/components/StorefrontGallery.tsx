@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import type { GalleryImage } from '@/lib/types';
 
-export default function StorefrontGallery({ images, heroId }: { images: GalleryImage[]; heroId?: string }) {
+export default function StorefrontGallery({ images, heroId, layout = 'slider' }: { images: GalleryImage[]; heroId?: string; layout?: 'slider' | 'thumbnails' }) {
   const slides = images.slice(0, 7);
   const heroIndex = Math.max(0, slides.findIndex((image) => image.id === heroId));
   const [active, setActive] = useState(heroIndex);
@@ -16,7 +16,7 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
   }, [heroId, images]);
 
   useEffect(() => {
-    if (slides.length < 2) return;
+    if (layout === 'thumbnails' || slides.length < 2) { setAutoPlay(false); return; }
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const stopForReducedMotion = () => {
       if (media.matches || document.documentElement.classList.contains('a11y-reduce-motion')) {
@@ -33,15 +33,40 @@ export default function StorefrontGallery({ images, heroId }: { images: GalleryI
       observer.disconnect();
       media.removeEventListener('change', stopForReducedMotion);
     };
-  }, [slides.length]);
+  }, [slides.length, layout]);
 
   useEffect(() => {
-    if (!autoPlay || slides.length < 2) return;
+    if (layout === 'thumbnails' || !autoPlay || slides.length < 2) return;
     const timer = window.setInterval(() => setActive((current) => (current + 1) % slides.length), 5000);
     return () => window.clearInterval(timer);
-  }, [autoPlay, slides.length]);
+  }, [autoPlay, slides.length, layout]);
 
   if (!slides[active]) return null;
+
+  if (layout === 'thumbnails') {
+    return (
+      <section aria-label="תמונות העסק" className="mx-auto max-w-5xl space-y-3">
+        <div
+          className="relative aspect-[5/4] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 sm:aspect-[16/7] sm:rounded-[2rem]"
+          onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
+          onTouchEnd={(event) => {
+            if (touchStart.current === null) return;
+            const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current;
+            if (Math.abs(delta) > 45) setActive((current) => (current + (delta < 0 ? 1 : -1) + slides.length) % slides.length);
+            touchStart.current = null;
+          }}
+        >
+          <Image src={slides[active].url} alt={slides[active].alt || slides[active].caption || 'תמונה של העסק'} fill priority sizes="(max-width: 640px) 100vw, 1024px" className="object-cover" />
+          {slides[active].caption && <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-8 text-sm font-medium text-white">{slides[active].caption}</p>}
+        </div>
+        {slides.length > 1 && <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="בחירת תמונה">
+          {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'relative h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-20 sm:w-28 ' + (index === active ? 'border-primary' : 'border-transparent opacity-75 hover:opacity-100')}>
+            <Image src={image.url} alt="" fill sizes="112px" className="object-cover" />
+          </button>)}
+        </div>}
+      </section>
+    );
+  }
 
   return (
     <section aria-label="תמונות העסק" className="mx-auto max-w-5xl">

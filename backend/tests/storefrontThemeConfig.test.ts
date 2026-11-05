@@ -19,28 +19,37 @@ test('legacy tenant config remains valid without storefront theme fields', () =>
   assert.equal(validateConfig(baseConfig), null);
 });
 
-test('all supported storefront themes and independent item layouts validate', () => {
+test('all supported storefront themes, item layouts and hero gallery layouts validate', () => {
   const themes = ['soft', 'flat', 'editorial', 'creative'] as const;
-  const layouts = ['list', 'grid', 'carousel', 'luxury_catalog'] as const;
+  const layouts = ['cards', 'gallery', 'list', 'grid', 'carousel', 'luxury_catalog'] as const;
+  const galleryLayouts = ['slider', 'thumbnails'] as const;
   for (const storefront_theme of themes) {
     for (const product_layout of layouts) {
       for (const service_layout of layouts) {
-        const errors = validateConfig({
-          ...baseConfig,
-          branding: { colors, storefront_theme, product_layout, service_layout },
-        });
-        assert.equal(errors, null, errors?.join('; '));
+        for (const hero_gallery_layout of galleryLayouts) {
+          const errors = validateConfig({
+            ...baseConfig,
+            branding: { colors, storefront_theme, product_layout, service_layout, hero_gallery_layout },
+          });
+          assert.equal(errors, null, errors?.join('; '));
+        }
       }
     }
   }
 });
 
-test('unsupported storefront theme and item layout values are rejected', () => {
+test('unsupported storefront theme, item layout and gallery values are rejected', () => {
   const invalidTheme = validateConfig({
     ...baseConfig,
     branding: { colors, storefront_theme: 'neon' },
   });
   assert.ok(invalidTheme?.some((error) => error.includes('storefront_theme')));
+
+  const invalidGalleryLayout = validateConfig({
+    ...baseConfig,
+    branding: { colors, hero_gallery_layout: 'masonry' },
+  });
+  assert.ok(invalidGalleryLayout?.some((error) => error.includes('hero_gallery_layout')));
 
   const invalidLayout = validateConfig({
     ...baseConfig,

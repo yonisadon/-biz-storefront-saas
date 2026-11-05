@@ -94,13 +94,17 @@
           "type": "string",
           "enum": ["soft", "flat", "editorial", "creative"]
         },
+        "hero_gallery_layout": {
+          "type": "string",
+          "enum": ["slider", "thumbnails"]
+        },
         "product_layout": {
           "type": "string",
-          "enum": ["list", "grid", "carousel", "luxury_catalog"]
+          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
         },
         "service_layout": {
           "type": "string",
-          "enum": ["list", "grid", "carousel", "luxury_catalog"]
+          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
         }
       },
       "required": [

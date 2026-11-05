@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
-type Layout = 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
@@ -337,7 +337,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             return (
               <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
                 <ProductImageGallery product={p} />
-                <div className="flex flex-1 flex-col gap-2 p-4">
+                <div className="flex min-w-0 flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold">{p.name}</h3>
                     {p.kind === 'service' && (
@@ -355,24 +355,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     </details>
                   ) : <p className="whitespace-pre-line text-sm leading-6 text-ink/70">{p.description}</p>)}
                   {p.details?.length > 0 && (
-                    <div className="border-t border-ink/10 pt-2 text-sm">
-                      <h4 className="mb-2 font-semibold">פרטים נוספים</h4>
-                      <dl className="divide-y divide-ink/10">
-                        {p.details.slice(0, 4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0 last:pb-0">
-                          <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                    <details className="border-t border-ink/10 pt-3 text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
+                      <dl className="mt-2 divide-y divide-ink/10">
+                        {p.details.map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0">
+                          <dt className="min-w-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
                         </div>)}
                       </dl>
-                      {p.details.length > 4 && <details className="mt-2">
-                        <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">כל הפרטים</summary>
-                        <dl className="mt-2 divide-y divide-ink/10">
-                          {p.details.slice(4).map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5.5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2">
-                            <dt className="text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
-                          </div>)}
-                        </dl>
-                      </details>}
-                    </div>
+                    </details>
                   )}
-                  <div className="mt-auto flex items-center justify-between gap-3 pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {canOrder && (q > 0 ? (
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
