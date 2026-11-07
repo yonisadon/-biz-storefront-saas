@@ -65,3 +65,22 @@ test('theme settings cannot bypass strict branding schema validation', () => {
   });
   assert.ok(errors && errors.length > 0);
 });
+
+
+test('business title color accepts brand and black while legacy config remains valid', () => {
+  for (const business_title_color of ['brand', 'black'] as const) {
+    const errors = validateConfig({
+      ...baseConfig,
+      branding: { colors, business_title_color },
+    });
+    assert.equal(errors, null, errors?.join('; '));
+  }
+});
+
+test('unsupported business title color is rejected', () => {
+  const errors = validateConfig({
+    ...baseConfig,
+    branding: { colors, business_title_color: 'red' },
+  });
+  assert.ok(errors?.some((error) => error.includes('business_title_color')));
+});
