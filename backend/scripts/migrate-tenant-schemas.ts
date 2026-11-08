@@ -1,8 +1,6 @@
 import pg from 'pg';
-import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { applyTenantMigrations } from '../src/tenantMigrations';
-import { hasAllowedNoBackupMigrationPending } from '../src/tenantMigrationPolicy';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -161,39 +159,20 @@ async function main() {
       return;
     }
     const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
-    if (!backupConfirmed) {
-      const migrationDir = join(process.cwd(), 'migrations');
-      const migrationFiles = readdirSync(migrationDir)
-        .filter((file) => /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i.test(file))
-        .sort();
-      const targetMigration = 'tenant-004-product-images-details.sql';
-      if (!migrationFiles.includes(targetMigration)) {
-        throw new Error('Refusing no-backup migration: expected tenant-004 migration file is missing.');
-      }
-      const pendingByTenant: string[][] = [];
-      // One narrowly scoped exception: tenant-004 may run without a backup.
-      // Every tenant DB must have no other pending migration.
-      for (const tenant of tenants) {
-        const label = 'tenant database ' + tenant.database_name + ' migration gate';
-        const db = await connect(databaseUrl(tenant.database_name), label);
-        try {
-          const ledger = await db.query("SELECT to_regclass('public.tenant_schema_migrations') AS ledger");
-          if (!ledger.rows[0].ledger) {
-            throw new Error('Refusing no-backup migration for ' + tenant.database_name + ': migration ledger is missing.');
-          }
-          const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
-          const appliedVersions = new Set(appliedRows.rows.map((row) => String(row.version)));
-          pendingByTenant.push(migrationFiles.filter((file) => !appliedVersions.has(file)));
-        } finally {
-          await db.end();
-        }
-      }
-      const targetMigrationPending = hasAllowedNoBackupMigrationPending(pendingByTenant, targetMigration);
-      if (targetMigrationPending) {
-        console.warn('WARNING: proceeding without a verified backup for tenant-004-product-images-details.sql only. All other pending tenant migrations are blocked.');
-      } else {
-        console.log('tenant-004-product-images-details.sql is already applied on every tenant database; no migration changes are needed.');
-      }
+    const explicitlyApprovedWithoutBackup =
+      process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
+      process.env.PROCEED_WITHOUT_BACKUP === 'true';
+
+    if (!backupConfirmed && !explicitlyApprovedWithoutBackup) {
+      throw new Error(
+        'A verified backup is required. For a manual one-time exception, run this workflow with proceed_without_backup=true.',
+      );
+    }
+
+    if (explicitlyApprovedWithoutBackup && !backupConfirmed) {
+      console.warn(
+        'WARNING: the operator explicitly authorized ALL currently pending tenant migrations without a verified backup for this manual run. This approval does not carry over to future runs.',
+      );
     }
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
@@ -206,10 +185,11 @@ async function main() {
                   to_regclass('public.products') AS products,
                   to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
-                  to_regclass('public.business_domains') AS business_domains`,
+                  to_regclass('public.business_domains') AS business_domains,
+                  to_regclass('public.crm_retention_policy') AS crm_retention_policy`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains) {
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy) {
           throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
         }
         const productDetailsColumn = await db.query(
@@ -261,6 +241,17 @@ async function main() {
         if (!retentionAppointmentFk.rowCount ||
             !String(retentionAppointmentFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve calendar appointments.`);
+        }
+        const retentionPolicySecurity = await db.query(
+          `SELECT c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'crm_retention_policy' AND p.policyname = 'tenant_isolation') AS tenant_policy,
+                  has_table_privilege('app_runtime', 'public.crm_retention_policy', 'SELECT') AS can_select
+             FROM pg_class c WHERE c.oid = 'public.crm_retention_policy'::regclass`,
+        );
+        const retentionPolicy = retentionPolicySecurity.rows[0];
+        if (!retentionPolicy?.relrowsecurity || !retentionPolicy.relforcerowsecurity ||
+            !retentionPolicy.tenant_policy || !retentionPolicy.can_select) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention policy tenant isolation or app_runtime SELECT permission is incomplete.`);
         }
         const retentionTrigger = await db.query(
           `SELECT 1 FROM pg_trigger
