@@ -5,18 +5,40 @@ ALTER TABLE public.leads
   ADD COLUMN IF NOT EXISTS retention_closed_at timestamptz,
   ADD COLUMN IF NOT EXISTS retention_expires_at timestamptz;
 
-UPDATE public.leads
+CREATE TABLE IF NOT EXISTS public.crm_retention_policy (
+  tenant_id uuid PRIMARY KEY REFERENCES public.businesses(id) ON DELETE CASCADE,
+  policy_started_at timestamptz NOT NULL,
+  legacy_grace_until timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.crm_retention_policy (tenant_id, policy_started_at, legacy_grace_until)
+SELECT id, now(), now() + interval '30 days'
+  FROM public.businesses
+ON CONFLICT (tenant_id) DO NOTHING;
+
+ALTER TABLE public.crm_retention_policy ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_retention_policy FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON public.crm_retention_policy;
+CREATE POLICY tenant_isolation ON public.crm_retention_policy
+  USING (tenant_id = app.current_tenant_id())
+  WITH CHECK (tenant_id = app.current_tenant_id());
+GRANT SELECT ON public.crm_retention_policy TO app_runtime;
+
+UPDATE public.leads l
    SET retention_closed_at = CASE
-         WHEN status IN ('rejected', 'cancelled', 'completed')
-           THEN COALESCE(retention_closed_at, now())
-         ELSE retention_closed_at
+         WHEN l.status IN ('rejected', 'cancelled', 'completed')
+           THEN COALESCE(l.retention_closed_at, p.policy_started_at)
+         ELSE l.retention_closed_at
        END,
        retention_expires_at = CASE
-         WHEN status IN ('rejected', 'cancelled', 'completed')
-           THEN GREATEST(COALESCE(retention_closed_at, now()) + interval '30 days', now() + interval '30 days')
-         ELSE GREATEST(created_at + interval '60 days', now() + interval '30 days')
+         WHEN l.status IN ('rejected', 'cancelled', 'completed')
+           THEN GREATEST(COALESCE(l.retention_closed_at, p.policy_started_at) + interval '30 days', p.legacy_grace_until)
+         ELSE GREATEST(l.created_at + interval '60 days', p.legacy_grace_until)
        END
- WHERE retention_expires_at IS NULL;
+  FROM public.crm_retention_policy p
+ WHERE l.tenant_id = p.tenant_id
+   AND l.retention_expires_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_leads_retention_expires
   ON public.leads (retention_expires_at)
