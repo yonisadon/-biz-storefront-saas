@@ -50,20 +50,24 @@ async function main() {
 
         // The FK converts lead_id to NULL on surviving appointments; appointments,
         // their time reservations and manual calendar entries are not deleted.
+        const willUnlink = await db.query(
+          `SELECT count(*)::int AS n
+             FROM public.appointments a
+             JOIN public.leads l ON l.id = a.lead_id
+            WHERE l.retention_expires_at IS NOT NULL
+              AND l.retention_expires_at <= now()
+              AND a.status = 'reserved'`,
+        );
         const deleted = await db.query(
           `DELETE FROM public.leads
             WHERE retention_expires_at IS NOT NULL
               AND retention_expires_at <= now()
             RETURNING id`,
         );
-        const unlinked = await db.query(
-          `SELECT count(*)::int AS n FROM public.appointments
-            WHERE lead_id IS NULL AND source = 'website' AND status = 'reserved'`,
-        );
         await db.query('COMMIT');
         totalLeadsDeleted += deleted.rowCount ?? 0;
-        totalAppointmentsUnlinked += Number(unlinked.rows[0]?.n ?? 0);
-        console.log(`${tenant.database_name}: deleted ${deleted.rowCount ?? 0} expired CRM lead(s); ${unlinked.rows[0]?.n ?? 0} active website appointment(s) currently have no CRM lead.`);
+        totalAppointmentsUnlinked += Number(willUnlink.rows[0]?.n ?? 0);
+        console.log(`${tenant.database_name}: deleted ${deleted.rowCount ?? 0} expired CRM lead(s); preserved and unlinked ${willUnlink.rows[0]?.n ?? 0} active appointment(s).`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error(`CRM cleanup failed for ${tenant.database_name}: ${error instanceof Error ? error.message : String(error)}`);
