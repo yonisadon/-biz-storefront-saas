@@ -1,5 +1,4 @@
 import pg from 'pg';
-import { join } from 'node:path';
 import { applyTenantMigrations } from '../src/tenantMigrations';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
