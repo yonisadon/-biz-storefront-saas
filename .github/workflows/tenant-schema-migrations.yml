@@ -9,6 +9,12 @@ on:
       - 'backend/scripts/migrate-tenant-schemas.ts'
       - '.github/workflows/tenant-schema-migrations.yml'
   workflow_dispatch:
+    inputs:
+      proceed_without_backup:
+        description: 'Explicitly authorize tenant migrations without a verified restorable backup'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,8 +36,9 @@ jobs:
       SUPERADMIN_DATABASE_URL: ${{ secrets.SUPERADMIN_DATABASE_URL }}
       DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
       TENANT_MIGRATION_BACKUP_CONFIRMED: ${{ secrets.TENANT_MIGRATION_BACKUP_CONFIRMED }}
+      PROCEED_WITHOUT_BACKUP: ${{ inputs.proceed_without_backup }}
     steps:
-      - name: Validate required secrets and backup confirmation
+      - name: Validate required secrets and backup authorization
         shell: bash
         run: |
           set -euo pipefail
@@ -39,8 +46,10 @@ jobs:
             echo "::error::Configure DATABASE_ADMIN_URL and SUPERADMIN_DATABASE_URL in GitHub Actions secrets."
             exit 1
           fi
-          if [[ "$TENANT_MIGRATION_BACKUP_CONFIRMED" != "true" ]]; then
-            echo "::error::After verifying a restorable database backup, set TENANT_MIGRATION_BACKUP_CONFIRMED=true in GitHub Actions secrets."
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$PROCEED_WITHOUT_BACKUP" == "true" ]]; then
+            echo "::warning::Proceeding with tenant migrations without a verified restorable backup, explicitly authorized for this manual run."
+          elif [[ "$TENANT_MIGRATION_BACKUP_CONFIRMED" != "true" ]]; then
+            echo "::error::A verified restorable backup is required for automatic runs. For a one-time manual exception, dispatch this workflow with proceed_without_backup=true."
             exit 1
           fi
 
