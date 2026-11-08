@@ -1,20 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasAllowedNoBackupMigrationPending } from '../src/tenantMigrationPolicy';
+import { isTenantMigrationAuthorizedWithoutBackup } from '../src/tenantMigrationPolicy';
 
-const target = 'tenant-004-product-images-details.sql';
-
-test('no-backup gate allows a no-op when tenant-004 is already applied everywhere', () => {
-  assert.equal(hasAllowedNoBackupMigrationPending([[], [], []], target), false);
+test('a verified backup authorizes tenant migrations', () => {
+  assert.equal(isTenantMigrationAuthorizedWithoutBackup({ backupConfirmed: true }), true);
 });
 
-test('no-backup gate allows only the tenant-004 migration when it is pending', () => {
-  assert.equal(hasAllowedNoBackupMigrationPending([[], [target], [target]], target), true);
+test('explicit workflow_dispatch approval authorizes all pending migrations', () => {
+  assert.equal(isTenantMigrationAuthorizedWithoutBackup({
+    backupConfirmed: false,
+    githubEventName: 'workflow_dispatch',
+    proceedWithoutBackup: 'true',
+  }), true);
 });
 
-test('no-backup gate still rejects any other pending migration', () => {
-  assert.throws(
-    () => hasAllowedNoBackupMigrationPending([[], ['tenant-005-another-change.sql']], target),
-    /other pending migration/,
-  );
+test('workflow_dispatch approval is not accepted on automatic push runs', () => {
+  assert.equal(isTenantMigrationAuthorizedWithoutBackup({
+    backupConfirmed: false,
+    githubEventName: 'push',
+    proceedWithoutBackup: 'true',
+  }), false);
+});
+
+test('the Railway operator flag authorizes the deployment migration run', () => {
+  assert.equal(isTenantMigrationAuthorizedWithoutBackup({
+    backupConfirmed: false,
+    railwayAllowWithoutBackup: 'true',
+  }), true);
+});
+
+test('migration is blocked when neither backup nor explicit approval is present', () => {
+  assert.equal(isTenantMigrationAuthorizedWithoutBackup({ backupConfirmed: false }), false);
 });
