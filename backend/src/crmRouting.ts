@@ -28,9 +28,10 @@ export function resolveCrmSettings(value: unknown) {
 
 export function resolveLeadRoute(value: unknown, route: LeadRoute) {
   const settings = resolveCrmSettings(value);
+  const routeEnabled = route === 'whatsapp' ? settings.whatsappEnabled : settings.siteInquiryEnabled;
   return {
     ...settings,
-    routeEnabled: route === 'whatsapp' ? settings.whatsappEnabled : settings.siteInquiryEnabled,
-    createLead: route === 'site' ? settings.crmEnabled : settings.whatsappCrmEnabled,
+    routeEnabled,
+    createLead: routeEnabled && (route === 'site' ? settings.crmEnabled : settings.whatsappCrmEnabled),
   };
 }
