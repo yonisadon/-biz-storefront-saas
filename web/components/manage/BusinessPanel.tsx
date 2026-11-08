@@ -47,6 +47,8 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     showAddress: biz.config.business_profile?.show_address === true,
     wa: flow.whatsapp_enabled === true,
     site: flow.site_inquiry_enabled === true,
+    crm: biz.config.crm_enabled !== false,
+    whatsappCrm: flow.whatsapp_crm_enabled !== false,
     whatsappIntro: initialWhatsAppIntro(flow),
   });
   const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
@@ -95,7 +97,14 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           about_text: f.about.trim() || null,
           config: {
             site_mode: siteMode,
-            order_flow: { ...latestFlow, whatsapp_enabled: f.wa, site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site, whatsapp_intro: f.whatsappIntro.trim() },
+            crm_enabled: f.crm,
+            order_flow: {
+              ...latestFlow,
+              whatsapp_enabled: f.wa,
+              site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site,
+              whatsapp_crm_enabled: f.crm && f.whatsappCrm,
+              whatsapp_intro: f.whatsappIntro.trim(),
+            },
             branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, business_title_color: businessTitleColor, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
@@ -208,13 +217,28 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           </label>
         )}
 
+        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">ניהול פניות (CRM)</legend>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={f.crm} onChange={(e) => set('crm', e.target.checked)} />
+            <span><strong>הפעלת ניהול פניות ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כאשר האפשרות כבויה, טופסי פנייה באתר ותיעוד פניות במערכת לא יהיו זמינים. פנייה ישירה ב-WhatsApp עדיין יכולה לפעול.</span></span>
+          </label>
+          {f.crm && f.wa && (
+            <label className="flex items-start gap-2 border-t border-gray-100 pt-2 text-sm">
+              <input type="checkbox" checked={f.whatsappCrm} onChange={(e) => set('whatsappCrm', e.target.checked)} />
+              <span><strong>תיעוד פניות WhatsApp ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כבוי: הלקוח יעבור ישירות ל-WhatsApp ולא תיפתח פנייה במערכת. פעיל: תיווצר גם רשומת פנייה, בנוסף לפתיחת WhatsApp.</span></span>
+            </label>
+          )}
+        </fieldset>
+
         {siteMode === 'catalog_order' && <fieldset className="space-y-2 pt-1">
           <legend className="text-sm font-medium">מסלולי הזמנה באתר</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={f.wa} onChange={(e) => set('wa', e.target.checked)} /> שלח הזמנה בוואטסאפ
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={f.site} onChange={(e) => set('site', e.target.checked)} /> השאר פנייה באתר
+            <input type="checkbox" checked={f.site} disabled={!f.crm} onChange={(e) => set('site', e.target.checked)} /> השאר פנייה באתר
+            {!f.crm && <span className="block ps-6 text-xs text-gray-500">יש להפעיל CRM כדי לאפשר טופס פנייה באתר.</span>}
           </label>
         </fieldset>}
 
