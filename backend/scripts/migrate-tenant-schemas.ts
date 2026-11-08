@@ -160,8 +160,9 @@ async function main() {
     }
     const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
     const explicitlyApprovedWithoutBackup =
-      process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
-      process.env.PROCEED_WITHOUT_BACKUP === 'true';
+      (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
+        process.env.PROCEED_WITHOUT_BACKUP === 'true') ||
+      process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP === 'true';
 
     if (!backupConfirmed && !explicitlyApprovedWithoutBackup) {
       throw new Error(
