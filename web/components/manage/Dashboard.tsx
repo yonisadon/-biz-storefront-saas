@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { themeVars } from '@/lib/theme';
 import PwaInstallButton from '@/components/PwaInstallButton';
-import type { LeadsResponse, ManageBusiness } from '@/lib/types';
+import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
 import CalendarPanel from './CalendarPanel';
 import GalleryPanel from './GalleryPanel';
@@ -17,8 +17,8 @@ const TABS: [Tab, string][] = [
   ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
 ];
 
-export default function Dashboard({ token, initialBusiness, initialLeads }: {
-  token: string; initialBusiness: ManageBusiness; initialLeads: LeadsResponse;
+export default function Dashboard({ token, initialBusiness, initialLeads, initialRetention }: {
+  token: string; initialBusiness: ManageBusiness; initialLeads: LeadsResponse; initialRetention: CrmRetentionSummary;
 }) {
   const [tab, setTab] = useState<Tab>('leads');
   const [biz, setBiz] = useState(initialBusiness);
@@ -43,6 +43,21 @@ export default function Dashboard({ token, initialBusiness, initialLeads }: {
             </a>
           </div>
         </header>
+
+        {(initialRetention.due_within_7_days > 0 || initialRetention.overdue > 0) && (
+          <section role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <p className="font-bold">תזכורת: פניות CRM עומדות למחיקה לפי מדיניות שמירת המידע</p>
+            <p className="mt-1">
+              {initialRetention.overdue > 0
+                ? `${initialRetention.overdue} פניות כבר עברו את מועד השמירה וממתינות לניקוי המתוזמן.`
+                : initialRetention.due_within_24_hours > 0
+                  ? `${initialRetention.due_within_24_hours} פניות צפויות להימחק בתוך 24 שעות.`
+                  : `${initialRetention.due_within_7_days} פניות צפויות להימחק בתוך 7 ימים.`}
+              {' '}מומלץ לייצא את הפניות והערות המוכר לפני המחיקה.
+            </p>
+            <button type="button" onClick={() => setTab('leads')} className="mt-2 rounded-full border border-amber-700 px-3 py-1.5 font-semibold">מעבר לפניות ולייצוא</button>
+          </section>
+        )}
 
         <nav className="sticky top-2 z-30 mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-ink/10 bg-surface/95 p-2 pb-2 shadow-sm backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
           {TABS.map(([id, label]) => (
