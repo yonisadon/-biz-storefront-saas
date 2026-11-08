@@ -248,6 +248,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id      uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   lead_id        uuid,
+  idempotency_key uuid,
   service_id     uuid,
   service_name   text NOT NULL CHECK (length(btrim(service_name)) > 0),
   customer_phone app.il_phone NOT NULL,
@@ -281,6 +282,8 @@ CREATE TABLE IF NOT EXISTS public.appointment_blocks (
   UNIQUE (tenant_id, id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uq_appointments_tenant_idempotency
+  ON public.appointments (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_appointments_tenant_start
   ON public.appointments (tenant_id, start_at) WHERE status = 'reserved';
 CREATE INDEX IF NOT EXISTS idx_appointments_tenant_lead
