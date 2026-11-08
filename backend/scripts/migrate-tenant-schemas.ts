@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { applyTenantMigrations } from '../src/tenantMigrations';
+import { isTenantMigrationAuthorizedWithoutBackup } from '../src/tenantMigrationPolicy';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -158,12 +159,15 @@ async function main() {
       return;
     }
     const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
-    const explicitlyApprovedWithoutBackup =
-      (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
-        process.env.PROCEED_WITHOUT_BACKUP === 'true') ||
-      process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP === 'true';
+    const migrationAuthorized = isTenantMigrationAuthorizedWithoutBackup({
+      backupConfirmed,
+      githubEventName: process.env.GITHUB_EVENT_NAME,
+      proceedWithoutBackup: process.env.PROCEED_WITHOUT_BACKUP,
+      railwayAllowWithoutBackup: process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP,
+    });
+    const explicitlyApprovedWithoutBackup = migrationAuthorized && !backupConfirmed;
 
-    if (!backupConfirmed && !explicitlyApprovedWithoutBackup) {
+    if (!migrationAuthorized) {
       throw new Error(
         'A verified backup is required. For a manual one-time exception, run this workflow with proceed_without_backup=true.',
       );
