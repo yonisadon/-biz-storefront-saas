@@ -6,4 +6,3 @@ ALTER TABLE public.appointments
 CREATE UNIQUE INDEX IF NOT EXISTS uq_appointments_tenant_idempotency
   ON public.appointments (tenant_id, idempotency_key)
   WHERE idempotency_key IS NOT NULL;
-COMMIT;
