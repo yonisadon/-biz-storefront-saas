@@ -1,19 +1,20 @@
+export interface TenantMigrationApproval {
+  backupConfirmed: boolean;
+  githubEventName?: string;
+  proceedWithoutBackup?: string;
+  railwayAllowWithoutBackup?: string;
+}
+
 /**
- * Enforces the one-time tenant-004 no-backup exception.
- * Returns true when at least one tenant still needs tenant-004, false when
- * every tenant already has it. Any other pending migration remains a hard stop.
+ * A verified backup always authorizes migration. Without one, an explicit
+ * GitHub workflow_dispatch input or the Railway operator flag is required.
+ * The GitHub input is intentionally ignored for automatic push runs.
  */
-export function hasAllowedNoBackupMigrationPending(
-  pendingByTenant: string[][],
-  targetMigration: string,
+export function isTenantMigrationAuthorizedWithoutBackup(
+  approval: TenantMigrationApproval,
 ): boolean {
-  let targetPending = false;
-  for (const pending of pendingByTenant) {
-    const unexpected = pending.filter((migration) => migration !== targetMigration);
-    if (unexpected.length) {
-      throw new Error('Refusing no-backup migration: other pending migration(s): ' + unexpected.join(', ') + '.');
-    }
-    if (pending.includes(targetMigration)) targetPending = true;
-  }
-  return targetPending;
+  return approval.backupConfirmed ||
+    (approval.githubEventName === 'workflow_dispatch' &&
+      approval.proceedWithoutBackup === 'true') ||
+    approval.railwayAllowWithoutBackup === 'true';
 }
