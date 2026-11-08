@@ -54,5 +54,5 @@ test('WhatsApp tracking does not enable a disabled WhatsApp route', () => {
     },
   }, 'whatsapp');
   assert.equal(route.routeEnabled, false);
-  assert.equal(route.createLead, true);
+  assert.equal(route.createLead, false);
 });
