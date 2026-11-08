@@ -52,6 +52,14 @@ export type Lead = {
   metadata: { has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number; appointment_needs_coordination?: boolean; booking_mode?: 'none' | 'free_datetime' | 'availability'; booking_modes?: ('free_datetime' | 'availability')[]; unreserved_service_duration_minutes?: number; unreserved_service_names?: string[] };
   created_at: string;
   items: { name: string; unit_price_agorot: number | null; quantity: number }[];
+  notes: { body: string; created_at: string }[];
+};
+export type CrmRetentionSummary = {
+  policy: 'crm-retention-v1';
+  due_within_7_days: number;
+  due_within_24_hours: number;
+  overdue: number;
+  next_expiry_at: string | null;
 };
 export type LeadsResponse = { total: number; limit: number; offset: number; leads: Lead[] };
 export type ManageBusiness = {
