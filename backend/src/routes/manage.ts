@@ -93,13 +93,24 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     withTenant(req.tenantId, async (db) => {
       const result = await db.query(
         `SELECT
-           count(*) FILTER (WHERE retention_expires_at <= now() + interval '7 days')::int AS due_within_7_days,
-           count(*) FILTER (WHERE retention_expires_at <= now() + interval '24 hours')::int AS due_within_24_hours,
-           count(*) FILTER (WHERE retention_expires_at <= now())::int AS overdue,
-           min(retention_expires_at) AS next_expiry_at
-         FROM leads
-         WHERE retention_expires_at IS NOT NULL`,
+           p.policy_started_at,
+           p.legacy_grace_until,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.created_at < p.policy_started_at
+               AND l.retention_expires_at > now()) AS legacy_records_remaining,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at > now()
+               AND l.retention_expires_at <= now() + interval '7 days') AS due_within_7_days,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at > now()
+               AND l.retention_expires_at <= now() + interval '24 hours') AS due_within_24_hours,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at <= now()) AS overdue,
+           (SELECT min(retention_expires_at) FROM leads) AS next_expiry_at
+         FROM crm_retention_policy p
+         WHERE p.tenant_id = app.current_tenant_id()`,
       );
+      if (!result.rows[0]) throw new HttpError(503, 'crm_retention_policy_unavailable');
       return { policy: 'crm-retention-v1', ...result.rows[0] };
     }));
 
