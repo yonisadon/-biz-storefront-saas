@@ -255,6 +255,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
 
         const result = await withTenant(req.tenantId, async (db) => {
           const biz = await loadBusiness(db);
+          const flow = biz.config?.order_flow ?? {};
           const routeSettings = resolveLeadRoute(biz.config, body.route);
           if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
           // A WhatsApp click creates a CRM record only when the seller explicitly
