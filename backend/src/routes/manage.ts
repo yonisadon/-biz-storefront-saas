@@ -89,6 +89,20 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  app.get('/crm-retention', async (req) =>
+    withTenant(req.tenantId, async (db) => {
+      const result = await db.query(
+        `SELECT
+           count(*) FILTER (WHERE retention_expires_at <= now() + interval '7 days')::int AS due_within_7_days,
+           count(*) FILTER (WHERE retention_expires_at <= now() + interval '24 hours')::int AS due_within_24_hours,
+           count(*) FILTER (WHERE retention_expires_at <= now())::int AS overdue,
+           min(retention_expires_at) AS next_expiry_at
+         FROM leads
+         WHERE retention_expires_at IS NOT NULL`,
+      );
+      return { policy: 'crm-retention-v1', ...result.rows[0] };
+    }));
+
   // ---- Leads ----
   app.get('/leads', async (req) => {
     const q = LeadListQuery.parse(req.query);
@@ -103,6 +117,10 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                            'quantity', i.quantity) ORDER BY i.created_at)
                     FROM lead_items i WHERE i.lead_id = l.id
                 ), '[]'::json) AS items,
+                COALESCE((
+                  SELECT json_agg(json_build_object('body', n.body, 'created_at', n.created_at) ORDER BY n.created_at)
+                    FROM lead_notes n WHERE n.lead_id = l.id
+                ), '[]'::json) AS notes,
                 count(*) OVER() AS total
            FROM leads l
           WHERE ($1::text IS NULL OR l.status = $1)
