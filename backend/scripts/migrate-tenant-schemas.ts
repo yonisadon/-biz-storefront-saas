@@ -171,7 +171,7 @@ async function main() {
 
     if (explicitlyApprovedWithoutBackup && !backupConfirmed) {
       console.warn(
-        'WARNING: the operator explicitly authorized ALL currently pending tenant migrations without a verified backup for this manual run. This approval does not carry over to future runs.',
+        'WARNING: the no-backup approval flag is active. ALL currently pending tenant migrations may run without a verified backup. If this was a one-time approval, reset TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false immediately after the successful deployment.',
       );
     }
     console.log('Applying additive tenant migrations...');
