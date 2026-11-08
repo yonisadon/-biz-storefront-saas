@@ -56,6 +56,9 @@ export type Lead = {
 };
 export type CrmRetentionSummary = {
   policy: 'crm-retention-v1';
+  policy_started_at: string;
+  legacy_grace_until: string;
+  legacy_records_remaining: number;
   due_within_7_days: number;
   due_within_24_hours: number;
   overdue: number;
