@@ -5,6 +5,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
+import { resolveCrmSettings, resolveLeadRoute } from '../crmRouting';
 import { quarterHourStartMinutes, validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
@@ -65,8 +66,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const cfg = biz.config ?? {};
   const flow = cfg.order_flow ?? {};
   // Missing flags preserve legacy behavior for existing businesses.
-  const crmEnabled = cfg.crm_enabled !== false;
-  const whatsappCrmEnabled = crmEnabled && flow.whatsapp_crm_enabled !== false;
+  const { crmEnabled, whatsappCrmEnabled } = resolveCrmSettings(cfg);
   const siteMode = cfg.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
@@ -255,17 +255,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
 
         const result = await withTenant(req.tenantId, async (db) => {
           const biz = await loadBusiness(db);
-          const flow = biz.config?.order_flow ?? {};
-          const crmEnabled = biz.config?.crm_enabled !== false;
-          const whatsappCrmEnabled = crmEnabled && flow.whatsapp_crm_enabled !== false;
-          const enabled = body.route === 'whatsapp'
-            ? flow.whatsapp_enabled === true
-            : crmEnabled && flow.site_inquiry_enabled === true;
-          if (!enabled) throw new HttpError(403, 'route_disabled');
+          const routeSettings = resolveLeadRoute(biz.config, body.route);
+          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
           // A WhatsApp click creates a CRM record only when the seller explicitly
           // enabled WhatsApp tracking. The legacy default remains enabled.
-          const shouldCreateLead = body.route === 'site' || whatsappCrmEnabled;
-          if (body.route === 'site' && !crmEnabled) throw new HttpError(403, 'crm_disabled');
+          const shouldCreateLead = routeSettings.createLead;
 
           // Merge duplicate lines; prices/names come from the DB, never the client
           const qty = new Map<string, number>();
