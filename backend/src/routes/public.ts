@@ -477,13 +477,13 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
             out.success_message = appointmentReserved
               ? 'התור נקבע ונשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
-              : bookingMode === 'free_datetime'
+              : shouldCreateLead && bookingMode === 'free_datetime'
                 ? (appointmentAt
                   ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
                   : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
                 : shouldCreateLead
-                ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
-                : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
+                  ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
+                  : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
           }
           return out;
         });
