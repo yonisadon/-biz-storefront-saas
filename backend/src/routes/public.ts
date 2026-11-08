@@ -388,7 +388,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                     ($5::timestamp AT TIME ZONE $6),
                     (($5::timestamp AT TIME ZONE $6) + ($7::int * interval '1 minute')),
                     'website', 'reserved', $8::uuid)
-                 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+                 ON CONFLICT (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
                  RETURNING id`,
                 [leadId, reservedServices.length === 1 ? reservedServices[0].id : null,
                  reservedServices.map((p) => p.name).join(' + '), body.customer_phone,
