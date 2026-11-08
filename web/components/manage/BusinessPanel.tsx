@@ -102,7 +102,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
               ...latestFlow,
               whatsapp_enabled: f.wa,
               site_inquiry_enabled: siteMode === 'services_whatsapp' && !f.wa && !f.site ? true : f.site,
-              whatsapp_crm_enabled: f.crm && f.whatsappCrm,
+              whatsapp_crm_enabled: f.whatsappCrm,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
             branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, business_title_color: businessTitleColor, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
@@ -221,7 +221,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <legend className="px-1 text-sm font-semibold">ניהול פניות (CRM)</legend>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={f.crm} onChange={(e) => set('crm', e.target.checked)} />
-            <span><strong>הפעלת ניהול פניות ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כאשר האפשרות כבויה, טופסי פנייה באתר ותיעוד פניות במערכת לא יהיו זמינים. פנייה ישירה ב-WhatsApp עדיין יכולה לפעול.</span></span>
+            <span><strong>הפעלת ניהול פניות ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כשמכבים CRM, טופס פנייה באתר ותיעוד חדש של WhatsApp יושבתו. פניות קיימות לא יימחקו. פנייה ישירה ב-WhatsApp עדיין יכולה לפעול.</span></span>
           </label>
           {f.crm && f.wa && (
             <label className="flex items-start gap-2 border-t border-gray-100 pt-2 text-sm">
