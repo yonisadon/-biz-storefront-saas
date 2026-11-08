@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Dashboard from '@/components/manage/Dashboard';
-import type { LeadsResponse, ManageBusiness } from '@/lib/types';
+import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,11 +88,12 @@ export default async function ManagePage({ params }: { params: Promise<{ token: 
     return res.json() as Promise<T>;
   };
 
-  const [biz, leads] = await Promise.all([
+  const [biz, leads, retention] = await Promise.all([
     get<ManageBusiness>('business'),
     get<LeadsResponse>('leads?limit=25'),
+    get<CrmRetentionSummary>('crm-retention'),
   ]);
-  if (!biz || !leads) notFound(); // invalid, expired or revoked token: same page as any 404
+  if (!biz || !leads || !retention) notFound(); // invalid token or incomplete CRM retention migration
 
-  return <Dashboard token={token} initialBusiness={biz} initialLeads={leads} />;
+  return <Dashboard token={token} initialBusiness={biz} initialLeads={leads} initialRetention={retention} />;
 }
