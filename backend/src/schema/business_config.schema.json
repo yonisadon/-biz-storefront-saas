@@ -4,6 +4,9 @@
     "version": {
       "type": "number"
     },
+    "crm_enabled": {
+      "type": "boolean"
+    },
     "site_mode": {
       "type": "string",
       "enum": [
