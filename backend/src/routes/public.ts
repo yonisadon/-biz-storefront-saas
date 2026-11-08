@@ -5,6 +5,7 @@ import { env } from '../config';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
+import { resolveCrmSettings, resolveLeadRoute } from '../crmRouting';
 import { quarterHourStartMinutes, validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
@@ -64,6 +65,8 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const biz = await loadBusiness(db);
   const cfg = biz.config ?? {};
   const flow = cfg.order_flow ?? {};
+  // Missing flags preserve legacy behavior for existing businesses.
+  const { crmEnabled, whatsappCrmEnabled } = resolveCrmSettings(cfg);
   const siteMode = cfg.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
@@ -104,8 +107,10 @@ async function buildPublicPayload(db: pg.PoolClient) {
     business_profile: cfg.business_profile ?? {},
     site_mode: siteMode,
     order_flow: {
+      crm_enabled: crmEnabled,
+      whatsapp_crm_enabled: whatsappCrmEnabled,
       whatsapp_enabled: flow.whatsapp_enabled === true,
-      site_inquiry_enabled: flow.site_inquiry_enabled === true,
+      site_inquiry_enabled: crmEnabled && flow.site_inquiry_enabled === true,
       // The same seller-defined opening is used for general contact and order messages.
       whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || (siteMode === 'services_whatsapp' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO),
     },
@@ -251,10 +256,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const result = await withTenant(req.tenantId, async (db) => {
           const biz = await loadBusiness(db);
           const flow = biz.config?.order_flow ?? {};
-          const enabled = body.route === 'whatsapp'
-            ? flow.whatsapp_enabled === true
-            : flow.site_inquiry_enabled === true;
-          if (!enabled) throw new HttpError(403, 'route_disabled');
+          const routeSettings = resolveLeadRoute(biz.config, body.route);
+          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
+          // A WhatsApp click creates a CRM record only when the seller explicitly
+          // enabled WhatsApp tracking. The legacy default remains enabled.
+          const shouldCreateLead = routeSettings.createLead;
 
           // Merge duplicate lines; prices/names come from the DB, never the client
           const qty = new Map<string, number>();
@@ -308,77 +314,93 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (appointmentError === 'appointment_not_applicable') throw new HttpError(400, 'appointment_not_applicable');
           if (appointmentError) throw new HttpError(400, 'invalid_appointment_time');
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
-          const lead = await db.query(
-            `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
-                                submission_channel, status, estimated_total_agorot, metadata, idempotency_key)
-             VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::uuid)
-             ON CONFLICT DO NOTHING
-             RETURNING id`,
-            [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
-             body.message ?? null, body.route, status, estimated,
-             JSON.stringify({
-               has_quote_items: hasQuote,
-               ...(needsAppointment ? {
-                 booking_mode: bookingMode,
-                 booking_modes: selectedModes,
-                 appointment_duration_minutes: appointmentDurationMinutes,
-                 ...(freeDatetimeServices.length && reservedServices.length ? {
-                   unreserved_service_duration_minutes: freeDatetimeDurationMinutes,
-                   unreserved_service_names: freeDatetimeServices.map((p) => p.name),
+          let leadId: string | null = null;
+          if (shouldCreateLead) {
+            const lead = await db.query(
+              `INSERT INTO leads (tenant_id, customer_name, customer_phone, customer_email, message,
+                                  submission_channel, status, estimated_total_agorot, metadata, idempotency_key)
+               VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::uuid)
+               ON CONFLICT DO NOTHING
+               RETURNING id`,
+              [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
+               body.message ?? null, body.route, status, estimated,
+               JSON.stringify({
+                 has_quote_items: hasQuote,
+                 ...(needsAppointment ? {
+                   booking_mode: bookingMode,
+                   booking_modes: selectedModes,
+                   appointment_duration_minutes: appointmentDurationMinutes,
+                   ...(freeDatetimeServices.length && reservedServices.length ? {
+                     unreserved_service_duration_minutes: freeDatetimeDurationMinutes,
+                     unreserved_service_names: freeDatetimeServices.map((p) => p.name),
+                   } : {}),
+                   appointment_needs_coordination: !appointmentAt,
+                   ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
                  } : {}),
-                 appointment_needs_coordination: !appointmentAt,
-                 ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
-               } : {}),
-             }), body.idempotency_key ?? null],
-          );
-          if (!lead.rows[0]) {
-            const existing = (await db.query(
-              'SELECT id, status, estimated_total_agorot, metadata FROM leads WHERE idempotency_key = $1',
-              [body.idempotency_key],
-            )).rows[0];
-            if (!existing) throw new HttpError(409, 'duplicate_request');
-            return {
-              lead_id: existing.id, route: body.route, status: existing.status,
-              estimated_total_agorot: existing.estimated_total_agorot,
-              has_quote_items: existing.metadata?.has_quote_items === true,
-              duplicate: true,
-              success_message: existing.metadata?.booking_mode === 'availability'
-                ? 'התור כבר נשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
-                : existing.metadata?.booking_mode === 'free_datetime'
-                  ? (existing.metadata?.appointment_at
-                    ? 'הבקשה כבר נשמרה. התאריך והשעה המבוקשים אינם משוריינים ביומן.'
-                    : 'הבקשה כבר נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
-                  : 'הפנייה כבר נשמרה בהצלחה.',
-            };
-          }
-          const leadId: string = lead.rows[0].id;
-
-          if (found.length) {
-            await db.query(
-              `INSERT INTO lead_items (tenant_id, lead_id, product_id, item_name, unit_price_agorot, quantity)
-               SELECT app.current_tenant_id(), $1, x.pid, x.nm, x.pr, x.q
-                 FROM unnest($2::uuid[], $3::text[], $4::int[], $5::int[]) AS x(pid, nm, pr, q)`,
-              [leadId, found.map((p) => p.id), found.map((p) => p.name),
-               found.map((p) => p.price_agorot), found.map((p) => qty.get(p.id)!)],
+               }), body.idempotency_key ?? null],
             );
+            if (!lead.rows[0]) {
+              const existing = body.idempotency_key ? (await db.query(
+                'SELECT id, status, estimated_total_agorot, metadata FROM leads WHERE idempotency_key = $1',
+                [body.idempotency_key],
+              )).rows[0] : null;
+              if (!existing) throw new HttpError(409, 'duplicate_request');
+              return {
+                lead_id: existing.id, route: body.route, status: existing.status,
+                estimated_total_agorot: existing.estimated_total_agorot,
+                has_quote_items: existing.metadata?.has_quote_items === true,
+                duplicate: true,
+                success_message: existing.metadata?.booking_mode === 'availability'
+                  ? 'התור כבר נשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
+                  : existing.metadata?.booking_mode === 'free_datetime'
+                    ? (existing.metadata?.appointment_at
+                      ? 'הבקשה כבר נשמרה. התאריך והשעה המבוקשים אינם משוריינים ביומן.'
+                      : 'הבקשה כבר נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
+                    : 'הפנייה כבר נשמרה בהצלחה.',
+              };
+            }
+            leadId = lead.rows[0].id as string;
+            if (found.length) {
+              await db.query(
+                `INSERT INTO lead_items (tenant_id, lead_id, product_id, item_name, unit_price_agorot, quantity)
+                 SELECT app.current_tenant_id(), $1, x.pid, x.nm, x.pr, x.q
+                   FROM unnest($2::uuid[], $3::text[], $4::int[], $5::int[]) AS x(pid, nm, pr, q)`,
+                [leadId, found.map((p) => p.id), found.map((p) => p.name),
+                 found.map((p) => p.price_agorot), found.map((p) => qty.get(p.id)!)],
+              );
+            }
           }
 
           let appointmentReserved = false;
           if (reservedServices.length && appointmentAt) {
             try {
-              await db.query(
+              if (!body.idempotency_key) throw new HttpError(400, 'idempotency_key_required');
+              const inserted = await db.query(
                 `INSERT INTO appointments
-                   (tenant_id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status)
+                   (tenant_id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status, idempotency_key)
                  VALUES
                    (app.current_tenant_id(), $1, $2, $3, $4,
                     ($5::timestamp AT TIME ZONE $6),
                     (($5::timestamp AT TIME ZONE $6) + ($7::int * interval '1 minute')),
-                    'website', 'reserved')`,
+                    'website', 'reserved', $8::uuid)
+                 ON CONFLICT (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
+                 RETURNING id`,
                 [leadId, reservedServices.length === 1 ? reservedServices[0].id : null,
                  reservedServices.map((p) => p.name).join(' + '), body.customer_phone,
-                 appointmentAt, biz.timezone, reservedDurationMinutes],
+                 appointmentAt, biz.timezone, reservedDurationMinutes, body.idempotency_key],
               );
-              appointmentReserved = true;
+              if (inserted.rows[0]) {
+                appointmentReserved = true;
+              } else {
+                const existingAppointment = (await db.query(
+                  "SELECT id, status FROM appointments WHERE tenant_id = app.current_tenant_id() AND idempotency_key = $1",
+                  [body.idempotency_key],
+                )).rows[0];
+                if (!existingAppointment || existingAppointment.status !== 'reserved') {
+                  throw new HttpError(409, 'duplicate_request');
+                }
+                appointmentReserved = true;
+              }
             } catch (error) {
               if ((error as { code?: string }).code === '23P01' || (error as { code?: string }).code === '23505') {
                 throw new HttpError(409, 'slot_taken', 'המועד נתפס בינתיים. בחרו מועד אחר.');
@@ -388,8 +410,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           }
 
           const out: Record<string, unknown> = {
-            lead_id: leadId, route: body.route, status,
-            estimated_total_agorot: estimated, has_quote_items: hasQuote, appointment_reserved: appointmentReserved,
+            ...(leadId ? { lead_id: leadId, status } : {}),
+            route: body.route,
+            ...(shouldCreateLead ? { estimated_total_agorot: estimated, has_quote_items: hasQuote } : {}),
+            appointment_reserved: appointmentReserved,
+            crm_record_created: Boolean(leadId),
           };
 
           if (body.route === 'site') {
@@ -453,11 +478,13 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
             out.success_message = appointmentReserved
               ? 'התור נקבע ונשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
-              : bookingMode === 'free_datetime'
+              : shouldCreateLead && bookingMode === 'free_datetime'
                 ? (appointmentAt
                   ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
                   : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
-                : 'הפנייה נשמרה. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.';
+                : shouldCreateLead
+                  ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
+                  : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
           }
           return out;
         });

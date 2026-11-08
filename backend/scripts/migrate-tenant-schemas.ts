@@ -239,18 +239,37 @@ async function main() {
              FROM information_schema.columns
             WHERE table_schema = 'public'
               AND ((table_name = 'products' AND column_name = 'booking_mode')
-                OR (table_name = 'leads' AND column_name = 'idempotency_key')
+                OR (table_name = 'leads' AND column_name IN ('idempotency_key', 'retention_closed_at', 'retention_expires_at'))
                 OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source'))
                 OR (table_name = 'appointment_blocks' AND column_name IN ('start_at', 'end_at')))`,
         );
         const present = new Set(requiredColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
         for (const required of [
-          'products.booking_mode', 'leads.idempotency_key',
+          'products.booking_mode', 'leads.idempotency_key', 'leads.retention_closed_at', 'leads.retention_expires_at',
           'appointments.lead_id', 'appointments.start_at', 'appointments.end_at',
           'appointments.status', 'appointments.source',
           'appointment_blocks.start_at', 'appointment_blocks.end_at',
         ]) {
           if (!present.has(required)) throw new Error(`Postflight failed for ${tenant.database_name}: missing ${required}.`);
+        }
+        const retentionAppointmentFk = await db.query(
+          `SELECT pg_get_constraintdef(oid) AS definition
+             FROM pg_constraint
+            WHERE conrelid = 'public.appointments'::regclass
+              AND conname = 'appointments_tenant_id_lead_id_fkey'`,
+        );
+        if (!retentionAppointmentFk.rowCount ||
+            !String(retentionAppointmentFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve calendar appointments.`);
+        }
+        const retentionTrigger = await db.query(
+          `SELECT 1 FROM pg_trigger
+            WHERE tgrelid = 'public.leads'::regclass
+              AND tgname = 'trg_leads_retention_deadline'
+              AND NOT tgisinternal`,
+        );
+        if (!retentionTrigger.rowCount) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention deadline trigger is missing.`);
         }
         const overlapConstraint = await db.query(
           `SELECT 1 FROM pg_constraint

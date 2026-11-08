@@ -89,6 +89,31 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  app.get('/crm-retention', async (req) =>
+    withTenant(req.tenantId, async (db) => {
+      const result = await db.query(
+        `SELECT
+           p.policy_started_at,
+           p.legacy_grace_until,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.created_at < p.policy_started_at
+               AND l.retention_expires_at > now()) AS legacy_records_remaining,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at > now()
+               AND l.retention_expires_at <= now() + interval '7 days') AS due_within_7_days,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at > now()
+               AND l.retention_expires_at <= now() + interval '24 hours') AS due_within_24_hours,
+           (SELECT count(*)::int FROM leads l
+             WHERE l.retention_expires_at <= now()) AS overdue,
+           (SELECT min(retention_expires_at) FROM leads) AS next_expiry_at
+         FROM crm_retention_policy p
+         WHERE p.tenant_id = app.current_tenant_id()`,
+      );
+      if (!result.rows[0]) throw new HttpError(503, 'crm_retention_policy_unavailable');
+      return { policy: 'crm-retention-v1', ...result.rows[0] };
+    }));
+
   // ---- Leads ----
   app.get('/leads', async (req) => {
     const q = LeadListQuery.parse(req.query);
@@ -103,6 +128,10 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                            'quantity', i.quantity) ORDER BY i.created_at)
                     FROM lead_items i WHERE i.lead_id = l.id
                 ), '[]'::json) AS items,
+                COALESCE((
+                  SELECT json_agg(json_build_object('body', n.body, 'created_at', n.created_at) ORDER BY n.created_at)
+                    FROM lead_notes n WHERE n.lead_id = l.id
+                ), '[]'::json) AS notes,
                 count(*) OVER() AS total
            FROM leads l
           WHERE ($1::text IS NULL OR l.status = $1)

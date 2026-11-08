@@ -1,5 +1,5 @@
 export type LeadStatus =  | 'whatsapp_initiated' | 'pending_approval' | 'approved'  | 'rejected' | 'completed' | 'cancelled';
-export type OrderFlow = { whatsapp_enabled: boolean; site_inquiry_enabled: boolean; whatsapp_intro?: string };
+export type OrderFlow = { whatsapp_enabled: boolean; site_inquiry_enabled: boolean; whatsapp_crm_enabled: boolean; crm_enabled: boolean; whatsapp_intro?: string };
 export type DayHours = 'closed' | { open: string; close: string }[];
 export type Product = {
   id: string;
@@ -52,6 +52,17 @@ export type Lead = {
   metadata: { has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number; appointment_needs_coordination?: boolean; booking_mode?: 'none' | 'free_datetime' | 'availability'; booking_modes?: ('free_datetime' | 'availability')[]; unreserved_service_duration_minutes?: number; unreserved_service_names?: string[] };
   created_at: string;
   items: { name: string; unit_price_agorot: number | null; quantity: number }[];
+  notes: { body: string; created_at: string }[];
+};
+export type CrmRetentionSummary = {
+  policy: 'crm-retention-v1';
+  policy_started_at: string;
+  legacy_grace_until: string;
+  legacy_records_remaining: number;
+  due_within_7_days: number;
+  due_within_24_hours: number;
+  overdue: number;
+  next_expiry_at: string | null;
 };
 export type LeadsResponse = { total: number; limit: number; offset: number; leads: Lead[] };
 export type ManageBusiness = {
