@@ -56,7 +56,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         if (['=', '+', '-', '@', '\\t', '\\r'].includes(text[0] ?? '')) text = "'" + text;
         return '"' + text.replace(/"/g, '""') + '"';
       };
-      const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)', 'מועד תור', 'משך תור (דקות)'];
+      const headers = ['תאריך', 'שם לקוח', 'טלפון', 'דוא״ל', 'ערוץ', 'סטטוס', 'הודעת לקוח', 'פריטים', 'סכום משוער (₪)', 'מועד תור', 'משך תור (דקות)', 'הערות מוכר'];
       const rows = exportRows.map((l) => [
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
         l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', STATUS_LABEL[l.status], l.message,
@@ -64,6 +64,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
         l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : l.metadata?.appointment_needs_coordination ? 'לתיאום מול הלקוח' : '',
         l.metadata?.appointment_duration_minutes ?? '',
+        (l.notes ?? []).map((note) => `[${fmtDate(note.created_at)}] ${note.body}`).join(' | '),
       ]);
       const csv = '\uFEFF' + [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
