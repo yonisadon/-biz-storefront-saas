@@ -428,9 +428,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           };
 
           if (body.route === 'site') {
-            out.success_message = appointmentReserved
-              ? 'התור נקבע ונשמר בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק בטלפון או ב־WhatsApp. לא ניתן לבטל דרך האתר.'
-              : bookingMode === 'free_datetime'
+            out.success_message = calendarOnlyBooking && appointmentReserved
+              ? 'התור נקבע ונשמר ביומן העסק בהצלחה. אין צורך לשלוח הודעת WhatsApp כדי להשלים את קביעת התור. לשינוי או לביטול יש לפנות ישירות לעסק; לא ניתן לבטל דרך האתר.'
+              : appointmentReserved
+                ? 'התור נקבע ונשמר בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק בטלפון או ב־WhatsApp. לא ניתן לבטל דרך האתר.'
+                : bookingMode === 'free_datetime'
                 ? (appointmentAt
                   ? 'הבקשה נשמרה. התאריך והשעה שבחרתם הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
                   : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
@@ -487,7 +489,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             const text = messageLines.join('\n');
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
             out.success_message = appointmentReserved
-              ? 'התור נקבע ונשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
+              ? (found.some((p) => p.kind === 'product') || freeDatetimeServices.length > 0
+                ? 'התור נשמר ביומן העסק. כדי שהעסק יקבל גם את פרטי המוצרים והשירותים הנוספים שבחרתם, יש לשלוח את הודעת WhatsApp. אם לא תישלח הודעה, התור שכבר נשמר יישאר בתוקף.'
+                : 'התור נשמר ביומן העסק. שליחת הודעת WhatsApp היא אפשרות נוספת בלבד ואינה נדרשת להשלמת קביעת התור.')
               : shouldCreateLead && bookingMode === 'free_datetime'
                 ? (appointmentAt
                   ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'

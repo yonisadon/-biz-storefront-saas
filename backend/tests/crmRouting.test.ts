@@ -45,6 +45,24 @@ test('disabling CRM blocks site inquiries but keeps direct WhatsApp available', 
   assert.equal(site.createLead, false);
 });
 
+test('calendar-only booking remains available alongside direct WhatsApp when CRM is disabled', () => {
+  const config = {
+    crm_enabled: false,
+    order_flow: {
+      whatsapp_enabled: true,
+      site_inquiry_enabled: false,
+      whatsapp_crm_enabled: false,
+    },
+  };
+  const booking = resolveLeadRoute(config, 'site', { bookingMode: 'availability' });
+  assert.equal(booking.routeEnabled, true);
+  assert.equal(booking.createLead, false);
+
+  const whatsapp = resolveLeadRoute(config, 'whatsapp', { bookingMode: 'availability' });
+  assert.equal(whatsapp.routeEnabled, true);
+  assert.equal(whatsapp.createLead, false);
+});
+
 test('calendar reservations remain available with CRM and both contact routes disabled', () => {
   const config = {
     crm_enabled: false,
