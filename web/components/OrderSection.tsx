@@ -204,7 +204,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const freeDatetimeLines = appointmentLines.filter(({ p }) => modeOf(p) === 'free_datetime');
   const needsReservedAppointment = reservedAppointmentLines.length > 0;
   const needsFreeDatetimeAppointment = freeDatetimeLines.length > 0;
-  const calendarOnlyFlow = needsReservedAppointment && !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
+  const calendarOnlySelection = needsReservedAppointment && lines.length > 0 && lines.every(({ p }) => p.kind === 'service' && modeOf(p) === 'availability');
+  const calendarOnlyFlow = calendarOnlySelection && !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
   const reservedAppointmentDurationMinutes = reservedAppointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const freeDatetimeDurationMinutes = freeDatetimeLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const appointmentDurationMinutes = needsReservedAppointment ? reservedAppointmentDurationMinutes : freeDatetimeDurationMinutes;
@@ -459,10 +460,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
         {done ? (
           <div className="py-4 text-center">
-            <p className="mb-4 text-lg font-medium text-green-700">
+            <p role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium">
               {done.message}
             </p>
-            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">פתיחת WhatsApp</a>}
+            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">שליחת פרטי ההזמנה ב־WhatsApp</a>}
             <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
               className="ms-2 min-h-11 rounded-xl border border-ink/25 px-5 py-2">סגור</button>
           </div>
@@ -482,13 +483,22 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
               </button>
             )}
+            {calendarOnlySelection && flow.whatsapp_enabled && (
+              <div className="space-y-2 rounded-xl border border-primary/25 p-3">
+                <p className="text-sm leading-6">אפשר לשמור את התור ביומן בלי לשלוח הודעת WhatsApp. פרטי התור יישמרו גם אם לא תשלחו הודעה לעסק.</p>
+                <button type="button" disabled={busy !== null} onClick={() => submit('site')}
+                  className="min-h-12 w-full rounded-xl border border-primary px-4 py-3 font-bold text-primary hover:bg-primary/5 disabled:opacity-50">
+                  {busy === 'site' ? 'שומר את התור…' : 'קביעת תור בלבד – ללא WhatsApp'}
+                </button>
+              </div>
+            )}
             {flow.site_inquiry_enabled && (
               <button type="button" onClick={() => { setError(null); setStep('site'); }}
                 className="min-h-12 w-full rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg hover:opacity-90">
                 השארת פנייה באתר
               </button>
             )}
-            <p className="text-center text-xs leading-5 text-ink/60">הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp לא שולח את ההודעה במקומכם.</p>
+            <p className="text-center text-xs leading-5 text-ink/60">הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp לא שולח את ההודעה במקומכם. בקביעת תור בלבד, התור נשמר ביומן גם ללא שליחת הודעה.</p>
           </div>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
