@@ -115,13 +115,11 @@ CREATE TABLE IF NOT EXISTS public.businesses (
                    CHECK (jsonb_typeof(config) = 'object'),
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
-  -- Spec 3.2: seller may show both order routes or only one (never zero)
+  -- WhatsApp requires a number when enabled. Both contact routes may be
+  -- disabled because availability-mode calendar bookings are independent.
   CONSTRAINT chk_whatsapp_route_needs_number
     CHECK ((config #>> '{order_flow,whatsapp_enabled}') IS DISTINCT FROM 'true'
-           OR whatsapp_number IS NOT NULL),
-  CONSTRAINT chk_at_least_one_order_route
-    CHECK (NOT ((config #>> '{order_flow,whatsapp_enabled}') = 'false'
-            AND (config #>> '{order_flow,site_inquiry_enabled}') = 'false'))
+           OR whatsapp_number IS NOT NULL)
 );
 
 -- 3.2 Media assets (spec section 5): protected storage tied to tenant_id
