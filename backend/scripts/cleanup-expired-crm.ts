@@ -19,6 +19,23 @@ async function connect(connectionString: string): Promise<pg.Client> {
 }
 
 async function main() {
+  // Railway cron schedules are UTC. The service can be scheduled for both
+  // possible UTC hours that correspond to 01:00 in Israel; this guard makes
+  // only the matching local-hour run perform the cleanup.
+  const expectedLocalHour = process.env.CRM_CLEANUP_LOCAL_HOUR;
+  if (expectedLocalHour) {
+    const timeZone = process.env.CRM_CLEANUP_TIMEZONE || 'Asia/Jerusalem';
+    const localHour = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date());
+    if (localHour !== expectedLocalHour) {
+      console.log(`CRM cleanup skipped: local hour in ${timeZone} is ${localHour}; expected ${expectedLocalHour}.`);
+      return;
+    }
+  }
+
   const registry = await connect(registryUrl!);
   let totalLeadsDeleted = 0;
   let totalAppointmentsUnlinked = 0;
