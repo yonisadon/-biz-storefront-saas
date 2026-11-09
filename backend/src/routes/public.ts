@@ -490,7 +490,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
             out.success_message = appointmentReserved
               ? (found.some((p) => p.kind === 'product') || freeDatetimeServices.length > 0
-                ? 'התור נשמר ביומן העסק. כדי שהעסק יקבל גם את פרטי המוצרים והשירותים הנוספים שבחרתם, יש לשלוח את הודעת WhatsApp. אם לא תישלח הודעה, התור שכבר נשמר יישאר בתוקף.'
+                ? 'התור נקבע ונשמר ביומן העסק, ללא תלות בשליחת הודעת WhatsApp. כדי שהעסק יקבל גם את פרטי המוצרים והשירותים הנוספים שבחרתם, שלחו את ההודעה. גם אם תסגרו את החלון או לא תשלחו אותה, התור יישאר שמור.'
                 : 'התור נשמר ביומן העסק. שליחת הודעת WhatsApp היא אפשרות נוספת בלבד ואינה נדרשת להשלמת קביעת התור.')
               : shouldCreateLead && bookingMode === 'free_datetime'
                 ? (appointmentAt

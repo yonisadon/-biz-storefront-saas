@@ -417,7 +417,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
-          <button type="button" onClick={() => dlg.current?.close()} aria-label="סגירת חלון ההזמנה" className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
+          <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
         {!done && (
@@ -470,8 +470,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {done.message}
             </p>
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">שליחת פרטי ההזמנה ב־WhatsApp</a>}
-            <button type="button" onClick={() => { setDone(null); dlg.current?.close(); }}
-              className="ms-2 min-h-11 rounded-xl border border-ink/25 px-5 py-2">סגור</button>
           </div>
         ) : step === 'choose' ? (
           <div className="space-y-3">
