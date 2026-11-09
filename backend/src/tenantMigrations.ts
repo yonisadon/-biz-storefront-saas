@@ -10,6 +10,20 @@ const MIGRATION_FILE = /^tenant-\d{3}[-_][a-z0-9_-]+\.sql$/i;
  * Applies numbered, additive tenant-schema migrations exactly once per database.
  * The caller must use a privileged connection to the selected tenant database.
  */
+export async function getPendingTenantMigrations(
+  db: DbClient,
+  migrationsDir = join(process.cwd(), 'migrations'),
+): Promise<string[]> {
+  const files = readdirSync(migrationsDir)
+    .filter((file) => MIGRATION_FILE.test(file))
+    .sort();
+  const ledger = await db.query("SELECT to_regclass('public.tenant_schema_migrations') AS table_name");
+  if (!ledger.rows[0]?.table_name) return files;
+  const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
+  const appliedVersions = new Set(appliedRows.rows.map((row: { version: string }) => row.version));
+  return files.filter((file) => !appliedVersions.has(file));
+}
+
 export async function applyTenantMigrations(
   db: DbClient,
   migrationsDir = join(process.cwd(), 'migrations'),
