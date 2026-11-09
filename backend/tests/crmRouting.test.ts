@@ -45,6 +45,38 @@ test('disabling CRM blocks site inquiries but keeps direct WhatsApp available', 
   assert.equal(site.createLead, false);
 });
 
+test('calendar reservations remain available with CRM and both contact routes disabled', () => {
+  const config = {
+    crm_enabled: false,
+    order_flow: {
+      whatsapp_enabled: false,
+      site_inquiry_enabled: false,
+      whatsapp_crm_enabled: false,
+    },
+  };
+  const booking = resolveLeadRoute(config, 'site', { bookingMode: 'availability' });
+  assert.equal(booking.routeEnabled, true);
+  assert.equal(booking.createLead, false);
+
+  const ordinarySiteInquiry = resolveLeadRoute(config, 'site', { bookingMode: 'none' });
+  assert.equal(ordinarySiteInquiry.routeEnabled, false);
+  assert.equal(ordinarySiteInquiry.createLead, false);
+
+  const freeDatetimeRequest = resolveLeadRoute(config, 'site', { bookingMode: 'free_datetime' });
+  assert.equal(freeDatetimeRequest.routeEnabled, false);
+  assert.equal(freeDatetimeRequest.createLead, false);
+});
+
+test('calendar-only exception does not bypass a disabled WhatsApp route', () => {
+  const config = {
+    crm_enabled: false,
+    order_flow: { whatsapp_enabled: false, site_inquiry_enabled: false },
+  };
+  const whatsapp = resolveLeadRoute(config, 'whatsapp', { bookingMode: 'availability' });
+  assert.equal(whatsapp.routeEnabled, false);
+  assert.equal(whatsapp.createLead, false);
+});
+
 test('WhatsApp tracking does not enable a disabled WhatsApp route', () => {
   const route = resolveLeadRoute({
     order_flow: {

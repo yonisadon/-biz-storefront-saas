@@ -26,12 +26,20 @@ export function resolveCrmSettings(value: unknown) {
   };
 }
 
-export function resolveLeadRoute(value: unknown, route: LeadRoute) {
+export function resolveLeadRoute(
+  value: unknown,
+  route: LeadRoute,
+  options: { bookingMode?: string } = {},
+) {
   const settings = resolveCrmSettings(value);
-  const routeEnabled = route === 'whatsapp' ? settings.whatsappEnabled : settings.siteInquiryEnabled;
+  const ordinaryRouteEnabled = route === 'whatsapp' ? settings.whatsappEnabled : settings.siteInquiryEnabled;
+  // A calendar reservation is an operational action, not a general inquiry.
+  // It remains available through the website even when every contact/CRM route is off.
+  const calendarOnlyBooking = route === 'site' && options.bookingMode === 'availability';
   return {
     ...settings,
-    routeEnabled,
-    createLead: routeEnabled && (route === 'site' ? settings.crmEnabled : settings.whatsappCrmEnabled),
+    routeEnabled: ordinaryRouteEnabled || calendarOnlyBooking,
+    createLead: ordinaryRouteEnabled &&
+      (route === 'site' ? settings.crmEnabled : settings.whatsappCrmEnabled),
   };
 }

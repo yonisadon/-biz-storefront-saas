@@ -256,11 +256,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const result = await withTenant(req.tenantId, async (db) => {
           const biz = await loadBusiness(db);
           const flow = biz.config?.order_flow ?? {};
-          const routeSettings = resolveLeadRoute(biz.config, body.route);
-          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
-          // A WhatsApp click creates a CRM record only when the seller explicitly
-          // enabled WhatsApp tracking. The legacy default remains enabled.
-          const shouldCreateLead = routeSettings.createLead;
 
           // Merge duplicate lines; prices/names come from the DB, never the client
           const qty = new Map<string, number>();
@@ -292,6 +287,21 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const reservedServices = appointmentServices.filter((p) => p.mode === 'availability');
           const freeDatetimeServices = appointmentServices.filter((p) => p.mode === 'free_datetime');
           const bookingMode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
+          const routeSettings = resolveLeadRoute(biz.config, body.route, { bookingMode });
+          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
+          const calendarOnlyBooking = body.route === 'site' && !routeSettings.siteInquiryEnabled &&
+            bookingMode === 'availability';
+          if (calendarOnlyBooking && found.some((p) => {
+            const itemMode = p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none');
+            return p.kind !== 'service' || itemMode !== 'availability';
+          })) {
+            // A calendar-only booking cannot silently discard products or
+            // free-datetime requests that require a separate contact route.
+            throw new HttpError(403, 'route_disabled');
+          }
+          // Calendar-only website reservations are permitted without opening a
+          // general site-inquiry route; they never create a CRM lead.
+          const shouldCreateLead = routeSettings.createLead;
           const needsAppointment = appointmentServices.length > 0;
           const appointmentAt = body.appointment_at;
           const reservedDurationMinutes = reservedServices

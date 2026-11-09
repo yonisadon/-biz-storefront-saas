@@ -266,6 +266,15 @@ async function main() {
         if (!retentionTrigger.rowCount) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention deadline trigger is missing.`);
         }
+
+        const obsoleteOrderRouteConstraint = await db.query(
+          `SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'public.businesses'::regclass
+              AND conname = 'chk_at_least_one_order_route'`,
+        );
+        if (obsoleteOrderRouteConstraint.rowCount) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: obsolete mandatory-contact-route constraint is still present.`);
+        }
         const overlapConstraint = await db.query(
           `SELECT 1 FROM pg_constraint
             WHERE conrelid = 'public.appointments'::regclass

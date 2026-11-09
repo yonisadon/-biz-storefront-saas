@@ -12,13 +12,13 @@ export const BookingMode = z.enum(['none', 'free_datetime', 'availability']);
 const productDetails = z.array(z.object({
   label: z.string().trim().min(1).max(50),
   value: z.string().trim().min(1).max(250),
-}).strict()).max(20).default([]);
+}).strict()).max(20);
 
 export const ProductCreate = z.object({
   kind: z.enum(['product', 'service']).default('product'),
   name: z.string().trim().min(1).max(120),
   description: optText(2000).transform((v) => v ?? null),
-  details: productDetails,
+  details: productDetails.default([]),
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
   requires_appointment: z.boolean().default(false),
