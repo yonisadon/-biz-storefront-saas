@@ -1,5 +1,5 @@
 import pg from 'pg';
-import { applyTenantMigrations } from '../src/tenantMigrations';
+import { applyTenantMigrations, getPendingTenantMigrations } from '../src/tenantMigrations';
 import { isTenantMigrationAuthorizedWithoutBackup } from '../src/tenantMigrationPolicy';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
@@ -72,12 +72,15 @@ async function main() {
     }
 
     // Preflight every mapped DB before changing any of them.
+    const pendingByTenant = new Map<string, string[]>();
     for (const tenant of tenants) {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) {
         throw new Error(`Unexpected database mapping for tenant ${tenant.tenant_id}; stopped before applying migrations.`);
       }
       const db = await connect(databaseUrl(tenant.database_name), `tenant database ${tenant.database_name}`);
       try {
+        const pendingMigrations = await getPendingTenantMigrations(db);
+        pendingByTenant.set(tenant.database_name, pendingMigrations);
         const schema = await db.query(
           `SELECT to_regclass('public.businesses') AS businesses,
                   to_regclass('public.products') AS products,
@@ -158,25 +161,30 @@ async function main() {
       console.log('Dry run only: no changes were made. Use the explicit --apply flag only in the configured Railway pre-deploy migration step.');
       return;
     }
-    const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
-    const migrationAuthorized = isTenantMigrationAuthorizedWithoutBackup({
-      backupConfirmed,
-      githubEventName: process.env.GITHUB_EVENT_NAME,
-      proceedWithoutBackup: process.env.PROCEED_WITHOUT_BACKUP,
-      railwayAllowWithoutBackup: process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP,
-    });
-    const explicitlyApprovedWithoutBackup = migrationAuthorized && !backupConfirmed;
+    const pendingCount = [...pendingByTenant.values()].reduce((sum, files) => sum + files.length, 0);
+    if (pendingCount === 0) {
+      console.log('No pending tenant migrations; backup approval is not required.');
+    } else {
+      const backupConfirmed = process.env.TENANT_MIGRATION_BACKUP_CONFIRMED === 'true';
+      const migrationAuthorized = isTenantMigrationAuthorizedWithoutBackup({
+        backupConfirmed,
+        githubEventName: process.env.GITHUB_EVENT_NAME,
+        proceedWithoutBackup: process.env.PROCEED_WITHOUT_BACKUP,
+        railwayAllowWithoutBackup: process.env.TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP,
+      });
+      const explicitlyApprovedWithoutBackup = migrationAuthorized && !backupConfirmed;
 
-    if (!migrationAuthorized) {
-      throw new Error(
-        'A verified backup is required. For a manual one-time exception, run this workflow with proceed_without_backup=true.',
-      );
-    }
+      if (!migrationAuthorized) {
+        throw new Error(
+          'A verified backup is required. For a manual one-time exception, run this workflow with proceed_without_backup=true.',
+        );
+      }
 
-    if (explicitlyApprovedWithoutBackup && !backupConfirmed) {
+      if (explicitlyApprovedWithoutBackup && !backupConfirmed) {
       console.warn(
         'WARNING: the no-backup approval flag is active. ALL currently pending tenant migrations may run without a verified backup. If this was a one-time approval, reset TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false immediately after the successful deployment.',
       );
+      }
     }
     console.log('Applying additive tenant migrations...');
     for (const tenant of tenants) {
