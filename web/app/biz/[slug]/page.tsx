@@ -99,7 +99,9 @@ export default async function StorefrontPage({ params }: Props) {
   const whatsappItemsHeading = hasProducts && hasServices
     ? 'המוצרים והשירותים שלנו'
     : hasProducts ? 'המוצרים שלנו' : 'השירותים שלנו';
-  const waNumber = b?.whatsapp_number ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972') : '';
+  const waNumber = data.order_flow?.whatsapp_enabled && b?.whatsapp_number
+    ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')
+    : '';
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
   const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
