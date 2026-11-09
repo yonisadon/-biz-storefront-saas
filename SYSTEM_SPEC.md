@@ -1551,3 +1551,10 @@
 - עדכון תלות npm אומת גם בפריסת API: `npm ci` ו-`npm run build` עברו, ו-Railway build log דיווח `found 0 vulnerabilities` עבור backend. Web CI דיווח `npm audit` ללא חולשות; גרסאות החבילות וה-lockfiles מפורטות בסעיף אבטחת תלויות npm.
 - תיעוד זה גובר על סטטוסים קודמים במסמך שציינו שמיגרציה 007 טרם הורצה או ששירות Cron טרם נוצר/הועבר ל-main. אלה היו נכונים בעת כתיבתם אך אינם הסטטוס הנוכחי.
 - בדיקות קבלה ידניות למסלול calendar-only ולמקרי stale client עדיין נדרשות לפני הכרזה על אישור מוצר מלא. לא בוצע ניקוי CRM יזום כחלק מפריסת ה-API; ניקוי CRM מתבצע רק בלוח הזמנים של Cron.
+
+
+### הבהרה — GitHub migration workflow ב-push של PR #64
+
+- GitHub Actions workflow `Tenant schema migrations` הופעל אוטומטית בעקבות push ל-main והסתיים FAILURE בשלב `Validate required secrets and backup authorization`; הוא עצר לפני `npm ci` ולפני preflight/apply, משום שלא הוגדר גיבוי מאומת או אישור `workflow_dispatch` חד-פעמי. אין לפרש את הכשל הזה ככשל במיגרציה עצמה.
+- מיגרציה 007 כן הוחלה בנפרד ובהצלחה באמצעות פקודת ה-pre-deploy של Railway API, עם אישור מפעיל זמני `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true`. לוגי Railway מאשרים preflight ל-3 טננטים, postflight תקין לכל אחד והשלמת migration. מיד לאחר מכן נשלח עדכון משתנה חזרה ל-false.
+- מאחר ש-GitHub workflow dispatch אינו זמין דרך החיבור הנוכחי, לא בוצעה הרצה ידנית חוזרת של ה-workflow. ריצת ה-push הכושלת נשארת מתועדת; המיגרציה אומתה לפי לוגי Railway בפועל.
