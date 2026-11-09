@@ -1567,3 +1567,11 @@
 - כאשר אין migrations ממתינות, הסקריפט ממשיך לבדיקות postflight ולבדיקת תקינות הסכימה ללא דרישת אישור גיבוי; אין שינוי בהרשאות הנדרשות לשינוי סכימה בפועל.
 - נוספו unit tests לשלושה מצבים: ledger חסר (כל הקבצים ממתינים), כל המיגרציות כבר נרשמו (אין צורך באישור), וחלק מהמיגרציות ממתינות (מוחזרות רק החסרות).
 - סטטוס: PR #65 פתוח; יש להמתין ל-CI ולעבור ל-main רק לאחר שכל הבדיקות עוברות. עד אז, פריסות Railway נוספות עלולות להיכשל בגלל gate זה כאשר `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false`, אך הפריסה הראשונית של קוד PR #64 והמיגרציה 007 הצליחו.
+
+
+## 2026-11-09 — הפרדת GitHub workflow ממנגנון Railway למיגרציות
+
+- ריצת GitHub Actions האוטומטית בעקבות push נכשלה כי secrets `DATABASE_ADMIN_URL` ו-`SUPERADMIN_DATABASE_URL` אינם מוגדרים ב-GitHub. לכן ה-workflow לא הגיע ל-preflight; אין לפרש זאת ככשל במיגרציה 007 שכבר הוחלה בהצלחה ב-Railway.
+- PR #67 הופך את GitHub workflow ל-manual-only. הוא נשמר כאפשרות למפעיל לאחר הגדרת secrets, אך אינו מופעל אוטומטית על push ואינו יוצר כשל CI בכל שינוי migration.
+- מקור האמת לפריסות production נשאר Railway API pre-deploy: `npm run migrate-tenant-schemas:deploy`. סקריפט המיגרציות בודק pending migrations לפני דרישת אישור גיבוי; אישור ללא גיבוי נדרש רק אם יש שינוי סכימה אמיתי.
+- מיגרציה 007 כבר הוחלה בהצלחה על שלושת מסדי הטננטים, ואין להריץ אותה מחדש ידנית; מנגנון ה-ledger מוודא idempotency.
