@@ -1,9 +1,10 @@
 name: Refresh dependency lockfiles
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/calendar-only-bookings-and-retention
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
