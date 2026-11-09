@@ -1527,3 +1527,12 @@
 - הסקריפט מבצע preflight לכל מסדי הטננטים לפני מחיקה, מוודא את מיפוי tenant/database ואת מיגרציית retention ואת FK ששומר appointments עם `lead_id=NULL`. רק לאחר שכל ה-preflight עבר, הוא מוחק leads שפג תוקפם; פגישות/שריוני יומן נשמרים.
 - **סטטוס תפעולי:** Railway deployment `661cacec-e477-414c-a697-b40426efb8be` הסתיים SUCCESS וה-config מציג את ה-cron ואת פקודת `--apply`. הריצה הראשונה לפי לוח הזמנים טרם התרחשה/אומתה; יש לבדוק את deploy logs אחרי 01:00 המקומית הראשונה. לא לטעון שהמחיקה כבר רצה עד שיש לוג סיום מוצלח.
 - השירות כבר הוגדר ל-`--apply` בהתאם למדיניות retention שאושרה; הוא אינו מריץ dry-run. כל הרצה מתעדת מספר leads שנמחקו ומספר appointments שנותרו עם lead_id מנותק.
+
+
+## 2026-11-09 — תיקון סטטוס, השלמת PR #64 והעברה ל-main
+
+- הבהרת תיעוד: הפסקה המוקדמת בסעיף מדיניות retention שלפיה שירות Railway טרם נוצר היא תיעוד היסטורי שהתיישן. בפועל השירות נוצר ונפרס כמפורט בסעיף שירות Railway לניקוי CRM; הוא עדיין דורש בדיקת הרצה ראשונה בפועל.
+- לפני מיזוג PR #64: שירות crm-retention-cleanup מחובר לענף הפיתוח. לאחר המיזוג יש להעבירו ל-main, להמתין לפריסה חדשה ולאמת את מקור הקוד וה-config.
+- מיגרציה backend/migrations/tenant-007-calendar-only-bookings.sql מסירה את אילוץ מסלול ההזמנה היחיד ומאפשרת לעסק להפעיל תצורת calendar-only. עצם המיזוג אינו הוכחה שהמיגרציה הוחלה; יש לאמת את ריצת migration workflow ואת תוצאתה בכל tenant DB רלוונטי לפני הכרזה על השלמה.
+- PR #64 כולל עדכוני תלויות ו-lockfiles, Node.js 22, בדיקות CI הכוללות npm ci ו-npm audit --audit-level=moderate. סטטוס הבדיקות בעת הכנת המיזוג: Backend build, Validate, Web build and lint, Vercel Preview ופריסת Cron — SUCCESS. יש לשמור את תוצאות ה-CI הסופיות של commit המיזוג.
+- סטטוס cleanup: הפקודה ב-Railway היא npm run cleanup-expired-crm -- --apply, בלוח הזמנים 0 22,23 * * * UTC, עם guard לשעה 01:00 Asia/Jerusalem. עד לאימות לוג ריצה ראשונה אין לטעון שמחיקה אוטומטית כבר התבצעה.
