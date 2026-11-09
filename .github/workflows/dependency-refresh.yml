@@ -26,9 +26,11 @@ jobs:
           cd web
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           npm update --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm audit fix --package-lock-only --ignore-scripts --no-fund || true
           cd ../backend
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           npm update --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm audit fix --package-lock-only --ignore-scripts --no-fund || true
 
       - name: Report npm audit findings
         run: |
