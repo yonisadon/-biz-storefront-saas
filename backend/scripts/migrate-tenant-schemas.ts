@@ -181,9 +181,9 @@ async function main() {
       }
 
       if (explicitlyApprovedWithoutBackup && !backupConfirmed) {
-      console.warn(
-        'WARNING: the no-backup approval flag is active. ALL currently pending tenant migrations may run without a verified backup. If this was a one-time approval, reset TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false immediately after the successful deployment.',
-      );
+        console.warn(
+          'WARNING: the no-backup approval flag is active. ALL currently pending tenant migrations may run without a verified backup. If this was a one-time approval, reset TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false immediately after the successful deployment.',
+        );
       }
     }
     console.log('Applying additive tenant migrations...');
