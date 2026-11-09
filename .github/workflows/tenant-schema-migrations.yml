@@ -41,18 +41,12 @@ jobs:
       # Checkout must run before any step using the job's backend working-directory.
       - uses: actions/checkout@v4
 
-      - name: Validate required secrets and backup authorization
+      - name: Validate required database secrets
         shell: bash
         run: |
           set -euo pipefail
           if [[ -z "$DATABASE_ADMIN_URL" || -z "$SUPERADMIN_DATABASE_URL" ]]; then
             echo "::error::Configure DATABASE_ADMIN_URL and SUPERADMIN_DATABASE_URL in GitHub Actions secrets."
-            exit 1
-          fi
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$PROCEED_WITHOUT_BACKUP" == "true" ]]; then
-            echo "::warning::Proceeding with ALL pending tenant migrations without a verified restorable backup, explicitly authorized for this manual run only."
-          elif [[ "$TENANT_MIGRATION_BACKUP_CONFIRMED" != "true" ]]; then
-            echo "::error::A verified restorable backup is required. For a one-time manual exception, dispatch this workflow with proceed_without_backup=true."
             exit 1
           fi
 
