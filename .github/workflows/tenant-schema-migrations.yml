@@ -1,13 +1,6 @@
 name: Tenant schema migrations
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'backend/migrations/**'
-      - 'backend/src/tenantMigrations.ts'
-      - 'backend/scripts/migrate-tenant-schemas.ts'
-      - '.github/workflows/tenant-schema-migrations.yml'
   workflow_dispatch:
     inputs:
       proceed_without_backup:
