@@ -16,7 +16,7 @@ type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?:
 
 function errorText(status: number, d: ApiErrorPayload | null): string {
   if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
-  if (status === 403) return 'מסלול ההזמנה הזה אינו זמין כרגע.';
+  if (status === 403) return 'הגדרות העסק השתנו מאז פתיחת האתר. רעננו את הדף ונסו שוב.';
   if (d?.error === 'appointment_required') return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (d?.error === 'invalid_appointment_time') return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'contact_required') return 'כדי לשמור תור ביומן, יש להזין מספר טלפון.';
@@ -203,6 +203,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const freeDatetimeLines = appointmentLines.filter(({ p }) => modeOf(p) === 'free_datetime');
   const needsReservedAppointment = reservedAppointmentLines.length > 0;
   const needsFreeDatetimeAppointment = freeDatetimeLines.length > 0;
+  const calendarOnlyFlow = needsReservedAppointment && !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
   const reservedAppointmentDurationMinutes = reservedAppointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const freeDatetimeDurationMinutes = freeDatetimeLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const appointmentDurationMinutes = needsReservedAppointment ? reservedAppointmentDurationMinutes : freeDatetimeDurationMinutes;
@@ -278,7 +279,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           route,
           idempotency_key: requestKey,
-          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone ?? undefined, ...(route === 'site' ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
+          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone ?? undefined, ...(route === 'site' && flow.site_inquiry_enabled ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
           ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
@@ -307,7 +308,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }
 
   const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
-  const openContinuation = () => { setError(null); setDone(null); setStep(flow.whatsapp_enabled && flow.site_inquiry_enabled ? 'choose' : flow.site_inquiry_enabled ? 'site' : 'choose'); dlg.current?.showModal(); };
+  const openContinuation = () => {
+    setError(null);
+    setDone(null);
+    setStep(calendarOnlyFlow ? 'site' : flow.whatsapp_enabled && flow.site_inquiry_enabled ? 'choose' : flow.site_inquiry_enabled ? 'site' : 'choose');
+    dlg.current?.showModal();
+  };
 
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
@@ -358,12 +364,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   )}
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
-                    {canOrder && (q > 0 ? (
+                    {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
                         className="storefront-card-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-fg transition hover:opacity-90">
-                        {p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
+                        {calendarOnlyFlow && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
                       </button>
                     ))}
                   </div>
@@ -487,24 +493,24 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
-            <div>
+            {!calendarOnlyFlow && <div>
               <label htmlFor="lead-name" className="block text-sm font-medium">שם (רשות)</label>
               <input id="lead-name" name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
-            </div>
+            </div>}
             <div>
               <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
               <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
-            <div>
+            {!calendarOnlyFlow && <div>
               <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
               <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
-            </div>
+            </div>}
             <div className="flex gap-2 pt-2">
               {flow.whatsapp_enabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
                 className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3 font-semibold">חזרה</button>}
               <button type="submit" disabled={busy !== null}
                 className="min-h-12 flex-1 rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg disabled:opacity-50">
-                {busy === 'site' ? 'שולח…' : 'שליחת הפנייה'}
+                {busy === 'site' ? 'שומר…' : calendarOnlyFlow ? 'שמירת התור ביומן' : 'שליחת הפנייה'}
               </button>
             </div>
           </form>
