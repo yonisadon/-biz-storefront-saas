@@ -289,6 +289,16 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           const bookingMode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
           const routeSettings = resolveLeadRoute(biz.config, body.route, { bookingMode });
           if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
+          const calendarOnlyBooking = body.route === 'site' && !routeSettings.siteInquiryEnabled &&
+            bookingMode === 'availability';
+          if (calendarOnlyBooking && found.some((p) => {
+            const itemMode = p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none');
+            return p.kind !== 'service' || itemMode !== 'availability';
+          })) {
+            // A calendar-only booking cannot silently discard products or
+            // free-datetime requests that require a separate contact route.
+            throw new HttpError(403, 'route_disabled');
+          }
           // Calendar-only website reservations are permitted without opening a
           // general site-inquiry route; they never create a CRM lead.
           const shouldCreateLead = routeSettings.createLead;
