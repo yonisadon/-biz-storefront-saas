@@ -221,7 +221,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={f.crm} onChange={(e) => {
               const enabled = e.target.checked;
-              setF((current) => ({ ...current, crm: enabled, ...(enabled ? {} : { site: false, whatsappCrm: false }) }));
+              setF((current) => ({ ...current, crm: enabled, ...(enabled ? {} : { site: false }) }));
             }} />
             <span><strong>הפעלת ניהול פניות ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כשמכבים CRM, טופס פנייה ותיעוד WhatsApp ב-CRM מושבתים. פניות קיימות לא יימחקו. הזמנת שירות עם שריון ביומן נשארת זמינה באתר, בלי ליצור פנייה ב-CRM. פנייה ישירה ב-WhatsApp יכולה לפעול אם המסלול מופעל.</span></span>
           </label>
