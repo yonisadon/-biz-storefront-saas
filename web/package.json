@@ -27,5 +27,10 @@
   },
   "engines": {
     "node": "22.x"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.32"
+    }
   }
 }
