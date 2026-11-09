@@ -1516,3 +1516,14 @@
 - אין להריץ כחלק מהאישור ניקוי CRM, מחיקת לידים או מחיקת נתונים עסקיים. פעולות אלה דורשות תהליך ואישור נפרדים.
 - תוקנה גם סדרת צעדי ה-workflow: checkout מתבצע לפני כל צעד שתלוי ב-`working-directory: backend`.
 - **סטטוס שינוי:** הוטמע בענף `fix/manual-approval-all-tenant-migrations`; נדרש CI, סקירת PR והרצה ידנית מאושרת. אין לטעון שמיגרציות כבר בוצעו עד לקבלת לוג הצלחה מכל מסדי הטננטים.
+
+## 2026-11-09 — שירות Railway לניקוי CRM אוטומטי
+
+- נוצר שירות Railway נפרד `crm-retention-cleanup` בפרויקט `resilient-healing`, production. Service ID: `e58a9955-a7f9-46fe-84ed-4b392884053d`.
+- מקור הקוד כרגע הוא `yonisadon/-biz-storefront-saas`, branch `fix/calendar-only-bookings-and-retention`, root directory `/backend`. לאחר מיזוג PR #64 יש להעביר את מקור השירות ל-`main` ולוודא deployment חדש.
+- Build: `npm ci`. Start: `npm run cleanup-expired-crm -- --apply`. Restart policy: `NEVER` (משימת Cron חד-פעמית).
+- Schedule: `0 22,23 * * *` ב-UTC. משתנים: `CRM_CLEANUP_LOCAL_HOUR=01`, `CRM_CLEANUP_TIMEZONE=Asia/Jerusalem`. בגלל מעבר שעון קיץ/חורף Railway מקבל שתי שעות UTC; ה-timezone guard מאפשר מחיקה רק בריצה שבה השעה המקומית בישראל היא 01:00.
+- `APP_DATABASE_URL` מוגדר כ-reference למשתנה `APP_DATABASE_URL` של שירות ה-API `-biz-storefront-saas`. `DATABASE_SSL` לא מוגדר, ולכן הסקריפט משתמש בברירת המחדל false, כמו תצורת ה-API הנוכחית.
+- הסקריפט מבצע preflight לכל מסדי הטננטים לפני מחיקה, מוודא את מיפוי tenant/database ואת מיגרציית retention ואת FK ששומר appointments עם `lead_id=NULL`. רק לאחר שכל ה-preflight עבר, הוא מוחק leads שפג תוקפם; פגישות/שריוני יומן נשמרים.
+- **סטטוס תפעולי:** Railway deployment `661cacec-e477-414c-a697-b40426efb8be` הסתיים SUCCESS וה-config מציג את ה-cron ואת פקודת `--apply`. הריצה הראשונה לפי לוח הזמנים טרם התרחשה/אומתה; יש לבדוק את deploy logs אחרי 01:00 המקומית הראשונה. לא לטעון שהמחיקה כבר רצה עד שיש לוג סיום מוצלח.
+- השירות כבר הוגדר ל-`--apply` בהתאם למדיניות retention שאושרה; הוא אינו מריץ dry-run. כל הרצה מתעדת מספר leads שנמחקו ומספר appointments שנותרו עם lead_id מנותק.
