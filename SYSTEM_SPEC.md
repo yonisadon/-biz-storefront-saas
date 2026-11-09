@@ -1536,3 +1536,18 @@
 - מיגרציה backend/migrations/tenant-007-calendar-only-bookings.sql מסירה את אילוץ מסלול ההזמנה היחיד ומאפשרת לעסק להפעיל תצורת calendar-only. עצם המיזוג אינו הוכחה שהמיגרציה הוחלה; יש לאמת את ריצת migration workflow ואת תוצאתה בכל tenant DB רלוונטי לפני הכרזה על השלמה.
 - PR #64 כולל עדכוני תלויות ו-lockfiles, Node.js 22, בדיקות CI הכוללות npm ci ו-npm audit --audit-level=moderate. סטטוס הבדיקות בעת הכנת המיזוג: Backend build, Validate, Web build and lint, Vercel Preview ופריסת Cron — SUCCESS. יש לשמור את תוצאות ה-CI הסופיות של commit המיזוג.
 - סטטוס cleanup: הפקודה ב-Railway היא npm run cleanup-expired-crm -- --apply, בלוח הזמנים 0 22,23 * * * UTC, עם guard לשעה 01:00 Asia/Jerusalem. עד לאימות לוג ריצה ראשונה אין לטעון שמחיקה אוטומטית כבר התבצעה.
+
+
+## 2026-11-09 — תוצאת מיזוג PR #64, פריסת main והרצת מיגרציה 007
+
+- PR #64 מוזג ל-main בשיטת squash. Merge commit: da8e5c8ee4bcd59a419c6a2b38ef917d850a59da. כל בדיקות ה-CI על ה-commit הסופי לפני המיזוג עברו: Backend build/tests, Validate, Web lint/build; Vercel Preview ופריסת Railway Cron הצליחו.
+- שירות Railway crm-retention-cleanup הועבר למקור `main`, root `/backend`, והפריסה על commit המיזוג הסתיימה SUCCESS. פקודת ההרצה `npm run cleanup-expired-crm -- --apply`; schedule `0 22,23 * * *` UTC, guard לשעה 01:00 Asia/Jerusalem. הריצה המתוזמנת הראשונה עדיין דורשת אימות לוגים; אין לטעון שנמחקו רשומות עד שיופיע לוג ריצה מתוזמנת מוצלחת.
+- שירות API Railway מוגדר עם pre-deploy `npm run migrate-tenant-schemas:deploy`. בפריסת main הופעלה הרשאת מפעיל זמנית `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true` עבור כל המיגרציות הממתינות, משום שאין גיבוי מאומת. ה-preflight עבר עבור 3 מסדי טננטים, ומיגרציה `tenant-007-calendar-only-bookings.sql` הוחלה בהצלחה בכל שלושתם:
+  - `biz_17f65363a8a14fd3963544cc` — booking postflight passed.
+  - `biz_214beafe2fd44ce6b939876a` — booking postflight passed.
+  - `biz_9dfeef0b5d7e4173b6510b76` — booking postflight passed.
+- לוג ההרצה מאשר: `Tenant schema migrations completed. No tenant databases or business rows were deleted.` לא נמחקו מסדי טננטים או רשומות עסקיות.
+- מיד לאחר הצלחת המיגרציה הוחזר `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false`; Railway אישר את עדכון המשתנה והחל פריסה בעקבות שינוי המשתנה. יש לאמת את הפריסה העוקבת ואת ערך המשתנה דרך התנהגות ה-gate/לוגים, כי Railway אינו מציג ערכי משתנים ב-readback.
+- עדכון תלות npm אומת גם בפריסת API: `npm ci` ו-`npm run build` עברו, ו-Railway build log דיווח `found 0 vulnerabilities` עבור backend. Web CI דיווח `npm audit` ללא חולשות; גרסאות החבילות וה-lockfiles מפורטות בסעיף אבטחת תלויות npm.
+- תיעוד זה גובר על סטטוסים קודמים במסמך שציינו שמיגרציה 007 טרם הורצה או ששירות Cron טרם נוצר/הועבר ל-main. אלה היו נכונים בעת כתיבתם אך אינם הסטטוס הנוכחי.
+- בדיקות קבלה ידניות למסלול calendar-only ולמקרי stale client עדיין נדרשות לפני הכרזה על אישור מוצר מלא. לא בוצע ניקוי CRM יזום כחלק מפריסת ה-API; ניקוי CRM מתבצע רק בלוח הזמנים של Cron.
