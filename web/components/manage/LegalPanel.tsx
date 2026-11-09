@@ -2,12 +2,28 @@
 
 import { useState } from 'react';
 import { mcall } from '@/lib/manageApi';
+import { LEGAL_DEFAULTS } from '@/lib/legalDefaults';
 import type { ManageBusiness } from '@/lib/types';
 
 const DOCS = [
-  { key: 'accessibility_statement', title: 'הצהרת נגישות', hint: 'רמת ההתאמה, מגבלות ידועות ודרך יצירת קשר בנושא נגישות.' },
-  { key: 'terms_of_use', title: 'תנאי שימוש / תקנון', hint: 'כללים רלוונטיים לשימוש באתר ולהתקשרות עם העסק.' },
-  { key: 'privacy_policy', title: 'מדיניות פרטיות', hint: 'אילו פרטים נאספים, לאיזו מטרה, כיצד משתמשים בהם ולמי ניתן לפנות.' },
+  {
+    key: 'accessibility_statement',
+    title: 'הצהרת נגישות',
+    hint: 'תארו את התאמות הנגישות באתר העסק, מגבלות ידועות ודרך יצירת קשר בנושא נגישות.',
+    placeholder: 'לדוגמה: התאמות שבוצעו באתר, מגבלות שידועות לכם, ואיך ניתן לפנות אליכם בנושא נגישות.',
+  },
+  {
+    key: 'terms_of_use',
+    title: 'תנאי שימוש / תקנון',
+    hint: 'הוסיפו את התנאים המסחריים של העסק, בהתאם לאופן הפעילות שלו.',
+    placeholder: 'לדוגמה: אופן הזמנה, תשלום, אספקה או קבלת השירות, ביטולים, החזרות, אחריות ותנאים מיוחדים.',
+  },
+  {
+    key: 'privacy_policy',
+    title: 'מדיניות פרטיות',
+    hint: 'פרטו מידע נוסף שהעסק אוסף או שומר, מטרות השימוש בו וגורמים שעשויים לקבל אותו.',
+    placeholder: 'לדוגמה: מידע שנאסף מחוץ לטופס באתר, שימושים נוספים במידע, העברה לספקים או לגורמים אחרים, תקופות שמירה ודרך לפנות לעסק בנושא פרטיות.',
+  },
 ] as const;
 
 type DocKey = (typeof DOCS)[number]['key'];
@@ -54,24 +70,42 @@ export default function LegalPanel({ token, biz, onSaved }: {
       <div className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
         <h2 className="text-lg font-bold">מסמכי האתר</h2>
         <p className="mt-2 text-sm leading-6 text-ink/70">
-          כאן מנהלים את שלושת המסמכים של העסק במקום אחד. כל מסמך נערך בנפרד, ורק טקסט שמילאתם יוצג באתר הלקוחות.
+          שלושת המסמכים מורכבים משני חלקים: נוסח קבוע של Biz Storefront, שמופיע אוטומטית ואינו ניתן לעריכה,
+          והשלמות שהעסק מוסיף בהתאם לפעילות שלו. רק ההשלמות נשמרות בהגדרות העסק.
           מומלץ לקבל ייעוץ מתאים לפני פרסום נוסח משפטי; המערכת אינה מספקת ייעוץ משפטי.
         </p>
+        <p className="mt-2 text-sm leading-6 text-ink/70">
+          אם כבר הזנתם בעבר מסמך מלא, עברו על הטקסט שהזנתם והתאימו אותו כך שיכלול רק את המידע הנוסף של העסק, כדי למנוע כפילויות.
+        </p>
       </div>
-      {DOCS.map(({ key, title, hint }) => (
-        <label key={key} className="block rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
-          <span className="block font-bold">{title}</span>
-          <span className="mt-1 block text-sm leading-5 text-ink/65">{hint}</span>
+      {DOCS.map(({ key, title, hint, placeholder }) => (
+        <section key={key} aria-labelledby={`legal-${key}`} className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
+          <h3 id={`legal-${key}`} className="font-bold">{title}</h3>
+          <p className="mt-1 text-sm leading-5 text-ink/65">{hint}</p>
+
+          <details className="mt-3 rounded-xl border border-ink/10 bg-slate-50 p-3">
+            <summary className="cursor-pointer text-sm font-semibold">
+              החלק הקבוע של Biz Storefront – לקריאה בלבד
+            </summary>
+            <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-ink/75">
+              {LEGAL_DEFAULTS[key]}
+            </p>
+          </details>
+
+          <label htmlFor={`legal-input-${key}`} className="mt-4 block text-sm font-semibold">
+            השלמות מטעם העסק
+          </label>
           <textarea
+            id={`legal-input-${key}`}
             value={values[key]}
             onChange={(e) => setValues((prev) => ({ ...prev, [key]: e.target.value }))}
             maxLength={20000}
-            rows={8}
-            placeholder="הזינו כאן את נוסח המסמך. אם משאירים ריק, המסמך לא יוצג באתר."
-            className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm leading-6 text-gray-900"
+            rows={6}
+            placeholder={placeholder}
+            className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm leading-6 text-gray-900"
           />
           <span className="mt-1 block text-end text-xs text-gray-500">{values[key].length}/20,000 תווים</span>
-        </label>
+        </section>
       ))}
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={saving}
