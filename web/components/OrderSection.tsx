@@ -124,6 +124,8 @@ function ProductImageGallery({ product }: { product: Product }) {
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
+  const successRef = useRef<HTMLParagraphElement>(null);
   const [items, setItems] = useState<Product[]>(initialItems);
   const [nextOffset, setNextOffset] = useState(initialItems.length);
   const [hasMore, setHasMore] = useState(initiallyHasMore);
@@ -143,6 +145,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+
+  useEffect(() => {
+    if (done) successRef.current?.focus();
+  }, [done]);
 
   const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
   const calendarOnlyAvailable = !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
@@ -320,7 +326,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id="catalog-h" className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
+        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
       </div>
 
       {catalogTotal >= 5 && (
@@ -408,7 +414,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => openerRef.current?.focus()} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label="סגירת חלון ההזמנה" className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
@@ -460,7 +466,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
         {done ? (
           <div className="py-4 text-center">
-            <p role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium">
+            <p ref={successRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               {done.message}
             </p>
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">שליחת פרטי ההזמנה ב־WhatsApp</a>}
