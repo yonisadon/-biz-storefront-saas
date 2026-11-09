@@ -36,14 +36,37 @@ async function main() {
     }
   }
 
+  const apply = process.argv.includes('--apply');
   const registry = await connect(registryUrl!);
   let totalLeadsDeleted = 0;
-  let totalAppointmentsUnlinked = 0;
+  let totalLeadsWouldDelete = 0;
+  let totalAppointmentsToUnlink = 0;
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
     );
     const tenants = result.rows as { tenant_id: string; database_name: string }[];
+
+    // Preflight every tenant before deleting anything from any tenant.
+    for (const tenant of tenants) {
+      if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) {
+        throw new Error(`Unexpected database mapping for tenant ${tenant.tenant_id}; refusing CRM cleanup.`);
+      }
+      const db = await connect(databaseUrl(tenant.database_name));
+      try {
+        const required = await db.query(
+          `SELECT
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_expires_at') AS has_deadline,
+             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments`,
+        );
+        if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments) {
+          throw new Error(`CRM retention migration is incomplete for ${tenant.database_name}; no tenant rows were deleted.`);
+        }
+      } finally {
+        await db.end();
+      }
+    }
+    console.log(`CRM cleanup preflight passed for ${tenants.length} tenant database(s).`);
 
     for (const tenant of tenants) {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) {
@@ -56,17 +79,14 @@ async function main() {
           "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)",
           [tenant.tenant_id],
         );
-        const required = await db.query(
-          `SELECT
-             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_expires_at') AS has_deadline,
-             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments`,
-        );
-        if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments) {
-          throw new Error(`CRM retention migration is incomplete for ${tenant.database_name}; no rows were deleted.`);
-        }
-
         // The FK converts lead_id to NULL on surviving appointments; appointments,
         // their time reservations and manual calendar entries are not deleted.
+        const expired = await db.query(
+          `SELECT count(*)::int AS n
+             FROM public.leads
+            WHERE retention_expires_at IS NOT NULL
+              AND retention_expires_at <= now()`,
+        );
         const willUnlink = await db.query(
           `SELECT count(*)::int AS n
              FROM public.appointments a
@@ -75,16 +95,23 @@ async function main() {
               AND l.retention_expires_at <= now()
               AND a.status = 'reserved'`,
         );
-        const deleted = await db.query(
-          `DELETE FROM public.leads
-            WHERE retention_expires_at IS NOT NULL
-              AND retention_expires_at <= now()
-            RETURNING id`,
-        );
+        let deletedCount = 0;
+        if (apply) {
+          const deleted = await db.query(
+            `DELETE FROM public.leads
+              WHERE retention_expires_at IS NOT NULL
+                AND retention_expires_at <= now()
+              RETURNING id`,
+          );
+          deletedCount = deleted.rowCount ?? 0;
+        }
         await db.query('COMMIT');
-        totalLeadsDeleted += deleted.rowCount ?? 0;
-        totalAppointmentsUnlinked += Number(willUnlink.rows[0]?.n ?? 0);
-        console.log(`${tenant.database_name}: deleted ${deleted.rowCount ?? 0} expired CRM lead(s); preserved and unlinked ${willUnlink.rows[0]?.n ?? 0} active appointment(s).`);
+        const expiredCount = Number(expired.rows[0]?.n ?? 0);
+        const unlinkCount = Number(willUnlink.rows[0]?.n ?? 0);
+        totalLeadsDeleted += deletedCount;
+        totalLeadsWouldDelete += expiredCount;
+        totalAppointmentsToUnlink += unlinkCount;
+        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `dry run: would delete ${expiredCount}`} expired CRM lead(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s), preserving the appointments.`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error(`CRM cleanup failed for ${tenant.database_name}: ${error instanceof Error ? error.message : String(error)}`);
@@ -92,7 +119,7 @@ async function main() {
         await db.end();
       }
     }
-    console.log(`CRM retention cleanup complete. Tenants: ${tenants.length}; leads deleted: ${totalLeadsDeleted}; active unlinked appointments observed: ${totalAppointmentsUnlinked}.`);
+    console.log(`CRM retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; leads deleted: ${totalLeadsDeleted}; expired leads found: ${totalLeadsWouldDelete}; ${apply ? 'appointments unlinked' : 'appointments to unlink'}: ${totalAppointmentsToUnlink}.`);
   } finally {
     await registry.end();
   }
