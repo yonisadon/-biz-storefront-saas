@@ -46,7 +46,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     streetAddress: biz.config.business_profile?.street_address ?? '',
     showAddress: biz.config.business_profile?.show_address === true,
     wa: flow.whatsapp_enabled === true,
-    site: flow.site_inquiry_enabled === true,
+    site: biz.config.crm_enabled === false ? false : flow.site_inquiry_enabled === true,
     crm: biz.config.crm_enabled !== false,
     whatsappCrm: flow.whatsapp_crm_enabled !== false,
     whatsappIntro: initialWhatsAppIntro(flow),
@@ -100,7 +100,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
             order_flow: {
               ...latestFlow,
               whatsapp_enabled: f.wa,
-              site_inquiry_enabled: f.site,
+              site_inquiry_enabled: f.crm && f.site,
               whatsapp_crm_enabled: f.whatsappCrm,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
