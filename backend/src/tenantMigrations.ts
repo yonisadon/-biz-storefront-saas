@@ -17,7 +17,7 @@ export async function getPendingTenantMigrations(
   const files = readdirSync(migrationsDir)
     .filter((file) => MIGRATION_FILE.test(file))
     .sort();
-  const ledger = await db.query(\"SELECT to_regclass('public.tenant_schema_migrations') AS table_name\");
+  const ledger = await db.query("SELECT to_regclass('public.tenant_schema_migrations') AS table_name");
   if (!ledger.rows[0]?.table_name) return files;
   const appliedRows = await db.query('SELECT version FROM public.tenant_schema_migrations');
   const appliedVersions = new Set(appliedRows.rows.map((row: { version: string }) => row.version));
