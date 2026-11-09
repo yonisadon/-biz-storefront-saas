@@ -1566,7 +1566,7 @@
 - PR #65 (`fix/no-backup-gate-when-no-migrations`) מוסיף זיהוי מיגרציות ממתינות לכל tenant במהלך preflight. דרישת גיבוי מאומת או אישור מפעיל ללא גיבוי מופעלת רק אם יש לפחות migration אחת שטרם נרשמה ב-ledger.
 - כאשר אין migrations ממתינות, הסקריפט ממשיך לבדיקות postflight ולבדיקת תקינות הסכימה ללא דרישת אישור גיבוי; אין שינוי בהרשאות הנדרשות לשינוי סכימה בפועל.
 - נוספו unit tests לשלושה מצבים: ledger חסר (כל הקבצים ממתינים), כל המיגרציות כבר נרשמו (אין צורך באישור), וחלק מהמיגרציות ממתינות (מוחזרות רק החסרות).
-- סטטוס: PR #65 פתוח; יש להמתין ל-CI ולעבור ל-main רק לאחר שכל הבדיקות עוברות. עד אז, פריסות Railway נוספות עלולות להיכשל בגלל gate זה כאשר `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false`, אך הפריסה הראשונית של קוד PR #64 והמיגרציה 007 הצליחו.
+- סטטוס: PR #65 מוזג ל-main לאחר Backend build/tests ו-Validate מוצלחים. התיקון נפרס בהצלחה ב-Railway; בדיקת pre-deploy אישרה שאין מיגרציות ממתינות והשלימה postflight לכל שלושת הטננטים.
 
 
 ## 2026-11-09 — הפרדת GitHub workflow ממנגנון Railway למיגרציות
@@ -1575,3 +1575,17 @@
 - PR #67 הופך את GitHub workflow ל-manual-only. הוא נשמר כאפשרות למפעיל לאחר הגדרת secrets, אך אינו מופעל אוטומטית על push ואינו יוצר כשל CI בכל שינוי migration.
 - מקור האמת לפריסות production נשאר Railway API pre-deploy: `npm run migrate-tenant-schemas:deploy`. סקריפט המיגרציות בודק pending migrations לפני דרישת אישור גיבוי; אישור ללא גיבוי נדרש רק אם יש שינוי סכימה אמיתי.
 - מיגרציה 007 כבר הוחלה בהצלחה על שלושת מסדי הטננטים, ואין להריץ אותה מחדש ידנית; מנגנון ה-ledger מוודא idempotency.
+
+
+## 2026-11-09 — סיכום קידום סופי ל-main
+
+- PR #64 — מימוש calendar-only bookings, עדכוני אבטחת npm, cleanup script ו-Cron — מוזג ב-commit `da8e5c8ee4bcd59a419c6a2b38ef917d850a59da`.
+- PR #65 — תיקון gate כך שאישור גיבוי נדרש רק כאשר יש מיגרציות ממתינות — מוזג ב-commit `653b0ed5f96a0f23141bd144029b9232bee907ed`.
+- PR #66 — העברת בדיקת אישור הגיבוי מה-workflow אל סקריפט המיגרציות אחרי preflight — מוזג ב-commit `c02be9b5d5f84c59d2dc7b9e3859055ffe8c106f`.
+- PR #67 — הפיכת GitHub migration workflow ל-manual-only, משום ש-secrets של DB אינם מוגדרים ב-GitHub Actions — מוזג ב-commit `3b2f59ca261c2fdfe513064e4c203648dd718fe6`. מנגנון המיגרציות בפרודקשן נשאר Railway API pre-deploy.
+- **מיגרציה 007:** הוחלה בהצלחה ב-3 מסדי הטננטים עם אישור מפעיל זמני ללא גיבוי מאומת. בכל השלושה `booking postflight passed`; לא נמחקו מסדי נתונים או רשומות עסקיות. לאחר מכן הוחזר `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false`.
+- **אימות פריסת API:** Railway deployment `982d7744-772b-46af-90d9-4b1409e3ec2f` על commit `3b2f59c` הסתיים SUCCESS. לוגי pre-deploy מאשרים: preflight ל-3 טננטים, אין migrations ממתינות, אין צורך באישור גיבוי, postflight תקין לכל טננט, ולא נמחקו נתונים.
+- **CI ו-Vercel:** Validate (Backend tests + Web lint/build) ו-Vercel עברו על commit main `3b2f59c`. Backend build עבר גם ב-PR #65 וב-PR #66/#67.
+- **Cron:** שירות `crm-retention-cleanup` נשאר מחובר ל-`main`, root `/backend`, פקודה `npm run cleanup-expired-crm -- --apply`, schedule `0 22,23 * * *` UTC ו-timezone guard ל-01:00 `Asia/Jerusalem`. הפריסה המוצלחת האחרונה היא `b0447c6b-d086-47a0-a56d-7bc11595b275` על commit `c02be9b`. ניסיונות build חדשים על commit `3b2f59c` נכשלו בשגיאת Railway Railpack `frontend grpc server closed unexpectedly`; הם לא שינו את הפריסה המוצלחת הקודמת. ה-builder הוחלף ל-NIXPACKS ונשלח ניסיון redeploy נוסף; יש לאמת SUCCESS לפני שמסמנים את ניסיון הפריסה האחרון כתקין.
+- **הגנת נתונים:** לא הוגדר גיבוי מאומת. אין לטעון שקיים גיבוי. אין לבצע מיגרציות עתידיות ללא גיבוי מאומת או אישור מפעיל מפורש.
+- **בדיקות קבלה שנותרו:** לבצע בדיקה ידנית באתר למסלול calendar-only (CRM/WhatsApp/טופס כבויים, שירות availability בלבד), ולוודא בקשת לקוח ישנה לערוץ שכובה נדחית עם הודעת רענון. בדיקות אוטומטיות ו-postflight עברו; בדיקות שימוש אלה עדיין נדרשות.
