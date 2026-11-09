@@ -1558,3 +1558,12 @@
 - GitHub Actions workflow `Tenant schema migrations` הופעל אוטומטית בעקבות push ל-main והסתיים FAILURE בשלב `Validate required secrets and backup authorization`; הוא עצר לפני `npm ci` ולפני preflight/apply, משום שלא הוגדר גיבוי מאומת או אישור `workflow_dispatch` חד-פעמי. אין לפרש את הכשל הזה ככשל במיגרציה עצמה.
 - מיגרציה 007 כן הוחלה בנפרד ובהצלחה באמצעות פקודת ה-pre-deploy של Railway API, עם אישור מפעיל זמני `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=true`. לוגי Railway מאשרים preflight ל-3 טננטים, postflight תקין לכל אחד והשלמת migration. מיד לאחר מכן נשלח עדכון משתנה חזרה ל-false.
 - מאחר ש-GitHub workflow dispatch אינו זמין דרך החיבור הנוכחי, לא בוצעה הרצה ידנית חוזרת של ה-workflow. ריצת ה-push הכושלת נשארת מתועדת; המיגרציה אומתה לפי לוגי Railway בפועל.
+
+
+## 2026-11-09 — תיקון gate לאישור גיבוי במיגרציות טננט
+
+- לאחר החלת migration 007, פריסת Railway רגילה נכשלה כי סקריפט המיגרציות דרש אישור גיבוי גם כאשר כל המיגרציות כבר הוחלו. הכשל לא פגע בנתונים ולא ביטל את migration 007; הוא חסם פריסות no-op בלבד.
+- PR #65 (`fix/no-backup-gate-when-no-migrations`) מוסיף זיהוי מיגרציות ממתינות לכל tenant במהלך preflight. דרישת גיבוי מאומת או אישור מפעיל ללא גיבוי מופעלת רק אם יש לפחות migration אחת שטרם נרשמה ב-ledger.
+- כאשר אין migrations ממתינות, הסקריפט ממשיך לבדיקות postflight ולבדיקת תקינות הסכימה ללא דרישת אישור גיבוי; אין שינוי בהרשאות הנדרשות לשינוי סכימה בפועל.
+- נוספו unit tests לשלושה מצבים: ledger חסר (כל הקבצים ממתינים), כל המיגרציות כבר נרשמו (אין צורך באישור), וחלק מהמיגרציות ממתינות (מוחזרות רק החסרות).
+- סטטוס: PR #65 פתוח; יש להמתין ל-CI ולעבור ל-main רק לאחר שכל הבדיקות עוברות. עד אז, פריסות Railway נוספות עלולות להיכשל בגלל gate זה כאשר `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP=false`, אך הפריסה הראשונית של קוד PR #64 והמיגרציה 007 הצליחו.
