@@ -69,4 +69,6 @@ jobs:
             exit 0
           fi
           git commit -m "chore: refresh npm lockfiles"
-          git push
+          git fetch origin fix/calendar-only-bookings-and-retention
+          git rebase origin/fix/calendar-only-bookings-and-retention
+          git push origin HEAD:refs/heads/fix/calendar-only-bookings-and-retention
