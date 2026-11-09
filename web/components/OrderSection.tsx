@@ -145,6 +145,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [done, setDone] = useState<Done | null>(null);
 
   const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
+  const calendarOnlyAvailable = !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
   useEffect(() => {
     const term = search.trim();
     if (!term) {
@@ -369,7 +370,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
                         className="storefront-card-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-fg transition hover:opacity-90">
-                        {calendarOnlyFlow && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
+                        {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
                       </button>
                     ))}
                   </div>
