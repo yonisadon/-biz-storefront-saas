@@ -8,6 +8,7 @@ import { catalogRoutes } from './catalog';
 import { appointmentRoutes } from './appointments';
 import { manageWaitlistRoutes } from './waitlist';
 import { googleCalendarManageRoutes } from './googleCalendar';
+import { processGoogleCalendarJobs } from '../googleCalendarService';
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -200,7 +201,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     const id = (req.params as { id: string }).id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'not_found');
     const { status } = LeadStatusPatch.parse(req.body);
-    return withTenant(req.tenantId, async (db) => {
+    const updatedLead = await withTenant(req.tenantId, async (db) => {
       const r = await db.query(
         'UPDATE leads SET status = $1 WHERE id = $2 RETURNING id, status, updated_at',
         [status, id],
@@ -214,5 +215,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
       }
       return r.rows[0];
     });
+    void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after lead status change failed'));
+    return updatedLead;
   });
 };
