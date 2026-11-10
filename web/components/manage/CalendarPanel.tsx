@@ -27,7 +27,8 @@ function slotsFor(date: string, duration: number, ranges: OpeningRange[], appoin
   for (const range of ranges) {
     const open = mins(range.open), close = mins(range.close);
     if (!Number.isFinite(open) || !Number.isFinite(close) || duration <= 0) continue;
-    for (let m = open; m + duration <= close; m += duration) {
+    // Keep seller-side suggestions aligned with the API's fixed 15-minute slot grid.
+    for (let m = Math.ceil(open / 15) * 15; m + duration <= close; m += 15) {
       const start = `${date}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
       const endM = m + duration;
       const end = `${date}T${String(Math.floor(endM / 60)).padStart(2, '0')}:${String(endM % 60).padStart(2, '0')}`;
