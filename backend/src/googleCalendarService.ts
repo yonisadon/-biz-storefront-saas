@@ -49,7 +49,7 @@ function config(): GoogleConfig | null {
 }
 
 export function isGoogleCalendarConfigured(): boolean {
-  return config() !== null;
+  try { return config() !== null; } catch { return false; }
 }
 
 export function googleCalendarConfig() {
