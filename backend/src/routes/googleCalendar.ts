@@ -200,7 +200,7 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
         )).rows[0] as { google_email: string; refresh_token_encrypted: string } | undefined;
         const refreshEncrypted = tokens.refresh_token
           ? encryptGoogleToken(tokens.refresh_token)
-          : existing?.google_email === profile.email
+          : existing && existing.google_email === profile.email
             ? existing.refresh_token_encrypted
             : undefined;
         if (!refreshEncrypted) throw new Error('google_refresh_token_missing');
