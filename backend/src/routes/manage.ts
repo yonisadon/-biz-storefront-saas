@@ -7,6 +7,7 @@ import { resolveByToken } from '../tenant';
 import { catalogRoutes } from './catalog';
 import { appointmentRoutes } from './appointments';
 import { manageWaitlistRoutes } from './waitlist';
+import { googleCalendarManageRoutes } from './googleCalendar';
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -19,6 +20,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
   await app.register(catalogRoutes);
   await app.register(appointmentRoutes);
   await app.register(manageWaitlistRoutes);
+  await app.register(googleCalendarManageRoutes);
 
   // ---- Business profile ----
   app.get('/business', async (req) =>
