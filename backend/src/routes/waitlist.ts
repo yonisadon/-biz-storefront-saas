@@ -3,13 +3,10 @@ import { z } from 'zod';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
+import { hasUniqueServiceIds, isValidCalendarDate, isValidWaitlistTimeRange } from '../waitlistRules';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
-  const [year, month, day] = value.split('-').map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
-}, { message: 'invalid_date' });
+const date = z.string().refine(isValidCalendarDate, { message: 'invalid_date' });
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
   const normalized = normalizeILPhone(value);
@@ -23,16 +20,14 @@ const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
 const PublicWaitlistInput = z.object({
   customer_name: z.string().trim().min(1).max(100),
   customer_phone: phone,
-  service_ids: z.array(z.string().uuid()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, { message: 'duplicate_service_id' }),
+  service_ids: z.array(z.string().uuid()).min(1).max(20).refine(hasUniqueServiceIds, { message: 'duplicate_service_id' }),
   preferred_date: date,
   preferred_time_from: time.optional(),
   preferred_time_to: time.optional(),
   note: z.string().trim().max(500).optional(),
   company_website: z.string().max(0).optional(),
 }).strict().refine((value) =>
-  (value.preferred_time_from === undefined) === (value.preferred_time_to === undefined),
-{ message: 'time_range_must_be_complete' }).refine((value) =>
-  !value.preferred_time_from || value.preferred_time_to! > value.preferred_time_from,
+  isValidWaitlistTimeRange(value.preferred_time_from, value.preferred_time_to),
 { message: 'invalid_time_range' });
 
 const WaitlistStatus = z.enum(['waiting', 'contacted', 'scheduled', 'closed', 'cancelled']);
