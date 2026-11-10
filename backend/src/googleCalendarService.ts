@@ -122,14 +122,14 @@ async function accessTokenFor(tenantId: string, connection: Connection): Promise
     body,
     signal: AbortSignal.timeout(12_000),
   });
-  const data = await response.json().catch(() => null) as { access_token?: string; expires_in?: number; error?: string } | null;
+  const data = await response.json().catch(() => null) as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string } | null;
   if (!response.ok || !data?.access_token) throw new Error(data?.error || 'google_token_refresh_failed');
 
   const expires = new Date(Date.now() + Math.max(60, data.expires_in ?? 3600) * 1000);
   await withTenant(tenantId, async (db) => {
     await db.query(
-      'UPDATE google_calendar_connections SET access_token_encrypted = $1, access_token_expires_at = $2, last_error = NULL WHERE tenant_id = app.current_tenant_id()',
-      [encryptGoogleToken(data.access_token!), expires.toISOString()],
+      'UPDATE google_calendar_connections SET access_token_encrypted = $1, refresh_token_encrypted = COALESCE($2, refresh_token_encrypted), access_token_expires_at = $3, last_error = NULL WHERE tenant_id = app.current_tenant_id()',
+      [encryptGoogleToken(data.access_token!), data.refresh_token ? encryptGoogleToken(data.refresh_token) : null, expires.toISOString()],
     );
   });
   return data.access_token;
