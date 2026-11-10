@@ -10,6 +10,8 @@ import { quarterHourStartMinutes, validateAppointmentSelection } from '../appoin
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
+import { processGoogleCalendarJobs } from '../googleCalendarService';
+import { publicWaitlistRoutes } from './waitlist';
 
 const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
@@ -135,6 +137,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
 export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPluginAsync =>
   async (app) => {
     app.addHook('preHandler', resolver);
+    await app.register(publicWaitlistRoutes);
 
     // Business config + first catalog page + gallery in one round trip.
     app.get('/', async (req) => withTenant(req.tenantId, buildPublicPayload));
@@ -503,6 +506,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           return out;
         });
 
+        void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after public booking failed'));
         return reply.code(201).send(result);
       },
     );

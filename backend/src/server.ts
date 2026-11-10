@@ -10,6 +10,7 @@ import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
 import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
+import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
 
 // Management tokens are secrets: keep them out of logs
 const redactUrl = (url: string) => url.replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]');
@@ -43,6 +44,7 @@ export async function buildServer() {
   await app.register(publicRoutes(resolveByHost), { prefix: '/api/site' });
   await app.register(manageRoutes, { prefix: '/api/manage/:token' });
   await app.register(adminRoutes, { prefix: '/api/admin' });
+  await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
 
   app.setErrorHandler((err: any, req, reply) => {
     if (err instanceof ZodError) {

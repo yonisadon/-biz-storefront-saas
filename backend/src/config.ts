@@ -11,6 +11,11 @@ const Env = z.object({
   DATABASE_ADMIN_URL: z.string().optional(),
   SUPERADMIN_API_TOKEN: z.string().min(32).optional(),
   PUBLIC_BASE_URL: z.string().url().optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_OAUTH_STATE_SECRET: z.string().min(32).optional(),
+  GOOGLE_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
 
   // שדות חדשים שהתווספו לניהול תמונות ואחסון:
   STORAGE_DRIVER: z.enum(['s3', 'local']).default('local'),

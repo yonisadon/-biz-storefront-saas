@@ -198,10 +198,14 @@ async function main() {
                   to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
                   to_regclass('public.business_domains') AS business_domains,
-                  to_regclass('public.crm_retention_policy') AS crm_retention_policy`,
+                  to_regclass('public.crm_retention_policy') AS crm_retention_policy,
+                  to_regclass('public.waitlist_entries') AS waitlist_entries,
+                  to_regclass('public.google_calendar_connections') AS google_calendar_connections,
+                  to_regclass('public.google_calendar_oauth_states') AS google_calendar_oauth_states,
+                  to_regclass('public.google_calendar_sync_jobs') AS google_calendar_sync_jobs`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy) {
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy || !post.waitlist_entries || !post.google_calendar_connections || !post.google_calendar_oauth_states || !post.google_calendar_sync_jobs) {
           throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
         }
         const productDetailsColumn = await db.query(
@@ -273,6 +277,61 @@ async function main() {
         );
         if (!retentionTrigger.rowCount) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention deadline trigger is missing.`);
+        }
+
+        const waitlistSecurity = await db.query(
+          `SELECT c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'waitlist_entries' AND p.policyname = 'tenant_isolation') AS tenant_policy,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'SELECT') AS can_select,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'INSERT') AS can_insert,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'UPDATE') AS can_update,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'DELETE') AS can_delete
+             FROM pg_class c WHERE c.oid = 'public.waitlist_entries'::regclass`,
+        );
+        const waitlist = waitlistSecurity.rows[0];
+        if (!waitlist?.relrowsecurity || !waitlist.relforcerowsecurity || !waitlist.tenant_policy ||
+            !waitlist.can_select || !waitlist.can_insert || !waitlist.can_update || !waitlist.can_delete) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: waitlist tenant isolation or app_runtime permissions are incomplete.`);
+        }
+
+        const googleCalendarSecurity = await db.query(
+          `SELECT table_name,
+                  c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = c.relname AND p.policyname = 'tenant_isolation') AS tenant_policy
+             FROM pg_class c
+             JOIN information_schema.tables t ON t.table_schema = 'public' AND t.table_name = c.relname
+            WHERE c.relkind = 'r'
+              AND c.relname IN ('google_calendar_connections', 'google_calendar_oauth_states', 'google_calendar_sync_jobs')`,
+        );
+        if (googleCalendarSecurity.rows.length !== 3 || googleCalendarSecurity.rows.some((row) =>
+          !row.relrowsecurity || !row.relforcerowsecurity || !row.tenant_policy)) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar tables lack tenant RLS protection.`);
+        }
+        const googleCalendarPrivileges = await db.query(
+          `SELECT
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'SELECT') AS connection_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'INSERT') AS connection_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'UPDATE') AS connection_update,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'DELETE') AS connection_delete,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'SELECT') AS state_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'INSERT') AS state_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'DELETE') AS state_delete,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'SELECT') AS jobs_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'INSERT') AS jobs_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'UPDATE') AS jobs_update,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'DELETE') AS jobs_delete`,
+        );
+        if (Object.values(googleCalendarPrivileges.rows[0] ?? {}).some((allowed) => allowed !== true)) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar app_runtime permissions are incomplete.`);
+        }
+        const googleCalendarTrigger = await db.query(
+          `SELECT 1 FROM pg_trigger
+            WHERE tgrelid = 'public.appointments'::regclass
+              AND tgname = 'trg_google_calendar_appointment_sync'
+              AND NOT tgisinternal`,
+        );
+        if (!googleCalendarTrigger.rowCount) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar appointment outbox trigger is missing.`);
         }
 
         const obsoleteOrderRouteConstraint = await db.query(
