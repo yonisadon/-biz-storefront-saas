@@ -1904,3 +1904,10 @@
 ### סטטוס
 - השינויים נמצאים בענף `fix/btime-google-calendar-privacy-worker`; לא מוזגו ל-main ולא נפרסו.
 - נדרשים CI, בדיקת migration dry-run לכל מסדי הטננטים, בדיקת פריסת worker, ואימות OAuth end-to-end. אין שינוי ידני בנתוני production בשלב זה.
+
+### עדכון תשתית Railway — הכנה בלבד (2026-11-10)
+- נוצר שירות Railway בשם `btime-google-calendar-worker`, מזהה `fcc7fe9b-24dd-4fc5-9b0d-2c21c4f8d81d`, בסביבת production כ-`staged-create` בלבד.
+- תצורה staged: repository `yonisadon/-biz-storefront-saas`, branch `main`, root `/backend`, builder `NIXPACKS`, build `npm ci`, start `npm run sync-google-calendar`, Cron `*/5 * * * *`, restart policy `NEVER`.
+- הוגדרו 7 משתנים כשמות הפניות לשירות API `-biz-storefront-saas` (APP_DATABASE_URL, MEDIA_BASE_URL ו-5 משתני Google OAuth/encryption). ערכי סודות לא הוצגו ולא הועתקו לצ'אט.
+- כל 19 שינויי התשתית נמצאים ב-patch `a7d239f9-0089-4b9e-9f8e-c93712daaeac`; השירות אינו live, לא נבנה ולא רץ. אין לבצע accept-deploy לפני מיזוג PR #75 ואימות ה-reference variables.
+- PR #75 נפתח; בדיקות Backend build, Validate (כולל npm test/build/audit) ו-Web build/lint הסתיימו בהצלחה לפי GitHub Actions. בדיקת Vercel עדיין pending בעת העדכון. PR לא מוזג.
