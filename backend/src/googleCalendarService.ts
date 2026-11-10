@@ -211,13 +211,15 @@ export async function processGoogleCalendarJobs(tenantId: string, limit = 10) {
       )).rows[0] as SyncJob | undefined;
       if (!job) return null;
 
-      await db.query(
+      const claimed = (await db.query(
         `UPDATE google_calendar_sync_jobs
-            SET status = 'processing', updated_at = now()
-          WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1`,
+            SET status = 'processing', updated_at = clock_timestamp()
+          WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
+          RETURNING updated_at::text AS version`,
         [job.appointment_id],
-      );
-      return { connection, job };
+      )).rows[0] as { version: string } | undefined;
+      if (!claimed) return null;
+      return { connection, job, version: claimed.version };
     });
 
     if (!task) break;
@@ -225,33 +227,39 @@ export async function processGoogleCalendarJobs(tenantId: string, limit = 10) {
       const token = await accessTokenFor(tenantId, task.connection);
       await applyGoogleEvent(token, task.connection.calendar_id, task.job);
       await withTenant(tenantId, async (db) => {
-        await db.query(
+        const completed = await db.query(
           `UPDATE google_calendar_sync_jobs
               SET status = 'synced', attempts = attempts + 1, last_error = NULL,
                   last_synced_at = now(), updated_at = now()
-            WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1`,
-          [task.job.appointment_id],
+            WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
+              AND status = 'processing' AND updated_at = $2::timestamptz`,
+          [task.job.appointment_id, task.version],
         );
-        await db.query(
-          'UPDATE google_calendar_connections SET last_sync_at = now(), last_error = NULL WHERE tenant_id = app.current_tenant_id()',
-        );
+        if (completed.rowCount) {
+          await db.query(
+            'UPDATE google_calendar_connections SET last_sync_at = now(), last_error = NULL WHERE tenant_id = app.current_tenant_id()',
+          );
+        }
       });
       processed++;
     } catch (error) {
       const message = (error instanceof Error ? error.message : 'google_calendar_sync_failed').slice(0, 300);
       await withTenant(tenantId, async (db) => {
-        await db.query(
+        const markedFailed = await db.query(
           `UPDATE google_calendar_sync_jobs
               SET status = 'failed', attempts = attempts + 1, last_error = $2,
                   next_attempt_at = now() + make_interval(mins => LEAST(60, (power(2, attempts))::int)),
                   updated_at = now()
-            WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1`,
-          [task.job.appointment_id, message],
+            WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
+              AND status = 'processing' AND updated_at = $3::timestamptz`,
+          [task.job.appointment_id, message, task.version],
         );
-        await db.query(
-          'UPDATE google_calendar_connections SET last_error = $1 WHERE tenant_id = app.current_tenant_id()',
-          [message],
-        );
+        if (markedFailed.rowCount) {
+          await db.query(
+            'UPDATE google_calendar_connections SET last_error = $1 WHERE tenant_id = app.current_tenant_id()',
+            [message],
+          );
+        }
       });
       failed++;
     }
