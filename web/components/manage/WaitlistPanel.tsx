@@ -27,6 +27,15 @@ const labels: Record<Status, string> = {
   cancelled: 'בוטל',
 };
 
+function formatPreferredDate(value: string): string {
+  // PostgreSQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp,
+  // depending on the driver/serialization path. Keep the calendar day stable.
+  const dateOnly = value.slice(0, 10);
+  const parsed = dateOnly ? new Date(`${dateOnly}T12:00:00Z`) : new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return 'תאריך לא זמין';
+  return new Intl.DateTimeFormat('he-IL', { timeZone: 'UTC' }).format(parsed);
+}
+
 export default function WaitlistPanel({ token }: { token: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [filter, setFilter] = useState<Status | ''>('');
@@ -108,7 +117,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
                 <p className="mt-1 text-sm" dir="ltr">{entry.customer_phone}</p>
                 <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
-                  {new Date(`${entry.preferred_date}T12:00:00`).toLocaleDateString('he-IL')}
+                  {formatPreferredDate(entry.preferred_date)}
                   {entry.preferred_time_from ? ` · ${String(entry.preferred_time_from).slice(0, 5)}–${String(entry.preferred_time_to).slice(0, 5)}` : ' · ללא שעה מועדפת'}
                 </p>
                 {entry.note && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{entry.note}</p>}
