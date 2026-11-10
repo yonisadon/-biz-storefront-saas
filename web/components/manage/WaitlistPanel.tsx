@@ -8,6 +8,8 @@ type Entry = {
   id: string;
   customer_name: string;
   customer_phone: string;
+  service_ids: string[];
+  service_names: string[];
   preferred_date: string;
   preferred_time_from: string | null;
   preferred_time_to: string | null;
@@ -104,6 +106,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
               <div className="min-w-0">
                 <h3 className="font-semibold">{entry.customer_name}</h3>
                 <p className="mt-1 text-sm" dir="ltr">{entry.customer_phone}</p>
+                <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
                   {new Date(`${entry.preferred_date}T12:00:00`).toLocaleDateString('he-IL')}
                   {entry.preferred_time_from ? ` · ${String(entry.preferred_time_from).slice(0, 5)}–${String(entry.preferred_time_to).slice(0, 5)}` : ' · ללא שעה מועדפת'}
