@@ -5,7 +5,7 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const date = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).refine((value) => {
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const [year, month, day] = value.split('-').map(Number);
   const parsed = new Date(Date.UTC(year, month - 1, day));
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
@@ -59,7 +59,8 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
           `SELECT id, name, kind,
                   COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) AS booking_mode
              FROM products
-            WHERE id = ANY($1::uuid[]) AND is_active = true\n            ORDER BY id`,
+            WHERE id = ANY($1::uuid[]) AND is_active = true
+            ORDER BY id`,
           [input.service_ids],
         )).rows;
         if (services.length !== input.service_ids.length ||
