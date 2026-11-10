@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.google_calendar_connections (
 CREATE TABLE IF NOT EXISTS public.google_calendar_oauth_states (
   state_hash text PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  code_verifier_encrypted text NOT NULL,
   expires_at timestamptz NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
