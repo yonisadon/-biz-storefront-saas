@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { withTenant } from '../db';
@@ -67,14 +67,16 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
     if (!isGoogleCalendarConfigured()) throw new HttpError(503, 'google_calendar_not_configured');
     const cfg = googleCalendarConfig();
     const nonce = randomBytes(32).toString('hex');
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const state = createGoogleOAuthState(req.tenantId, nonce);
     await withTenant(req.tenantId, async (db) => {
       await db.query(
         'DELETE FROM google_calendar_oauth_states WHERE expires_at <= now()',
       );
       await db.query(
-        'INSERT INTO google_calendar_oauth_states (state_hash, tenant_id, expires_at) VALUES ($1, app.current_tenant_id(), now() + interval \'10 minutes\')',
-        [hashGoogleOAuthNonce(nonce)],
+        'INSERT INTO google_calendar_oauth_states (state_hash, tenant_id, code_verifier_encrypted, expires_at) VALUES ($1, app.current_tenant_id(), $2, now() + interval \'10 minutes\')',
+        [hashGoogleOAuthNonce(nonce), encryptGoogleToken(codeVerifier)],
       );
     });
 
@@ -91,6 +93,8 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
       state,
     }).toString();
     return { authorization_url: url.toString() };
@@ -150,10 +154,11 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
       const consumed = await withTenant(tenantId!, async (db) => (await db.query(
         `DELETE FROM google_calendar_oauth_states
           WHERE state_hash = $1 AND tenant_id = app.current_tenant_id() AND expires_at > now()
-          RETURNING state_hash`,
+          RETURNING code_verifier_encrypted`,
         [hashGoogleOAuthNonce(nonce!)],
-      )).rowCount);
+      )).rows[0] as { code_verifier_encrypted: string } | undefined);
       if (!consumed) throw new Error('oauth_state_already_used');
+      const codeVerifier = decryptGoogleToken(consumed.code_verifier_encrypted);
       if (oauthError) {
         return reply.code(400).type('text/html; charset=utf-8')
           .send(callbackPage(false, 'ההרשאה ב-Google בוטלה או נדחתה.'));
@@ -170,6 +175,7 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
           client_secret: cfg.clientSecret,
           redirect_uri: cfg.redirectUri,
           grant_type: 'authorization_code',
+          code_verifier: codeVerifier,
         }),
         signal: AbortSignal.timeout(12_000),
       });
