@@ -11,6 +11,7 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   process.env.GOOGLE_TOKEN_ENCRYPTION_KEY = 'ab'.repeat(32);
 
   const {
+    buildGoogleCalendarEvent,
     createGoogleOAuthState,
     decryptGoogleToken,
     encryptGoogleToken,
@@ -36,4 +37,19 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   const tamperedState = `${payload}.${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`;
   assert.throws(() => verifyGoogleOAuthState(tamperedState));
   assert.equal(isGoogleCalendarConfigured(), true);
+
+  const event = buildGoogleCalendarEvent({
+    appointment_id: '12345678-1234-1234-1234-123456789abc',
+    operation: 'upsert',
+    payload: {
+      service_name: 'בדיקת שירות',
+      start_at: '2026-11-11T10:00:00.000Z',
+      end_at: '2026-11-11T10:30:00.000Z',
+    },
+  });
+  assert.deepEqual(Object.keys(event).sort(), ['end', 'id', 'start', 'summary']);
+  assert.equal(event.summary, 'BTime · בדיקת שירות');
+  assert.equal('description' in event, false);
+  assert.equal(event.start.dateTime, '2026-11-11T10:00:00.000Z');
+  assert.equal(event.end.dateTime, '2026-11-11T10:30:00.000Z');
 });
