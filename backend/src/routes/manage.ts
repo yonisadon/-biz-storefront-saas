@@ -6,6 +6,7 @@ import { BusinessPatch, LeadListQuery, LeadNoteInput, LeadStatusPatch } from '..
 import { resolveByToken } from '../tenant';
 import { catalogRoutes } from './catalog';
 import { appointmentRoutes } from './appointments';
+import { manageWaitlistRoutes } from './waitlist';
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -17,6 +18,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
   await app.register(catalogRoutes);
   await app.register(appointmentRoutes);
+  await app.register(manageWaitlistRoutes);
 
   // ---- Business profile ----
   app.get('/business', async (req) =>
