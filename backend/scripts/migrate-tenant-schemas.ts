@@ -198,10 +198,11 @@ async function main() {
                   to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
                   to_regclass('public.business_domains') AS business_domains,
-                  to_regclass('public.crm_retention_policy') AS crm_retention_policy`,
+                  to_regclass('public.crm_retention_policy') AS crm_retention_policy,
+                  to_regclass('public.waitlist_entries') AS waitlist_entries`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy) {
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy || !post.waitlist_entries) {
           throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
         }
         const productDetailsColumn = await db.query(
@@ -273,6 +274,21 @@ async function main() {
         );
         if (!retentionTrigger.rowCount) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention deadline trigger is missing.`);
+        }
+
+        const waitlistSecurity = await db.query(
+          `SELECT c.relrowsecurity, c.relforcerowsecurity,
+                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'waitlist_entries' AND p.policyname = 'tenant_isolation') AS tenant_policy,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'SELECT') AS can_select,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'INSERT') AS can_insert,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'UPDATE') AS can_update,
+                  has_table_privilege('app_runtime', 'public.waitlist_entries', 'DELETE') AS can_delete
+             FROM pg_class c WHERE c.oid = 'public.waitlist_entries'::regclass`,
+        );
+        const waitlist = waitlistSecurity.rows[0];
+        if (!waitlist?.relrowsecurity || !waitlist.relforcerowsecurity || !waitlist.tenant_policy ||
+            !waitlist.can_select || !waitlist.can_insert || !waitlist.can_update || !waitlist.can_delete) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: waitlist tenant isolation or app_runtime permissions are incomplete.`);
         }
 
         const obsoleteOrderRouteConstraint = await db.query(
