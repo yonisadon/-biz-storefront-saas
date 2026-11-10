@@ -12,6 +12,7 @@ import LeadsPanel from './LeadsPanel';
 import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
 import WaitlistPanel from './WaitlistPanel';
+import GoogleCalendarPanel from './GoogleCalendarPanel';
 
 type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
 const TABS: [Tab, string][] = [
@@ -74,7 +75,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
 
         <div className="mt-5">
           {tab === 'leads' && <LeadsPanel token={token} initial={initialLeads} />}
-          {tab === 'calendar' && <CalendarPanel token={token} biz={biz} />}
+          {tab === 'calendar' && <><GoogleCalendarPanel token={token} /><CalendarPanel token={token} biz={biz} /></>}
           {tab === 'waitlist' && <WaitlistPanel token={token} />}
           {tab === 'products' && <ProductsPanel token={token} />}
           {tab === 'gallery' && <GalleryPanel token={token} />}
