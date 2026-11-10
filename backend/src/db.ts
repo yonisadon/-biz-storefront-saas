@@ -65,6 +65,11 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   return tenantPool;
 }
 
+export async function closeTenantPools(): Promise<void> {
+  await Promise.all([...tenantPools.values()].map((tenantPool) => tenantPool.end()));
+  tenantPools.clear();
+}
+
 /**
  * Runs fn inside a transaction with app.current_tenant bound LOCALLY
  * (set_config(..., true)), so the value dies at COMMIT/ROLLBACK and can
