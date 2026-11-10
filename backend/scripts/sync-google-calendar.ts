@@ -30,6 +30,7 @@ async function main() {
   }
 
   console.log(JSON.stringify({ tenants: tenants.rowCount, connected, processed, failed, pending }));
+  if (failed > 0) process.exitCode = 1;
 }
 
 main()
