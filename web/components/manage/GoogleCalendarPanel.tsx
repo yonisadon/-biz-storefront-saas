@@ -23,7 +23,13 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setStatus(await mcall<Status>(token, 'google-calendar/status'));
+      const current = await mcall<Status>(token, 'google-calendar/status');
+      if (current.connected && current.pending > 0) {
+        await mcall(token, 'google-calendar/sync', { method: 'POST' });
+        setStatus(await mcall<Status>(token, 'google-calendar/status'));
+      } else {
+        setStatus(current);
+      }
     } catch {
       setError('לא הצלחנו לטעון את מצב Google Calendar. ייתכן שהמיגרציה עדיין לא הותקנה בשרת העסק.');
     }
