@@ -1,4 +1,4 @@
-import { pool } from '../src/db';
+import { closeTenantPools, pool } from '../src/db';
 import { isGoogleCalendarConfigured, processGoogleCalendarJobs } from '../src/googleCalendarService';
 
 async function main() {
@@ -37,4 +37,4 @@ main()
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   })
-  .finally(async () => { await pool.end(); });
+  .finally(async () => { await closeTenantPools(); await pool.end(); });
