@@ -206,8 +206,8 @@ export async function processGoogleCalendarJobs(tenantId: string, limit = 10) {
                  (status = 'processing' AND updated_at < now() - interval '5 minutes'))
             AND next_attempt_at <= now()
           ORDER BY created_at
-          FOR UPDATE SKIP LOCKED
-          LIMIT 1`,
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED`,
       )).rows[0] as SyncJob | undefined;
       if (!job) return null;
 
