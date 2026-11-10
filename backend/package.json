@@ -14,7 +14,8 @@
     "cleanup-expired-appointments": "tsx --env-file=.env scripts/cleanup-expired-appointments.ts",
     "test": "tsx --test tests/*.test.ts",
     "migrate-tenant-schemas:deploy": "tsx scripts/migrate-tenant-schemas.ts --apply",
-    "cleanup-expired-crm": "tsx scripts/cleanup-expired-crm.ts"
+    "cleanup-expired-crm": "tsx scripts/cleanup-expired-crm.ts",
+    "sync-google-calendar": "tsx --env-file=.env scripts/sync-google-calendar.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
