@@ -30,7 +30,7 @@ const labels: Record<Status, string> = {
 function formatPreferredDate(value: string): string {
   // PostgreSQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp,
   // depending on the driver/serialization path. Keep the calendar day stable.
-  const dateOnly = value.match(/^(\\d{4}-\\d{2}-\\d{2})/)?.[1];
+  const dateOnly = value.slice(0, 10);
   const parsed = dateOnly ? new Date(`${dateOnly}T12:00:00Z`) : new Date(value);
   if (!Number.isFinite(parsed.getTime())) return 'תאריך לא זמין';
   return new Intl.DateTimeFormat('he-IL', { timeZone: 'UTC' }).format(parsed);
