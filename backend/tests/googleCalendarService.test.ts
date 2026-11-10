@@ -24,7 +24,7 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   assert.notEqual(encrypted, token);
   assert.equal(decryptGoogleToken(encrypted), token);
   const [iv, tag, cipher] = encrypted.split('.');
-  const tampered = [iv, tag, `A${cipher.slice(1)}`].join('.');
+  const tampered = [iv, tag, `${cipher[0] === 'A' ? 'B' : 'A'}${cipher.slice(1)}`].join('.');
   assert.throws(() => decryptGoogleToken(tampered));
 
   const tenantId = '9dfeef0b-5d7e-4173-b651-0b76d1f0e001';
@@ -32,6 +32,8 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   const state = createGoogleOAuthState(tenantId, nonce);
   assert.deepEqual(verifyGoogleOAuthState(state), { tenantId, nonce });
   assert.equal(hashGoogleOAuthNonce(nonce), hashGoogleOAuthNonce(nonce));
-  assert.throws(() => verifyGoogleOAuthState(`${state.slice(0, -1)}x`));
+  const [payload, signature] = state.split('.');
+  const tamperedState = `${payload}.${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`;
+  assert.throws(() => verifyGoogleOAuthState(tamperedState));
   assert.equal(isGoogleCalendarConfigured(), true);
 });
