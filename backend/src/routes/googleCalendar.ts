@@ -231,8 +231,8 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
           `INSERT INTO google_calendar_sync_jobs
             (tenant_id, appointment_id, operation, payload, status, attempts, next_attempt_at, updated_at)
            SELECT app.current_tenant_id(), a.id, CASE WHEN a.status = 'reserved' THEN 'upsert' ELSE 'delete' END,
-                  jsonb_build_object('service_name', a.service_name, 'customer_phone', a.customer_phone,
-                    'start_at', a.start_at, 'end_at', a.end_at, 'source', a.source, 'status', a.status),
+                  jsonb_build_object('service_name', a.service_name,
+                    'start_at', a.start_at, 'end_at', a.end_at),
                   'pending', 0, now(), now()
              FROM appointments a
             WHERE (a.status = 'reserved' AND a.end_at > now())
