@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { mcall } from '@/lib/manageApi';
-import { LEGAL_DEFAULTS } from '@/lib/legalDefaults';
+import { LEGAL_DEFAULTS, LEGAL_LAST_UPDATED } from '@/lib/legalDefaults';
 import type { ManageBusiness } from '@/lib/types';
 
 const DOCS = [
@@ -71,8 +71,8 @@ export default function LegalPanel({ token, biz, onSaved }: {
         <h2 className="text-lg font-bold">מסמכי האתר</h2>
         <p className="mt-2 text-sm leading-6 text-ink/70">
           שלושת המסמכים מורכבים משני חלקים: נוסח קבוע של Biz Storefront, שמופיע אוטומטית ואינו ניתן לעריכה,
-          והשלמות שהעסק מוסיף בהתאם לפעילות שלו. רק ההשלמות נשמרות בהגדרות העסק.
-          מומלץ לקבל ייעוץ מתאים לפני פרסום נוסח משפטי; המערכת אינה מספקת ייעוץ משפטי.
+          והשלמות שהעסק מוסיף בהתאם לפעילות שלו. רק ההשלמות נשמרות בהגדרות העסק. נוסחי הפלטפורמה מתעדכנים מעת לעת עם שינויים במערכת ובמדיניות; מועד העדכון מוצג במסמך הציבורי.
+          מועד עדכון נוסח הפלטפורמה: {LEGAL_LAST_UPDATED}. מומלץ לקבל ייעוץ מתאים לפני פרסום נוסח משפטי; המערכת אינה מספקת ייעוץ משפטי.
         </p>
         <p className="mt-2 text-sm leading-6 text-ink/70">
           אם כבר הזנתם בעבר מסמך מלא, עברו על הטקסט שהזנתם והתאימו אותו כך שיכלול רק את המידע הנוסף של העסק, כדי למנוע כפילויות.
