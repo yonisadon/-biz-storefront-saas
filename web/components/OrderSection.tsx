@@ -338,6 +338,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           customer_name: form.name.trim(),
           customer_phone: phone,
+          service_ids: reservedAppointmentLines.map(({ p }) => p.id),
           preferred_date: appointmentDate,
           ...(waitlistTimeFrom ? { preferred_time_from: waitlistTimeFrom, preferred_time_to: waitlistTimeTo } : {}),
           note: waitlistNote.trim(),
