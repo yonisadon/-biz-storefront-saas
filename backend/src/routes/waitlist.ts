@@ -19,6 +19,7 @@ const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
 const PublicWaitlistInput = z.object({
   customer_name: z.string().trim().min(1).max(100),
   customer_phone: phone,
+  service_ids: z.array(z.string().uuid()).min(1).max(20),
   preferred_date: date,
   preferred_time_from: time.optional(),
   preferred_time_to: time.optional(),
@@ -44,18 +45,37 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
   }, async (req, reply) => {
     const input = PublicWaitlistInput.parse(req.body);
     try {
-      const result = await withTenant(req.tenantId, async (db) => (await db.query(
-        `INSERT INTO waitlist_entries
-          (tenant_id, customer_name, customer_phone, preferred_date,
-           preferred_time_from, preferred_time_to, note)
-         VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6)
-         RETURNING id, created_at`,
-        [
-          input.customer_name, input.customer_phone, input.preferred_date,
-          input.preferred_time_from ?? null, input.preferred_time_to ?? null,
-          input.note || null,
-        ],
-      )).rows[0]);
+      const result = await withTenant(req.tenantId, async (db) => {
+        const business = (await db.query(
+          'SELECT timezone, (now() AT TIME ZONE timezone)::date::text AS today FROM businesses WHERE id = app.current_tenant_id()',
+        )).rows[0];
+        if (!business) throw new HttpError(404, 'not_found');
+        if (input.preferred_date < business.today) throw new HttpError(400, 'preferred_date_in_past');
+        const services = (await db.query(
+          `SELECT id, name, kind,
+                  COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) AS booking_mode
+             FROM products
+            WHERE id = ANY($1::uuid[]) AND is_active = true`,
+          [input.service_ids],
+        )).rows;
+        if (services.length !== input.service_ids.length ||
+            services.some((service) => service.kind !== 'service' || service.booking_mode !== 'availability')) {
+          throw new HttpError(400, 'invalid_waitlist_services');
+        }
+        return (await db.query(
+          `INSERT INTO waitlist_entries
+            (tenant_id, customer_name, customer_phone, service_ids, service_names, preferred_date,
+             preferred_time_from, preferred_time_to, note)
+           VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, created_at`,
+          [
+            input.customer_name, input.customer_phone, services.map((service) => service.id),
+            services.map((service) => service.name), input.preferred_date,
+            input.preferred_time_from ?? null, input.preferred_time_to ?? null,
+            input.note || null,
+          ],
+        )).rows[0];
+      });
       return reply.code(201).send({ id: result.id, created_at: result.created_at, message: 'waitlist_request_received' });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
@@ -75,7 +95,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
     }).parse(req.query);
     return withTenant(req.tenantId, async (db) => {
       const result = await db.query(
-        `SELECT id, customer_name, customer_phone, preferred_date,
+        `SELECT id, customer_name, customer_phone, service_ids, service_names, preferred_date,
                 preferred_time_from, preferred_time_to, note, status, created_at, updated_at,
                 count(*) OVER()::int AS total
            FROM waitlist_entries
