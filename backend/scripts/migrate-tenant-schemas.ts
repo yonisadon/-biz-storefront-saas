@@ -307,6 +307,23 @@ async function main() {
           !row.relrowsecurity || !row.relforcerowsecurity || !row.tenant_policy)) {
           throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar tables lack tenant RLS protection.`);
         }
+        const googleCalendarPrivileges = await db.query(
+          `SELECT
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'SELECT') AS connection_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'INSERT') AS connection_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'UPDATE') AS connection_update,
+             has_table_privilege('app_runtime', 'public.google_calendar_connections', 'DELETE') AS connection_delete,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'SELECT') AS state_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'INSERT') AS state_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_oauth_states', 'DELETE') AS state_delete,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'SELECT') AS jobs_read,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'INSERT') AS jobs_insert,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'UPDATE') AS jobs_update,
+             has_table_privilege('app_runtime', 'public.google_calendar_sync_jobs', 'DELETE') AS jobs_delete`,
+        );
+        if (Object.values(googleCalendarPrivileges.rows[0] ?? {}).some((allowed) => allowed !== true)) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar app_runtime permissions are incomplete.`);
+        }
         const googleCalendarTrigger = await db.query(
           `SELECT 1 FROM pg_trigger
             WHERE tgrelid = 'public.appointments'::regclass
