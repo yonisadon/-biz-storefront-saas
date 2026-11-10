@@ -145,6 +145,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Done | null>(null);
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [waitlistDone, setWaitlistDone] = useState(false);
+  const [waitlistBusy, setWaitlistBusy] = useState(false);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
+  const [waitlistTimeFrom, setWaitlistTimeFrom] = useState('');
+  const [waitlistTimeTo, setWaitlistTimeTo] = useState('');
+  const [waitlistNote, setWaitlistNote] = useState('');
 
   useEffect(() => {
     if (done) successRef.current?.focus();
@@ -315,6 +322,48 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     }
   }
 
+  async function submitWaitlist(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setWaitlistError(null);
+    if (!appointmentDate) return setWaitlistError('בחרו תאריך מועדף.');
+    if (Boolean(waitlistTimeFrom) !== Boolean(waitlistTimeTo)) return setWaitlistError('כדי לציין טווח שעות יש למלא גם שעת התחלה וגם שעת סיום.');
+    if (waitlistTimeFrom && waitlistTimeTo <= waitlistTimeFrom) return setWaitlistError('שעת הסיום חייבת להיות אחרי שעת ההתחלה.');
+    const phone = normalizeILPhone(form.phone);
+    if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
+    setWaitlistBusy(true);
+    try {
+      const response = await fetch(`${apiBase}/waitlist`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: form.name.trim(),
+          customer_phone: phone,
+          preferred_date: appointmentDate,
+          ...(waitlistTimeFrom ? { preferred_time_from: waitlistTimeFrom, preferred_time_to: waitlistTimeTo } : {}),
+          note: waitlistNote.trim(),
+          company_website: '',
+        }),
+      });
+      const data = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) {
+        if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
+          setWaitlistError('כבר קיימת בקשת המתנה פעילה עם אותם פרטים.');
+        } else if (response.status === 429) {
+          setWaitlistError('נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.');
+        } else {
+          setWaitlistError('לא הצלחנו להצטרף לרשימת ההמתנה. בדקו את הפרטים ונסו שוב.');
+        }
+        return;
+      }
+      setWaitlistDone(true);
+      setWaitlistOpen(false);
+    } catch {
+      setWaitlistError('שגיאת רשת. נסו שוב.');
+    } finally {
+      setWaitlistBusy(false);
+    }
+  }
+
   const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
   const openContinuation = () => {
     setError(null);
@@ -464,7 +513,56 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {done ? (
+        {!done && needsReservedAppointment && appointmentDate && !slotsLoading && appointmentSlots.length === 0 && (
+          <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <p className="text-sm">אין כרגע שעה פנויה בתאריך שבחרתם. אפשר להשאיר פרטים ברשימת ההמתנה; הבקשה לא שומרת מקום ביומן.</p>
+            <button type="button" onClick={() => { setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
+              className="mt-2 min-h-10 rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary">
+              הצטרפות לרשימת ההמתנה
+            </button>
+          </div>
+        )}
+
+        {waitlistDone && (
+          <p role="status" className="mb-4 rounded-xl bg-green-50 p-3 text-sm text-green-900">
+            הבקשה נוספה לרשימת ההמתנה. העסק יוכל ליצור איתכם קשר; לא נשמר תור ביומן.
+          </p>
+        )}
+
+        {waitlistOpen ? (
+          <form onSubmit={submitWaitlist} className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
+            <h3 className="font-semibold">בקשת הצטרפות לרשימת המתנה</h3>
+            {waitlistError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{waitlistError}</p>}
+            <label className="block text-sm">שם מלא *
+              <input required maxLength={100} value={form.name} onChange={setField('name')} className={input}/>
+            </label>
+            <label className="block text-sm">טלפון *
+              <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
+            </label>
+            <label className="block text-sm">תאריך מועדף *
+              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={input}/>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-sm">משעה (רשות)
+                <input type="time" value={waitlistTimeFrom} onChange={(e) => setWaitlistTimeFrom(e.target.value)} className={input}/>
+              </label>
+              <label className="block text-sm">עד שעה (רשות)
+                <input type="time" value={waitlistTimeTo} onChange={(e) => setWaitlistTimeTo(e.target.value)} className={input}/>
+              </label>
+            </div>
+            <label className="block text-sm">הערה (רשות)
+              <textarea maxLength={500} rows={3} value={waitlistNote} onChange={(e) => setWaitlistNote(e.target.value)} className={input}/>
+            </label>
+            <div className="flex gap-2">
+              <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">ביטול</button>
+              <button type="submit" disabled={waitlistBusy} className="min-h-11 flex-1 rounded-xl bg-primary px-3 font-bold text-primary-fg disabled:opacity-50">
+                {waitlistBusy ? 'שולחים…' : 'שליחת בקשת המתנה'}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {waitlistOpen ? null : done ? (
           <div className="py-4 text-center">
             <p ref={successRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               {done.message}
