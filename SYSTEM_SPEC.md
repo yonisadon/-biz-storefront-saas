@@ -1878,3 +1878,36 @@
 - נמצא באג תצוגה ברשימת ההמתנה: תאריך הבקשה הוצג כ-\`Invalid Date\`, בעוד טווח השעות וחותמת זמן השליחה הוצגו. בקוד המוכר נבנה תאריך באמצעות הוספת \`T12:00:00\` לערך \`preferred_date\`, בהנחה שהוא תמיד מחרוזת DATE בפורמט \`YYYY-MM-DD\`.
 - תיקון בענף \`fix/btime-waitlist-date-display\`: נרמול יום התאריך מתוך ערך ISO כאשר קיים רכיב שעה/אזור זמן, עיצוב יום התאריך באזור UTC כדי למנוע הסטת יום, והצגת הודעת fallback בעברית במקום \`Invalid Date\` אם הערך אינו תקין. אין שינוי בסכמת DB, ב-API, בנתונים או במיגרציות.
 - נדרש CI ובדיקת production חוזרת לאחר מיזוג/פריסה כדי לאמת את התאריך ברשומת ההמתנה הקיימת וברשומה חדשה. לא בוצע עדיין מיזוג או פריסה של התיקון.
+
+
+## 2026-11-10 — צמצום מידע באינטגרציית Google Calendar והפעלת Worker
+
+### ממצאים מאומתים ב-main לפני התיקון
+- אירועי Google Calendar כללו בתיאור את מספר הטלפון של הלקוח; גם payload של ה-outbox ושל backfill בעת OAuth כלל את מספר הטלפון, מקור התור וסטטוס.
+- קיים סקריפט `backend/scripts/sync-google-calendar.ts` שסורק את `app.tenant_databases` ומעבד עד 20 משימות לכל tenant בכל הרצה. קיימת פקודת npm `sync-google-calendar`, אך לא נמצא שירות Cron ייעודי שמריץ אותה אוטומטית.
+- נתיבי יצירה/עדכון/מחיקה מפעילים גם עיבוד best-effort בתוך בקשת ה-API. Worker מתוזמן נדרש כדי לטפל במשימות שנותרו בתור גם לאחר כשל, timeout או כשהבקשה הסתיימה.
+- משתני OAuth הוגדרו ב-Railway production; הפריסה של API שנבדקה ב-2026-11-10 הסתיימה ב-SUCCESS והשירות Online. הצלחת הפריסה אינה מוכיחה OAuth חי או סנכרון end-to-end.
+- מצב פרסום/אימות אפליקציית Google עדיין לא אומת.
+
+### תיקון פרטיות בענף
+- אירוע Google יכלול רק כותרת עם שם השירות ושעת התחלה/סיום. לא ייכללו שם לקוח, טלפון, מקור, סטטוס או תיאור נוסף.
+- payload חדש ב-outbox וב-backfill יכיל רק `service_name`, `start_at`, `end_at`.
+- מיגרציית tenant חדשה `tenant-010-google-calendar-data-minimization.sql` מסירה ממשימות קיימות את `customer_phone`, `source` ו-`status` מה-payload ומעדכנת את ה-trigger כך שלא ישמור אותם בעתיד. זו מיגרציית DML/פונקציה ללא שינוי מבני של טבלאות; היא נדרשת כדי לנקות מידע שכבר נשמר ולהבטיח שה-trigger הישן לא יכניס אותו מחדש.
+- מדיניות הפרטיות עודכנה לתאר את השדות המועברים בפועל; תאריך העדכון המשפטי נשאר 10.11.2026, שהוא תאריך השינוי הנוכחי.
+
+### Worker ותפעול
+- להקים שירות Railway נפרד עם root directory `/backend`, פקודת `npm run sync-google-calendar` ותזמון כל 5 דקות (תדירות מינימלית הנתמכת ב-Railway Cron).
+- השירות יזדקק רק למשתני DB/OAuth הנחוצים; יש להגדיר אותם כהפניות משתנים לשירות ה-API ככל ש-Railway מאפשר, ולא לשכפל/לחשוף סודות בצ'אט.
+- לאמת לוגים והרצת Cron מוצלחת, ולוודא שמשימות pending/failed מתקדמות ל-synced לאחר OAuth אמיתי. אין להפעיל worker בפרודקשן לפני מיזוג הקוד והמיגרציה ובדיקת משתני הסביבה.
+- מיגרציה 010 טרם הורצה. אין להריץ אותה בייצור בלי gate הגיבוי/האישור הקיים. אין להפעיל את האינטגרציה כפעילה עד לבדיקת OAuth וסנכרון בפועל.
+
+### סטטוס
+- השינויים נמצאים בענף `fix/btime-google-calendar-privacy-worker`; לא מוזגו ל-main ולא נפרסו.
+- נדרשים CI, בדיקת migration dry-run לכל מסדי הטננטים, בדיקת פריסת worker, ואימות OAuth end-to-end. אין שינוי ידני בנתוני production בשלב זה.
+
+### עדכון תשתית Railway — הכנה בלבד (2026-11-10)
+- נוצר שירות Railway בשם `btime-google-calendar-worker`, מזהה `fcc7fe9b-24dd-4fc5-9b0d-2c21c4f8d81d`, בסביבת production כ-`staged-create` בלבד.
+- תצורה staged: repository `yonisadon/-biz-storefront-saas`, branch `main`, root `/backend`, builder `NIXPACKS`, build `npm ci`, start `npm run sync-google-calendar`, Cron `*/5 * * * *`, restart policy `NEVER`.
+- הוגדרו 7 משתנים כשמות הפניות לשירות API `-biz-storefront-saas` (APP_DATABASE_URL, MEDIA_BASE_URL ו-5 משתני Google OAuth/encryption). ערכי סודות לא הוצגו ולא הועתקו לצ'אט.
+- כל 19 שינויי התשתית נמצאים ב-patch `a7d239f9-0089-4b9e-9f8e-c93712daaeac`; השירות אינו live, לא נבנה ולא רץ. אין לבצע accept-deploy לפני מיזוג PR #75 ואימות ה-reference variables.
+- PR #75 נפתח; בדיקות Backend build, Validate (כולל npm test/build/audit) ו-Web build/lint הסתיימו בהצלחה לפי GitHub Actions. בדיקת Vercel עדיין pending בעת העדכון. PR לא מוזג.
