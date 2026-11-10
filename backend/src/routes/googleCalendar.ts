@@ -89,7 +89,7 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
   app.post('/google-calendar/sync', async (req) => {
     if (!isGoogleCalendarConfigured()) throw new HttpError(503, 'google_calendar_not_configured');
     await withTenant(req.tenantId, async (db) => {
-      await db.query(\"UPDATE google_calendar_sync_jobs SET status = 'pending', next_attempt_at = now(), updated_at = now() WHERE status = 'failed'\");
+      await db.query("UPDATE google_calendar_sync_jobs SET status = 'pending', next_attempt_at = now(), updated_at = now() WHERE status = 'failed'");
     });
     return processGoogleCalendarJobs(req.tenantId, 20);
   });
@@ -219,7 +219,8 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
                     'start_at', a.start_at, 'end_at', a.end_at, 'source', a.source, 'status', a.status),
                   'pending', 0, now(), now()
              FROM appointments a
-            WHERE (a.status = 'reserved' AND a.end_at > now())\n               OR (a.status = 'cancelled' AND a.end_at > now())
+            WHERE (a.status = 'reserved' AND a.end_at > now())
+               OR (a.status = 'cancelled' AND a.end_at > now())
            ON CONFLICT (tenant_id, appointment_id) DO UPDATE
              SET operation = EXCLUDED.operation, payload = EXCLUDED.payload, status = 'pending',
                  attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()`,
