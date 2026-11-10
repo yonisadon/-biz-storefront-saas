@@ -5,7 +5,11 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const date = z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).refine((value) => {
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}, { message: 'invalid_date' });
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
   const normalized = normalizeILPhone(value);
