@@ -1799,3 +1799,14 @@
 - הממצאים לעיל מבוססים על קריאת קוד ב-`main`; לא בוצעו בשלב זה בדיקות DB חיות, בדיקות API מול production, מחיקת נתונים, שינוי קוד או מיגרציה.
 - אין גיבויים מאומתים. מחיקת CRM תיבדק בנפרד ובזהירות.
 - התיעוד נוסף לענף התיעוד בלבד; אין בכך אישור למיזוג או לפריסה.
+
+
+## 2026-11-10 — אימות Railway ל-Cron מחיקת CRM
+
+- נבדק פרויקט Railway `resilient-healing`, סביבת `production`, שירות `crm-retention-cleanup`.
+- הגדרות השירות בפועל: repository `yonisadon/-biz-storefront-saas`, branch `main`, root directory `/backend`, builder `NIXPACKS`, פקודה `npm run cleanup-expired-crm -- --apply`, schedule `0 22,23 * * *`. משתני timezone קיימים לפי שמותיהם: `CRM_CLEANUP_LOCAL_HOUR`, `CRM_CLEANUP_TIMEZONE`.
+- Deployment `b0447c6b-d086-47a0-a56d-7bc11595b275` במצב `SUCCESS`. בלוגי ההרצה שלו מ-2026-11-09 23:02:32 UTC מופיע preflight מוצלח ל-3 מסדי טננטים, ולאחר מכן בכל אחד מהם `deleted 0 expired CRM lead(s)`; סיכום: `APPLY`, 3 tenants, 0 leads deleted, 0 expired leads found, 0 appointments unlinked. כלומר, ההרצה אכן רצה במצב APPLY, אך לא נמצאו רשומות שהגיע מועד מחיקתן.
+- באותה פריסה, ההרצה של 22:01 UTC דילגה כמתוכנן כי השעה המקומית בישראל הייתה 00 במקום השעה המצופה 01; ההרצה השנייה פעלה ב-01:02 שעון ישראל.
+- ה-deployment האחרון שנוצר לאחר מכן, `9927f9d3-9c80-401b-86ae-60ec77edd54b` על commit `d6e0b08`, נכשל בשלב build ב-`npm ci` עקב `EBUSY: resource busy or locked, rmdir '/app/node_modules/.cache'`. זו שגיאת build/cache ולא שגיאת SQL או מחיקת נתונים. הפריסה המוצלחת הקודמת נשארת deployment מוצלח אחרון, אך יש לטפל בכשל הבנייה כדי שהשירות יתעדכן בגרסאות עתידיות.
+- **המשמעות למדיניות נתונים:** לא למחוק ידנית פניות שעדיין לא הגיע מועד תפוגתן. רשומות legacy קיבלו תקופת grace של 30 יום במיגרציית retention; יש לאפשר למדיניות שנקבעה לפעול ולבדוק שוב כשהמועד יגיע.
+- לא בוצעה הרצה יזומה נוספת, לא בוצעה מחיקה ידנית ולא שונו משתני Railway או הגדרות השירות.
