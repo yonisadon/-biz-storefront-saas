@@ -4,6 +4,7 @@ import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { validateAppointmentSelection } from '../appointmentRules';
+import { processGoogleCalendarJobs } from '../googleCalendarService';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/);
@@ -116,6 +117,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           [service.id, service.name, input.customer_phone, input.start_at, biz.timezone, duration],
         )).rows[0];
       });
+      void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment create failed'));
       return reply.code(201).send(appointment);
     } catch (error) { slotConflict(error); throw error; }
   });
@@ -124,7 +126,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     const patch = AppointmentPatchInput.parse(req.body);
     try {
-      return await withTenant(req.tenantId, async (db) => {
+      const updatedAppointment = await withTenant(req.tenantId, async (db) => {
         const current = (await db.query('SELECT * FROM appointments WHERE id = $1 FOR UPDATE', [id])).rows[0];
         if (!current) throw new HttpError(404, 'not_found');
         const biz = (await db.query(
@@ -166,16 +168,20 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         );
         return updated.rows[0];
       });
+      void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment update failed'));
+      return updatedAppointment;
     } catch (error) { slotConflict(error); throw error; }
   });
 
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
-    return withTenant(req.tenantId, async (db) => {
-      const result = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
-      if (!result.rowCount) throw new HttpError(404, 'not_found');
-      return reply.code(204).send();
+    const result = await withTenant(req.tenantId, async (db) => {
+      const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
+      if (!deleted.rowCount) throw new HttpError(404, 'not_found');
+      return deleted.rows[0];
     });
+    void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment delete failed'));
+    return reply.code(204).send();
   });
 
   app.post('/appointment-blocks', async (req, reply) => {
