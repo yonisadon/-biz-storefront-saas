@@ -93,27 +93,27 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/google-calendar/disconnect', async (req) => {
     const connection = await withTenant(req.tenantId, async (db) => (await db.query(
-      'SELECT refresh_token_encrypted FROM google_calendar_connections WHERE tenant_id = app.current_tenant_id()',
-    )).rows[0] as { refresh_token_encrypted: string } | undefined);
+      'SELECT google_email, refresh_token_encrypted FROM google_calendar_connections WHERE tenant_id = app.current_tenant_id()',
+    )).rows[0] as { google_email: string; refresh_token_encrypted: string } | undefined);
     if (!connection) return { disconnected: true, existing_google_events_remain: true };
 
-    const cfg = googleCalendarConfig();
-    const token = decryptGoogleToken(connection.refresh_token_encrypted);
-    const response = await fetch('https://oauth2.googleapis.com/revoke', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ token }),
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!response.ok && response.status !== 400) throw new HttpError(502, 'google_revoke_failed');
+    if (isGoogleCalendarConfigured()) {
+      const token = decryptGoogleToken(connection.refresh_token_encrypted);
+      const response = await fetch('https://oauth2.googleapis.com/revoke', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!response.ok && response.status !== 400) throw new HttpError(502, 'google_revoke_failed');
+    }
 
     await withTenant(req.tenantId, async (db) => {
       await db.query('DELETE FROM google_calendar_sync_jobs WHERE tenant_id = app.current_tenant_id()');
       await db.query('DELETE FROM google_calendar_oauth_states WHERE tenant_id = app.current_tenant_id()');
       await db.query('DELETE FROM google_calendar_connections WHERE tenant_id = app.current_tenant_id()');
     });
-    void cfg;
-    return { disconnected: true, existing_google_events_remain: true };
+    return { disconnected: true, existing_google_events_remain: true, google_revocation_attempted: isGoogleCalendarConfigured() };
   });
 };
 
@@ -177,11 +177,13 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
 
       await withTenant(tenantId!, async (db) => {
         const existing = (await db.query(
-          'SELECT refresh_token_encrypted FROM google_calendar_connections WHERE tenant_id = app.current_tenant_id()',
-        )).rows[0] as { refresh_token_encrypted: string } | undefined;
+          'SELECT google_email, refresh_token_encrypted FROM google_calendar_connections WHERE tenant_id = app.current_tenant_id()',
+        )).rows[0] as { google_email: string; refresh_token_encrypted: string } | undefined;
         const refreshEncrypted = tokens.refresh_token
           ? encryptGoogleToken(tokens.refresh_token)
-          : existing?.refresh_token_encrypted;
+          : existing?.google_email === profile.email
+            ? existing.refresh_token_encrypted
+            : undefined;
         if (!refreshEncrypted) throw new Error('google_refresh_token_missing');
 
         await db.query(
