@@ -11,10 +11,11 @@ import HoursPanel from './HoursPanel';
 import LeadsPanel from './LeadsPanel';
 import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
+import WaitlistPanel from './WaitlistPanel';
 
-type Tab = 'leads' | 'calendar' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
+type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
+  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads, initialRetention }: {
@@ -74,6 +75,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
         <div className="mt-5">
           {tab === 'leads' && <LeadsPanel token={token} initial={initialLeads} />}
           {tab === 'calendar' && <CalendarPanel token={token} biz={biz} />}
+          {tab === 'waitlist' && <WaitlistPanel token={token} />}
           {tab === 'products' && <ProductsPanel token={token} />}
           {tab === 'gallery' && <GalleryPanel token={token} />}
           {tab === 'hours' && <HoursPanel token={token} biz={biz} onSaved={setBiz} />}
