@@ -177,7 +177,7 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
         access_token?: string; refresh_token?: string; expires_in?: number; scope?: string; error?: string;
       } | null;
       if (!tokenResponse.ok || !tokens?.access_token) throw new Error(tokens?.error || 'google_token_exchange_failed');
-      if (!tokens.scope?.split(' ').includes('https://www.googleapis.com/auth/calendar.events.owned')) {
+      if (tokens.scope && !tokens.scope.split(' ').includes('https://www.googleapis.com/auth/calendar.events.owned')) {
         throw new Error('google_calendar_scope_not_granted');
       }
 
