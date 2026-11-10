@@ -15,9 +15,9 @@ import {
 } from '../googleCalendarService';
 
 const callbackQuery = z.object({
-  code: z.string().optional(),
-  state: z.string().min(20),
-  error: z.string().optional(),
+  code: z.string().max(4096).optional(),
+  state: z.string().min(20).max(2000),
+  error: z.string().max(200).optional(),
 });
 
 function callbackPage(ok: boolean, message: string) {
@@ -175,8 +175,8 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
         headers: { authorization: `Bearer ${tokens.access_token}` },
         signal: AbortSignal.timeout(12_000),
       });
-      const profile = await profileResponse.json().catch(() => null) as { email?: string } | null;
-      if (!profileResponse.ok || !profile?.email) throw new Error('google_profile_lookup_failed');
+      const profile = await profileResponse.json().catch(() => null) as { email?: string; email_verified?: boolean } | null;
+      if (!profileResponse.ok || !profile?.email || profile.email_verified !== true) throw new Error('google_profile_lookup_failed');
 
       await withTenant(tenantId!, async (db) => {
         const existing = (await db.query(
