@@ -19,7 +19,7 @@ const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
 const PublicWaitlistInput = z.object({
   customer_name: z.string().trim().min(1).max(100),
   customer_phone: phone,
-  service_ids: z.array(z.string().uuid()).min(1).max(20),
+  service_ids: z.array(z.string().uuid()).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, { message: 'duplicate_service_id' }),
   preferred_date: date,
   preferred_time_from: time.optional(),
   preferred_time_to: time.optional(),
@@ -55,7 +55,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
           `SELECT id, name, kind,
                   COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) AS booking_mode
              FROM products
-            WHERE id = ANY($1::uuid[]) AND is_active = true`,
+            WHERE id = ANY($1::uuid[]) AND is_active = true\n            ORDER BY id`,
           [input.service_ids],
         )).rows;
         if (services.length !== input.service_ids.length ||
