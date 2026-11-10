@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getCtx, getLegal, getStorefront } from '@/lib/api';
-import { LEGAL_DOCS, LEGAL_DEFAULTS, LEGAL_TITLES } from '@/lib/legalDefaults';
+import { LEGAL_DOCS, LEGAL_DEFAULTS, LEGAL_TITLES, LEGAL_LAST_UPDATED } from '@/lib/legalDefaults';
 import { themeVars } from '@/lib/theme';
 
 export const revalidate = 60;
@@ -42,6 +42,7 @@ export default async function LegalPage({ params }: Props) {
           <p className="text-sm font-semibold text-primary">מידע מטעם Biz Storefront והעסק</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">מידע משפטי ונגישות</h1>
           <p className="mt-3 text-sm leading-6 text-ink/70">כל מסמך כולל מידע קבוע מטעם הפלטפורמה והשלמות שהעסק בחר להוסיף. לשאלות על פעילות העסק או על ההשלמות שלו, יש לפנות ישירות לעסק.</p>
+          <p className="mt-2 text-xs text-ink/60">עודכן לאחרונה: {LEGAL_LAST_UPDATED}</p>
           <nav aria-label="ניווט במסמכים" className="mt-5 flex flex-wrap gap-2">
             {entries.map(({ doc, title }) => <a key={doc} href={`#${doc}`} className="rounded-full border border-ink/15 px-3 py-2 text-sm font-semibold hover:bg-primary/5">{title}</a>)}
           </nav>
