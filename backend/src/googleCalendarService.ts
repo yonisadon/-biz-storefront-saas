@@ -23,7 +23,6 @@ type SyncJob = {
   operation: 'upsert' | 'delete';
   payload: {
     service_name: string;
-    customer_phone: string;
     start_at: string;
     end_at: string;
     source: string;
@@ -139,6 +138,20 @@ function eventId(appointmentId: string): string {
   return `btime${appointmentId.replace(/-/g, '').toLowerCase()}`;
 }
 
+export function buildGoogleCalendarEvent(job: SyncJob) {
+  const start = new Date(job.payload.start_at);
+  const end = new Date(job.payload.end_at);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+    throw new Error('invalid_appointment_event_time');
+  }
+  return {
+    id: eventId(job.appointment_id),
+    summary: `BTime · ${String(job.payload.service_name).slice(0, 150)}`,
+    start: { dateTime: start.toISOString(), timeZone: 'UTC' },
+    end: { dateTime: end.toISOString(), timeZone: 'UTC' },
+  };
+}
+
 async function applyGoogleEvent(token: string, calendarId: string, job: SyncJob): Promise<void> {
   const id = eventId(job.appointment_id);
   const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
@@ -154,21 +167,7 @@ async function applyGoogleEvent(token: string, calendarId: string, job: SyncJob)
     return;
   }
 
-  const start = new Date(job.payload.start_at);
-  const end = new Date(job.payload.end_at);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
-    throw new Error('invalid_appointment_event_time');
-  }
-  const event = {
-    id,
-    summary: `BTime · ${String(job.payload.service_name).slice(0, 150)}`,
-    description: [
-      `טלפון לקוח: ${job.payload.customer_phone}`,
-      `מקור: ${job.payload.source === 'manual' ? 'תור ידני' : 'אתר העסק'}`,
-    ].join('\n'),
-    start: { dateTime: start.toISOString(), timeZone: 'UTC' },
-    end: { dateTime: end.toISOString(), timeZone: 'UTC' },
-  };
+  const event = buildGoogleCalendarEvent(job);
 
   const insert = await fetch(base, {
     method: 'POST', headers, body: JSON.stringify(event), signal: AbortSignal.timeout(12_000),
