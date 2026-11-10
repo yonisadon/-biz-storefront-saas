@@ -79,7 +79,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-bold">סנכרון ל-Google Calendar</h2>
-          <p className="mt-1 text-sm text-gray-600">סנכרון חד-כיווני: תורים ב-BTime יוצרים ומעדכנים אירועים ביומן Google. יומן Google אינו משנה את הזמינות ב-BTime.</p>
+          <p className="mt-1 text-sm text-gray-600">סנכרון חד-כיווני: תורים ב-BTime יוצרים, מעדכנים ומוחקים אירועים ביומן Google. ההרשאה ש-Google מבקשת מאפשרת צפייה ועריכה באירועים ביומנים שבבעלות החשבון; BTime עצמה משתמשת בה רק לאירועים המקושרים לתורים שלה ואינה מייבאת אירועים או משנה זמינות.</p>
         </div>
         {status?.connected && <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-800">מחובר</span>}
       </div>
@@ -93,7 +93,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
       )}
       {status?.configured && !status.connected && (
         <div className="mt-3">
-          <p className="text-sm text-gray-600">לא מחובר חשבון Google. החיבור אופציונלי ומתבצע בהרשאת בעל העסק.</p>
+          <p className="text-sm text-gray-600">לא מחובר חשבון Google. החיבור אופציונלי ומתבצע בהרשאת בעל העסק. Google תציג את היקף ההרשאה לפני האישור.</p>
           <button type="button" disabled={busy} onClick={() => void connect()} className="mt-3 min-h-10 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {busy ? 'פותחים חיבור…' : 'חיבור חשבון Google'}
           </button>
