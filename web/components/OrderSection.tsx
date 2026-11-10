@@ -140,6 +140,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [appointmentTime, setAppointmentTime] = useState('');
   const [serverAppointmentSlots, setServerAppointmentSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState(false);
   const [step, setStep] = useState<Step>('choose');
   const [busy, setBusy] = useState<Route | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState('');
@@ -237,6 +238,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     const params = new URLSearchParams({ date: appointmentDate, items: cartSignature });
     let cancelled = false;
     setSlotsLoading(true);
+    setSlotsError(false);
     fetch(`${apiBase}/availability?${params.toString()}`, { cache: 'no-store' })
       .then(async (response) => {
         const data = await response.json().catch(() => null) as { slots?: string[] } | null;
@@ -246,7 +248,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           setAppointmentTime((current) => Array.isArray(data?.slots) && data.slots.includes(current) ? current : '');
         }
       })
-      .catch(() => { if (!cancelled) { setServerAppointmentSlots([]); setAppointmentTime(''); } })
+      .catch(() => { if (!cancelled) { setSlotsError(true); setServerAppointmentSlots([]); setAppointmentTime(''); } })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };
   }, [apiBase, appointmentDate, cartSignature, needsAppointment]);
@@ -503,7 +505,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 </label>
                 <label className="block text-sm font-medium">שעה
                   <select required value={appointmentTime} onChange={(e) => { setIdempotencyKey(''); setAppointmentTime(e.target.value); }} disabled={!appointmentDate || slotsLoading || appointmentSlots.length === 0} className={input}>
-                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : slotsLoading ? 'בודקים שעות פנויות…' : appointmentSlots.length ? 'בחירת שעה' : 'אין שעות פנויות ביום זה'}</option>
+                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : slotsLoading ? 'בודקים שעות פנויות…' : appointmentSlots.length ? 'בחירת שעה' : slotsError ? 'לא הצלחנו לבדוק זמינות' : 'אין שעות פנויות ביום זה'}</option>
                     {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
                   </select>
                 </label>
@@ -514,7 +516,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {!done && needsReservedAppointment && appointmentDate && !slotsLoading && appointmentSlots.length === 0 && (
+        {!done && needsReservedAppointment && appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
             <p className="text-sm">אין כרגע שעה פנויה בתאריך שבחרתם. אפשר להשאיר פרטים ברשימת ההמתנה; הבקשה לא שומרת מקום ביומן.</p>
             <button type="button" onClick={() => { setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
