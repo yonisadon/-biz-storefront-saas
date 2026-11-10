@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS public.waitlist_entries (
   customer_name text NOT NULL CHECK (char_length(customer_name) BETWEEN 1 AND 100),
   customer_phone text NOT NULL CHECK (char_length(customer_phone) BETWEEN 8 AND 20),
   service_ids uuid[] NOT NULL CHECK (cardinality(service_ids) BETWEEN 1 AND 20),
-  service_names text[] NOT NULL CHECK (cardinality(service_names) BETWEEN 1 AND 20),
+  service_names text[] NOT NULL CHECK (cardinality(service_names) BETWEEN 1 AND 20),\n  CONSTRAINT waitlist_service_arrays_match CHECK (cardinality(service_ids) = cardinality(service_names)),
   preferred_date date NOT NULL,
   preferred_time_from time,
   preferred_time_to time,
