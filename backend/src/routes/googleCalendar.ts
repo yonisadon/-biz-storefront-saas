@@ -39,7 +39,17 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
            FROM google_calendar_sync_jobs
           WHERE tenant_id = app.current_tenant_id()`,
       )).rows[0];
-      return { connection: connection ?? null, pending: Number(counts.pending), failed: Number(counts.failed) };
+      const latestFailure = (await db.query(
+        `SELECT last_error FROM google_calendar_sync_jobs
+          WHERE tenant_id = app.current_tenant_id() AND status = 'failed'
+          ORDER BY updated_at DESC LIMIT 1`,
+      )).rows[0];
+      return {
+        connection: connection ?? null,
+        pending: Number(counts.pending),
+        failed: Number(counts.failed),
+        latest_error: latestFailure?.last_error ?? null,
+      };
     });
     return {
       configured: isGoogleCalendarConfigured(),
@@ -47,7 +57,7 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
       google_email: status.connection?.google_email ?? null,
       connected_at: status.connection?.connected_at ?? null,
       last_sync_at: status.connection?.last_sync_at ?? null,
-      last_error: status.connection?.last_error ?? null,
+      last_error: status.connection?.last_error ?? status.latest_error ?? null,
       pending: status.pending,
       failed: status.failed,
     };
