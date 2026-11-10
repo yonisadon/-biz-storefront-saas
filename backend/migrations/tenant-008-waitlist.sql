@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS public.waitlist_entries (
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   customer_name text NOT NULL CHECK (char_length(customer_name) BETWEEN 1 AND 100),
   customer_phone text NOT NULL CHECK (char_length(customer_phone) BETWEEN 8 AND 20),
+  service_ids uuid[] NOT NULL CHECK (cardinality(service_ids) BETWEEN 1 AND 20),
+  service_names text[] NOT NULL CHECK (cardinality(service_names) BETWEEN 1 AND 20),
   preferred_date date NOT NULL,
   preferred_time_from time,
   preferred_time_to time,
@@ -22,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.waitlist_entries (
 -- Prevent duplicate active requests for the same phone/date/time range.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_waitlist_active_request
   ON public.waitlist_entries (
-    tenant_id, customer_phone, preferred_date,
+    tenant_id, customer_phone, service_ids, preferred_date,
     COALESCE(preferred_time_from, TIME '00:00'),
     COALESCE(preferred_time_to, TIME '00:00')
   )
