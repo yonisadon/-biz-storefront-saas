@@ -74,6 +74,12 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   }, [token, date]);
 
   useEffect(() => { void load(); }, [load]);
+  const moveDate = (delta: number) => {
+    const next = new Date(`${date}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + delta);
+    setDate(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-${String(next.getUTCDate()).padStart(2, '0')}`);
+  };
+  const selectedDateLabel = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 
   const service = products.find((p) => p.id === serviceId);
   const ranges = useMemo(() => {
@@ -173,7 +179,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   return <section dir="rtl" aria-label="יומן תורים" className="space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="text-lg font-bold">יומן תורים</h2><p className="mt-1 text-sm text-gray-600">תורים משוריינים, שעות פנויות וחסימות חריגות.</p></div>
-      <div className="flex items-center gap-2"><label className="text-sm">תאריך <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={field}/></label><button type="button" onClick={() => void load()} disabled={busy} className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button></div>
+      <div className="flex flex-wrap items-center gap-2">        <button type="button" onClick={() => moveDate(-1)} aria-label="יום קודם" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">‹</button>        <div className="min-w-0 text-center"><p className="text-sm font-semibold">{selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">בחירת תאריך</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 max-w-40`}/></div>        <button type="button" onClick={() => moveDate(1)} aria-label="יום הבא" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">›</button>        <button type="button" onClick={() => setDate(todayLocal())} className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">היום</button>        <button type="button" onClick={() => void load()} disabled={busy} className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button>      </div>
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</p>}
