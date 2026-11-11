@@ -6,7 +6,7 @@ import { mcall } from '@/lib/manageApi';
 type Status = 'waiting' | 'contacted' | 'scheduled' | 'closed' | 'cancelled';
 type Entry = {
   id: string;
-  customer_name: string;
+  customer_name: string | null;
   customer_phone: string;
   service_ids: string[];
   service_names: string[];
