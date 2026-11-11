@@ -664,3 +664,24 @@ html.a11y-contrast .brand-root :focus-visible {
 html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   transition-duration: 0.01ms !important;
 }
+
+/* Quiet customer-facing controls across the storefront, including the booking flow. */
+.brand-root button {
+  font-weight: 500;
+  box-shadow: none;
+}
+.brand-root .storefront-card-action {
+  font-weight: 500 !important;
+}
+.brand-root .customer-order-dialog button {
+  border-color: transparent !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+.brand-root .customer-order-dialog button[aria-pressed="true"] {
+  color: var(--brand-primary);
+}
+.brand-root .customer-order-dialog button:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
