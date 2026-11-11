@@ -49,6 +49,8 @@ export function validateAppointmentSelection(args: {
   now?: Date;
   /** Seller-only flows may accept a manually confirmed time outside opening hours. */
   allowOutsideOpeningHours?: boolean;
+  /** Seller-controlled waitlist scheduling ignores business opening hours entirely. */
+  ignoreOpeningHours?: boolean;
   /** Public booking uses the quarter-hour grid; seller manual scheduling can opt out. */
   requireQuarterHour?: boolean;
 }): string | null {
@@ -84,10 +86,12 @@ export function validateAppointmentSelection(args: {
 
   // When the caller explicitly opts into seller-controlled validation, distinguish
   // an out-of-hours time from malformed/past input so the UI can ask for confirmation.
-  if (args.allowOutsideOpeningHours !== undefined) {
-    if (!withinOpeningHours && !args.allowOutsideOpeningHours) return 'outside_business_hours';
-  } else if (!withinOpeningHours) {
-    return 'invalid_appointment_time';
+  if (!args.ignoreOpeningHours) {
+    if (args.allowOutsideOpeningHours !== undefined) {
+      if (!withinOpeningHours && !args.allowOutsideOpeningHours) return 'outside_business_hours';
+    } else if (!withinOpeningHours) {
+      return 'invalid_appointment_time';
+    }
   }
 
   let nowLocal: string;
