@@ -148,6 +148,22 @@ test('seller waitlist scheduling accepts an exact minute inside opening hours wi
   assert.equal(validateAppointmentSelection({ ...args, requireQuarterHour: false, allowOutsideOpeningHours: false }), null);
 });
 
+test('seller waitlist scheduling ignores opening hours while retaining date/time validation', () => {
+  const args = {
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T18:13',
+    durationMinutes: 30,
+    openingHoursDays: { mon: [{ open: '09:00', close: '18:00' }] },
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:00:00.000Z'),
+    requireQuarterHour: false,
+    ignoreOpeningHours: true,
+  };
+  assert.equal(validateAppointmentSelection(args), null);
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T05:00' }), 'invalid_appointment_time');
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: 'not-a-date' }), 'invalid_appointment_time');
+});
+
 test('seller waitlist scheduling requires confirmation for a time outside opening hours', () => {
   const args = {
     needsAppointment: true,
