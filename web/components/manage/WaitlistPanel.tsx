@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, mcall } from '@/lib/manageApi';
 
-type Status = 'waiting' | 'contacted' | 'scheduled' | 'closed' | 'cancelled';
+type Status = 'waiting' | 'rejected' | 'closed' | 'scheduled_without_booking';
 type Entry = {
   id: string;
   customer_name: string | null;
@@ -11,8 +11,7 @@ type Entry = {
   service_ids: string[];
   service_names: string[];
   preferred_date: string;
-  preferred_time_from: string | null;
-  preferred_time_to: string | null;
+  preferred_time: string | null;
   note: string | null;
   status: Status;
   created_at: string;
@@ -23,10 +22,9 @@ type Entry = {
 type Response = { total: number; entries: Entry[] };
 const labels: Record<Status, string> = {
   waiting: 'ממתין',
-  contacted: 'נוצר קשר',
-  scheduled: 'נקבע תור',
-  closed: 'נסגר',
-  cancelled: 'בוטל',
+  rejected: 'נדחה',
+  closed: 'נסגר – נקבע ביומן',
+  scheduled_without_booking: 'נקבע ללא שריון',
 };
 
 function formatPreferredDate(value: string): string {
@@ -83,7 +81,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcall(token, 'waitlist/' + entry.id + '/schedule', { method: 'POST', body: JSON.stringify({ start_at }) });
-      setMessage('התור נוצר ביומן, השעה נתפסה ובקשת ההמתנה סומנה כנקבע תור.');
+      setMessage('התור נוצר ביומן, השעה נתפסה ובקשת ההמתנה נסגרה.');
       setScheduleTimes((current) => { const next = { ...current }; delete next[entry.id]; return next; });
       await load();
     } catch (err) {
@@ -140,7 +138,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
                 <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
                   {formatPreferredDate(entry.preferred_date)}
-                  {entry.preferred_time_from ? ` · ${String(entry.preferred_time_from).slice(0, 5)}–${String(entry.preferred_time_to).slice(0, 5)}` : ' · ללא שעה מועדפת'}
+                  {entry.preferred_time_from ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · ללא שעה מועדפת'}
                 </p>
                 {entry.note && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{entry.note}</p>}
                 <p className="mt-2 text-xs text-gray-500">נשלח: {new Date(entry.created_at).toLocaleString('he-IL')}</p>
@@ -153,7 +151,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
                 אפשר לשנות את מועד התור מתוך יומן התורים.
               </p>
             )}
-            {['waiting', 'contacted'].includes(entry.status) && (
+            {entry.status === 'waiting' && (
               <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <label className="min-w-[220px] flex-1 text-xs text-gray-600">מועד לתור ביומן
                   <input type="datetime-local" step={900} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
@@ -164,7 +162,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <label className="text-xs text-gray-600">עדכון סטטוס
                 <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
-                  {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'scheduled' && entry.status !== 'scheduled'}>{labels[status]}</option>)}
+                  {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'closed'}>{labels[status]}</option>)}
                 </select>
               </label>
               <button type="button" disabled={busy} onClick={() => void remove(entry)} className="min-h-9 rounded-full border border-red-200 px-3 text-xs text-red-700">מחיקה</button>
