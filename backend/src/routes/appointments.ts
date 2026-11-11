@@ -79,8 +79,8 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
            OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`);
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
-                to_char(a.start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
-                to_char(a.end_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
+                to_char(a.start_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
+                to_char(a.end_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
                 a.source, a.status, a.created_at
            FROM appointments a
           WHERE a.start_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE $3)
@@ -90,8 +90,8 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
       )).rows;
       const blocks = (await db.query(
         `SELECT id,
-                to_char(start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
-                to_char(end_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
+                to_char(start_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
+                to_char(end_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
                 reason
            FROM appointment_blocks
           WHERE start_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE $3)
