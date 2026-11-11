@@ -141,7 +141,6 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     const input = z.object({
       start_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/),
-      allow_outside_hours: z.boolean().optional().default(false),
     }).strict().parse(req.body);
     if (!isValidCalendarDate(input.start_at.slice(0, 10))) throw new HttpError(400, 'invalid_appointment_time');
 
@@ -189,11 +188,8 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           openingHoursDays: business.config?.opening_hours?.days,
           timezone: business.timezone,
           requireQuarterHour: false,
-          allowOutsideOpeningHours: input.allow_outside_hours,
+          ignoreOpeningHours: true,
         });
-        if (validationError === 'outside_business_hours') {
-          throw new HttpError(409, 'outside_business_hours', 'המועד מחוץ לשעות הפעילות. נדרש אישור מפורש של המוכר.');
-        }
         if (validationError) throw new HttpError(400, validationError);
 
         const blocked = await db.query(
