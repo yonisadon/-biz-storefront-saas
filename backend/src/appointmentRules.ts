@@ -47,13 +47,16 @@ export function validateAppointmentSelection(args: {
   openingHoursDays: OpeningDays;
   timezone: string;
   now?: Date;
+  /** Seller-only flows may accept a manually confirmed time outside opening hours. */
+  allowOutsideOpeningHours?: boolean;
+  /** Public booking uses the quarter-hour grid; seller manual scheduling can opt out. */
+  requireQuarterHour?: boolean;
 }): string | null {
   const { needsAppointment, appointmentAt, durationMinutes, openingHoursDays, timezone } = args;
   if (!needsAppointment) return appointmentAt ? 'appointment_not_applicable' : null;
 
   const hasHours = hasConfiguredOpeningHours(openingHoursDays);
   if (!appointmentAt) return hasHours ? 'appointment_required' : null;
-  if (!hasHours) return 'invalid_appointment_time';
 
   const [datePart, timePart] = appointmentAt.split('T');
   const parsedDate = new Date(`${datePart}T12:00:00Z`);
@@ -66,19 +69,26 @@ export function validateAppointmentSelection(args: {
   const ranges = openingHoursDays && typeof openingHoursDays === 'object'
     ? openingHoursDays[dayKey]
     : undefined;
-  const validSlot = durationMinutes > 0 && durationMinutes <= 480
-    && Array.isArray(ranges)
+  const validDuration = Number.isInteger(durationMinutes) && durationMinutes > 0 && durationMinutes <= 480;
+  const withinOpeningHours = hasHours && Array.isArray(ranges)
     && ranges.some((range) => {
       if (!range || typeof range !== 'object') return false;
       const open = toMinutes(String((range as OpeningRange).open ?? ''));
       const close = toMinutes(String((range as OpeningRange).close ?? ''));
       return Number.isFinite(open) && Number.isFinite(close)
         && requestedMinutes >= open
-        && requestedMinutes + durationMinutes <= close
-        // Appointment start times use a fixed 15-minute clock grid, independent
-        // of the selected service duration. This avoids duration-based drift.
-        && requestedMinutes % 15 === 0;
+        && requestedMinutes + durationMinutes <= close;
     });
+  const onQuarterHour = args.requireQuarterHour !== false ? requestedMinutes % 15 === 0 : true;
+  if (!validDuration || !onQuarterHour) return 'invalid_appointment_time';
+
+  // When the caller explicitly opts into seller-controlled validation, distinguish
+  // an out-of-hours time from malformed/past input so the UI can ask for confirmation.
+  if (args.allowOutsideOpeningHours !== undefined) {
+    if (!withinOpeningHours && !args.allowOutsideOpeningHours) return 'outside_business_hours';
+  } else if (!withinOpeningHours) {
+    return 'invalid_appointment_time';
+  }
 
   let nowLocal: string;
   try {
@@ -86,6 +96,6 @@ export function validateAppointmentSelection(args: {
   } catch {
     return 'invalid_appointment_time';
   }
-  if (!validSlot || appointmentAt <= nowLocal) return 'invalid_appointment_time';
+  if (appointmentAt <= nowLocal) return 'invalid_appointment_time';
   return null;
 }
