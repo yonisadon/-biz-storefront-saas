@@ -26,7 +26,10 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_waitlist_tenant_appointment ON public.waitlist_entries (tenant_id, appointment_id) WHERE appointment_id IS NOT NULL;
 ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS status_changed_at timestamptz NOT NULL DEFAULT now();
 UPDATE public.leads SET retention_closed_at = COALESCE(retention_closed_at, now()), retention_expires_at = COALESCE(retention_closed_at, now()) + interval '24 hours' WHERE status IN ('rejected', 'cancelled', 'completed');
-CREATE OR REPLACE FUNCTION app.set_lead_retention_deadline() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION app.set_lead_retention_deadline()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NEW.status IN ('rejected', 'cancelled', 'completed') THEN
@@ -37,12 +40,20 @@ BEGIN
     END IF;
     RETURN NEW;
   END IF;
-  IF NEW.retention_closed_at IS NULL AND NEW.status IN ('rejected', 'cancelled', 'completed') THEN
-    NEW.retention_closed_at := now();
-    NEW.retention_expires_at := NEW.retention_closed_at + interval '24 hours';
+
+  IF NEW.status IN ('rejected', 'cancelled', 'completed') THEN
+    IF OLD.status NOT IN ('rejected', 'cancelled', 'completed') THEN
+      NEW.retention_closed_at := now();
+      NEW.retention_expires_at := NEW.retention_closed_at + interval '24 hours';
+    END IF;
+  ELSIF OLD.status IN ('rejected', 'cancelled', 'completed') THEN
+    -- Reopening restores an active retention window; a later closure starts a new 24-hour window.
+    NEW.retention_closed_at := NULL;
+    NEW.retention_expires_at := now() + interval '60 days';
   ELSIF NEW.retention_expires_at IS NULL THEN
     NEW.retention_expires_at := NEW.created_at + interval '60 days';
   END IF;
+
   RETURN NEW;
 END;
 $$;
