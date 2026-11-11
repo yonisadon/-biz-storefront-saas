@@ -47,7 +47,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
     return (
       <section aria-label="תמונות העסק" className="mx-auto max-w-5xl space-y-3">
         <div
-          className="relative aspect-[5/4] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 sm:aspect-[16/7] sm:rounded-[2rem]"
+          className="relative aspect-[16/10] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 sm:aspect-[16/7] sm:rounded-[2rem]"
           onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
           onTouchEnd={(event) => {
             if (touchStart.current === null) return;
@@ -60,7 +60,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
           {slides[active].caption && <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-8 text-sm font-medium text-white">{slides[active].caption}</p>}
         </div>
         {slides.length > 1 && <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="בחירת תמונה">
-          {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'relative h-16 w-20 shrink-0 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-20 sm:w-28 ' + (index === active ? 'border-primary' : 'border-transparent opacity-75 hover:opacity-100')}>
+          {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-14 sm:w-20 ' + (index === active ? 'border-primary' : 'border-transparent opacity-75 hover:opacity-100')}>
             <Image src={image.url} alt="" fill sizes="112px" className="object-cover" />
           </button>)}
         </div>}
@@ -71,7 +71,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
   return (
     <section aria-label="תמונות העסק" className="mx-auto max-w-5xl">
       <div
-        className="relative aspect-[5/4] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 shadow-md sm:aspect-[16/7] sm:rounded-[2rem]"
+        className="relative aspect-[16/10] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 shadow-md sm:aspect-[16/7] sm:rounded-[2rem]"
         onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
         onTouchEnd={(event) => {
           if (touchStart.current === null) return;
