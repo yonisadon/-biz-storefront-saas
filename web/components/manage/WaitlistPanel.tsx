@@ -95,7 +95,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
   }
 
   async function remove(entry: Entry) {
-    if (!confirm(`למחוק את בקשת ההמתנה של ${entry.customer_name || entry.customer_phone}?`)) return;
+    if (!confirm(`למחוק את בקשת ההמתנה של ${entry.customer_name || entry.customer_phone}? אם קיים תור ביומן, הוא יישאר ביומן ולא יבוטל.`)) return;
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcall(token, `waitlist/${entry.id}`, { method: 'DELETE' });
