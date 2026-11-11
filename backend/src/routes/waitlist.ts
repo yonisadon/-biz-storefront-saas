@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
+import { validateAppointmentSelection } from '../appointmentRules';
+import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { hasUniqueServiceIds, isValidCalendarDate, isValidWaitlistTimeRange } from '../waitlistRules';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,7 +20,7 @@ const phone = z.string().trim().min(1).max(40).transform((value, ctx) => {
 });
 
 const PublicWaitlistInput = z.object({
-  customer_name: z.string().trim().min(1).max(100),
+  customer_name: z.string().trim().max(100).optional(),
   customer_phone: phone,
   service_ids: z.array(z.string().uuid()).min(1).max(20).refine(hasUniqueServiceIds, { message: 'duplicate_service_id' }),
   preferred_date: date,
@@ -69,7 +71,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
            VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING id, created_at`,
           [
-            input.customer_name, input.customer_phone, services.map((service) => service.id),
+            input.customer_name || null, input.customer_phone, services.map((service) => service.id),
             services.map((service) => service.name), input.preferred_date,
             input.preferred_time_from ?? null, input.preferred_time_to ?? null,
             input.note || null,
