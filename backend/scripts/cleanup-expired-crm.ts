@@ -41,6 +41,12 @@ async function main() {
   let totalLeadsDeleted = 0;
   let totalLeadsWouldDelete = 0;
   let totalAppointmentsToUnlink = 0;
+  let totalAppointmentsDeleted = 0;
+  let totalAppointmentsWouldDelete = 0;
+  let totalWaitlistDeleted = 0;
+  let totalWaitlistWouldDelete = 0;
+  let totalLinkedWaitlistDeleted = 0;
+  let totalLinkedWaitlistWouldDelete = 0;
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
@@ -57,16 +63,24 @@ async function main() {
         const required = await db.query(
           `SELECT
              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_expires_at') AS has_deadline,
-             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments`,
+             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments,
+             to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_appointment_link,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_waitlist_preferred_time,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_appointment_status_changed_at,
+             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_appointment_fk`,
         );
-        if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments) {
-          throw new Error(`CRM retention migration is incomplete for ${tenant.database_name}; no tenant rows were deleted.`);
+        if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments ||
+            !required.rows[0]?.has_waitlist || !required.rows[0]?.has_waitlist_appointment_link ||
+            !required.rows[0]?.has_waitlist_preferred_time ||
+            !required.rows[0]?.has_appointment_status_changed_at || !required.rows[0]?.has_waitlist_appointment_fk) {
+          throw new Error(`Required CRM/waitlist lifecycle migrations are incomplete for ${tenant.database_name}; no tenant rows were deleted.`);
         }
       } finally {
         await db.end();
       }
     }
-    console.log(`CRM cleanup preflight passed for ${tenants.length} tenant database(s).`);
+    console.log(`CRM/waitlist cleanup preflight passed for ${tenants.length} tenant database(s).`);
 
     for (const tenant of tenants) {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) {
@@ -79,13 +93,39 @@ async function main() {
           "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)",
           [tenant.tenant_id],
         );
-        // The FK converts lead_id to NULL on surviving appointments; appointments,
-        // their time reservations and manual calendar entries are not deleted.
+        // Expiring a CRM lead only detaches its lead_id from surviving appointments.
+        // Appointment rows are deleted separately below only after their end_at has passed.
         const expired = await db.query(
           `SELECT count(*)::int AS n
              FROM public.leads
             WHERE retention_expires_at IS NOT NULL
               AND retention_expires_at <= now()`,
+        );
+        const expiredAppointments = await db.query(
+          `SELECT count(*)::int AS n FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`,
+        );
+        const linkedWaitlistToDelete = await db.query(
+          `SELECT count(*)::int AS n
+             FROM public.waitlist_entries w
+             JOIN public.appointments a ON a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+            WHERE w.status = 'closed' AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'`,
+        );
+        const expiredWaitlist = await db.query(
+          `SELECT count(*)::int AS n
+             FROM public.waitlist_entries w
+             JOIN public.businesses b ON b.id = w.tenant_id
+            WHERE w.tenant_id = app.current_tenant_id()
+              AND (
+                (w.status = 'waiting'
+                  AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
+                OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
+                OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
+                OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (
+                    SELECT 1 FROM public.appointments a
+                     WHERE a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+                       AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'
+                ))
+              )`,
         );
         const willUnlink = await db.query(
           `SELECT count(*)::int AS n
@@ -96,6 +136,9 @@ async function main() {
               AND a.status = 'reserved'`,
         );
         let deletedCount = 0;
+        let appointmentsDeletedCount = 0;
+        let waitlistDeletedCount = 0;
+        let linkedWaitlistDeletedCount = 0;
         if (apply) {
           const deleted = await db.query(
             `DELETE FROM public.leads
@@ -104,14 +147,52 @@ async function main() {
               RETURNING id`,
           );
           deletedCount = deleted.rowCount ?? 0;
+          const linkedWaitlistDeleted = await db.query(
+            `DELETE FROM public.waitlist_entries w
+              USING public.appointments a
+              WHERE a.id = w.appointment_id
+                AND a.tenant_id = w.tenant_id
+                AND a.status = 'reserved'
+                AND a.end_at <= now() - interval '24 hours'
+                AND w.status = 'closed'
+              RETURNING w.id`,
+          );
+          linkedWaitlistDeletedCount = linkedWaitlistDeleted.rowCount ?? 0;
+          const appointmentsDeleted = await db.query(
+            `DELETE FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours') RETURNING id`,
+          );
+          appointmentsDeletedCount = appointmentsDeleted.rowCount ?? 0;
+          const waitlistDeleted = await db.query(
+            `DELETE FROM public.waitlist_entries w
+              WHERE w.tenant_id = app.current_tenant_id()
+                AND (
+                  (w.status = 'waiting' AND EXISTS (
+                    SELECT 1 FROM public.businesses b
+                     WHERE b.id = w.tenant_id
+                       AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours'
+                  ))
+                  OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
+                  OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
+                )
+              RETURNING w.id`,
+          );
+          waitlistDeletedCount = waitlistDeleted.rowCount ?? 0;
         }
         await db.query('COMMIT');
         const expiredCount = Number(expired.rows[0]?.n ?? 0);
         const unlinkCount = Number(willUnlink.rows[0]?.n ?? 0);
         totalLeadsDeleted += deletedCount;
         totalLeadsWouldDelete += expiredCount;
+        const appointmentsExpiredCount = Number(expiredAppointments.rows[0]?.n ?? 0);
+        const waitlistExpiredCount = Number(expiredWaitlist.rows[0]?.n ?? 0);
         totalAppointmentsToUnlink += unlinkCount;
-        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `dry run: would delete ${expiredCount}`} expired CRM lead(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s), preserving the appointments.`);
+        totalAppointmentsDeleted += appointmentsDeletedCount;
+        totalAppointmentsWouldDelete += appointmentsExpiredCount;
+        totalWaitlistDeleted += waitlistDeletedCount;
+        totalWaitlistWouldDelete += waitlistExpiredCount;
+        totalLinkedWaitlistDeleted += linkedWaitlistDeletedCount;
+        totalLinkedWaitlistWouldDelete += Number(linkedWaitlistToDelete.rows[0]?.n ?? 0);
+        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `deleted ${linkedWaitlistDeletedCount}` : `would delete ${Number(linkedWaitlistToDelete.rows[0]?.n ?? 0)}`} linked waitlist request(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error(`CRM cleanup failed for ${tenant.database_name}: ${error instanceof Error ? error.message : String(error)}`);
@@ -119,7 +200,7 @@ async function main() {
         await db.end();
       }
     }
-    console.log(`CRM retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; leads deleted: ${totalLeadsDeleted}; expired leads found: ${totalLeadsWouldDelete}; ${apply ? 'appointments unlinked' : 'appointments to unlink'}: ${totalAppointmentsToUnlink}.`);
+    console.log(`Retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; CRM leads deleted: ${totalLeadsDeleted}; expired CRM leads found: ${totalLeadsWouldDelete}; expired appointments deleted: ${totalAppointmentsDeleted}; expired appointments found: ${totalAppointmentsWouldDelete}; waitlist requests deleted: ${totalWaitlistDeleted}; expired waitlist requests found: ${totalWaitlistWouldDelete}; linked waitlist requests deleted: ${totalLinkedWaitlistDeleted}; linked waitlist requests to delete: ${totalLinkedWaitlistWouldDelete}; ${apply ? 'appointments unlinked' : 'appointments to unlink'} from expired leads: ${totalAppointmentsToUnlink}.`);
   } finally {
     await registry.end();
   }

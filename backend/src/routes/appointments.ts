@@ -61,7 +61,13 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
-      await db.query('DELETE FROM appointments WHERE end_at <= now()');
+      await db.query(`DELETE FROM waitlist_entries w USING appointments a
+        WHERE a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+          AND ((a.status = 'reserved' AND a.end_at <= now() - interval '24 hours')
+            OR (a.status = 'cancelled' AND a.status_changed_at <= now() - interval '24 hours'))`);
+      await db.query(`DELETE FROM appointments
+        WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours')
+           OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`);
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
                 to_char(a.start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
@@ -135,37 +141,43 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         if (!biz) throw new HttpError(404, 'not_found');
         const serviceId = patch.service_id ?? current.service_id;
         const service = serviceId ? (await db.query(
-          `SELECT id, name, kind, appointment_duration_minutes
-             FROM products WHERE id = $1 AND is_active = true FOR SHARE`,
+          'SELECT id, name, kind, appointment_duration_minutes FROM products WHERE id = $1 AND is_active = true FOR SHARE',
           [serviceId],
         )).rows[0] : null;
         if ((!service || service.kind !== 'service') && patch.status === 'cancelled' && !patch.service_id && !patch.start_at) {
           const cancelled = await db.query(
-            "UPDATE appointments SET status = 'cancelled' WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
+            "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
+          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
           return cancelled.rows[0];
         }
-        if (!service || service.kind !== 'service') throw new HttpError(400, 'invalid_service');
+        const isMultiServiceAppointment = !service && current.service_id === null && !patch.service_id;
+        if ((!service || service.kind !== 'service') && !isMultiServiceAppointment) throw new HttpError(400, 'invalid_service');
         const startAt = patch.start_at ?? (await db.query(
-          `SELECT to_char($1::timestamptz AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS value`,
+          'SELECT to_char($1::timestamptz AT TIME ZONE $2, \'YYYY-MM-DD"T"HH24:MI\') AS value',
           [current.start_at, biz.timezone],
         )).rows[0].value;
-        const duration = service.appointment_duration_minutes ?? 30;
+        const preservedDuration = Math.round((new Date(current.end_at).getTime() - new Date(current.start_at).getTime()) / 60_000);
+        const duration = service?.appointment_duration_minutes ?? (isMultiServiceAppointment ? preservedDuration : 30);
+        const serviceName = service?.name ?? current.service_name;
         const status = patch.status ?? current.status;
         if (status === 'reserved') validateSlot({
           startAt, duration, openingHours: biz.config?.opening_hours?.days, timezone: biz.timezone,
         });
         const updated = await db.query(
-          `UPDATE appointments
-              SET service_id = $1, service_name = $2, customer_phone = $3,
-                  start_at = ($4::timestamp AT TIME ZONE $5),
-                  end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval '1 minute')),
-                  status = $7
-            WHERE id = $8
-            RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status`,
-          [service.id, service.name, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
+          'UPDATE appointments SET service_id = $1, service_name = $2, customer_phone = $3, status_changed_at = CASE WHEN status IS DISTINCT FROM $7 THEN now() ELSE status_changed_at END, ' +
+          'start_at = ($4::timestamp AT TIME ZONE $5), ' +
+          'end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval \'1 minute\')), ' +
+          'status = $7 WHERE id = $8 ' +
+          'RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status',
+          [service?.id ?? null, serviceName, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
         );
+        if (status === 'cancelled') {
+          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
+        } else if (status === 'reserved') {
+          await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
+        }
         return updated.rows[0];
       });
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment update failed'));
@@ -176,6 +188,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
     const result = await withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "UPDATE waitlist_entries SET status = 'rejected', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
+        [id],
+      );
       const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
       if (!deleted.rowCount) throw new HttpError(404, 'not_found');
       return deleted.rows[0];
