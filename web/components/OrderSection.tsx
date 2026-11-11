@@ -471,7 +471,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
-                        className="storefront-card-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-fg transition hover:opacity-90">
+                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
                         {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
                       </button>
                     ))}
