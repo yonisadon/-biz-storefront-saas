@@ -155,6 +155,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistPreferredDate, setWaitlistPreferredDate] = useState('');
   const [waitlistPreferredTime, setWaitlistPreferredTime] = useState('');
   const [waitlistNote, setWaitlistNote] = useState('');
 
@@ -372,7 +373,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function submitWaitlist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setWaitlistError(null);
-    if (!appointmentDate) return setWaitlistError('בחרו תאריך מועדף.');
+    if (!waitlistPreferredDate) return setWaitlistError('בחרו תאריך מועדף.');
     const phone = normalizeILPhone(form.phone);
     if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
     setWaitlistBusy(true);
@@ -384,7 +385,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           customer_name: waitlistName.trim() || undefined,
           customer_phone: phone,
           service_ids: reservedAppointmentLines.map(({ p }) => p.id),
-          preferred_date: appointmentDate,
+          preferred_date: waitlistPreferredDate,
           ...(waitlistPreferredTime ? { preferred_time: waitlistPreferredTime } : {}),
           note: waitlistNote.trim(),
           company_website: '',
@@ -410,7 +411,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     }
   }
 
-  const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
+  const input = 'mt-1 min-h-11 min-w-0 max-w-full w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
   const openContinuation = () => {
     setError(null);
     setDone(null);
@@ -509,9 +510,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
+      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+        <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
+          <h3 id="order-dialog-title" className="min-w-0 text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
@@ -544,17 +545,17 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <>
                 <p className="text-xs leading-5 text-ink/65">{needsReservedAppointment ? `משך השריון ביומן: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.` : `משך השירותים שמבקשים לתאם: ${freeDatetimeDurationMinutes} דקות. המועד המבוקש לא תופס את היומן והעסק יתאם אתכם.`}{needsReservedAppointment && needsFreeDatetimeAppointment ? ` שירותים נוספים ללא שריון: ${freeDatetimeLines.map(({ p }) => p.name).join(', ')}; הם לא מוסיפים זמן לשריון ביומן.` : ''}</p>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">בחירת תאריך</span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label="חודש קודם" className="grid h-9 w-9 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
-                      <span className="min-w-28 text-center font-semibold capitalize">{appointmentMonthLabel}</span>
-                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20">›</button>
-                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="rounded-full px-3 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label="חודש קודם" className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
+                      <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize">{appointmentMonthLabel}</span>
+                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
+                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
-                  <div className="grid grid-cols-7 gap-1">
+                  <div role="group" aria-label="בחירת יום בחודש" className="grid min-w-0 grid-cols-7 gap-1">
                     {monthCells.map((date, index) => {
                       if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
                       const available = monthAvailableDates.includes(date);
@@ -586,10 +587,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {!done && needsReservedAppointment && appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && (
+        {!done && needsReservedAppointment && ((appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0) || (!monthLoading && !monthError && monthAvailableDates.length === 0)) && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-sm">אין כרגע שעה פנויה בתאריך שבחרתם. אפשר להשאיר פרטים ברשימת ההמתנה; הבקשה לא שומרת מקום ביומן.</p>
-            <button type="button" onClick={() => { setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
+            <p className="text-sm leading-6">{appointmentDate && appointmentSlots.length === 0 ? 'אין כרגע שעה פנויה בתאריך שבחרתם.' : 'אין כרגע תאריכים עם שעות פנויות בחודש הזה.'} אפשר להשאיר בקשת המתנה ולציין תאריך ושעה מועדפים. הבקשה אינה שומרת מקום ביומן.</p>
+            <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
               className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
               הצטרפות לרשימת ההמתנה
             </button>
@@ -612,8 +613,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <label className="block text-sm">טלפון *
               <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
             </label>
-            <label className="block text-sm">תאריך מועדף *
-              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={input}/>
+            <label className="block min-w-0 text-sm">תאריך מועדף *
+              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={waitlistPreferredDate} onChange={(e) => setWaitlistPreferredDate(e.target.value)} className={`${input} block`}/>
             </label>
             <label className="block text-sm">שעה מועדפת (רשות)
               <input type="time" value={waitlistPreferredTime} onChange={(e) => setWaitlistPreferredTime(e.target.value)} className={input}/>
