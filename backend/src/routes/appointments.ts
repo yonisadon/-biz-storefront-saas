@@ -182,6 +182,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
     const result = await withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "UPDATE waitlist_entries SET status = 'closed', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
+        [id],
+      );
       const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
       if (!deleted.rowCount) throw new HttpError(404, 'not_found');
       return deleted.rows[0];
