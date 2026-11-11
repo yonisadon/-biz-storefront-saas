@@ -155,6 +155,99 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       });
     });
 
+    // Minimal month summary for the customer calendar. It returns dates only (never
+    // appointment/customer data); exact times are still loaded by /availability.
+    app.get('/availability/month', async (req) => {
+      const query = z.object({
+        month: z.string().regex(/^\\d{4}-(0[1-9]|1[0-2])$/),
+        items: z.string().min(1).max(3000),
+      }).parse(req.query);
+      const selected = query.items.split(',').map((entry) => {
+        const match = /^([0-9a-f-]{36}):(\\d{1,4})$/i.exec(entry);
+        if (!match) throw new HttpError(400, 'invalid_items');
+        const quantity = Number(match[2]);
+        if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) throw new HttpError(400, 'invalid_items');
+        return { id: match[1], quantity };
+      });
+      if (!selected.length || selected.length > 50 || new Set(selected.map((item) => item.id)).size !== selected.length) {
+        throw new HttpError(400, 'invalid_items');
+      }
+
+      return withTenant(req.tenantId, async (db) => {
+        const biz = await loadBusiness(db);
+        const ids = selected.map((item) => item.id);
+        const rows = (await db.query(
+          'SELECT id, kind, booking_mode, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+          [ids],
+        )).rows;
+        if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
+        const qty = new Map(selected.map((item) => [item.id, item.quantity]));
+        const services = rows.filter((item) => item.kind === 'service')
+          .map((item) => ({ ...item, mode: item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none') }))
+          .filter((item) => item.mode !== 'none');
+        const reserved = services.filter((item) => item.mode === 'availability');
+        const freeDatetime = services.filter((item) => item.mode === 'free_datetime');
+        const mode = reserved.length ? 'availability' : freeDatetime.length ? 'free_datetime' : 'none';
+        if (mode === 'none') throw new HttpError(400, 'appointment_not_applicable');
+        const durationServices = reserved.length ? reserved : freeDatetime;
+        const duration = durationServices.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
+
+        const days = biz.config?.opening_hours?.days;
+        const [year, monthNumber] = query.month.split('-').map(Number);
+        const monthStart = new Date(Date.UTC(year, monthNumber - 1, 1, 12));
+        if (!Number.isFinite(monthStart.getTime()) || monthStart.toISOString().slice(0, 7) !== query.month) throw new HttpError(400, 'invalid_month');
+        const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+        const candidates: { date: string; slot: string }[] = [];
+        const toMinutes = (value: unknown) => {
+          if (typeof value !== 'string' || !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(value)) return Number.NaN;
+          return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+        };
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(Date.UTC(year, monthNumber - 1, day, 12)).toISOString().slice(0, 10);
+          const weekday = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(`${date}T12:00:00Z`).getUTCDay()];
+          const ranges = days && typeof days === 'object' ? days[weekday] : undefined;
+          if (!Array.isArray(ranges)) continue;
+          for (const range of ranges) {
+            if (!range || typeof range !== 'object') continue;
+            const open = toMinutes((range as { open?: unknown }).open);
+            const close = toMinutes((range as { close?: unknown }).close);
+            if (!Number.isFinite(open) || !Number.isFinite(close)) continue;
+            for (const minute of quarterHourStartMinutes(open, close, duration)) {
+              const slot = `${date}T${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+              if (!validateAppointmentSelection({ needsAppointment: true, appointmentAt: slot, durationMinutes: duration, openingHoursDays: days, timezone: biz.timezone })) {
+                candidates.push({ date, slot: slot.slice(11) });
+              }
+            }
+          }
+        }
+        if (mode === 'free_datetime') {
+          return { month: query.month, available_dates: [...new Set(candidates.map((item) => item.date))] };
+        }
+        if (!candidates.length) return { month: query.month, available_dates: [] };
+        const candidateSlots = candidates.map((item) => `${item.date}T${item.slot}`);
+        const available = await db.query(
+          `SELECT candidate.slot
+             FROM unnest($1::text[]) AS candidate(slot)
+            WHERE NOT EXISTS (
+              SELECT 1 FROM appointments a
+               WHERE a.status = 'reserved'
+                 AND tstzrange(a.start_at, a.end_at, '[)') &&
+                     tstzrange((candidate.slot::timestamp AT TIME ZONE $2),
+                       ((candidate.slot::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+            ) AND NOT EXISTS (
+              SELECT 1 FROM appointment_blocks b
+               WHERE tstzrange(b.start_at, b.end_at, '[)') &&
+                     tstzrange((candidate.slot::timestamp AT TIME ZONE $2),
+                       ((candidate.slot::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+            )`,
+          [candidateSlots, biz.timezone, duration],
+        );
+        const availableDates = new Set<string>(available.rows.map((row: { slot: string }) => String(row.slot).slice(0, 10)));
+        return { month: query.month, available_dates: [...availableDates] };
+      });
+    });
+
     // Return candidate times for the selected cart. Reserved availability-mode slots
     // are checked against both appointments and seller time blocks on the server.
     app.get('/availability', async (req) => {

@@ -57,7 +57,16 @@ function slotConflict(error: unknown): never | void {
 export const appointmentRoutes: FastifyPluginAsync = async (app) => {
   // Calendar query. Expired rows are removed lazily here; website leads remain untouched.
   app.get('/appointments', async (req) => {
-    const query = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(req.query);
+    const query = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }).strict().refine((value) => Boolean(value.date) !== Boolean(value.from || value.to), { message: 'provide_date_or_range' })
+      .refine((value) => !value.from || !value.to || value.from <= value.to, { message: 'invalid_date_range' })
+      .parse(req.query);
+    const from = query.date ?? query.from!;
+    const to = query.date ?? query.to!;
+    if (!query.date && (!query.from || !query.to)) throw new HttpError(400, 'invalid_date_range');
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
@@ -70,27 +79,27 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
            OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`);
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
-                to_char(a.start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
-                to_char(a.end_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
+                to_char(a.start_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
+                to_char(a.end_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
                 a.source, a.status, a.created_at
            FROM appointments a
-          WHERE a.start_at < (($1::date + interval '1 day')::timestamp AT TIME ZONE $2)
-            AND a.end_at > ($1::date::timestamp AT TIME ZONE $2)
+          WHERE a.start_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE $3)
+            AND a.end_at > ($1::date::timestamp AT TIME ZONE $3)
           ORDER BY a.start_at`,
-        [query.date, biz.timezone],
+        [from, to, biz.timezone],
       )).rows;
       const blocks = (await db.query(
         `SELECT id,
-                to_char(start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
-                to_char(end_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
+                to_char(start_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
+                to_char(end_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS end_at,
                 reason
            FROM appointment_blocks
-          WHERE start_at < (($1::date + interval '1 day')::timestamp AT TIME ZONE $2)
-            AND end_at > ($1::date::timestamp AT TIME ZONE $2)
+          WHERE start_at < (($2::date + interval '1 day')::timestamp AT TIME ZONE $3)
+            AND end_at > ($1::date::timestamp AT TIME ZONE $3)
           ORDER BY start_at`,
-        [query.date, biz.timezone],
+        [from, to, biz.timezone],
       )).rows;
-      return { date: query.date, timezone: biz.timezone, appointments, blocks };
+      return { date: from, from, to, timezone: biz.timezone, appointments, blocks };
     });
   });
 

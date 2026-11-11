@@ -137,6 +137,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [cart, setCart] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentMonth, setAppointmentMonth] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; });
+  const [monthAvailableDates, setMonthAvailableDates] = useState<string[]>([]);
+  const [monthLoading, setMonthLoading] = useState(false);
+  const [monthError, setMonthError] = useState(false);
   const [appointmentTime, setAppointmentTime] = useState('');
   const [serverAppointmentSlots, setServerAppointmentSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -230,6 +234,48 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   );
   const appointmentTimeRequired = needsAppointment && (needsReservedAppointment || hasAppointmentHours);
   useEffect(() => {
+    if (!needsAppointment || !cartSignature || !hasAppointmentHours) {
+      setMonthAvailableDates([]);
+      setMonthLoading(false);
+      return;
+    }
+    const params = new URLSearchParams({ month: appointmentMonth, items: cartSignature });
+    let cancelled = false;
+    setMonthLoading(true);
+    setMonthError(false);
+    fetch(`${apiBase}/availability/month?${params.toString()}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as { available_dates?: string[] } | null;
+        if (!response.ok) throw new Error('availability_month_failed');
+        if (!cancelled) setMonthAvailableDates(Array.isArray(data?.available_dates) ? data.available_dates : []);
+      })
+      .catch(() => { if (!cancelled) { setMonthError(true); setMonthAvailableDates([]); } })
+      .finally(() => { if (!cancelled) setMonthLoading(false); });
+    return () => { cancelled = true; };
+  }, [apiBase, appointmentMonth, cartSignature, hasAppointmentHours, needsAppointment]);
+  const monthCells = useMemo(() => {
+    const [year, month] = appointmentMonth.split('-').map(Number);
+    const firstWeekday = new Date(Date.UTC(year, month - 1, 1, 12)).getUTCDay();
+    const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return Array.from({ length: firstWeekday + count }, (_, index) => {
+      if (index < firstWeekday) return null;
+      return `${year}-${String(month).padStart(2, '0')}-${String(index - firstWeekday + 1).padStart(2, '0')}`;
+    });
+  }, [appointmentMonth]);
+  const moveAppointmentMonth = (delta: number) => {
+    const [year, month] = appointmentMonth.split('-').map(Number);
+    const next = new Date(Date.UTC(year, month - 1 + delta, 1, 12));
+    setAppointmentMonth(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`);
+  };
+  const appointmentMonthLabel = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${appointmentMonth}-01T12:00:00Z`));
+  const todayDate = new Date().toLocaleDateString('en-CA');
+  const appointmentSlots = serverAppointmentSlots;
+  const appointmentTimeGroups = [
+    { label: 'בוקר', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) < 12) },
+    { label: 'צהריים', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 12 && Number(slot.slice(0, 2)) < 17) },
+    { label: 'ערב', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 17) },
+  ];
+  useEffect(() => {
     if (!needsAppointment || !appointmentDate || !cartSignature) {
       setServerAppointmentSlots([]);
       setSlotsLoading(false);
@@ -254,7 +300,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }, [apiBase, appointmentDate, cartSignature, needsAppointment]);
   // Both reserved and free-datetime services use the same server-generated
   // quarter-hour grid. Only availability-mode services block calendar time.
-  const appointmentSlots = serverAppointmentSlots;
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
@@ -498,15 +543,42 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {hasAppointmentHours ? (
               <>
                 <p className="text-xs leading-5 text-ink/65">{needsReservedAppointment ? `משך השריון ביומן: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.` : `משך השירותים שמבקשים לתאם: ${freeDatetimeDurationMinutes} דקות. המועד המבוקש לא תופס את היומן והעסק יתאם אתכם.`}{needsReservedAppointment && needsFreeDatetimeAppointment ? ` שירותים נוספים ללא שריון: ${freeDatetimeLines.map(({ p }) => p.name).join(', ')}; הם לא מוסיפים זמן לשריון ביומן.` : ''}</p>
-                <label className="block text-sm font-medium">תאריך
-                  <input type="date" required min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => { setIdempotencyKey(''); setAppointmentDate(e.target.value); setAppointmentTime(''); }} className={input} />
-                </label>
-                <label className="block text-sm font-medium">שעה
-                  <select required value={appointmentTime} onChange={(e) => { setIdempotencyKey(''); setAppointmentTime(e.target.value); }} disabled={!appointmentDate || slotsLoading || appointmentSlots.length === 0} className={input}>
-                    <option value="">{!appointmentDate ? 'קודם בחרו תאריך' : slotsLoading ? 'בודקים שעות פנויות…' : appointmentSlots.length ? 'בחירת שעה' : slotsError ? 'לא הצלחנו לבדוק זמינות' : 'אין שעות פנויות ביום זה'}</option>
-                    {appointmentSlots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-                  </select>
-                </label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">בחירת תאריך</span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => { const [y, m] = appointmentMonth.split('-').map(Number); const today = new Date(); const minMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; if (`${y}-${String(m).padStart(2, '0')}` > minMonth) moveAppointmentMonth(-1); }} aria-label="חודש קודם" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 disabled:opacity-40">‹</button>
+                      <span className="min-w-28 text-center font-semibold capitalize">{appointmentMonthLabel}</span>
+                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20">›</button>
+                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); setAppointmentDate(todayDate); setAppointmentTime(''); setIdempotencyKey(''); }} className="rounded-full px-3 py-2 text-xs font-semibold text-primary underline">היום</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {monthCells.map((date, index) => {
+                      if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
+                      const available = monthAvailableDates.includes(date);
+                      const disabled = date < todayDate || !available || monthLoading || monthError;
+                      const selected = appointmentDate === date;
+                      return <button key={date} type="button" disabled={disabled} aria-pressed={selected} onClick={() => { setIdempotencyKey(''); setAppointmentDate(date); setAppointmentTime(''); }}
+                        className={`min-h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary text-primary-fg shadow-sm' : available ? 'border border-primary/40 bg-primary/5 text-ink hover:bg-primary/10' : 'border border-transparent text-ink/35'}`}>
+                        {Number(date.slice(-2))}{available && <span className="mx-auto mt-0.5 block h-1 w-1 rounded-full bg-current" aria-hidden="true" />}
+                      </button>;
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink/60"><span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-primary"/> יש שעות פנויות</span><span>ימים אפורים אינם זמינים</span></div>
+                  {monthLoading && <p role="status" className="text-xs text-ink/60">בודקים זמינות לחודש…</p>}
+                  {monthError && <p role="alert" className="text-xs text-red-700">לא הצלחנו לטעון את זמינות החודש. נסו לרענן את הדף.</p>}
+                </div>
+                <div className="space-y-2">
+                  <span className="text-sm font-semibold">שעות פנויות</span>
+                  {!appointmentDate && <p className="text-sm text-ink/55">בחרו יום שבו מופיע סימון של זמינות.</p>}
+                  {appointmentDate && slotsLoading && <p role="status" className="text-sm text-ink/55">בודקים שעות פנויות ליום שנבחר…</p>}
+                  {appointmentDate && slotsError && <p role="alert" className="text-sm text-red-700">לא הצלחנו לבדוק את השעות. נסו לבחור את היום מחדש.</p>}
+                  {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">אין כרגע שעות פנויות ביום זה.</p>}
+                  {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'border-primary bg-primary text-primary-fg' : 'border-ink/20 bg-white hover:border-primary hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
+                </div>
+                {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
               </>
             ) : (
               <p className="text-sm leading-6 text-ink/75">{needsReservedAppointment ? 'לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. פנו לעסק ישירות כדי לתאם.' : `העסק עדיין לא הגדיר שעות פעילות. אפשר לשלוח את הבקשה ללא מועד, והמוכר יתאם איתכם את התור. משך התור הכולל: ${appointmentDurationMinutes} דקות.`}</p>
