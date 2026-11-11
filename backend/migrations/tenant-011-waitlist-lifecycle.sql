@@ -19,6 +19,6 @@ BEGIN
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_waitlist_tenant_appointment
+CREATE UNIQUE INDEX IF NOT EXISTS uq_waitlist_tenant_appointment
   ON public.waitlist_entries (tenant_id, appointment_id)
   WHERE appointment_id IS NOT NULL;
