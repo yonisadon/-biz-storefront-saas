@@ -269,6 +269,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   };
   const appointmentMonthLabel = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${appointmentMonth}-01T12:00:00Z`));
   const todayDate = new Date().toLocaleDateString('en-CA');
+  const appointmentSlots = serverAppointmentSlots;
   const appointmentTimeGroups = [
     { label: 'בוקר', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) < 12) },
     { label: 'צהריים', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 12 && Number(slot.slice(0, 2)) < 17) },
@@ -299,7 +300,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }, [apiBase, appointmentDate, cartSignature, needsAppointment]);
   // Both reserved and free-datetime services use the same server-generated
   // quarter-hour grid. Only availability-mode services block calendar time.
-  const appointmentSlots = serverAppointmentSlots;
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
