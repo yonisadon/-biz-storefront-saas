@@ -88,8 +88,8 @@ async function main() {
           "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)",
           [tenant.tenant_id],
         );
-        // The FK converts lead_id to NULL on surviving appointments; appointments,
-        // their time reservations and manual calendar entries are not deleted.
+        // Expiring a CRM lead only detaches its lead_id from surviving appointments.
+        // Appointment rows are deleted separately below only after their end_at has passed.
         const expired = await db.query(
           `SELECT count(*)::int AS n
              FROM public.leads
