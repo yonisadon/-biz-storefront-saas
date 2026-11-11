@@ -138,7 +138,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
                 <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
                   {formatPreferredDate(entry.preferred_date)}
-                  {entry.preferred_time_from ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · ללא שעה מועדפת'}
+                  {entry.preferred_time ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · ללא שעה מועדפת'}
                 </p>
                 {entry.note && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{entry.note}</p>}
                 <p className="mt-2 text-xs text-gray-500">נשלח: {new Date(entry.created_at).toLocaleString('he-IL')}</p>
