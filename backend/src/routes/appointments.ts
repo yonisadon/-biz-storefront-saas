@@ -61,16 +61,13 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
-      await db.query(
-        `UPDATE waitlist_entries w
-            SET status = 'closed', appointment_id = NULL, updated_at = now()
-           FROM appointments a
-          WHERE a.id = w.appointment_id
-            AND a.tenant_id = w.tenant_id
-            AND a.end_at <= now()
-            AND w.status = 'scheduled'`,
-      );
-      await db.query('DELETE FROM appointments WHERE end_at <= now()');
+      await db.query(`DELETE FROM waitlist_entries w USING appointments a
+        WHERE a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+          AND ((a.status = 'reserved' AND a.end_at <= now() - interval '24 hours')
+            OR (a.status = 'cancelled' AND a.status_changed_at <= now() - interval '24 hours'))`);
+      await db.query(`DELETE FROM appointments
+        WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours')
+           OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`);
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
                 to_char(a.start_at AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS start_at,
@@ -149,10 +146,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         )).rows[0] : null;
         if ((!service || service.kind !== 'service') && patch.status === 'cancelled' && !patch.service_id && !patch.start_at) {
           const cancelled = await db.query(
-            "UPDATE appointments SET status = 'cancelled' WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
+            "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
-          await db.query("UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1", [id]);
+          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
           return cancelled.rows[0];
         }
         const isMultiServiceAppointment = !service && current.service_id === null && !patch.service_id;
@@ -169,7 +166,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           startAt, duration, openingHours: biz.config?.opening_hours?.days, timezone: biz.timezone,
         });
         const updated = await db.query(
-          'UPDATE appointments SET service_id = $1, service_name = $2, customer_phone = $3, ' +
+          'UPDATE appointments SET service_id = $1, service_name = $2, customer_phone = $3, status_changed_at = CASE WHEN status IS DISTINCT FROM $7 THEN now() ELSE status_changed_at END, ' +
           'start_at = ($4::timestamp AT TIME ZONE $5), ' +
           'end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval \'1 minute\')), ' +
           'status = $7 WHERE id = $8 ' +
@@ -179,7 +176,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         if (status === 'cancelled') {
           await db.query("UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1", [id]);
         } else if (status === 'reserved') {
-          await db.query("UPDATE waitlist_entries SET status = 'scheduled', updated_at = now() WHERE appointment_id = $1", [id]);
+          await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
         }
         return updated.rows[0];
       });
