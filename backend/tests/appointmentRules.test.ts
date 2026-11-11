@@ -133,3 +133,45 @@ test('a selected appointment time is rejected for items that do not require appo
     now: futureNow,
   }), 'appointment_not_applicable');
 });
+
+
+test('seller waitlist scheduling accepts an exact minute inside opening hours without changing the public quarter-hour grid', () => {
+  const args = {
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T17:13',
+    durationMinutes: 30,
+    openingHoursDays: { mon: [{ open: '09:00', close: '18:00' }] },
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:00:00.000Z'),
+  };
+  assert.equal(validateAppointmentSelection(args), 'invalid_appointment_time');
+  assert.equal(validateAppointmentSelection({ ...args, requireQuarterHour: false, allowOutsideOpeningHours: false }), null);
+});
+
+test('seller waitlist scheduling requires confirmation for a time outside opening hours', () => {
+  const args = {
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T18:13',
+    durationMinutes: 30,
+    openingHoursDays: { mon: [{ open: '09:00', close: '18:00' }] },
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:00:00.000Z'),
+    requireQuarterHour: false,
+  };
+  assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: false }), 'outside_business_hours');
+  assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: true }), null);
+});
+
+test('seller can explicitly confirm a manually chosen time when opening hours are not configured', () => {
+  const args = {
+    needsAppointment: true,
+    appointmentAt: '2026-10-19T17:13',
+    durationMinutes: 30,
+    openingHoursDays: {},
+    timezone: 'Asia/Jerusalem',
+    now: new Date('2026-10-19T06:00:00.000Z'),
+    requireQuarterHour: false,
+  };
+  assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: false }), 'outside_business_hours');
+  assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: true }), null);
+});
