@@ -120,29 +120,27 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
   app.patch('/waitlist/:id', async (req) => {
     const id = idFrom(req);
     const input = z.object({ status: z.enum(['waiting', 'contacted', 'closed', 'cancelled']) }).strict().parse(req.body);
-    return withTenant(req.tenantId, async (db) => {
-      const current = (await db.query(
-        'SELECT appointment_id FROM waitlist_entries WHERE id = $1 FOR UPDATE',
-        [id],
-      )).rows[0];
+    const result = await withTenant(req.tenantId, async (db) => {
+      const current = (await db.query('SELECT appointment_id FROM waitlist_entries WHERE id = $1 FOR UPDATE', [id])).rows[0];
       if (!current) throw new HttpError(404, 'not_found');
       if (current.appointment_id && (input.status === 'waiting' || input.status === 'contacted')) {
         throw new HttpError(409, 'waitlist_has_scheduled_appointment', 'יש לעדכן או לבטל את התור ביומן לפני פתיחת הבקשה מחדש.');
       }
       if (current.appointment_id && (input.status === 'closed' || input.status === 'cancelled')) {
-        await db.query(
-          "UPDATE appointments SET status = 'cancelled' WHERE id = $1 AND status = 'reserved'",
-          [current.appointment_id],
-        );
+        await db.query("UPDATE appointments SET status = 'cancelled' WHERE id = $1 AND status = 'reserved'", [current.appointment_id]);
       }
-      const result = await db.query(
+      const updated = await db.query(
         'UPDATE waitlist_entries SET status = $1, updated_at = now() WHERE id = $2 RETURNING id, status, appointment_id, updated_at',
         [input.status, id],
       );
-      return result.rows[0];
+      return updated.rows[0];
     });
+    if (result.appointment_id && (input.status === 'closed' || input.status === 'cancelled')) {
+      void processGoogleCalendarJobs(req.tenantId, 5).catch((error) =>
+        req.log.warn({ err: error }, 'Google Calendar sync after waitlist cancellation failed'));
+    }
+    return result;
   });
-
   app.post('/waitlist/:id/schedule', async (req, reply) => {
     const id = idFrom(req);
     const input = z.object({
