@@ -45,8 +45,8 @@ async function main() {
   let totalAppointmentsWouldDelete = 0;
   let totalWaitlistDeleted = 0;
   let totalWaitlistWouldDelete = 0;
-  let totalWaitlistClosed = 0;
-  let totalWaitlistWouldClose = 0;
+  let totalLinkedWaitlistDeleted = 0;
+  let totalLinkedWaitlistWouldDelete = 0;
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
@@ -66,11 +66,12 @@ async function main() {
              EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments,
              to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist,
              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_appointment_link,
+             EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_appointment_status_changed_at,
              EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_appointment_fk`,
         );
         if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments ||
             !required.rows[0]?.has_waitlist || !required.rows[0]?.has_waitlist_appointment_link ||
-            !required.rows[0]?.has_waitlist_appointment_fk) {
+            !required.rows[0]?.has_appointment_status_changed_at || !required.rows[0]?.has_waitlist_appointment_fk) {
           throw new Error(`Required CRM/waitlist lifecycle migrations are incomplete for ${tenant.database_name}; no tenant rows were deleted.`);
         }
       } finally {
@@ -101,7 +102,7 @@ async function main() {
         const expiredAppointments = await db.query(
           `SELECT count(*)::int AS n FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`,
         );
-        const scheduledWaitlistToClose = await db.query(
+        const linkedWaitlistToDelete = await db.query(
           `SELECT count(*)::int AS n
              FROM public.waitlist_entries w
              JOIN public.appointments a ON a.id = w.appointment_id AND a.tenant_id = w.tenant_id
@@ -135,7 +136,7 @@ async function main() {
         let deletedCount = 0;
         let appointmentsDeletedCount = 0;
         let waitlistDeletedCount = 0;
-        let waitlistClosedCount = 0;
+        let linkedWaitlistDeletedCount = 0;
         if (apply) {
           const deleted = await db.query(
             `DELETE FROM public.leads
@@ -154,7 +155,7 @@ async function main() {
                 AND w.status = 'closed'
               RETURNING w.id`,
           );
-          waitlistClosedCount = linkedWaitlistDeleted.rowCount ?? 0;
+          linkedWaitlistDeletedCount = linkedWaitlistDeleted.rowCount ?? 0;
           const appointmentsDeleted = await db.query(
             `DELETE FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours') RETURNING id`,
           );
@@ -187,8 +188,8 @@ async function main() {
         totalAppointmentsWouldDelete += appointmentsExpiredCount;
         totalWaitlistDeleted += waitlistDeletedCount;
         totalWaitlistWouldDelete += waitlistExpiredCount;
-        totalWaitlistClosed += waitlistClosedCount;
-        totalWaitlistWouldClose += Number(scheduledWaitlistToClose.rows[0]?.n ?? 0);
+        totalLinkedWaitlistDeleted += linkedWaitlistDeletedCount;
+        totalLinkedWaitlistWouldDelete += Number(linkedWaitlistToDelete.rows[0]?.n ?? 0);
         console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `closed ${waitlistClosedCount}` : `would close ${Number(scheduledWaitlistToClose.rows[0]?.n ?? 0)}`} scheduled waitlist request(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
@@ -197,7 +198,7 @@ async function main() {
         await db.end();
       }
     }
-    console.log(`Retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; CRM leads deleted: ${totalLeadsDeleted}; expired CRM leads found: ${totalLeadsWouldDelete}; expired appointments deleted: ${totalAppointmentsDeleted}; expired appointments found: ${totalAppointmentsWouldDelete}; waitlist requests deleted: ${totalWaitlistDeleted}; expired waitlist requests found: ${totalWaitlistWouldDelete}; scheduled waitlist requests closed: ${totalWaitlistClosed}; scheduled waitlist requests to close: ${totalWaitlistWouldClose}; ${apply ? 'appointments unlinked' : 'appointments to unlink'} from expired leads: ${totalAppointmentsToUnlink}.`);
+    console.log(`Retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; CRM leads deleted: ${totalLeadsDeleted}; expired CRM leads found: ${totalLeadsWouldDelete}; expired appointments deleted: ${totalAppointmentsDeleted}; expired appointments found: ${totalAppointmentsWouldDelete}; waitlist requests deleted: ${totalWaitlistDeleted}; expired waitlist requests found: ${totalWaitlistWouldDelete}; linked waitlist requests deleted: ${totalLinkedWaitlistDeleted}; linked waitlist requests to delete: ${totalLinkedWaitlistWouldDelete}; ${apply ? 'appointments unlinked' : 'appointments to unlink'} from expired leads: ${totalAppointmentsToUnlink}.`);
   } finally {
     await registry.end();
   }
