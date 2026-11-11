@@ -150,6 +150,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
+  const [waitlistName, setWaitlistName] = useState('');
   const [waitlistPreferredTime, setWaitlistPreferredTime] = useState('');
   const [waitlistNote, setWaitlistNote] = useState('');
 
@@ -335,6 +336,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          customer_name: waitlistName.trim() || undefined,
           customer_phone: phone,
           service_ids: reservedAppointmentLines.map(({ p }) => p.id),
           preferred_date: appointmentDate,
@@ -532,6 +534,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           <form onSubmit={submitWaitlist} className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <h3 className="font-semibold">בקשת הצטרפות לרשימת המתנה</h3>
             {waitlistError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{waitlistError}</p>}
+            <label className="block text-sm">שם (רשות)
+              <input type="text" maxLength={100} autoComplete="name" value={waitlistName} onChange={(e) => setWaitlistName(e.target.value)} className={input} placeholder="שם מלא" />
+            </label>
             <label className="block text-sm">טלפון *
               <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
             </label>
