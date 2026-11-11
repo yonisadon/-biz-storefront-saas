@@ -209,7 +209,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
       if (!r.rows[0]) throw new HttpError(404, 'not_found'); // also hit for other tenants' ids
       if (status === 'rejected' || status === 'cancelled') {
         await db.query(
-          "UPDATE appointments SET status = 'cancelled' WHERE lead_id = $1 AND status = 'reserved'",
+          "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE lead_id = $1 AND status = 'reserved'",
           [id],
         );
       }
