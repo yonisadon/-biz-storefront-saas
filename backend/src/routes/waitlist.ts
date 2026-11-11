@@ -146,7 +146,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
   app.post('/waitlist/:id/schedule', async (req, reply) => {
     const id = idFrom(req);
     const input = z.object({
-      start_at: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}T(?:[01]\\d|2[0-3]):[0-5]\\d$/),
+      start_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/),
     }).strict().parse(req.body);
     if (!isValidCalendarDate(input.start_at.slice(0, 10))) throw new HttpError(400, 'invalid_appointment_time');
 
