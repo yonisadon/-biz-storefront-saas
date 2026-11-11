@@ -243,7 +243,8 @@ async function main() {
         for (const required of [
           'products.booking_mode', 'leads.idempotency_key', 'leads.retention_closed_at', 'leads.retention_expires_at',
           'appointments.lead_id', 'appointments.start_at', 'appointments.end_at',
-          'appointments.status', 'appointments.source',
+          'appointments.status', 'appointments.source', 'appointments.status_changed_at',
+          'waitlist_entries.preferred_time', 'waitlist_entries.appointment_id',
           'appointment_blocks.start_at', 'appointment_blocks.end_at',
         ]) {
           if (!present.has(required)) throw new Error(`Postflight failed for ${tenant.database_name}: missing ${required}.`);
