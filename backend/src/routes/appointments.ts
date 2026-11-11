@@ -61,6 +61,15 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
+      await db.query(
+        `UPDATE waitlist_entries w
+            SET status = 'closed', appointment_id = NULL, updated_at = now()
+           FROM appointments a
+          WHERE a.id = w.appointment_id
+            AND a.tenant_id = w.tenant_id
+            AND a.end_at <= now()
+            AND w.status = 'scheduled'`,
+      );
       await db.query('DELETE FROM appointments WHERE end_at <= now()');
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
