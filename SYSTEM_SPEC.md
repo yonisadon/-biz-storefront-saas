@@ -1,3 +1,15 @@
+## 2026-11-11 — פריסת BTime ומיגרציית רשימת המתנה/Retention ב-production (אומת)
+
+- PR #76 מוזג ל-`main` ב-Squash, commit `cdd71cbfa5309a4dcd440197d4d516a22cbc3c5a`.
+- GitHub CI ו-Vercel Preview של ה-PR עברו בהצלחה לפני המיזוג.
+- Railway API deployment `04782c14-822b-4a9d-8f80-336fd2769905` הסתיים ב-SUCCESS. פקודת pre-deploy `npm run migrate-tenant-schemas:deploy` רצה; הלוגים אישרו `tenant-011-waitlist-lifecycle.sql` ו-postflight מוצלח בשלושת מסדי הטננטים: `biz_17f65363a8a14fd3963544cc`, `biz_214beafe2fd44ce6b939876a`, `biz_9dfeef0b5d7e4173b6510b76`.
+- המשתמש אישר מראש להריץ tenant-011 ללא גיבוי מאומת. דגל `TENANT_MIGRATION_ALLOW_WITHOUT_BACKUP` הוגדר ל-`true` לצורך הפריסה ולאחר הצלחת המיגרציה הוחזר ל-`false`. אין להשאיר את דגל האישור פעיל.
+- שירות Railway `crm-retention-cleanup` הוגדר מחדש ל-builder `NIXPACKS` עם build command `npm run build`; הפריסה הצליחה. ניסיון Railpack קודם נכשל ב-`BUILD_IMAGE` בעת resolve image config, ולכן הוחזר Nixpacks.
+- בוצעה הרצת אימות מבוקרת עם Cron זמני כל 5 דקות ו-guard לשעה מקומית 13:00 באזור `Asia/Jerusalem`. בלוגים מ-2026-11-11 11:15:33 UTC: preflight עבר בשלושת מסדי הטננטים; מצב `APPLY`; נמחקו 3 פניות CRM שפג מועד השמירה שלהן בטננט `biz_9dfeef0b5d7e4173b6510b76`; לא נמחקו תורים או בקשות המתנה ולא נמצאו רשומות כאלה שמועד תפוגתן הגיע. לא בוצעו מחיקות אחרות.
+- לאחר ההרצה הוחזרו הגדרות השירות לשגרה: Cron `0 22,23 * * *` (UTC), `CRM_CLEANUP_LOCAL_HOUR=1`, `CRM_CLEANUP_TIMEZONE=Asia/Jerusalem`. הפריסה הסופית עם הגדרות אלה הסתיימה ב-SUCCESS.
+- בדיקת ייצוא הפניות בוצעה ואושרה ידנית על ידי המשתמש; אין להשאיר אותה ברשימת הבדיקות הפתוחות.
+- עדיין נדרשות בדיקות קבלה ידניות של תרחישי רשימת המתנה/יומן לאחר הפריסה. Google Calendar נשאר סביבת בדיקה בלבד עד אימות OAuth וחיבור מוכר; אין להציגו כזמין לכלל המוכרים.
+
 ## 2026-11-10 — מיתוג BTime, רשימת המתנה ו-Google Calendar (החלטות מאושרות; מימוש בענף)
 
 ### שם המערכת
