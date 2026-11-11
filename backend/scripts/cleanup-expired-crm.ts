@@ -99,13 +99,13 @@ async function main() {
               AND retention_expires_at <= now()`,
         );
         const expiredAppointments = await db.query(
-          'SELECT count(*)::int AS n FROM public.appointments WHERE end_at <= now()',
+          `SELECT count(*)::int AS n FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`,
         );
         const scheduledWaitlistToClose = await db.query(
           `SELECT count(*)::int AS n
              FROM public.waitlist_entries w
              JOIN public.appointments a ON a.id = w.appointment_id AND a.tenant_id = w.tenant_id
-            WHERE w.status = 'scheduled' AND a.end_at <= now()`,
+            WHERE w.status = 'closed' AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'`,
         );
         const expiredWaitlist = await db.query(
           `SELECT count(*)::int AS n
@@ -115,8 +115,10 @@ async function main() {
               AND (
                 w.created_at <= now() - interval '90 days'
                 OR (
-                  w.status IN ('waiting', 'contacted')
-                  AND ((w.preferred_date + COALESCE(w.preferred_time_to, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now()
+                  (w.status = 'waiting' AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
+                OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
+                OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
+                OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.appointments a WHERE a.id=w.appointment_id AND a.tenant_id=w.tenant_id AND a.end_at <= now() - interval '24 hours'))
                 )
               )`,
         );
@@ -146,13 +148,13 @@ async function main() {
                FROM public.appointments a
               WHERE a.id = w.appointment_id
                 AND a.tenant_id = w.tenant_id
-                AND a.end_at <= now()
-                AND w.status = 'scheduled'
+                AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'
+                AND w.status = 'closed'
               RETURNING w.id`,
           );
           waitlistClosedCount = closedWaitlist.rowCount ?? 0;
           const appointmentsDeleted = await db.query(
-            'DELETE FROM public.appointments WHERE end_at <= now() RETURNING id',
+            `DELETE FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours') RETURNING id`,
           );
           appointmentsDeletedCount = appointmentsDeleted.rowCount ?? 0;
           const waitlistDeleted = await db.query(
@@ -163,8 +165,10 @@ async function main() {
                 AND (
                   w.created_at <= now() - interval '90 days'
                   OR (
-                    w.status IN ('waiting', 'contacted')
-                    AND ((w.preferred_date + COALESCE(w.preferred_time_to, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now()
+                    (w.status = 'waiting' AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
+                  OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
+                  OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
+                  OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.appointments a WHERE a.id=w.appointment_id AND a.tenant_id=w.tenant_id AND a.end_at <= now() - interval '24 hours'))
                   )
                 )
               RETURNING w.id`,
