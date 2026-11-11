@@ -587,12 +587,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {!done && needsReservedAppointment && ((appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0) || (!monthLoading && !monthError && monthAvailableDates.length === 0)) && (
+        {!done && needsReservedAppointment && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-sm leading-6">{appointmentDate && appointmentSlots.length === 0 ? 'אין כרגע שעה פנויה בתאריך שבחרתם.' : 'אין כרגע תאריכים עם שעות פנויות בחודש הזה.'} אפשר להשאיר בקשת המתנה ולציין תאריך ושעה מועדפים. הבקשה אינה שומרת מקום ביומן.</p>
+            <p className="text-sm leading-6">לא מצאתם תאריך או שעה שמתאימים לכם? אפשר לבקש להצטרף לרשימת ההמתנה ולציין כל תאריך ושעה מועדפים, גם אם הם אינם פנויים בלוח. הבקשה אינה שומרת מקום ביומן.</p>
             <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
               className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
-              הצטרפות לרשימת ההמתנה
+              בקשת תאריך או שעה שאינם פנויים
             </button>
           </div>
         )}
