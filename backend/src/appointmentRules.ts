@@ -96,6 +96,6 @@ export function validateAppointmentSelection(args: {
   } catch {
     return 'invalid_appointment_time';
   }
-  if (!validSlot || appointmentAt <= nowLocal) return 'invalid_appointment_time';
+  if (appointmentAt <= nowLocal) return 'invalid_appointment_time';
   return null;
 }
