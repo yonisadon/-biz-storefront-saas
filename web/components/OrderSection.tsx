@@ -150,8 +150,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
-  const [waitlistTimeFrom, setWaitlistTimeFrom] = useState('');
-  const [waitlistTimeTo, setWaitlistTimeTo] = useState('');
+  const [waitlistPreferredTime, setWaitlistPreferredTime] = useState('');
   const [waitlistNote, setWaitlistNote] = useState('');
 
   useEffect(() => {
@@ -328,8 +327,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     event.preventDefault();
     setWaitlistError(null);
     if (!appointmentDate) return setWaitlistError('בחרו תאריך מועדף.');
-    if (Boolean(waitlistTimeFrom) !== Boolean(waitlistTimeTo)) return setWaitlistError('כדי לציין טווח שעות יש למלא גם שעת התחלה וגם שעת סיום.');
-    if (waitlistTimeFrom && waitlistTimeTo <= waitlistTimeFrom) return setWaitlistError('שעת הסיום חייבת להיות אחרי שעת ההתחלה.');
     const phone = normalizeILPhone(form.phone);
     if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
     setWaitlistBusy(true);
@@ -341,7 +338,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           customer_phone: phone,
           service_ids: reservedAppointmentLines.map(({ p }) => p.id),
           preferred_date: appointmentDate,
-          ...(waitlistTimeFrom ? { preferred_time_from: waitlistTimeFrom, preferred_time_to: waitlistTimeTo } : {}),
+          ...(waitlistPreferredTime ? { preferred_time: waitlistPreferredTime } : {}),
           note: waitlistNote.trim(),
           company_website: '',
         }),
@@ -541,14 +538,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <label className="block text-sm">תאריך מועדף *
               <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={input}/>
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block text-sm">משעה (רשות)
-                <input type="time" value={waitlistTimeFrom} onChange={(e) => setWaitlistTimeFrom(e.target.value)} className={input}/>
-              </label>
-              <label className="block text-sm">עד שעה (רשות)
-                <input type="time" value={waitlistTimeTo} onChange={(e) => setWaitlistTimeTo(e.target.value)} className={input}/>
-              </label>
-            </div>
+            <label className="block text-sm">שעה מועדפת (רשות)
+              <input type="time" value={waitlistPreferredTime} onChange={(e) => setWaitlistPreferredTime(e.target.value)} className={input}/>
+            </label>
             <label className="block text-sm">הערה (רשות)
               <textarea maxLength={500} rows={3} value={waitlistNote} onChange={(e) => setWaitlistNote(e.target.value)} className={input}/>
             </label>
