@@ -144,6 +144,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
             "UPDATE appointments SET status = 'cancelled' WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
+          await db.query(
+            "UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1",
+            [id],
+          );
           return cancelled.rows[0];
         }
         if (!service || service.kind !== 'service') throw new HttpError(400, 'invalid_service');
@@ -166,6 +170,17 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
             RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status`,
           [service.id, service.name, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
         );
+        if (status === 'cancelled') {
+          await db.query(
+            "UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1",
+            [id],
+          );
+        } else if (status === 'reserved') {
+          await db.query(
+            "UPDATE waitlist_entries SET status = 'scheduled', updated_at = now() WHERE appointment_id = $1",
+            [id],
+          );
+        }
         return updated.rows[0];
       });
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment update failed'));
@@ -176,6 +191,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
     const result = await withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "UPDATE waitlist_entries SET status = 'closed', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
+        [id],
+      );
       const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
       if (!deleted.rowCount) throw new HttpError(404, 'not_found');
       return deleted.rows[0];
