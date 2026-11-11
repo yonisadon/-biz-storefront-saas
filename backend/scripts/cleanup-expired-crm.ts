@@ -190,7 +190,7 @@ async function main() {
         totalWaitlistWouldDelete += waitlistExpiredCount;
         totalLinkedWaitlistDeleted += linkedWaitlistDeletedCount;
         totalLinkedWaitlistWouldDelete += Number(linkedWaitlistToDelete.rows[0]?.n ?? 0);
-        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `closed ${waitlistClosedCount}` : `would close ${Number(scheduledWaitlistToClose.rows[0]?.n ?? 0)}`} scheduled waitlist request(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
+        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `deleted ${linkedWaitlistDeletedCount}` : `would delete ${Number(linkedWaitlistToDelete.rows[0]?.n ?? 0)}`} linked waitlist request(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error(`CRM cleanup failed for ${tenant.database_name}: ${error instanceof Error ? error.message : String(error)}`);
