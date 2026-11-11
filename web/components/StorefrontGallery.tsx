@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { GalleryImage } from '@/lib/types';
 
 export default function StorefrontGallery({ images, heroId, layout = 'slider' }: { images: GalleryImage[]; heroId?: string; layout?: 'slider' | 'thumbnails' }) {
@@ -55,7 +55,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
     </div>
   );
 
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     touchStart.current = event.touches[0]?.clientX ?? null;
   };
   const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
