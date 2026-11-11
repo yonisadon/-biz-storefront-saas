@@ -135,8 +135,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         if (!biz) throw new HttpError(404, 'not_found');
         const serviceId = patch.service_id ?? current.service_id;
         const service = serviceId ? (await db.query(
-          `SELECT id, name, kind, appointment_duration_minutes
-             FROM products WHERE id = $1 AND is_active = true FOR SHARE`,
+          'SELECT id, name, kind, appointment_duration_minutes FROM products WHERE id = $1 AND is_active = true FOR SHARE',
           [serviceId],
         )).rows[0] : null;
         if ((!service || service.kind !== 'service') && patch.status === 'cancelled' && !patch.service_id && !patch.start_at) {
@@ -144,28 +143,35 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
             "UPDATE appointments SET status = 'cancelled' WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
+          await db.query("UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1", [id]);
           return cancelled.rows[0];
         }
-        if (!service || service.kind !== 'service') throw new HttpError(400, 'invalid_service');
+        const isMultiServiceAppointment = !service && current.service_id === null && !patch.service_id;
+        if ((!service || service.kind !== 'service') && !isMultiServiceAppointment) throw new HttpError(400, 'invalid_service');
         const startAt = patch.start_at ?? (await db.query(
-          `SELECT to_char($1::timestamptz AT TIME ZONE $2, 'YYYY-MM-DD"T"HH24:MI') AS value`,
+          'SELECT to_char($1::timestamptz AT TIME ZONE $2, \'YYYY-MM-DD"T"HH24:MI\') AS value',
           [current.start_at, biz.timezone],
         )).rows[0].value;
-        const duration = service.appointment_duration_minutes ?? 30;
+        const preservedDuration = Math.round((new Date(current.end_at).getTime() - new Date(current.start_at).getTime()) / 60_000);
+        const duration = service?.appointment_duration_minutes ?? (isMultiServiceAppointment ? preservedDuration : 30);
+        const serviceName = service?.name ?? current.service_name;
         const status = patch.status ?? current.status;
         if (status === 'reserved') validateSlot({
           startAt, duration, openingHours: biz.config?.opening_hours?.days, timezone: biz.timezone,
         });
         const updated = await db.query(
-          `UPDATE appointments
-              SET service_id = $1, service_name = $2, customer_phone = $3,
-                  start_at = ($4::timestamp AT TIME ZONE $5),
-                  end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval '1 minute')),
-                  status = $7
-            WHERE id = $8
-            RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status`,
-          [service.id, service.name, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
+          'UPDATE appointments SET service_id = $1, service_name = $2, customer_phone = $3, ' +
+          'start_at = ($4::timestamp AT TIME ZONE $5), ' +
+          'end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval \'1 minute\')), ' +
+          'status = $7 WHERE id = $8 ' +
+          'RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status',
+          [service?.id ?? null, serviceName, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
         );
+        if (status === 'cancelled') {
+          await db.query("UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1", [id]);
+        } else if (status === 'reserved') {
+          await db.query("UPDATE waitlist_entries SET status = 'scheduled', updated_at = now() WHERE appointment_id = $1", [id]);
+        }
         return updated.rows[0];
       });
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment update failed'));
