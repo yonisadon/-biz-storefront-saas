@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { mcall } from '@/lib/manageApi';
+import { ApiError, mcall } from '@/lib/manageApi';
 
 type Status = 'waiting' | 'contacted' | 'scheduled' | 'closed' | 'cancelled';
 type Entry = {
@@ -87,9 +87,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
       setScheduleTimes((current) => { const next = { ...current }; delete next[entry.id]; return next; });
       await load();
     } catch (err) {
-      setError(err instanceof Error && err.message.includes('409')
-        ? 'לא ניתן לשבץ את המועד: ייתכן שהוא תפוס או שהשירות כבר אינו זמין. בחרו מועד אחר.'
-        : 'יצירת התור ביומן נכשלה. בדקו את התאריך, השעה ושעות הפעילות.');
+      setError(err instanceof ApiError && err.status === 409
+        ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
+        : err instanceof ApiError && err.status === 400
+          ? 'המועד אינו תקין או אינו נמצא בשעות הפעילות של העסק.'
+          : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
@@ -154,7 +156,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
             {['waiting', 'contacted'].includes(entry.status) && (
               <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <label className="min-w-[220px] flex-1 text-xs text-gray-600">מועד לתור ביומן
-                  <input type="datetime-local" value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
+                  <input type="datetime-local" step={900} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
                 </label>
                 <button type="button" disabled={busy || !scheduleTimes[entry.id]} onClick={() => void schedule(entry)} className="min-h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50">שיבוץ ביומן</button>
               </div>
