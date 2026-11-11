@@ -194,6 +194,19 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         });
         if (validationError) throw new HttpError(400, validationError);
 
+        const blocked = await db.query(
+          `SELECT EXISTS (
+             SELECT 1 FROM appointment_blocks b
+              WHERE tstzrange(b.start_at, b.end_at, '[)') &&
+                    tstzrange(($1::timestamp AT TIME ZONE $2),
+                      (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+           ) AS blocked`,
+          [input.start_at, business.timezone, duration],
+        );
+        if (blocked.rows[0]?.blocked) {
+          throw new HttpError(409, 'slot_taken', 'המועד נמצא בחסימת זמן של העסק. בחרו שעה אחרת.');
+        }
+
         const serviceNames = services.map((service) => service.name);
         const appointment = (await db.query(
           `INSERT INTO appointments
