@@ -547,10 +547,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold">בחירת תאריך</span>
                     <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => { const [y, m] = appointmentMonth.split('-').map(Number); const today = new Date(); const minMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; if (`${y}-${String(m).padStart(2, '0')}` > minMonth) moveAppointmentMonth(-1); }} aria-label="חודש קודם" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 disabled:opacity-40">‹</button>
+                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label="חודש קודם" className="grid h-9 w-9 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
                       <span className="min-w-28 text-center font-semibold capitalize">{appointmentMonthLabel}</span>
                       <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20">›</button>
-                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); }} className="rounded-full px-3 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
+                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="rounded-full px-3 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
