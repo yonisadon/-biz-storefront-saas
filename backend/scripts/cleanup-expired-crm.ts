@@ -113,13 +113,15 @@ async function main() {
              JOIN public.businesses b ON b.id = w.tenant_id
             WHERE w.tenant_id = app.current_tenant_id()
               AND (
-                w.created_at <= now() - interval '90 days'
-                OR (
-                  (w.status = 'waiting' AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
+                (w.status = 'waiting'
+                  AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
                 OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
                 OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
-                OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.appointments a WHERE a.id=w.appointment_id AND a.tenant_id=w.tenant_id AND a.end_at <= now() - interval '24 hours'))
-                )
+                OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (
+                    SELECT 1 FROM public.appointments a
+                     WHERE a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+                       AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'
+                ))
               )`,
         );
         const willUnlink = await db.query(
@@ -142,34 +144,32 @@ async function main() {
               RETURNING id`,
           );
           deletedCount = deleted.rowCount ?? 0;
-          const closedWaitlist = await db.query(
-            `UPDATE public.waitlist_entries w
-                SET status = 'closed', appointment_id = NULL, updated_at = now()
-               FROM public.appointments a
+          const linkedWaitlistDeleted = await db.query(
+            `DELETE FROM public.waitlist_entries w
+              USING public.appointments a
               WHERE a.id = w.appointment_id
                 AND a.tenant_id = w.tenant_id
-                AND a.status = 'reserved' AND a.end_at <= now() - interval '24 hours'
+                AND a.status = 'reserved'
+                AND a.end_at <= now() - interval '24 hours'
                 AND w.status = 'closed'
               RETURNING w.id`,
           );
-          waitlistClosedCount = closedWaitlist.rowCount ?? 0;
+          waitlistClosedCount = linkedWaitlistDeleted.rowCount ?? 0;
           const appointmentsDeleted = await db.query(
             `DELETE FROM public.appointments WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours') OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours') RETURNING id`,
           );
           appointmentsDeletedCount = appointmentsDeleted.rowCount ?? 0;
           const waitlistDeleted = await db.query(
             `DELETE FROM public.waitlist_entries w
-              USING public.businesses b
-              WHERE w.tenant_id = b.id
-                AND w.tenant_id = app.current_tenant_id()
+              WHERE w.tenant_id = app.current_tenant_id()
                 AND (
-                  w.created_at <= now() - interval '90 days'
-                  OR (
-                    (w.status = 'waiting' AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours')
+                  (w.status = 'waiting' AND EXISTS (
+                    SELECT 1 FROM public.businesses b
+                     WHERE b.id = w.tenant_id
+                       AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) <= now() - interval '24 hours'
+                  ))
                   OR (w.status IN ('rejected', 'scheduled_without_booking') AND w.updated_at <= now() - interval '24 hours')
                   OR (w.status = 'closed' AND w.appointment_id IS NULL AND w.updated_at <= now() - interval '24 hours')
-                  OR (w.status = 'closed' AND w.appointment_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.appointments a WHERE a.id=w.appointment_id AND a.tenant_id=w.tenant_id AND a.end_at <= now() - interval '24 hours'))
-                  )
                 )
               RETURNING w.id`,
           );
