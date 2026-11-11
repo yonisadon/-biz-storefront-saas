@@ -64,7 +64,7 @@ async function main() {
              EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments,
              to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist,
              EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_appointment_link,
-             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.waitlist_entries'::regclass AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_appointment_fk`,
+             EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_appointment_fk`,
         );
         if (!required.rows[0]?.has_deadline || !required.rows[0]?.preserves_appointments ||
             !required.rows[0]?.has_waitlist || !required.rows[0]?.has_waitlist_appointment_link ||
