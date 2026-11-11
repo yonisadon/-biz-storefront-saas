@@ -611,3 +611,33 @@ html.a11y-contrast .brand-root :focus-visible {
   writing-mode: horizontal-tb !important;
   text-orientation: mixed;
 }
+
+
+/* Quiet storefront actions: retain clear affordance without loud filled buttons. */
+.brand-root .storefront-hero-actions { width: 100%; max-width: 28rem; margin-inline: auto; }
+.brand-root .storefront-hero-action {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--brand-text) 16%, transparent);
+  color: color-mix(in srgb, var(--brand-text) 88%, transparent);
+  box-shadow: none;
+  text-decoration: none;
+}
+.brand-root .storefront-hero-action:hover {
+  background: color-mix(in srgb, var(--brand-primary) 5%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent);
+}
+.brand-root .storefront-card-action {
+  min-height: 44px;
+  background: transparent !important;
+  border: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
+  color: var(--brand-text) !important;
+  box-shadow: none !important;
+}
+.brand-root .storefront-card-action:hover {
+  background: color-mix(in srgb, var(--brand-primary) 5%, transparent) !important;
+  border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent);
+}
+@media (max-width: 360px) {
+  .brand-root .storefront-hero-actions { gap: .4rem; }
+  .brand-root .storefront-hero-action { padding-inline: .45rem; font-size: .8rem; }
+}
