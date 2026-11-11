@@ -80,19 +80,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
     if (!start_at) { setError('יש לבחור תאריך ושעה לשיבוץ ביומן.'); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
-      const createAppointment = (allow_outside_hours: boolean) => mcall(
+      await mcall(
         token,
         'waitlist/' + entry.id + '/schedule',
-        { method: 'POST', body: JSON.stringify({ start_at, allow_outside_hours }) },
+        { method: 'POST', body: JSON.stringify({ start_at }) },
       );
-      try {
-        await createAppointment(false);
-      } catch (err) {
-        if (!(err instanceof ApiError) || err.body?.error !== 'outside_business_hours') throw err;
-        const approved = confirm('השעה שנבחרה מחוץ לשעות הפעילות של העסק. האם לאשר בכל זאת את השיבוץ?');
-        if (!approved) { setBusy(false); return; }
-        await createAppointment(true);
-      }
       setMessage('התור נוצר ביומן, השעה נתפסה ובקשת ההמתנה נסגרה.');
       setScheduleTimes((current) => { const next = { ...current }; delete next[entry.id]; return next; });
       await load();
@@ -100,11 +92,9 @@ export default function WaitlistPanel({ token }: { token: string }) {
       const errorCode = err instanceof ApiError ? err.body?.error : null;
       setError(errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
         ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
-        : errorCode === 'outside_business_hours'
-          ? 'לא ניתן לשבץ מחוץ לשעות הפעילות ללא אישור.'
-          : err instanceof ApiError && err.status === 400
-            ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
-            : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+        : err instanceof ApiError && err.status === 400
+          ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
+          : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
