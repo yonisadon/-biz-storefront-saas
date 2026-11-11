@@ -174,7 +174,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           [service?.id ?? null, serviceName, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
         );
         if (status === 'cancelled') {
-          await db.query("UPDATE waitlist_entries SET status = 'cancelled', updated_at = now() WHERE appointment_id = $1", [id]);
+          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
         } else if (status === 'reserved') {
           await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
         }
