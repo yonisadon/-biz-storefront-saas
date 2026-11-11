@@ -80,16 +80,31 @@ export default function WaitlistPanel({ token }: { token: string }) {
     if (!start_at) { setError('יש לבחור תאריך ושעה לשיבוץ ביומן.'); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, 'waitlist/' + entry.id + '/schedule', { method: 'POST', body: JSON.stringify({ start_at }) });
+      const createAppointment = (allow_outside_hours: boolean) => mcall(
+        token,
+        'waitlist/' + entry.id + '/schedule',
+        { method: 'POST', body: JSON.stringify({ start_at, allow_outside_hours }) },
+      );
+      try {
+        await createAppointment(false);
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.body?.error !== 'outside_business_hours') throw err;
+        const approved = confirm('השעה שנבחרה מחוץ לשעות הפעילות של העסק. האם לאשר בכל זאת את השיבוץ?');
+        if (!approved) { setBusy(false); return; }
+        await createAppointment(true);
+      }
       setMessage('התור נוצר ביומן, השעה נתפסה ובקשת ההמתנה נסגרה.');
       setScheduleTimes((current) => { const next = { ...current }; delete next[entry.id]; return next; });
       await load();
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 409
+      const errorCode = err instanceof ApiError ? err.body?.error : null;
+      setError(errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
         ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
-        : err instanceof ApiError && err.status === 400
-          ? 'המועד אינו תקין או אינו נמצא בשעות הפעילות של העסק.'
-          : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+        : errorCode === 'outside_business_hours'
+          ? 'לא ניתן לשבץ מחוץ לשעות הפעילות ללא אישור.'
+          : err instanceof ApiError && err.status === 400
+            ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
+            : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
@@ -154,7 +169,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
             {entry.status === 'waiting' && (
               <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <label className="min-w-[220px] flex-1 text-xs text-gray-600">מועד לתור ביומן
-                  <input type="datetime-local" step={900} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
+                  <input type="datetime-local" step={60} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
                 </label>
                 <button type="button" disabled={busy || !scheduleTimes[entry.id]} onClick={() => void schedule(entry)} className="min-h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50">שיבוץ ביומן</button>
               </div>
