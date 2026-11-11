@@ -614,30 +614,53 @@ html.a11y-contrast .brand-root :focus-visible {
 
 
 /* Quiet storefront actions: retain clear affordance without loud filled buttons. */
-.brand-root .storefront-hero-actions { width: 100%; max-width: 28rem; margin-inline: auto; }
+.brand-root .storefront-hero-actions {
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .brand-root .storefront-hero-action {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--brand-text) 16%, transparent);
-  color: color-mix(in srgb, var(--brand-text) 88%, transparent);
-  box-shadow: none;
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: color-mix(in srgb, var(--brand-text) 90%, transparent);
+  box-shadow: none !important;
   text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-inline: .5rem;
 }
 .brand-root .storefront-hero-action:hover {
-  background: color-mix(in srgb, var(--brand-primary) 5%, transparent);
-  border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 5%, transparent) !important;
 }
 .brand-root .storefront-card-action {
   min-height: 44px;
+  border: 0 !important;
   background: transparent !important;
-  border: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
-  color: var(--brand-text) !important;
+  color: var(--brand-primary) !important;
   box-shadow: none !important;
+  font-weight: 700;
+  text-decoration: none;
+  text-underline-offset: 3px;
 }
 .brand-root .storefront-card-action:hover {
-  background: color-mix(in srgb, var(--brand-primary) 5%, transparent) !important;
-  border-color: color-mix(in srgb, var(--brand-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 6%, transparent) !important;
+  text-decoration: underline;
+}
+@media (min-width: 640px) {
+  .brand-root .storefront-hero-actions { display: flex; }
+  .brand-root .storefront-hero-action { flex: 1 1 0; width: auto; }
 }
 @media (max-width: 360px) {
   .brand-root .storefront-hero-actions { gap: .4rem; }
-  .brand-root .storefront-hero-action { padding-inline: .45rem; font-size: .8rem; }
+  .brand-root .storefront-hero-action { padding-inline: .35rem; font-size: .8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .storefront-gallery-wrap * { transition-duration: 0.01ms !important; }
+}
+html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
+  transition-duration: 0.01ms !important;
 }
