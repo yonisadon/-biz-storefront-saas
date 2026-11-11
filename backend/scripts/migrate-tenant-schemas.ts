@@ -236,7 +236,8 @@ async function main() {
             WHERE table_schema = 'public'
               AND ((table_name = 'products' AND column_name = 'booking_mode')
                 OR (table_name = 'leads' AND column_name IN ('idempotency_key', 'retention_closed_at', 'retention_expires_at'))
-                OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source'))
+                OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source', 'status_changed_at'))
+                OR (table_name = 'waitlist_entries' AND column_name IN ('preferred_time', 'appointment_id'))
                 OR (table_name = 'appointment_blocks' AND column_name IN ('start_at', 'end_at')))`,
         );
         const present = new Set(requiredColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
