@@ -45,6 +45,8 @@ async function main() {
   let totalAppointmentsWouldDelete = 0;
   let totalWaitlistDeleted = 0;
   let totalWaitlistWouldDelete = 0;
+  let totalWaitlistClosed = 0;
+  let totalWaitlistWouldClose = 0;
   try {
     const result = await registry.query(
       'SELECT tenant_id, database_name FROM app.tenant_databases ORDER BY tenant_id',
@@ -99,6 +101,12 @@ async function main() {
         const expiredAppointments = await db.query(
           'SELECT count(*)::int AS n FROM public.appointments WHERE end_at <= now()',
         );
+        const scheduledWaitlistToClose = await db.query(
+          `SELECT count(*)::int AS n
+             FROM public.waitlist_entries w
+             JOIN public.appointments a ON a.id = w.appointment_id AND a.tenant_id = w.tenant_id
+            WHERE w.status = 'scheduled' AND a.end_at <= now()`,
+        );
         const expiredWaitlist = await db.query(
           `SELECT count(*)::int AS n
              FROM public.waitlist_entries w
@@ -123,6 +131,7 @@ async function main() {
         let deletedCount = 0;
         let appointmentsDeletedCount = 0;
         let waitlistDeletedCount = 0;
+        let waitlistClosedCount = 0;
         if (apply) {
           const deleted = await db.query(
             `DELETE FROM public.leads
@@ -131,6 +140,17 @@ async function main() {
               RETURNING id`,
           );
           deletedCount = deleted.rowCount ?? 0;
+          const closedWaitlist = await db.query(
+            `UPDATE public.waitlist_entries w
+                SET status = 'closed', appointment_id = NULL, updated_at = now()
+               FROM public.appointments a
+              WHERE a.id = w.appointment_id
+                AND a.tenant_id = w.tenant_id
+                AND a.end_at <= now()
+                AND w.status = 'scheduled'
+              RETURNING w.id`,
+          );
+          waitlistClosedCount = closedWaitlist.rowCount ?? 0;
           const appointmentsDeleted = await db.query(
             'DELETE FROM public.appointments WHERE end_at <= now() RETURNING id',
           );
@@ -163,7 +183,9 @@ async function main() {
         totalAppointmentsWouldDelete += appointmentsExpiredCount;
         totalWaitlistDeleted += waitlistDeletedCount;
         totalWaitlistWouldDelete += waitlistExpiredCount;
-        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
+        totalWaitlistClosed += waitlistClosedCount;
+        totalWaitlistWouldClose += Number(scheduledWaitlistToClose.rows[0]?.n ?? 0);
+        console.log(`${tenant.database_name}: ${apply ? `deleted ${deletedCount}` : `would delete ${expiredCount}`} CRM lead(s); ${apply ? `deleted ${appointmentsDeletedCount}` : `would delete ${appointmentsExpiredCount}`} expired appointment(s); ${apply ? `closed ${waitlistClosedCount}` : `would close ${Number(scheduledWaitlistToClose.rows[0]?.n ?? 0)}`} scheduled waitlist request(s); ${apply ? `deleted ${waitlistDeletedCount}` : `would delete ${waitlistExpiredCount}`} expired waitlist request(s); ${apply ? 'unlinked' : 'would unlink'} ${unlinkCount} reserved appointment(s) from expired CRM leads.`);
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error(`CRM cleanup failed for ${tenant.database_name}: ${error instanceof Error ? error.message : String(error)}`);
@@ -171,7 +193,7 @@ async function main() {
         await db.end();
       }
     }
-    console.log(`Retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; CRM leads deleted: ${totalLeadsDeleted}; expired CRM leads found: ${totalLeadsWouldDelete}; expired appointments deleted: ${totalAppointmentsDeleted}; expired appointments found: ${totalAppointmentsWouldDelete}; waitlist requests deleted: ${totalWaitlistDeleted}; expired waitlist requests found: ${totalWaitlistWouldDelete}; ${apply ? 'appointments unlinked' : 'appointments to unlink'} from expired leads: ${totalAppointmentsToUnlink}.`);
+    console.log(`Retention cleanup complete. Mode: ${apply ? 'APPLY' : 'DRY_RUN'}; tenants: ${tenants.length}; CRM leads deleted: ${totalLeadsDeleted}; expired CRM leads found: ${totalLeadsWouldDelete}; expired appointments deleted: ${totalAppointmentsDeleted}; expired appointments found: ${totalAppointmentsWouldDelete}; waitlist requests deleted: ${totalWaitlistDeleted}; expired waitlist requests found: ${totalWaitlistWouldDelete}; scheduled waitlist requests closed: ${totalWaitlistClosed}; scheduled waitlist requests to close: ${totalWaitlistWouldClose}; ${apply ? 'appointments unlinked' : 'appointments to unlink'} from expired leads: ${totalAppointmentsToUnlink}.`);
   } finally {
     await registry.end();
   }
