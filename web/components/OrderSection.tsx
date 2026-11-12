@@ -33,7 +33,7 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
 }
 
 function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => void; label: string }) {
-  const btn = 'h-9 w-9 rounded-full border border-ink/25 text-lg leading-none flex items-center justify-center';
+  const btn = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
       <button type="button" className={btn} aria-label="הפחתת כמות" onClick={() => onChange(q - 1)}>−</button>
@@ -155,6 +155,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistPreferredDate, setWaitlistPreferredDate] = useState('');
   const [waitlistPreferredTime, setWaitlistPreferredTime] = useState('');
   const [waitlistNote, setWaitlistNote] = useState('');
 
@@ -372,7 +373,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function submitWaitlist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setWaitlistError(null);
-    if (!appointmentDate) return setWaitlistError('בחרו תאריך מועדף.');
+    if (!waitlistPreferredDate) return setWaitlistError('בחרו תאריך מועדף.');
     const phone = normalizeILPhone(form.phone);
     if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
     setWaitlistBusy(true);
@@ -384,7 +385,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           customer_name: waitlistName.trim() || undefined,
           customer_phone: phone,
           service_ids: reservedAppointmentLines.map(({ p }) => p.id),
-          preferred_date: appointmentDate,
+          preferred_date: waitlistPreferredDate,
           ...(waitlistPreferredTime ? { preferred_time: waitlistPreferredTime } : {}),
           note: waitlistNote.trim(),
           company_website: '',
@@ -410,7 +411,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     }
   }
 
-  const input = 'mt-1 min-h-11 w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
+  const input = 'mt-1 min-h-11 min-w-0 max-w-full w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
   const openContinuation = () => {
     setError(null);
     setDone(null);
@@ -471,7 +472,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
-                        className="storefront-card-action rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-fg transition hover:opacity-90">
+                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
                         {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
                       </button>
                     ))}
@@ -496,22 +497,22 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
       {/* Sticky bar on bottom when cart has items */}
       {count > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-between gap-4 border-t border-ink/15 bg-surface p-3 shadow-lg sm:p-4">
+        <div className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4">
           <div>
             <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
-            className="min-h-11 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-fg hover:opacity-90">
+            className="min-h-11 rounded-full border-0 bg-primary/10 px-6 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
             המשך להזמנה
           </button>
         </div>
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="m-auto max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-surface p-4 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 id="order-dialog-title" className="text-xl font-bold">המשך להזמנה</h3>
+      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+        <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
+          <h3 id="order-dialog-title" className="min-w-0 text-xl font-bold">המשך להזמנה</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
@@ -524,10 +525,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 return <li key={p.id} className="flex flex-wrap items-center justify-between gap-3">
                   <span className="min-w-0 flex-1">{p.name} × {q}{durationLabel ? <span className="block text-xs text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
                   <span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
-                  {!done && p.kind === 'service' && (
+                  {!done && (
                     <div className="flex w-full items-center justify-between gap-3 border-t border-gray-200 pt-2">
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p.id, next)} />
-                      <button type="button" onClick={() => setQty(p.id, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת השירות</button>
+                      <button type="button" onClick={() => setQty(p.id, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>
                     </div>
                   )}
                 </li>;
@@ -544,24 +545,24 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <>
                 <p className="text-xs leading-5 text-ink/65">{needsReservedAppointment ? `משך השריון ביומן: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.` : `משך השירותים שמבקשים לתאם: ${freeDatetimeDurationMinutes} דקות. המועד המבוקש לא תופס את היומן והעסק יתאם אתכם.`}{needsReservedAppointment && needsFreeDatetimeAppointment ? ` שירותים נוספים ללא שריון: ${freeDatetimeLines.map(({ p }) => p.name).join(', ')}; הם לא מוסיפים זמן לשריון ביומן.` : ''}</p>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">בחירת תאריך</span>
-                    <div className="flex items-center gap-2">
-                      <button type="button" onClick={() => { const [y, m] = appointmentMonth.split('-').map(Number); const today = new Date(); const minMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; if (`${y}-${String(m).padStart(2, '0')}` > minMonth) moveAppointmentMonth(-1); }} aria-label="חודש קודם" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20 disabled:opacity-40">‹</button>
-                      <span className="min-w-28 text-center font-semibold capitalize">{appointmentMonthLabel}</span>
-                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-9 w-9 place-items-center rounded-full border border-ink/20">›</button>
-                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); setAppointmentDate(todayDate); setAppointmentTime(''); setIdempotencyKey(''); }} className="rounded-full px-3 py-2 text-xs font-semibold text-primary underline">היום</button>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label="חודש קודם" className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
+                      <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize">{appointmentMonthLabel}</span>
+                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
+                      <button type="button" onClick={() => { const today = new Date(); const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`; setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
-                  <div className="grid grid-cols-7 gap-1">
+                  <div role="group" aria-label="בחירת יום בחודש" className="grid min-w-0 grid-cols-7 gap-1">
                     {monthCells.map((date, index) => {
                       if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
                       const available = monthAvailableDates.includes(date);
                       const disabled = date < todayDate || !available || monthLoading || monthError;
                       const selected = appointmentDate === date;
                       return <button key={date} type="button" disabled={disabled} aria-pressed={selected} onClick={() => { setIdempotencyKey(''); setAppointmentDate(date); setAppointmentTime(''); }}
-                        className={`min-h-11 rounded-xl text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary text-primary-fg shadow-sm' : available ? 'border border-primary/40 bg-primary/5 text-ink hover:bg-primary/10' : 'border border-transparent text-ink/35'}`}>
+                        aria-label={`יום ${Number(date.slice(-2))}${available ? ', יש שעות פנויות' : ', לא זמין'}`} className={`min-h-11 rounded-xl text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : available ? 'bg-primary/5 text-ink hover:bg-primary/10' : 'text-ink/35'}`}>
                         {Number(date.slice(-2))}{available && <span className="mx-auto mt-0.5 block h-1 w-1 rounded-full bg-current" aria-hidden="true" />}
                       </button>;
                     })}
@@ -576,7 +577,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {appointmentDate && slotsLoading && <p role="status" className="text-sm text-ink/55">בודקים שעות פנויות ליום שנבחר…</p>}
                   {appointmentDate && slotsError && <p role="alert" className="text-sm text-red-700">לא הצלחנו לבדוק את השעות. נסו לבחור את היום מחדש.</p>}
                   {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">אין כרגע שעות פנויות ביום זה.</p>}
-                  {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'border-primary bg-primary text-primary-fg' : 'border-ink/20 bg-white hover:border-primary hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
+                  {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
               </>
@@ -586,12 +587,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {!done && needsReservedAppointment && appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && (
+        {!done && needsReservedAppointment && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-sm">אין כרגע שעה פנויה בתאריך שבחרתם. אפשר להשאיר פרטים ברשימת ההמתנה; הבקשה לא שומרת מקום ביומן.</p>
-            <button type="button" onClick={() => { setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
-              className="mt-2 min-h-10 rounded-full border border-primary px-4 py-2 text-sm font-semibold text-primary">
-              הצטרפות לרשימת ההמתנה
+            <p className="text-sm leading-6">לא מצאתם תאריך או שעה שמתאימים לכם? אפשר לבקש להצטרף לרשימת ההמתנה ולציין כל תאריך ושעה מועדפים, גם אם הם אינם פנויים בלוח. הבקשה אינה שומרת מקום ביומן.</p>
+            <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); }}
+              className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
+              בקשת תאריך או שעה שאינם פנויים
             </button>
           </div>
         )}
@@ -612,8 +613,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <label className="block text-sm">טלפון *
               <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
             </label>
-            <label className="block text-sm">תאריך מועדף *
-              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={appointmentDate} onChange={(e) => setAppointmentDate(e.target.value)} className={input}/>
+            <label className="block min-w-0 text-sm">תאריך מועדף *
+              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={waitlistPreferredDate} onChange={(e) => setWaitlistPreferredDate(e.target.value)} className={`${input} block`}/>
             </label>
             <label className="block text-sm">שעה מועדפת (רשות)
               <input type="time" value={waitlistPreferredTime} onChange={(e) => setWaitlistPreferredTime(e.target.value)} className={input}/>
@@ -623,7 +624,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             </label>
             <div className="flex gap-2">
               <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">ביטול</button>
-              <button type="submit" disabled={waitlistBusy} className="min-h-11 flex-1 rounded-xl bg-primary px-3 font-bold text-primary-fg disabled:opacity-50">
+              <button type="submit" disabled={waitlistBusy} className="min-h-11 flex-1 rounded-xl bg-primary/10 px-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
                 {waitlistBusy ? 'שולחים…' : 'שליחת בקשת המתנה'}
               </button>
             </div>
@@ -635,7 +636,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p ref={successRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               {done.message}
             </p>
-            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52] px-5 py-2 font-bold text-white">שליחת פרטי ההזמנה ב־WhatsApp</a>}
+            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
           </div>
         ) : step === 'choose' ? (
           <div className="space-y-3">
@@ -649,7 +650,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             )}
             {flow.whatsapp_enabled && (
               <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52] px-4 py-3 font-bold text-white hover:bg-[#117443] disabled:opacity-50">
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] transition hover:bg-[#168A52]/10 disabled:opacity-50">
                 {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
               </button>
             )}
@@ -657,14 +658,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <div className="space-y-2 rounded-xl border border-primary/25 p-3">
                 <p className="text-sm leading-6">אפשר לשמור את התור ביומן בלי לשלוח הודעת WhatsApp. פרטי התור יישמרו גם אם לא תשלחו הודעה לעסק.</p>
                 <button type="button" disabled={busy !== null} onClick={() => submit('site')}
-                  className="min-h-12 w-full rounded-xl border border-primary px-4 py-3 font-bold text-primary hover:bg-primary/5 disabled:opacity-50">
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
                   {busy === 'site' ? 'שומר את התור…' : 'קביעת תור בלבד – ללא WhatsApp'}
                 </button>
               </div>
             )}
             {flow.site_inquiry_enabled && (
               <button type="button" onClick={() => { setError(null); setStep('site'); }}
-                className="min-h-12 w-full rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg hover:opacity-90">
+                className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10">
                 השארת פנייה באתר
               </button>
             )}
@@ -688,9 +689,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             </div>}
             <div className="flex gap-2 pt-2">
               {flow.whatsapp_enabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
-                className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3 font-semibold">חזרה</button>}
+                className="min-h-12 flex-1 rounded-xl px-4 py-3 font-medium text-ink/70 transition hover:bg-ink/5">חזרה</button>}
               <button type="submit" disabled={busy !== null}
-                className="min-h-12 flex-1 rounded-xl bg-primary px-4 py-3 font-bold text-primary-fg disabled:opacity-50">
+                className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
                 {busy === 'site' ? 'שומר…' : calendarOnlyFlow ? 'שמירת התור ביומן' : 'שליחת הפנייה'}
               </button>
             </div>

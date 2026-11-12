@@ -105,6 +105,18 @@ export default async function StorefrontPage({ params }: Props) {
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
   const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
+  const catalogItems = data.catalog?.items ?? [];
+  const hasCatalogProducts = catalogItems.some((item) => item.kind === 'product');
+  const hasCatalogServices = catalogItems.some((item) => item.kind === 'service');
+  const primaryActionHref = serviceMode
+    ? (whatsappItems.length > 0 ? '#services-section' : undefined)
+    : (catalogItems.length > 0 ? '#catalog-section' : hasContact ? '#contact-section' : undefined);
+  const primaryActionLabel = serviceMode
+    ? 'לצפייה בשירותים'
+    : hasCatalogServices && hasCatalogProducts ? 'לצפייה במוצרים ובשירותים'
+      : hasCatalogServices ? 'לצפייה בשירותים ולקביעת תור'
+        : hasCatalogProducts ? 'לצפייה במוצרים'
+          : 'יצירת קשר';
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
@@ -116,13 +128,16 @@ export default async function StorefrontPage({ params }: Props) {
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <main id="storefront-main" tabIndex={-1} className="mx-auto max-w-6xl px-3 pb-28 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
       <div className="storefront-intro" data-has-gallery={data.gallery?.length > 0 ? 'true' : 'false'}>
-      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-5 sm:mb-7"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></div>}
-      <header className="storefront-hero mx-auto mb-6 max-w-4xl px-5 py-6 text-center sm:mb-8 sm:px-10 sm:py-8">
-        <div aria-hidden="true" className="mx-auto mb-4 h-1 w-16 rounded-full" style={{ background: 'var(--brand-accent)' }} />
+      <header className="storefront-hero mx-auto mb-4 max-w-4xl px-4 py-5 text-center sm:mb-6 sm:px-10 sm:py-7">
+        <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
         <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
-        {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-4 max-w-2xl rounded-2xl border border-primary/10 bg-secondary/35 px-4 py-3 text-base font-medium leading-8 text-ink/90 shadow-sm sm:mt-5 sm:px-6 sm:py-4 sm:text-lg" />}
-        {hasBusinessInfo && <a href="#contact-section" className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-primary/20 bg-white px-5 py-2.5 text-sm font-bold text-primary shadow-sm transition hover:border-primary/40 hover:bg-secondary/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">יצירת קשר ופרטי העסק</a>}
+        {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
+        <div className="storefront-hero-actions mt-5 grid grid-cols-2 items-center justify-center gap-2 sm:flex sm:flex-wrap sm:gap-3">
+          {primaryActionHref && <a href={primaryActionHref} className="storefront-hero-action inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border border-ink/15 bg-transparent px-3 py-2 text-center text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{primaryActionLabel}</a>}
+          {hasBusinessInfo && <a href="#contact-section" className="storefront-hero-action inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border border-ink/15 bg-transparent px-3 py-2 text-center text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">פרטי העסק</a>}
+        </div>
       </header>
+      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></div>}
       </div>
       {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">

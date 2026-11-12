@@ -611,3 +611,103 @@ html.a11y-contrast .brand-root :focus-visible {
   writing-mode: horizontal-tb !important;
   text-orientation: mixed;
 }
+
+
+/* Quiet storefront actions: retain clear affordance without loud filled buttons. */
+.brand-root .storefront-hero-actions {
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.brand-root .storefront-hero-action {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: color-mix(in srgb, var(--brand-text) 90%, transparent);
+  box-shadow: none !important;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-inline: .5rem;
+}
+.brand-root .storefront-hero-action:hover {
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 5%, transparent) !important;
+}
+.brand-root .storefront-card-action {
+  min-height: 44px;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--brand-primary) !important;
+  box-shadow: none !important;
+  font-weight: 700;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.brand-root .storefront-card-action:hover {
+  background: color-mix(in srgb, var(--brand-primary) 6%, transparent) !important;
+  text-decoration: underline;
+}
+@media (min-width: 640px) {
+  .brand-root .storefront-hero-actions { display: flex; }
+  .brand-root .storefront-hero-action { flex: 1 1 0; width: auto; }
+}
+@media (max-width: 360px) {
+  .brand-root .storefront-hero-actions { gap: .4rem; }
+  .brand-root .storefront-hero-action { padding-inline: .35rem; font-size: .8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .storefront-gallery-wrap * { transition-duration: 0.01ms !important; }
+}
+html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
+  transition-duration: 0.01ms !important;
+}
+
+/* Quiet customer-facing controls across the storefront, including the booking flow. */
+.brand-root button {
+  font-weight: 500;
+  box-shadow: none;
+}
+.brand-root .storefront-card-action {
+  font-weight: 500 !important;
+}
+.brand-root .customer-order-dialog button {
+  border-color: transparent !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+.brand-root .customer-order-dialog button[aria-pressed="true"] {
+  color: var(--brand-primary);
+}
+.brand-root .customer-order-dialog button:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+
+/* Mobile storefront refinement: reduce image dominance without compressing content. */
+@media (max-width: 639px) {
+  /* A wider image ratio reduces vertical image weight while preserving full card width. */
+  .brand-root .storefront-items-list:is([data-layout="cards"], [data-layout="grid"], [data-layout="carousel"]) > li[data-has-image="true"] > :first-child > button:first-child {
+    aspect-ratio: 3 / 2;
+  }
+  .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child > button:first-child,
+  .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child.relative {
+    aspect-ratio: 5 / 4;
+  }
+  .brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="true"] > :first-child > button:first-child {
+    aspect-ratio: 1 / 1;
+  }
+
+  /* Slightly quieter card chrome; content remains naturally sized and fully visible. */
+  .brand-root .storefront-items-list > li.storefront-card {
+    border-color: color-mix(in srgb, var(--brand-text) 9%, transparent);
+    box-shadow: 0 1px 6px rgb(15 23 42 / 3%);
+    border-radius: 1rem;
+  }
+  .brand-root .storefront-items-list[data-layout="gallery"] {
+    gap: .75rem;
+  }
+}
