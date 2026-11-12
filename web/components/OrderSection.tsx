@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean };
+type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
 type Step = 'choose' | 'site';
@@ -427,9 +428,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           {(['product', 'service'] as const).map((kind) => {
             const groupItems = items.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
+            const layout = kind === 'product' ? productLayout : serviceLayout;
             return <section key={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
               {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
-              <ul data-storefront-list data-kind={kind} data-layout="compact" className="storefront-items-list">
+              <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
