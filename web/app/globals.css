@@ -690,7 +690,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 /* Mobile storefront refinement: reduce image dominance without compressing content. */
 @media (max-width: 639px) {
   /* A wider image ratio reduces vertical image weight while preserving full card width. */
-  .brand-root .storefront-items-list :is([data-layout="cards"], [data-layout="grid"], [data-layout="carousel"]) > li[data-has-image="true"] > :first-child > button:first-child {
+  .brand-root .storefront-items-list:is([data-layout="cards"], [data-layout="grid"], [data-layout="carousel"]) > li[data-has-image="true"] > :first-child > button:first-child {
     aspect-ratio: 3 / 2;
   }
   .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child > button:first-child,
