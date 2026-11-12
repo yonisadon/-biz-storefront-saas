@@ -30,8 +30,6 @@ export default function PlatformAdminPage() {
   const [palette, setPalette] = useState<PaletteId>('natural');
   const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
   const [galleryLayout, setGalleryLayout] = useState<'slider' | 'thumbnails'>('slider');
-  const [productLayout, setProductLayout] = useState<'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'>('cards');
-  const [serviceLayout, setServiceLayout] = useState<'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<CreatedBusiness | null>(null);
@@ -65,7 +63,7 @@ export default function PlatformAdminPage() {
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
-          branding: { colors: BRAND_PALETTES[palette].colors, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
+          branding: { colors: BRAND_PALETTES[palette].colors, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout },
         }),
         cache: 'no-store',
       });
@@ -97,8 +95,6 @@ export default function PlatformAdminPage() {
       setPalette('natural');
       setStorefrontTheme('soft');
       setGalleryLayout('slider');
-      setProductLayout('cards');
-      setServiceLayout('cards');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה לא צפויה.');
     } finally {
@@ -147,7 +143,7 @@ export default function PlatformAdminPage() {
           </div>
 
           <PalettePicker value={palette} onChange={setPalette} />
-          <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
+          <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} />
 
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
