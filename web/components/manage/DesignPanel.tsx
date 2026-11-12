@@ -8,6 +8,7 @@ import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
 type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
+type ItemLayout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
 type GalleryLayout = 'slider' | 'thumbnails';
 type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
 
@@ -20,13 +21,18 @@ export default function DesignPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
   const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
+  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'carousel', 'luxury_catalog'];
   const validFonts: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
   const savedTheme = biz.config.branding?.storefront_theme as StorefrontTheme | undefined;
   const savedGalleryLayout = biz.config.branding?.hero_gallery_layout as GalleryLayout | undefined;
+  const savedProductLayout = biz.config.branding?.product_layout as ItemLayout | undefined;
+  const savedServiceLayout = biz.config.branding?.service_layout as ItemLayout | undefined;
   const savedFont = biz.config.branding?.font_style as FontStyle | undefined;
   const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
   const [storefrontTheme, setStorefrontTheme] = useState<StorefrontTheme>(savedTheme && validThemes.includes(savedTheme) ? savedTheme : 'soft');
   const [galleryLayout, setGalleryLayout] = useState<GalleryLayout>(savedGalleryLayout === 'thumbnails' ? 'thumbnails' : 'slider');
+  const [productLayout, setProductLayout] = useState<ItemLayout>(savedProductLayout && validLayouts.includes(savedProductLayout) ? savedProductLayout : 'cards');
+  const [serviceLayout, setServiceLayout] = useState<ItemLayout>(savedServiceLayout && validLayouts.includes(savedServiceLayout) ? savedServiceLayout : 'cards');
   const [fontStyle, setFontStyle] = useState<FontStyle>(savedFont && validFonts.includes(savedFont) ? savedFont : 'modern');
   const [businessTitleColor, setBusinessTitleColor] = useState<'brand' | 'black'>(biz.config.branding?.business_title_color === 'black' ? 'black' : 'brand');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -49,6 +55,8 @@ export default function DesignPanel({ token, biz, onSaved }: {
               business_title_color: businessTitleColor,
               storefront_theme: storefrontTheme,
               hero_gallery_layout: galleryLayout,
+              product_layout: productLayout,
+              service_layout: serviceLayout,
             },
           },
         }),
@@ -71,7 +79,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
         </div>
         <div className="space-y-5">
           <PalettePicker value={palette} onChange={setPalette} />
-          <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} />
+          <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
             <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
             <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים.</p>
