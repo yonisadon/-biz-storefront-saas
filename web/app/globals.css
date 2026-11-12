@@ -719,3 +719,46 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     gap: .75rem;
   }
 }
+
+
+/* Consistent item layouts when an item has no image.
+   The content column becomes the only child; it must not inherit image sizing,
+   and image-less cards must keep their selected grid/list/carousel placement. */
+.brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="false"] {
+  display: block;
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="false"] > :first-child {
+  width: 100%;
+  min-height: 0;
+  padding: 1rem;
+}
+.brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="true"] {
+  display: grid;
+  grid-template-columns: minmax(7rem, 34%) minmax(0, 1fr);
+}
+.brand-root .storefront-items-list:is([data-layout="cards"], [data-layout="gallery"], [data-layout="grid"]) > li[data-has-image="false"] {
+  grid-column: auto;
+  justify-self: stretch;
+  width: auto;
+  max-width: none;
+}
+.brand-root .storefront-items-list[data-layout="carousel"] > li[data-has-image="false"] {
+  flex: 0 0 min(82%, 22rem);
+  max-width: 22rem;
+}
+.brand-root .storefront-items-list[data-layout="luxury_catalog"] > li[data-has-image="false"] {
+  max-width: 42rem;
+}
+.brand-root .storefront-items-list > li[data-has-image="false"] > :first-child {
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+@media (max-width: 639px) {
+  .brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="true"] {
+    grid-template-columns: minmax(6rem, 38%) minmax(0, 1fr);
+  }
+}
