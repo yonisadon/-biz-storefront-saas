@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import ReadMoreText from '@/components/ReadMoreText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
@@ -42,7 +43,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export function ProductImageGallery({ product }: { product: Product }) {
+function ProductImageGallery({ product }: { product: Product }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const touchStart = useRef<number | null>(null);
   const images = [
@@ -62,13 +63,23 @@ export function ProductImageGallery({ product }: { product: Product }) {
   const move = (delta: number) => setActive((index) => (index + delta + images.length) % images.length);
   return (
     <div>
-      <button type="button" onClick={() => show(active)} aria-label={`הגדלת תמונת ${product.name}; פתיחת גלריית תמונות`} aria-haspopup="dialog" className="storefront-item-image group relative block h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-xl bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-        <Image src={images[active].url} alt={product.name} fill sizes="80px" className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03] group-focus-visible:scale-[1.03]" />
-        <span aria-hidden="true" className="absolute bottom-1 end-1 grid h-6 w-6 place-items-center rounded-full bg-black/65 text-white">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5M10.8 7.5v6.6M7.5 10.8h6.6" /></svg>
+      <button type="button" onClick={() => show(active)} aria-label={`הגדלת תמונת ${product.name}; פתיחת גלריית תמונות`} aria-haspopup="dialog" className="group relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-primary">
+        <Image src={images[active].url} alt={product.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03] group-focus-visible:scale-[1.03]" />
+        <span aria-hidden="true" className="absolute end-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-black/65 text-white shadow-md transition-colors group-hover:bg-black/80">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5M10.8 7.5v6.6M7.5 10.8h6.6" /></svg>
         </span>
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-3 pb-3 pt-8 text-start text-xs font-medium text-white opacity-100 sm:opacity-0 sm:transition-opacity sm:duration-200 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100">לחצו להגדלה</span>
       </button>
-      {images.length > 1 && <button type="button" onClick={() => show(active)} className="mt-1 block w-20 text-center text-xs font-semibold text-primary underline underline-offset-2">תמונות נוספות</button>}
+      {images.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto p-2" role="group" aria-label="תמונות נוספות">
+          {images.map((image, index) => (
+            <button key={image.id} type="button" onClick={() => setActive(index)} aria-label={`הצגת תמונה ${index + 1} מתוך ${images.length}`} aria-pressed={active === index}
+              className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 border-transparent aria-pressed:border-primary focus-visible:outline-2 focus-visible:outline-offset-2">
+              <Image src={image.url} alt="" fill sizes="56px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
       <dialog ref={dialog} aria-label={`גלריית תמונות: ${product.name}`} onClose={() => setLightboxOpen(false)} onClick={(event) => {
         if (event.target === dialog.current) dialog.current?.close();
       }} onKeyDown={(event) => {
@@ -435,35 +446,42 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           {groupItems.map((p) => {
             const q = cart[p.id] ?? 0;
             return (
-              <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card storefront-compact-item">
+              <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
                 <ProductImageGallery product={p} />
-                <div className="storefront-compact-content">
-                  <h3 className="storefront-compact-title">{p.name}</h3>
-                  <div className="storefront-compact-main">
+                <div className="flex min-w-0 flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{p.name}</h3>
+                    {p.kind === 'service' && (
+                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
+                    )}
+                  </div>
+                  {p.details?.length > 0 && (
+                    <details className="border-t border-ink/10 pt-3 text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
+                      <dl className="mt-2 divide-y divide-ink/10">
+                        {p.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-2 first:pt-0">
+                          <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
+                        </div>)}
+                      </dl>
+                    </details>
+                  )}
+                  {p.description && (
+                    <details className="border-t border-ink/10 pt-3 text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
+                    </details>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
                     ) : (
                       <button type="button" onClick={() => setQty(p.id, 1)}
-                        className="storefront-card-action rounded-full px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-                        {p.kind === 'service' ? 'בחר שירות' : 'הוסף מוצר'}
+                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
+                        {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
                       </button>
                     ))}
                   </div>
-                  {(p.description || p.details?.length > 0) && <div className="storefront-compact-details">
-                    {p.description && <details className="storefront-compact-disclosure">
-                      <summary>{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
-                    </details>}
-                    {p.details?.length > 0 && <details className="storefront-compact-disclosure">
-                      <summary>פרטים נוספים ({p.details.length})</summary>
-                      <dl className="mt-2 divide-y divide-ink/10">
-                        {p.details.map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0">
-                          <dt className="min-w-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
-                        </div>)}
-                      </dl>
-                    </details>}
-                  </div>}
                 </div>
               </li>
             );
