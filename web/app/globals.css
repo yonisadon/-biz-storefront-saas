@@ -756,3 +756,9 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   aspect-ratio: auto;
   min-height: 0;
 }
+
+@media (max-width: 639px) {
+  .brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="true"] {
+    grid-template-columns: minmax(6rem, 38%) minmax(0, 1fr);
+  }
+}
