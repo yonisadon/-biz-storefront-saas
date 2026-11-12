@@ -685,3 +685,29 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   outline: 2px solid var(--brand-primary);
   outline-offset: 3px;
 }
+
+
+/* Mobile storefront refinement: reduce image dominance without compressing content. */
+@media (max-width: 639px) {
+  /* A wider image ratio reduces vertical image weight while preserving full card width. */
+  .brand-root .storefront-items-list :is([data-layout="cards"], [data-layout="grid"], [data-layout="carousel"]) > li[data-has-image="true"] > :first-child > button:first-child {
+    aspect-ratio: 3 / 2;
+  }
+  .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child > button:first-child,
+  .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child.relative {
+    aspect-ratio: 5 / 4;
+  }
+  .brand-root .storefront-items-list[data-layout="list"] > li[data-has-image="true"] > :first-child > button:first-child {
+    aspect-ratio: 1 / 1;
+  }
+
+  /* Slightly quieter card chrome; content remains naturally sized and fully visible. */
+  .brand-root .storefront-items-list > li.storefront-card {
+    border-color: color-mix(in srgb, var(--brand-text) 9%, transparent);
+    box-shadow: 0 1px 6px rgb(15 23 42 / 3%);
+    border-radius: 1rem;
+  }
+  .brand-root .storefront-items-list[data-layout="gallery"] {
+    gap: .75rem;
+  }
+}
