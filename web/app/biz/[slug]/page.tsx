@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
@@ -149,8 +148,8 @@ export default async function StorefrontPage({ params }: Props) {
             return <div key={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout="compact" className="storefront-items-list">
-          {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} data-has-image={item.image?.url ? 'true' : 'false'} tabIndex={-1} className="storefront-card storefront-compact-item scroll-mt-24 target:ring-4 target:ring-primary/40">
-            {item.image?.url && <div className="storefront-item-media"><Image src={item.image.url} alt={item.name} width={88} height={88} className="storefront-item-image h-20 w-20 rounded-xl object-cover" /></div>}
+          {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} data-has-image={Boolean(item.image?.url || item.additional_images?.length) ? 'true' : 'false'} tabIndex={-1} className="storefront-card storefront-compact-item scroll-mt-24 target:ring-4 target:ring-primary/40">
+            <ProductImageGallery product={item} />
             <div className="storefront-compact-content">
               <h3 className="storefront-compact-title">{item.name}</h3>
               <div className="storefront-compact-main">
