@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
@@ -160,7 +159,7 @@ export default async function StorefrontPage({ params }: Props) {
             <div className="flex min-w-0 flex-col gap-3 p-4">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{item.name}</h3>
-                <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
+                {item.kind === 'service' && <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">שירות</span>}
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="storefront-card-price text-lg font-extrabold">{item.price_agorot === null ? (data.catalog?.quote_label ?? 'לפי הצעת מחיר') : ils(item.price_agorot)}</span>
