@@ -152,12 +152,17 @@ export default async function StorefrontPage({ params }: Props) {
             return <div key={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
-          {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} data-has-image={item.image?.url ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
-            {item.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={item.image.url} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
+          {groupItems.map((item) => {
+            const imageUrl = item.image?.url ?? item.additional_images?.[0]?.url ?? null;
+            return <li key={item.id} id={`item-${item.id}`} data-has-image={imageUrl ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
+            {imageUrl && <div className="relative aspect-[4/3] bg-ink/5"><Image src={imageUrl} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
             <div className="flex min-w-0 flex-col gap-2 p-4">
               <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
               <h3 className="text-lg font-bold">{item.name}</h3>
-              {item.description && <ReadMoreText text={item.description} className="storefront-description mt-2 text-sm leading-7 text-ink/70" />}
+              {item.description && <details className="text-sm">
+                <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{item.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{item.description}</p>
+              </details>}
               {item.details?.length > 0 && <details className="mt-2 border-t border-ink/10 pt-3 text-sm">
                 <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({item.details.length})</summary>
                 <dl className="mt-2 divide-y divide-ink/10">
@@ -171,7 +176,8 @@ export default async function StorefrontPage({ params }: Props) {
                 {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
               </div>
             </div>
-          </li>)}
+          </li>;
+          })}
               </ul>
             </div>;
           })}
