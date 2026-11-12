@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
+import StorefrontItemImage from '@/components/StorefrontItemImage';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
@@ -152,26 +152,34 @@ export default async function StorefrontPage({ params }: Props) {
             return <div key={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
-          {groupItems.map((item) => <li key={item.id} id={`item-${item.id}`} data-has-image={item.image?.url ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
-            {item.image?.url && <div className="relative aspect-[4/3] bg-ink/5"><Image src={item.image.url} alt={item.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" /></div>}
-            <div className="flex min-w-0 flex-col gap-2 p-4">
-              <span className="mb-2 self-start rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-ink/75">{item.kind === 'service' ? 'שירות' : 'מוצר'}</span>
-              <h3 className="text-lg font-bold">{item.name}</h3>
-              {item.description && <ReadMoreText text={item.description} className="storefront-description mt-2 text-sm leading-7 text-ink/70" />}
-              {item.details?.length > 0 && <details className="mt-2 border-t border-ink/10 pt-3 text-sm">
+          {groupItems.map((item) => {
+            const imageUrl = item.image?.url ?? item.additional_images?.[0]?.url ?? null;
+            return <li key={item.id} id={`item-${item.id}`} data-has-image={imageUrl ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
+            <StorefrontItemImage product={item} />
+            <div className="flex min-w-0 flex-col gap-3 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{item.name}</h3>
+                {item.kind === 'service' && <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">שירות</span>}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="storefront-card-price text-lg font-extrabold">{item.price_agorot === null ? (data.catalog?.quote_label ?? 'לפי הצעת מחיר') : ils(item.price_agorot)}</span>
+                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">לפרטים ב-WhatsApp</a>}
+              </div>
+              {item.details?.length > 0 && <details className="text-sm">
                 <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({item.details.length})</summary>
-                <dl className="mt-2 divide-y divide-ink/10">
-                  {item.details.map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0">
-                    <dt className="min-w-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                <dl className="mt-2">
+                  {item.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
+                    <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
                   </div>)}
                 </dl>
               </details>}
-              {item.price_agorot !== null && <p className="storefront-card-price mt-3 text-xl font-extrabold">{ils(item.price_agorot)}</p>}
-              <div className="pt-2">
-                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-center text-sm font-bold text-primary-fg shadow-sm transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">לפרטים ב-WhatsApp</a>}
-              </div>
+              {item.description && <details className="text-sm">
+                <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{item.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{item.description}</p>
+              </details>}
             </div>
-          </li>)}
+          </li>;
+          })}
               </ul>
             </div>;
           })}

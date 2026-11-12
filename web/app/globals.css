@@ -428,6 +428,14 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root .storefront-items-list[data-layout="gallery"] > li[data-has-image="true"] > :first-child.relative {
   aspect-ratio: 1 / 1;
 }
+
+/* WhatsApp storefront cards render the image wrapper itself as the first child (not a button).
+   Keep an explicit height after the generic layout reset above, or fill images collapse to zero height. */
+.brand-root .storefront-items-list[data-layout="cards"] > li[data-has-image="true"] > :first-child.relative,
+.brand-root .storefront-items-list[data-layout="grid"] > li[data-has-image="true"] > :first-child.relative,
+.brand-root .storefront-items-list[data-layout="carousel"] > li[data-has-image="true"] > :first-child.relative {
+  aspect-ratio: 4 / 3;
+}
 .brand-root[data-storefront-theme="creative"] .storefront-items-list[data-layout="grid"] > li:nth-child(3n + 2) {
   transform: none;
 }
