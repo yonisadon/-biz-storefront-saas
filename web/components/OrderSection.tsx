@@ -455,23 +455,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
-                  {p.details?.length > 0 && (
-                    <details className="border-t border-ink/10 pt-3 text-sm">
-                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
-                      <dl className="mt-2 divide-y divide-ink/10">
-                        {p.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-2 first:pt-0">
-                          <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
-                        </div>)}
-                      </dl>
-                    </details>
-                  )}
-                  {p.description && (
-                    <details className="border-t border-ink/10 pt-3 text-sm">
-                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
-                    </details>
-                  )}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
                     {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
                       <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
@@ -482,6 +466,22 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       </button>
                     ))}
                   </div>
+                  {p.details?.length > 0 && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
+                      <dl className="mt-2">
+                        {p.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
+                          <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
+                        </div>)}
+                      </dl>
+                    </details>
+                  )}
+                  {p.description && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
+                    </details>
+                  )}
                 </div>
               </li>
             );
