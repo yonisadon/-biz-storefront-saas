@@ -857,3 +857,8 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   .brand-root .storefront-items-list[data-layout="compact"] .storefront-item-media { width: 4.5rem; }
   .brand-root .storefront-items-list[data-layout="compact"] .storefront-item-image { width: 4.25rem; height: 4.25rem; }
 }
+
+.brand-root[data-storefront-theme="creative"] .storefront-items-list[data-layout="compact"] > li.storefront-compact-item,
+.brand-root[data-storefront-theme="creative"] .storefront-items-list[data-layout="compact"] > li.storefront-compact-item:hover {
+  transform: none;
+}
