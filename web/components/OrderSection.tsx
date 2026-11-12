@@ -135,6 +135,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [searchTotal, setSearchTotal] = useState(catalogTotal);
   const [searching, setSearching] = useState(false);
   const [cart, setCart] = useState<Record<string, number>>({});
+  // Keep selected item snapshots independent of the visible/search-filtered catalog page.
+  const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentMonth, setAppointmentMonth] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; });
@@ -213,8 +215,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }
   const byId = useMemo(() => new Map(items.map((p) => [p.id, p])), [items]);
   const lines = Object.entries(cart)
-    .map(([id, q]) => ({ p: byId.get(id)!, q }))
-    .filter((l) => l.p);
+    .map(([id, q]) => ({ p: selectedProducts[id] ?? byId.get(id), q }))
+    .filter((line): line is { p: Product; q: number } => Boolean(line.p));
   const count = lines.reduce((s, l) => s + l.q, 0);
   const modeOf = (p: Product) => p.booking_mode ?? (p.requires_appointment ? 'free_datetime' : 'none');
   const appointmentLines = lines.filter(({ p }) => p.kind === 'service' && modeOf(p) !== 'none');
@@ -307,13 +309,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const totalText = priced.length === 0 ? (hasQuote ? quoteLabel : '')
     : hasQuote ? `${ils(total)} + ${quoteLabel}` : ils(total);
 
-  const setQty = (id: string, q: number) => {
+  const setQty = (product: Product, q: number) => {
+    const id = product.id;
     setIdempotencyKey('');
     setAppointmentTime('');
-    setCart((c) => {
-      const n = { ...c };
-      if (q <= 0) delete n[id]; else n[id] = Math.min(99, q);
-      return n;
+    setCart((current) => {
+      const next = { ...current };
+      if (q <= 0) delete next[id]; else next[id] = Math.min(99, q);
+      return next;
+    });
+    setSelectedProducts((current) => {
+      const next = { ...current };
+      if (q <= 0) delete next[id]; else next[id] = product;
+      return next;
     });
   };
 
@@ -455,28 +463,33 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
                     )}
                   </div>
-                  {p.description && <ReadMoreText text={p.description} className="storefront-description text-sm leading-6 text-ink/70" />}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
+                    {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
+                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p, n)} />
+                    ) : (
+                      <button type="button" onClick={() => setQty(p, 1)}
+                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
+                        {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
+                      </button>
+                    ))}
+                  </div>
                   {p.details?.length > 0 && (
-                    <details className="border-t border-ink/10 pt-3 text-sm">
+                    <details className="text-sm">
                       <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
-                      <dl className="mt-2 divide-y divide-ink/10">
-                        {p.details.map((detail, index) => <div key={index} className="grid grid-cols-[minmax(5rem,0.8fr)_minmax(0,1.2fr)] items-start gap-3 py-2 first:pt-0">
-                          <dt className="min-w-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 break-words font-medium">{detail.value}</dd>
+                      <dl className="mt-2">
+                        {p.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
+                          <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
                         </div>)}
                       </dl>
                     </details>
                   )}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
-                    <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
-                    {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
-                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p.id, n)} />
-                    ) : (
-                      <button type="button" onClick={() => setQty(p.id, 1)}
-                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-                        {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.price_agorot === null ? 'בקשת הצעת מחיר' : 'הוסף להזמנה'}
-                      </button>
-                    ))}
-                  </div>
+                  {p.description && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
+                    </details>
+                  )}
                 </div>
               </li>
             );
@@ -527,8 +540,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <span className="shrink-0 font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
                   {!done && (
                     <div className="flex w-full items-center justify-between gap-3 border-t border-gray-200 pt-2">
-                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p.id, next)} />
-                      <button type="button" onClick={() => setQty(p.id, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>
+                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p, next)} />
+                      <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>
                     </div>
                   )}
                 </li>;
