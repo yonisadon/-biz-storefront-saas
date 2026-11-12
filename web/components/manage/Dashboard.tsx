@@ -5,6 +5,7 @@ import { themeVars } from '@/lib/theme';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
+import DesignPanel from './DesignPanel';
 import CalendarPanel from './CalendarPanel';
 import GalleryPanel from './GalleryPanel';
 import HoursPanel from './HoursPanel';
@@ -14,9 +15,9 @@ import ProductsPanel from './ProductsPanel';
 import WaitlistPanel from './WaitlistPanel';
 import GoogleCalendarPanel from './GoogleCalendarPanel';
 
-type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'legal';
+type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['legal', 'מסמכי האתר'],
+  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads, initialRetention }: {
@@ -80,7 +81,8 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           {tab === 'products' && <ProductsPanel token={token} />}
           {tab === 'gallery' && <GalleryPanel token={token} />}
           {tab === 'hours' && <HoursPanel token={token} biz={biz} onSaved={setBiz} />}
-          {tab === 'business' && <BusinessPanel token={token} biz={biz} onSaved={setBiz} />}
+          <div hidden={tab !== 'business'}><BusinessPanel token={token} biz={biz} onSaved={setBiz} /></div>
+          <div hidden={tab !== 'design'}><DesignPanel token={token} biz={biz} onSaved={setBiz} /></div>
           {tab === 'legal' && <LegalPanel token={token} biz={biz} onSaved={setBiz} />}
         </div>
       </div>
