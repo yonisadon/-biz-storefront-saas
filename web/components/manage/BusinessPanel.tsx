@@ -2,9 +2,6 @@
 
 import { useState } from 'react';
 import { toLocalPhone } from '@/lib/format';
-import PalettePicker from '@/components/PalettePicker';
-import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
-import { BRAND_PALETTES, paletteIdForColors, type PaletteId } from '@/lib/palettes';
 import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
@@ -51,25 +48,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     whatsappCrm: flow.whatsapp_crm_enabled !== false,
     whatsappIntro: initialWhatsAppIntro(flow),
   });
-  const [palette, setPalette] = useState<PaletteId>(paletteIdForColors(biz.config.branding?.colors));
-  type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
-  type ItemLayout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
-  type GalleryLayout = 'slider' | 'thumbnails';
-  const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
-  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'carousel', 'luxury_catalog'];
-  const savedTheme = biz.config.branding?.storefront_theme as StorefrontTheme | undefined;
-  const savedGalleryLayout = biz.config.branding?.hero_gallery_layout as GalleryLayout | undefined;
-  const savedProductLayout = biz.config.branding?.product_layout as ItemLayout | undefined;
-  const savedServiceLayout = biz.config.branding?.service_layout as ItemLayout | undefined;
-  const [storefrontTheme, setStorefrontTheme] = useState<StorefrontTheme>(savedTheme && validThemes.includes(savedTheme) ? savedTheme : 'soft');
-  const [galleryLayout, setGalleryLayout] = useState<GalleryLayout>(savedGalleryLayout === 'thumbnails' ? 'thumbnails' : 'slider');
-  const [productLayout, setProductLayout] = useState<ItemLayout>(savedProductLayout && validLayouts.includes(savedProductLayout) ? savedProductLayout : 'cards');
-  const [serviceLayout, setServiceLayout] = useState<ItemLayout>(savedServiceLayout && validLayouts.includes(savedServiceLayout) ? savedServiceLayout : 'cards');
-  type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
-  const validFontStyles: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
-  const savedFontStyle = biz.config.branding?.font_style as FontStyle | undefined;
-  const [fontStyle, setFontStyle] = useState<FontStyle>(savedFontStyle && validFontStyles.includes(savedFontStyle) ? savedFontStyle : 'modern');
-  const [businessTitleColor, setBusinessTitleColor] = useState<'brand' | 'black'>(biz.config.branding?.business_title_color === 'black' ? 'black' : 'brand');
   const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -104,7 +82,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
               whatsapp_crm_enabled: f.whatsappCrm,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
-            branding: { ...(latest.config.branding ?? {}), colors: BRAND_PALETTES[palette].colors, font_style: fontStyle, business_title_color: businessTitleColor, storefront_theme: storefrontTheme, hero_gallery_layout: galleryLayout, product_layout: productLayout, service_layout: serviceLayout },
+            branding: latest.config.branding ?? {},
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
@@ -129,43 +107,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     <div className="grid gap-6 md:grid-cols-2">
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
-        <PalettePicker value={palette} onChange={setPalette} />
-        <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
-          <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות בכל עת; אם לא בוחרים, נשמר הסגנון המודרני כברירת מחדל.</p>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { id: 'modern', title: 'מודרני', sample: 'נקי וברור', family: '"Heebo", Arial, sans-serif', note: 'חד ומאוזן' },
-              { id: 'rounded', title: 'מעוגל', sample: 'נעים וחברותי', family: '"Rubik", Arial, sans-serif', note: 'רך ונגיש' },
-              { id: 'elegant', title: 'אלגנטי', sample: 'יופי בפרטים', family: '"Frank Ruhl Libre", serif', note: 'כותרות עם אופי' },
-              { id: 'warm', title: 'חמים', sample: 'עסק עם לב', family: '"Assistant", Arial, sans-serif', note: 'אישי ומזמין' },
-            ] as const).map((option) => (
-              <label key={option.id} className={`relative flex min-h-24 cursor-pointer flex-col justify-center rounded-xl border p-3 transition ${fontStyle === option.id ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-400'}`}>
-                <input className="absolute end-2 top-2" type="radio" name="fontStyle" value={option.id} checked={fontStyle === option.id} onChange={() => setFontStyle(option.id)} />
-                <span className="text-sm font-bold" style={{ fontFamily: option.family }}>{option.title}</span>
-                <span className="mt-1 text-lg leading-6" style={{ fontFamily: option.family }}>{option.sample}</span>
-                <span className="mt-1 text-xs text-gray-500">{option.note}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">צבע שם העסק</legend>
-          <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר. צבעי הכפתורים, המחירים ושאר המיתוג נשארים ללא שינוי.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <label className={"flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm " + (businessTitleColor === 'brand' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200')}>
-              <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'brand'} onChange={() => setBusinessTitleColor('brand')} />
-              <span>צבע המותג</span>
-              <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300" style={{ background: BRAND_PALETTES[palette].colors.primary }} />
-            </label>
-            <label className={"flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm " + (businessTitleColor === 'black' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200')}>
-              <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'black'} onChange={() => setBusinessTitleColor('black')} />
-              <span>שחור</span>
-              <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300 bg-black" />
-            </label>
-          </div>
-        </fieldset>
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
           <legend className="px-1 text-sm font-semibold">סוג האתר</legend>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
