@@ -1,6 +1,6 @@
 'use client';
 
-import StorefrontItemImage from '@/components/StorefrontItemImage';
+import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import ReadMoreText from '@/components/ReadMoreText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
@@ -374,49 +374,18 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             return <section key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
               {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
-          {groupItems.map((p) => {
-            const q = cart[p.id] ?? 0;
-            return (
-              <li key={p.id} data-has-image={Boolean(p.image || p.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
-                <StorefrontItemImage product={p} />
-                <div className="flex min-w-0 flex-col gap-3 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{p.name}</h3>
-                    {p.kind === 'service' && (
-                      <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{modeOf(p) === 'availability' ? `שירות · תור ביומן ${p.appointment_duration_minutes} דק׳` : modeOf(p) === 'free_datetime' ? `שירות · מועד מבוקש ${p.appointment_duration_minutes} דק׳` : 'שירות'}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <span className="storefront-card-price text-lg font-extrabold">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot)}</span>
-                    {(canOrder || (p.kind === 'service' && modeOf(p) === 'availability')) && (q > 0 ? (
-                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(n) => setQty(p, n)} />
-                    ) : (
-                      <button type="button" onClick={() => setQty(p, 1)}
-                        className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-                        {calendarOnlyAvailable && p.kind === 'service' && modeOf(p) === 'availability' ? 'קביעת תור' : p.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
-                      </button>
-                    ))}
-                  </div>
-                  {p.details?.length > 0 && (
-                    <details className="text-sm">
-                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({p.details.length})</summary>
-                      <dl className="mt-2">
-                        {p.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
-                          <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
-                        </div>)}
-                      </dl>
-                    </details>
-                  )}
-                  {p.description && (
-                    <details className="text-sm">
-                      <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{p.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
-                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{p.description}</p>
-                    </details>
-                  )}
-                </div>
-              </li>
-            );
-          })}
+          {groupItems.map((p) => (
+            <StorefrontCatalogItem
+              key={p.id}
+              product={p}
+              quoteLabel={quoteLabel}
+              quantity={cart[p.id] ?? 0}
+              canOrder={canOrder}
+              calendarOnlyAvailable={calendarOnlyAvailable}
+              bookingMode={modeOf(p)}
+              onQuantityChange={(quantity) => setQty(p, quantity)}
+            />
+          ))}
               </ul>
             </section>;
           })}
