@@ -8,7 +8,7 @@ import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/type
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
 type StorefrontProfile = 'default' | 'nails' | 'hair_salon' | 'beauty_institute' | 'treatment_professional' | 'proposal_planning' | 'jewelry' | 'gifts_cosmetics' | 'other';
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout; storefrontProfile: StorefrontProfile };
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
 type Step = 'choose' | 'site';
@@ -44,7 +44,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout, storefrontProfile }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
