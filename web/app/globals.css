@@ -763,30 +763,159 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   }
 }
 
-/* Business-profile presentation hooks. Default intentionally keeps the existing general storefront. */
-.brand-root[data-storefront-profile="nails"] .storefront-hero {
-  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
-  padding-bottom: clamp(1.5rem, 4vw, 3rem);
+/* Business-profile layouts. Default intentionally receives no overrides. */
+.brand-root[data-storefront-profile="nails"] .storefront-intro {
+  display: flex;
+  flex-direction: column;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap {
+  width: 100%;
+  margin-inline: auto;
+}
+.brand-root[data-storefront-profile="nails"] #services-section {
+  border-top: 3px solid var(--brand-primary);
 }
 .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
-  border-radius: 1.4rem;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--brand-primary) 9%, transparent);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: 1 / 1;
+}
+
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+  max-width: 100%;
 }
 .brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+  margin: 0;
+  padding-inline: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-gallery-wrap {
+  min-width: 0;
+  margin: 0;
+}
+.brand-root[data-storefront-profile="hair_salon"] #services-section {
   border-inline-start: 4px solid var(--brand-primary);
-  padding-inline-start: clamp(1rem, 3vw, 2rem);
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+}
+
+.brand-root[data-storefront-profile="beauty_institute"] #services-section,
+.brand-root[data-storefront-profile="beauty_institute"] #catalog-section {
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-card {
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--brand-primary) 7%, transparent);
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: 5 / 4;
+}
+
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+  text-align: start;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-hero {
+  max-width: 56rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  border-radius: 1.5rem;
+  text-align: center;
+}
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-gallery-wrap {
+  width: 100%;
+  margin-inline: auto;
+}
+.brand-root[data-storefront-profile="proposal_planning"] #services-section,
+.brand-root[data-storefront-profile="proposal_planning"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.brand-root[data-storefront-profile="jewelry"] .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 3rem);
+  max-width: 100%;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero {
+  margin: 0;
+  padding-inline: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap {
+  min-width: 0;
+  margin: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 22%, transparent);
+  border-radius: 0;
+  box-shadow: none;
 }
 .brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li.storefront-card {
-  border-radius: .25rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 16%, transparent);
+  border-radius: 0;
   box-shadow: none;
 }
 .brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li[data-has-image="true"] > :first-child {
   aspect-ratio: 4 / 5;
 }
-.brand-root[data-storefront-profile="proposal_planning"] .storefront-hero {
-  text-align: center;
-  border-radius: 1.5rem;
-  padding: clamp(1.5rem, 5vw, 3.5rem);
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="jewelry"] .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero {
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
 }
-@media (max-width: 639px) {
-  .brand-root[data-storefront-profile="proposal_planning"] .storefront-hero > div[aria-hidden="true"] { margin-inline: auto; }
+
+.brand-root[data-storefront-profile="gifts_cosmetics"] #catalog-section {
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border-radius: .85rem;
 }
