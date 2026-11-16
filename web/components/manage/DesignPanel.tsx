@@ -8,7 +8,7 @@ import { ApiError, mcall } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
 type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
-type ItemLayout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
+type ItemLayout = 'cards' | 'list' | 'carousel' | 'luxury_catalog';
 type GalleryLayout = 'slider' | 'thumbnails';
 type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
 
@@ -21,7 +21,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
   const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
-  const validLayouts: ItemLayout[] = ['cards', 'gallery', 'list', 'carousel', 'luxury_catalog'];
+  const validLayouts: ItemLayout[] = ['cards', 'list', 'carousel', 'luxury_catalog'];
   const validFonts: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
   const savedTheme = biz.config.branding?.storefront_theme as StorefrontTheme | undefined;
   const savedGalleryLayout = biz.config.branding?.hero_gallery_layout as GalleryLayout | undefined;
