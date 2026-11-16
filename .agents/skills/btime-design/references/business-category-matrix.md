@@ -89,3 +89,16 @@ Changing the category:
 4. A jewelry shop has products and WhatsApp inquiries: emphasize product images/details and the existing inquiry route; do not show appointment controls.
 5. A mixed business has both products and bookable services: retain both journeys and make their distinction clear.
 6. A seller changes category: all existing data and explicit visual preferences remain unchanged; only the category profile and approved recommendations may change.
+
+## Approved first-release simplification (2026-11-16)
+
+The initial platform classification is intentionally limited to two top-level storefront types:
+
+- `products` — product-led shops, initially including jewelry, preparations/cosmetics, gifts, accessories and similar merchandise.
+- `services` — service-led businesses, initially including hair salons, nail studios, beauty institutes, proposal/engagement planning and other service professionals.
+
+These are storefront presentation categories, not restrictions on the tenant's capabilities or item kinds. Both types retain all existing BTime features and may contain both products and services. Booking, waitlist, availability, appointments, CRM, WhatsApp, inquiry/order flow and catalog behavior remain independently configured and unchanged.
+
+The type is selected only by the platform administrator during initial business provisioning. It is not exposed in the seller's BusinessPanel or DesignPanel, just as the base storefront type and palette are not seller-editable. The value is stored in the tenant's existing JSONB business config as top-level `storefront_type`, seeded through the existing provisioning config-copy flow. No separate central-registry field or new table is introduced. Existing tenants without the field remain unclassified and use the generic/legacy presentation; do not guess or backfill a type.
+
+Do not confuse `storefront_type` with the existing operational `site_mode` (`catalog_order` / `services_whatsapp`). Never derive one from or overwrite the other.
