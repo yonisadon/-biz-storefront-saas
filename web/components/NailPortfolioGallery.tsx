@@ -36,7 +36,7 @@ export default function NailPortfolioGallery({ images, heroId, layout = 'slider'
     <>
       <div className={layout === 'thumbnails' ? 'nail-portfolio-view nail-portfolio-view--thumbnails' : 'nail-portfolio-view nail-portfolio-view--slider'}>
         <button type="button" className="nail-portfolio-main" onClick={() => dialog.current?.showModal()} aria-label={`הגדלת תמונה ${active + 1} מתוך ${photos.length}`}>
-          <Image src={current.url} alt={current.alt || current.caption || 'עבודת ציפורניים'} fill priority sizes="(max-width: 640px) 100vw, 1056px" className="object-cover" />
+          <Image src={current.url} alt={current.alt || current.caption || 'עבודת ציפורניים'} fill priority sizes="(max-width: 640px) 100vw, 1056px" className="object-contain" />
           {current.caption && <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-10 text-start text-sm font-medium text-white">{current.caption}</span>}
         </button>
         {photos.length > 1 && (layout === 'thumbnails'
