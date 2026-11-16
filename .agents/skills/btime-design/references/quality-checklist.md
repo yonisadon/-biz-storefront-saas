@@ -71,16 +71,13 @@ Use this checklist for design reviews and before completing storefront UI change
 
 ## Business-profile adaptation and data safety
 
-- [ ] Business category and operating model are treated as separate dimensions.
-- [ ] New-business category comes from explicit seller selection, not name-only guessing.
-- [ ] Existing-business suggestions are based on actual tenant data and require seller confirmation.
-- [ ] Food categories are not included in the current scope.
-- [ ] Appointment/service businesses receive appropriate structure and booking emphasis; jewelry/gift/product shops receive relevant catalog emphasis.
-- [ ] Mixed businesses are supported without forcing one operating model.
-- [ ] Actual enabled features and tenant data—not category labels alone—control which actions are rendered.
-- [ ] Seller visual preferences remain independent of business category and are not overwritten by profile changes.
-- [ ] Changing category preserves every existing business, catalog, service, booking, schedule, appointment, waitlist, CRM, media, contact, legal, domain, branding, and design record.
-- [ ] No product/service conversion or booking-mode change occurs implicitly.
-- [ ] Save operations update only intended profile fields and cannot overwrite unrelated tenant configuration.
-- [ ] Any change in public visibility is explicit and does not delete underlying content.
-- [ ] Existing-tenant migration/backfill behavior is tested with ambiguous, empty, product-only, service-only, mixed, and appointment-enabled tenants.
+- [ ] The selected business profile determines visual architecture, not product/service capability.
+- [ ] Default always restores the existing general BTime storefront.
+- [ ] Missing or legacy profiles resolve to Default; no name-based or silent classification.
+- [ ] Profile-specific layouts have a documented concept, hero, section order, catalog/portfolio treatment and responsive RTL behavior.
+- [ ] Profile differences are meaningful composition/hierarchy changes, not only CSS color or radius changes.
+- [ ] Mixed businesses show both products and services.
+- [ ] Actual enabled features and tenant data—not profile labels—control which actions are rendered.
+- [ ] Seller palette, fonts and explicit design preferences remain independent and are not overwritten.
+- [ ] Changing profile preserves all business, catalog, service, booking, schedule, appointment, waitlist, CRM, media, contact, legal, domain, branding and design data.
+- [ ] Save operations update only the profile field and cannot overwrite unrelated tenant configuration.
