@@ -7,6 +7,10 @@
     "crm_enabled": {
       "type": "boolean"
     },
+    "storefront_profile": {
+      "type": "string",
+      "enum": ["default", "nails", "hair_salon", "beauty_institute", "treatment_professional", "proposal_planning", "jewelry", "gifts_cosmetics", "other"]
+    },
     "storefront_type": {
       "type": "string",
       "enum": ["products", "services"]
