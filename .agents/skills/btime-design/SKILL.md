@@ -74,7 +74,7 @@ These are design directions, not permission to fabricate content. If a section h
 ### Data preservation
 Changing profile must not delete, convert, reset or rewrite business details, products, services, media, prices, booking modes, opening hours, availability, appointments, blocked times, waitlist entries, CRM leads, contact channels, legal content, domains, branding or visual preferences. Save only the intended profile field. Avoid whole-config replacement that could overwrite unrelated settings.
 
-Before implementation, inspect onboarding, tenant provisioning, config schema, public rendering, seller settings and tests. Document the profile matrix and actual component-level design plan first.
+Before implementation, inspect onboarding, tenant provisioning, config schema, public rendering, seller settings and tests. Read references/business-category-matrix.md, references/business-profile-architecture.md and references/business-profile-visual-specs.md. Document the profile matrix and actual component-level design plan first.
 
 ## 3. Plan a distinctive visual direction before coding
 
