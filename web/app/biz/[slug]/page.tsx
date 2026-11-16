@@ -148,8 +148,6 @@ export default async function StorefrontPage({ params }: Props) {
               ? <NailPortfolioGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
               : <>{data.storefront_profile === 'hair_salon' && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">תיק העבודות</h2>}<StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></>}
           </div>}
-    
-      </div>
   );
   const servicesSlot = (
           {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
@@ -228,6 +226,7 @@ export default async function StorefrontPage({ params }: Props) {
     {oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
     <StorefrontPageComposition
       profile={data.storefront_profile ?? 'default'}
+      hasGallery={data.gallery.length > 0}
       identity={identitySlot}
       gallery={gallerySlot}
       services={servicesSlot}
