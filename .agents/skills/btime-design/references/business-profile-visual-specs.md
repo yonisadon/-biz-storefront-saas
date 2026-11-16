@@ -52,7 +52,7 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 4. Optional product catalog.
 5. Contact, address/hours and legal footer.
 
-**Composition:** calm structured sections, clear treatment names and optional details; avoid medical claims, credentials or results that are not provided by the business. If no gallery exists, do not leave an empty image area.
+**Composition:** on desktop, place the institute identity beside its real treatment imagery, then give the configured treatment menu the full content width beneath them. On mobile, stack identity, gallery and treatments. Use calm structured sections and clear treatment names/details; avoid medical claims, credentials or results that are not provided by the business. If no gallery exists, the identity and treatment menu must close the gap naturally.
 
 ## Treatment professional — personal professional service
 
@@ -77,7 +77,7 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 4. Optional related products only when configured.
 5. Contact details and legal footer.
 
-**Composition:** wide imagery and more deliberate storytelling rhythm; mobile uses a single-column flow with inquiry action visible early. Do not fabricate packages, testimonials, event locations or sample prices.
+**Composition:** a spacious, centered experience introduction followed by a wide real-event gallery, then configured packages/services in a narrower reading column. Mobile keeps the inquiry action visible early and uses a single-column flow. Do not fabricate packages, testimonials, event locations or sample prices.
 
 ## Jewelry and watches — editorial product shop
 
@@ -135,3 +135,10 @@ These profiles now use distinct page-level hierarchy rather than only card styli
 - Treatment professional: professional identity and configured service menu share the desktop opening; optional real gallery follows the service path. Mobile stacks identity, services, gallery and contact.
 - Gifts/cosmetics: identity first, product discovery second, optional real gallery third, contact last.
 - All placements reuse the same tenant records and existing action handlers. Missing gallery/catalog sections naturally disappear; no placeholder content is introduced. Seller palette, font, gallery mode and item layout preferences remain unchanged.
+
+
+## Third implementation refinement — beauty institute and proposal planning
+
+- Beauty institute: desktop identity and actual gallery sit side by side, followed by the full-width treatment/service menu; mobile stacks identity, gallery and services. Empty gallery states collapse without a reserved media column.
+- Proposal planning: a spacious experience-led introduction is followed by a wide real-event gallery and a narrower configured package/service section. Inquiry and contact actions remain the existing tenant-configured actions.
+- Both profiles reuse the live tenant content and preserve mixed products/services, seller branding, independent item layouts, gallery mode and existing booking/inquiry behavior.
