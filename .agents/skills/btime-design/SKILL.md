@@ -91,6 +91,43 @@ Challenge the first idea: would the same design have been proposed for a complet
 
 Spend visual boldness intentionally. A single strong composition or image treatment is usually better than many competing effects.
 
+## 3A. Mandatory art-direction gate — do not code before the design is convincing
+
+This gate exists because a technically correct page can still look like a generic BTime template. It is mandatory whenever the user says a profile lacks identity, feels generic, looks childish, or is not meaningfully different.
+
+### Phase A — diagnose and design (no implementation yet)
+1. Stop CSS tweaking. Do not make another implementation pass just by changing colors, border radius, card size, or image size.
+2. Inspect the current complete tenant page and the existing Default storefront. Identify the exact visual causes of sameness: repeated card language, centered template hero, excessive colored surfaces, uniform radii, weak typography scale, constrained image scale, section rhythm, or missing brand character. Mark observations separately from hypotheses.
+3. Research at least three category-relevant references and inspect complete pages/screens where available. Use them to extract visual principles, not to copy a template.
+4. Create two genuinely different art directions, not two palette variants. Each must state:
+   - brand character and the feeling it should create;
+   - hero silhouette and relative image/text proportions;
+   - page-wide section sequence and visual rhythm;
+   - image art direction and crop/scale;
+   - typography hierarchy and alignment;
+   - semantic color usage and the proportion of neutral vs brand-colored surfaces;
+   - service/product treatment and the primary booking/contact action.
+5. Include a desktop and mobile page map. Show how the whole page changes, not only the first screen or cards.
+6. Explain how the direction works with the tenant's actual saved palette, font, theme, layout settings, gallery mode and selected hero image. Never silently switch those settings. If a combination creates a real design conflict, explain it rather than hiding or overriding it.
+7. Recommend one direction and explain why it is more distinctive and more appropriate for the real business. State what is deliberately omitted to prevent visual noise.
+8. Present this design brief for user review. **Do not edit storefront implementation code until the user accepts a direction or explicitly asks to proceed with the recommended direction.**
+
+### Phase B — implement only the accepted direction
+1. Implement the full-page composition as a coherent system. Do not limit the work to catalog cards or gallery styling.
+2. Prefer neutral page surfaces and a restrained semantic use of brand colors unless the actual brand and accepted direction call for stronger color. A selected purple/pink palette does not mean that every section, card, badge and button should be filled with purple/pink.
+3. Give color roles distinct jobs: background for the page, surface for content, text for hierarchy, primary for the main action, accent for rare emphasis. Do not use primary and accent interchangeably across every component.
+4. Create hierarchy through scale, alignment, whitespace, image composition and typography before adding decorative effects. Avoid repeating the same rounded-card container for every section.
+5. Keep one memorable visual signature. Other elements must support it and remain quiet.
+6. Validate the whole page in desktop and mobile screenshots against the accepted brief. If the screenshot still resembles the Default BTime page with a different palette, the implementation has failed and must be reconsidered.
+
+### Rejection and reset protocol
+When the user rejects a visual attempt as generic or lacking identity:
+- Do not defend the previous design or claim that a small tweak will fix it.
+- Do not immediately create a third CSS variation.
+- Summarize the likely design-system causes, then return to Phase A with materially different art directions.
+- Preserve the rejected experiment only on its isolated branch; do not promote its assumptions into the product baseline or rewrite unrelated specifications.
+- Keep documentation changes limited to the skill and the specific design decision that has actually been accepted.
+
 ## 4. Work with BTime's existing design system
 
 Read `references/existing-design-system.md` before changing theme or storefront styling.
