@@ -1622,14 +1622,18 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   line-height: 1.9;
 }
 .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero-action {
-  border: 1px solid #000 !important;
-  background: #000 !important;
-  color: #fff !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
 }
 .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero-action:hover {
-  border-color: #262626 !important;
-  background: #262626 !important;
-  color: #fff !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #000 !important;
+  text-decoration: underline;
+  box-shadow: none !important;
 }
 .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero-actions {
   display: flex;
