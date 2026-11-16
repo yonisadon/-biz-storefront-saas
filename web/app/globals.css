@@ -1303,3 +1303,154 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     order: 4;
   }
 }
+
+
+/* Nails studio: editorial portfolio collage and a compact, booking-first service menu. */
+.brand-root[data-storefront-profile="nails"] .storefront-intro {
+  display: block;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero {
+  max-width: 58rem;
+  margin: 0 auto 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3.25rem) 1rem 1rem;
+  text-align: center;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero > div[aria-hidden="true"] {
+  width: 2.25rem;
+  height: 2px;
+  margin-bottom: 1.25rem;
+  opacity: .8;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero h1 {
+  font-family: "Frank Ruhl Libre", "Assistant", serif;
+  font-size: clamp(2.35rem, 5.5vw, 4.5rem);
+  font-weight: 500;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-actions {
+  justify-content: center;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap {
+  width: 100%;
+  max-width: 66rem;
+  margin: 0 auto 2.5rem;
+  padding-inline: .25rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-portfolio-heading {
+  margin: 0 0 .9rem;
+  font-family: "Frank Ruhl Libre", "Assistant", serif;
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: clamp(5.5rem, 11vw, 9rem);
+  gap: .65rem;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-photo {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: .35rem;
+  background: color-mix(in srgb, var(--brand-secondary) 35%, white);
+  cursor: zoom-in;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-photo:first-child {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-photo:nth-child(4n + 2) {
+  grid-row: span 2;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-photo img {
+  transition: transform .5s cubic-bezier(.2,.7,.2,1);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-photo:hover img {
+  transform: scale(1.045);
+}
+.brand-root[data-storefront-profile="nails"] #catalog-section,
+.brand-root[data-storefront-profile="nails"] #services-section {
+  max-width: 66rem;
+  margin: 2.5rem auto 0;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 28%, transparent);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] #catalog-section h2,
+.brand-root[data-storefront-profile="nails"] #services-section h2 {
+  font-family: "Frank Ruhl Libre", "Assistant", serif;
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-weight: 500;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .75rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--brand-text) 12%, transparent);
+  border-radius: .45rem;
+  background: color-mix(in srgb, var(--brand-secondary) 13%, var(--brand-background));
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child {
+  flex: 0 0 6.5rem;
+  width: 6.5rem;
+  min-height: 100%;
+  aspect-ratio: 1 / 1;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > div:last-child {
+  min-width: 0;
+  flex: 1;
+  gap: .6rem;
+  padding: .9rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card h3 {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card .storefront-card-price {
+  font-size: 1.05rem;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-dialog::backdrop {
+  background: rgb(0 0 0 / .88);
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: clamp(7rem, 35vw, 10rem);
+    gap: .45rem;
+  }
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-photo:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child {
+    flex-basis: 6rem;
+    width: 6rem;
+  }
+}
+@media (max-width: 360px) {
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child {
+    flex-basis: 5.25rem;
+    width: 5.25rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-photo img {
+    transition: none;
+  }
+}
