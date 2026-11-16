@@ -143,13 +143,16 @@ export default async function StorefrontPage({ params }: Props) {
     
   );
   const gallerySlot = (
+    <>
           {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8">
             {data.storefront_profile === 'nails'
               ? <NailPortfolioGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
               : <>{data.storefront_profile === 'hair_salon' && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">תיק העבודות</h2>}<StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></>}
           </div>}
+    </>
   );
   const servicesSlot = (
+    <>
           {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
             <div className="mb-5">
               <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
@@ -182,12 +185,16 @@ export default async function StorefrontPage({ params }: Props) {
             </div>
           </section>}
     
+    </>
   );
   const catalogSlot = (
+    <>
           {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} storefrontProfile={data.storefront_profile ?? 'default'} /></section> : null}
     
+    </>
   );
   const contactSlot = (
+    <>
           {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
               {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
@@ -212,6 +219,7 @@ export default async function StorefrontPage({ params }: Props) {
             </div>
           </section>}
     
+    </>
   );
   const footerSlot = (
           <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65">
