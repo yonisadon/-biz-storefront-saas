@@ -233,6 +233,6 @@ export default async function StorefrontPage({ params }: Props) {
       catalog={catalogSlot}
       contact={contactSlot}
       footer={footerSlot}
-    />ain>
+    />
   </div>;
 }
