@@ -1,56 +1,38 @@
-# BTime Storefront Type — Implementation Plan
+# BTime Business Profile — Implementation Plan
 
-Status: implementation in progress on `docs/btime-design-skill`, 2026-11-16.
+Status: approved direction; implementation sequence for the current draft PR.
 
-## Phase 1 — Platform-admin selection and persistence
+## Product contract
+A business may offer products, services or both. The business profile selects the storefront's visual information architecture; it does not select capabilities. The existing general storefront remains permanently available as default.
 
-- Add a required two-choice selector to the existing Super Admin create-business form: `products` or `services`.
-- Send `storefront_type` in the existing provisioning request.
-- Validate the enum in `backend/src/routes/admin.ts`.
-- Seed it in the existing business config JSONB so the existing provisioning copy places it in the tenant DB.
-- Extend the business config JSON schema. No SQL migration or new registry field/table.
+The seller can select/change the profile and independently manage business content and supported branding preferences. Switching profiles never deletes or rewrites tenant data.
 
-## Phase 2 — Public API and rendering
+## Phase 1 — Correct the model and preserve compatibility
+- Replace the misleading products/services classification with business profiles: default, nails, hair_salon, beauty_institute, treatment_professional, proposal_planning, jewelry, gifts_cosmetics and other.
+- Make default the safe initial value for new and legacy businesses.
+- Add seller profile selection in BusinessPanel.
+- Keep operational site_mode separate.
+- Update only the profile field when saving; preserve latest config and unrelated settings.
+- Inspect existing storefront_type usage and do not auto-classify tenants carrying products/services values.
 
-- Expose the normalized value from the tenant config in the public payload.
-- Add the corresponding TypeScript public-payload type.
-- Add a root-level storefront presentation attribute and category-specific visual emphasis.
-- Keep existing content and functionality data-driven. Do not disable or hide capabilities.
-- Keep `site_mode`, booking, waitlist, CRM, WhatsApp and catalog behavior untouched.
+## Phase 2 — Define visual systems before coding
+Create a design spec for each profile: concept, hero and primary action, section hierarchy, product/service/mixed item presentation, gallery, typography and palette compatibility, mobile/desktop RTL, empty/missing/long-content states.
+The Default spec is the current general storefront captured as a baseline. Do not redesign it.
 
-## Phase 3 — Compatibility and regression
+## Phase 3 — Implement real profile-specific composition
+Recommended order: nails, hair salon, jewelry, proposal planning, beauty institute/treatment professional, gifts/cosmetics and other.
+A profile must change composition and information hierarchy, not merely CSS decoration. Reuse existing data and action handlers. Never fabricate content or imagery.
 
-- Existing tenants with no `storefront_type` remain unclassified and use the current generic rendering.
-- Do not backfill inferred values.
-- Do not add a seller edit control or change seller save flows.
-- Preserve branding and all tenant data.
+## Phase 4 — Verification
+- Backend schema/API tests for every profile ID, missing/unknown fallback and legacy config.
+- Seller change-profile test proving unrelated config is preserved.
+- Public rendering tests for each profile.
+- Mixed product/service tests.
+- Default visual regression against existing storefront.
+- Booking, availability, WhatsApp, inquiry, CRM, waitlist and legal/accessibility regression checks.
+- RTL responsive review at 320, 360, 375, 390, 430 px, tablet and desktop.
+- Missing-image, one-item, many-item, long-name and empty-section checks.
+- Web lint/build and backend tests; inspect Preview screenshots where available.
 
-## Phase 4 — Automated validation
-
-- Run repository CI, lint, typecheck, build and relevant tests.
-- Review the exact diff for accidental changes to operational settings.
-- Fix all CI/test failures before asking for final acceptance.
-
-## Phase 5 — Final representative-business acceptance
-
-Only after implementation and automated validation are complete, test representative product and service businesses on mobile and desktop. Include:
-- product shop (jewelry/preparations/gifts);
-- service business (hair/nails/beauty);
-- service business with and without online booking;
-- mixed product + service catalog;
-- legacy unclassified tenant.
-
-Verify that all current features continue to work and that no data is hidden, reset or rewritten.
-
-## Release gate
-
-Update `SYSTEM_SPEC.md` with the verified implementation and test status. Keep the PR as draft until the user reviews it. Do not merge to `main`, run migrations or deploy without explicit user approval.
-
-## Explicitly out of scope
-
-- Additional subcategories/profession-specific taxonomy.
-- Seller editing of storefront type.
-- Food businesses.
-- AI classification or automatic backfill.
-- New SQL tables/columns/migrations.
-- Any change to booking, availability, waitlist, CRM, WhatsApp, order flow, catalog CRUD or payment behavior.
+## Release boundaries
+Keep work on the existing draft PR/branch. Do not merge to main, deploy to production, write production tenant data or run migrations without explicit approval. No migration unless verified schema constraints make it necessary and the user approves.
