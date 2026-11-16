@@ -3,15 +3,16 @@ import { ils } from '@/lib/format';
 import type { Product } from '@/lib/types';
 
 type BookingMode = 'none' | 'free_datetime' | 'availability';
+type Action =
+  | { type: 'catalog'; quantity: number; canOrder: boolean; calendarOnlyAvailable: boolean; bookingMode: BookingMode; onQuantityChange: (quantity: number) => void }
+  | { type: 'whatsapp'; href?: string };
 
 type Props = {
   product: Product;
   quoteLabel: string;
-  quantity: number;
-  canOrder: boolean;
-  calendarOnlyAvailable: boolean;
-  bookingMode: BookingMode;
-  onQuantityChange: (quantity: number) => void;
+  action: Action;
+  itemId?: string;
+  focusableTarget?: boolean;
 };
 
 function QuantityStepper({ quantity, onChange, label }: { quantity: number; onChange: (quantity: number) => void; label: string }) {
@@ -25,28 +26,23 @@ function QuantityStepper({ quantity, onChange, label }: { quantity: number; onCh
   );
 }
 
-/**
- * Presentation-only catalog item. Selection and order state remain owned by
- * OrderSection; this component receives the existing action as a callback.
- */
-export default function StorefrontCatalogItem({
-  product,
-  quoteLabel,
-  quantity,
-  canOrder,
-  calendarOnlyAvailable,
-  bookingMode,
-  onQuantityChange,
-}: Props) {
-  const canSelect = canOrder || (product.kind === 'service' && bookingMode === 'availability');
-  const serviceLabel = bookingMode === 'availability'
+/** Shared product/service presentation. Actions stay owned by the calling flow. */
+export default function StorefrontCatalogItem({ product, quoteLabel, action, itemId, focusableTarget = false }: Props) {
+  const catalogAction = action.type === 'catalog' ? action : null;
+  const canSelect = catalogAction && (catalogAction.canOrder || (product.kind === 'service' && catalogAction.bookingMode === 'availability'));
+  const serviceLabel = catalogAction?.bookingMode === 'availability'
     ? `שירות · תור ביומן ${product.appointment_duration_minutes} דק׳`
-    : bookingMode === 'free_datetime'
+    : catalogAction?.bookingMode === 'free_datetime'
       ? `שירות · מועד מבוקש ${product.appointment_duration_minutes} דק׳`
       : 'שירות';
 
   return (
-    <li data-has-image={Boolean(product.image || product.additional_images?.length) ? 'true' : 'false'} className="storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white">
+    <li
+      id={itemId}
+      tabIndex={focusableTarget ? -1 : undefined}
+      data-has-image={Boolean(product.image || product.additional_images?.length) ? 'true' : 'false'}
+      className={`storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white ${focusableTarget ? 'scroll-mt-24 target:ring-4 target:ring-primary/40' : ''}`}
+    >
       <StorefrontItemImage product={product} />
       <div className="flex min-w-0 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
@@ -57,14 +53,17 @@ export default function StorefrontCatalogItem({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot)}</span>
-          {canSelect && (quantity > 0 ? (
-            <QuantityStepper quantity={quantity} label={`כמות: ${product.name}`} onChange={onQuantityChange} />
+          {catalogAction && canSelect && (catalogAction.quantity > 0 ? (
+            <QuantityStepper quantity={catalogAction.quantity} label={`כמות: ${product.name}`} onChange={catalogAction.onQuantityChange} />
           ) : (
-            <button type="button" onClick={() => onQuantityChange(1)}
+            <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
               className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-              {calendarOnlyAvailable && product.kind === 'service' && bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
+              {catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
             </button>
           ))}
+          {action.type === 'whatsapp' && action.href && (
+            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">לפרטים ב-WhatsApp</a>
+          )}
         </div>
         {product.details?.length > 0 && (
           <details className="text-sm">
