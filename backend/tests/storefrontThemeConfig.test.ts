@@ -84,3 +84,16 @@ test('unsupported business title color is rejected', () => {
   });
   assert.ok(errors?.some((error) => error.includes('business_title_color')));
 });
+
+test('supported storefront types validate while legacy configs remain valid', () => {
+  for (const storefront_type of ['products', 'services'] as const) {
+    const errors = validateConfig({ ...baseConfig, storefront_type });
+    assert.equal(errors, null, errors?.join('; '));
+  }
+  assert.equal(validateConfig(baseConfig), null);
+});
+
+test('unsupported storefront type is rejected', () => {
+  const errors = validateConfig({ ...baseConfig, storefront_type: 'restaurant' });
+  assert.ok(errors?.some((error) => error.includes('storefront_type')));
+});
