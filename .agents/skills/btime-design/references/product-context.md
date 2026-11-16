@@ -1,67 +1,58 @@
-# BTime Product Context
+# BTime Product Context for Storefront Design
 
-## Product identity
-BTime is a Hebrew-first, multi-tenant SaaS platform focused primarily on service businesses, appointments, treatments, and professionals. It also supports product-oriented shops such as jewelry, gifts, accessories, and similar goods, as well as businesses that combine products and services. Food businesses are outside the scope of the current business-profile initiative.
+BTime is a Hebrew-first, multi-tenant platform for customer-facing business websites, product/service catalogs, inquiries and appointment management. It supports service professionals, appointment businesses, product shops and mixed businesses. Food businesses are outside the scope of the current business-profile initiative.
 
-Each business has a customer-facing public page and a seller management area. The public storefront should help customers understand the business and complete the relevant journey—especially discovering a service and booking an appointment where supported.
+## Business profile and operating capabilities
 
-## Business profile: category and operating model
-Keep two independent dimensions:
+A business profile describes the professional domain and selects the storefront design. It is not a products/services switch. A single tenant may offer both.
 
-1. **Business category**: the professional domain, selected explicitly by the seller during business setup and editable later. Initial category families should prioritize beauty/personal care, hair, treatment/wellness, appointment-based professionals, other professional services, jewelry/gifts/product shops, mixed businesses, and "other". This is a working taxonomy, not a final locked list.
-2. **Operating model**: what the business actually offers and how customers interact: appointment-based services, service inquiry/quote, product catalog, or a combination.
+Initial profiles:
+- default — existing general BTime storefront.
+- nails — nail studios.
+- hair_salon — hair salons and barbers.
+- beauty_institute — beauty institutes and cosmetology.
+- treatment_professional — appointment-based treatment professionals and other suitable practitioners.
+- proposal_planning — marriage proposals and related event experiences.
+- jewelry — jewelry and watch shops.
+- gifts_cosmetics — gifts, preparations, cosmetics and similar product retail.
+- other — safe neutral presentation.
 
-The category informs language, content hierarchy, relevant sections, and visual/art-direction recommendations. The operating model and actual tenant configuration determine which capabilities and actions can be shown. Never assume that every business in one category has identical booking rules or enabled features.
+Default is a permanent explicit choice. New tenants start with Default unless a specific profile is selected. Existing tenants without a profile remain on Default. Sellers can change the profile later and return to Default at any time.
 
-## Detection and onboarding
-- New businesses: ask the seller to select a category during setup; provide "other" and a short free-text description. Do not classify solely from the business name.
-- Existing businesses: derive a suggested profile from real configured data—products, services, booking modes, availability, and inquiry channels—and ask the seller to confirm it. Treat ambiguous or conflicting evidence as unknown/neutral, not as permission to change the tenant.
-- AI classification is optional future assistance only. It must propose, not silently apply, a category.
-- The seller can change the category later.
+The operating capabilities are determined only by actual tenant data and independent settings: product/service records, booking modes, availability, opening hours, WhatsApp, inquiry, order flow, CRM and waitlist. Never infer capabilities from the profile.
 
-## Adaptive storefront behavior
-Business category and operating model should influence site structure: section order, emphasis on services/products, portfolio/gallery, professional information, service details, and appointment actions. Only show sections and actions supported by real data and enabled tenant capabilities. Never add fake content or empty placeholders.
+## Seller control
 
-Seller visual preferences remain independent and editable: palette, theme, font, hero gallery layout, product layout, service layout, and title color. A category must not force one visual template or overwrite explicit visual choices.
+Sellers control business identity, description, products, services, images, prices, durations, contact information, and supported branding preferences such as palette and typography. The profile controls the presentation architecture; saved colors/fonts and other explicit preferences must not be overwritten when the profile changes.
 
-## Mandatory data preservation on category changes
-Changing the business category must not delete, convert, reset, or rewrite existing business details, products, services, images, descriptions, prices, booking modes, opening hours, availability, appointments, blocked times, waitlist entries, CRM leads, contact channels, legal text, domains, branding, or visual preferences.
+## Required design behavior
 
-Do not infer permission to change item types, booking modes, schedules, or appointment workflows. Save only the category/profile fields. If existing content is less relevant under the new category, retain it; any public visibility changes must be explicitly designed and reviewed separately.
+A profile must create a recognizable difference in composition and information hierarchy, not merely a color, border-radius or image-ratio change.
 
-## Primary customer experience
-Depending on actual tenant data and configuration, the public page can include:
-- Business identity and description.
-- Hero/gallery or professional portfolio imagery.
-- Services and/or products.
-- Prices, durations, or quote-based pricing.
-- Additional item details and descriptions.
-- Contact details, social links, location, and opening hours.
-- WhatsApp or site inquiry actions.
-- Appointment date/time selection and server-managed availability.
-- Waitlist entry where enabled.
-- Legal and accessibility information and the accessibility toolbar.
+- Nails: work portfolio and visual proof are central; configured treatments/services and booking options are easy to discover.
+- Hair salon: haircut/color/styling portfolio and service menu are central; appointment path is prominent when enabled.
+- Beauty institute: treatment families and real work imagery are prioritized; service details and appointment path follow the actual data.
+- Treatment professional: clear professional identity, concise explanation of services, trust through real business information, and direct booking/inquiry path.
+- Proposal planning: experience-led hero and real event gallery; packages and inquiry are prominent only when configured.
+- Jewelry: editorial product presentation and product details; configured services remain accessible.
+- Gifts/cosmetics: clear product discovery and catalog presentation; collections/categories only if supported by actual data.
+- Default and Other: preserve the general BTime design without assuming an industry.
 
-Render only meaningful content and supported actions.
+## Data and rendering rules
 
-## Seller experience
-Sellers configure business profile and customer-facing design separately. Existing design settings include palette, storefront theme, hero gallery layout, product layout, service layout, font style, and business title color. Preserve this separation and avoid overwriting unrelated configuration during saves.
+- Never invent testimonials, ratings, work examples, package names, prices, credentials or business details.
+- Do not render empty sections or actions without valid destinations.
+- Mixed businesses must show both product and service records.
+- Appointment actions appear only when the relevant service configuration supports the action.
+- A profile change updates only the profile field and preserves all unrelated tenant configuration.
+- Legacy businesses with no profile use Default; do not classify them from names or catalog records.
 
-## Product principles
-- Appointment/service journeys are the primary focus of the current initiative.
-- Product shops such as jewelry and gifts remain supported.
-- Mobile-first, polished customer experience.
-- Real business content over demo content.
-- Distinctive identity grounded in business category and actual assets.
-- Hebrew RTL quality and accessibility across all states.
-- Existing booking, inquiry, waitlist, catalog, and CRM behavior must remain intact.
+## Existing implementation landmarks
 
-## Architecture boundaries
-- Frontend: Next.js 15 and React 19 under `web/`.
-- Backend: Node/TypeScript under `backend/`.
-- PostgreSQL with separate tenant databases and a central registry.
-- Public storefront route: `web/app/biz/[slug]/page.tsx`.
-- Seller management UI: `web/components/manage/`.
-- Tenant-specific storefront styles are scoped under `.brand-root`.
-
-For a visual-only task, do not change backend contracts, database schema, tenant provisioning, migrations, or booking logic. Business-profile adaptation is a functional/product initiative and requires a separate architecture review before implementation.
+- Public storefront: web/app/biz/[slug]/page.tsx.
+- Catalog cards and customer selection: web/components/OrderSection.tsx.
+- Seller business settings: web/components/manage/BusinessPanel.tsx.
+- Seller visual preferences: web/components/manage/DesignPanel.tsx.
+- Public typography and styling: web/app/globals.css.
+- Public payload and types: backend/src/routes/public.ts and web/lib/types.ts.
+- Profile matrix and architecture: references/business-category-matrix.md and references/business-profile-architecture.md.
