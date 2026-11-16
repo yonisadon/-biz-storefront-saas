@@ -7,7 +7,8 @@ import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
+type StorefrontProfile = 'default' | 'nails' | 'hair_salon' | 'beauty_institute' | 'treatment_professional' | 'proposal_planning' | 'jewelry' | 'gifts_cosmetics' | 'other';
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout; storefrontProfile: StorefrontProfile };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
 type Step = 'choose' | 'site';
@@ -43,7 +44,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout, storefrontProfile }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -352,7 +353,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
+        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? (['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'].includes(storefrontProfile) ? 'השירותים שלנו' : 'מוצרים ושירותים') : 'יצירת קשר'}</h2>
       </div>
 
       {catalogTotal >= 5 && (
@@ -366,11 +367,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
       {items.length > 0 && (
         <div className="mt-5 space-y-8">
-          {(['product', 'service'] as const).map((kind) => {
+          {(['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'].includes(storefrontProfile) ? (['service', 'product'] as const) : (['product', 'service'] as const)).map((kind) => {
             const groupItems = items.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
             const layout = kind === 'product' ? productLayout : serviceLayout;
-            return <section key={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
+            return <section key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
               {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((p) => {

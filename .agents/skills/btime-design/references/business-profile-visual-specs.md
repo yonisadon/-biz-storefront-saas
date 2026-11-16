@@ -108,3 +108,21 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 ## Other
 
 Use Default unless the actual business content clearly supports a safe, separately documented presentation. Never infer a niche from a name alone.
+
+
+## First implementation refinement — nails and hair salon
+
+These two service-led profiles are the first acceptance targets. The public catalog must place configured services before products for these profiles, without hiding products or changing item records. The hero action should jump directly to the service group when services exist. In WhatsApp presentation mode, the same service-first ordering and section anchor apply.
+
+### Nails studio — composition details
+- Keep the identity compact and centered; the portfolio heading and real gallery form the visual proof immediately below it.
+- Use a closer, more tactile crop for the gallery (4:5 desktop, square mobile) while retaining the seller's selected slider/thumbnails behavior.
+- Make the configured service menu the first catalog group and visually distinguish its cards with a restrained brand-colored edge.
+- Any actual retail products remain visible after services as a secondary group.
+
+### Hair salon — composition details
+- Use an editorial split composition on desktop: business identity and description on one side, real portfolio image on the other; stack identity before imagery on mobile.
+- Use a wider 4:3 portfolio frame and quiet, structured service rows; avoid beauty-style decorative cards.
+- Place configured services before any product catalog, while retaining products as a separate group.
+
+Both profiles must continue to respect the seller's palette, font, hero-gallery control and independent product/service layout settings. If there are no gallery assets, the layout must naturally collapse to the identity block without an empty media placeholder.

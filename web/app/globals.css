@@ -921,3 +921,90 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 .brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-items-list[data-kind="product"] > li.storefront-card {
   border-radius: .85rem;
 }
+
+
+/* First focused profile compositions: nails studio and hair salon. */
+.brand-root[data-storefront-profile="nails"] .storefront-hero {
+  max-width: 42rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem 1rem .75rem;
+  text-align: center;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero h1 {
+  letter-spacing: -.035em;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-actions {
+  margin-top: 1rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap {
+  max-width: 56rem;
+  padding-inline: .25rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-portfolio-heading {
+  text-align: start;
+  letter-spacing: -.02em;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap > section > div:first-child {
+  aspect-ratio: 5 / 4;
+  border-radius: 1.25rem;
+}
+.brand-root[data-storefront-profile="nails"] #services-section,
+.brand-root[data-storefront-profile="nails"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  border-radius: 1rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] [data-profile-section="service"] {
+  scroll-margin-top: 6rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  border-inline-start: 3px solid var(--brand-primary);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: 1 / 1;
+}
+
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+  max-width: 34rem;
+  padding-block: clamp(1rem, 3vw, 2.5rem);
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero h1 {
+  max-width: 12ch;
+  text-wrap: balance;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-description {
+  max-width: 34rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-portfolio-heading {
+  margin-inline-start: .25rem;
+  font-size: .95rem;
+  letter-spacing: .04em;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-gallery-wrap > section > div:first-child {
+  aspect-ratio: 4 / 3;
+  border-radius: .75rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] #services-section,
+.brand-root[data-storefront-profile="hair_salon"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
+  border-radius: .75rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="hair_salon"] [data-profile-section="service"] {
+  scroll-margin-top: 6rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  border-radius: .75rem;
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap > section > div:first-child {
+    aspect-ratio: 1 / 1;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero h1 {
+    max-width: none;
+  }
+}

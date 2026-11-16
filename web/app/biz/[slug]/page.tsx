@@ -96,8 +96,11 @@ export default async function StorefrontPage({ params }: Props) {
   const whatsappItems = data.catalog?.items ?? [];
   const hasProducts = whatsappItems.some((item) => item.kind === 'product');
   const hasServices = whatsappItems.some((item) => item.kind === 'service');
+  const serviceLedProfiles = ['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'];
+  const serviceLedProfile = serviceLedProfiles.includes(data.storefront_profile ?? 'default');
+  const itemKinds = serviceLedProfile ? (['service', 'product'] as const) : (['product', 'service'] as const);
   const whatsappItemsHeading = hasProducts && hasServices
-    ? 'המוצרים והשירותים שלנו'
+    ? (serviceLedProfile ? 'השירותים והמוצרים שלנו' : 'המוצרים והשירותים שלנו')
     : hasProducts ? 'המוצרים שלנו' : 'השירותים שלנו';
   const waNumber = data.order_flow?.whatsapp_enabled && b?.whatsapp_number
     ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')
@@ -110,7 +113,8 @@ export default async function StorefrontPage({ params }: Props) {
   const hasCatalogServices = catalogItems.some((item) => item.kind === 'service');
   const primaryActionHref = serviceMode
     ? (whatsappItems.length > 0 ? '#services-section' : undefined)
-    : (catalogItems.length > 0 ? '#catalog-section' : hasContact ? '#contact-section' : undefined);
+    : (serviceLedProfile && hasCatalogServices ? '#services-subsection'
+      : catalogItems.length > 0 ? '#catalog-section' : hasContact ? '#contact-section' : undefined);
   const primaryActionLabel = serviceMode
     ? 'לצפייה בשירותים'
     : hasCatalogServices && hasCatalogProducts ? 'לצפייה במוצרים ובשירותים'
@@ -137,7 +141,10 @@ export default async function StorefrontPage({ params }: Props) {
           {hasBusinessInfo && <a href="#contact-section" className="storefront-hero-action inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border border-ink/15 bg-transparent px-3 py-2 text-center text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">פרטי העסק</a>}
         </div>
       </header>
-      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8"><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></div>}
+      {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8">
+        {(data.storefront_profile === 'nails' || data.storefront_profile === 'hair_salon') && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">{data.storefront_profile === 'nails' ? 'העבודות שלנו' : 'תיק העבודות'}</h2>}
+        <StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
+      </div>}
       </div>
       {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
         <div className="mb-5">
@@ -145,11 +152,11 @@ export default async function StorefrontPage({ params }: Props) {
           <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
         </div>
         <div className="space-y-8">
-          {(['product', 'service'] as const).map((kind) => {
+          {itemKinds.map((kind) => {
             const groupItems = whatsappItems.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
             const layout = kind === 'product' ? productLayout : serviceLayout;
-            return <div key={kind}>
+            return <div key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((item) => {
@@ -185,7 +192,7 @@ export default async function StorefrontPage({ params }: Props) {
           })}
         </div>
       </section>}
-      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
+      {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} storefrontProfile={data.storefront_profile ?? 'default'} /></section> : null}
       {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
           {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
