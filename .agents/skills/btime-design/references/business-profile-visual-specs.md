@@ -217,3 +217,20 @@ The nail studio profile is the first implementation target. It is not accepted u
 
 Only after nails passes should proposal planning and retail receive the same research → tokens → architecture → implementation → screenshot acceptance sequence.
 
+
+## Whole-site design, not isolated components
+
+A profile specification must describe and benchmark the complete storefront, from first screen to footer. It is insufficient to define only a gallery and service/product cards.
+
+For every profile, add:
+- at least three complete reference-site observations (URL and inspection date), including desktop and mobile when accessible;
+- a full-page section map and wireframe with relative proportions;
+- brand/header and hero composition, navigation, content width, whitespace, section rhythm, photography scale/cropping, catalog/service presentation, contact and footer;
+- a comparison against the current BTime Default and a real tenant baseline, with concrete gaps and decisions;
+- at least two materially different page-level directions before selecting one.
+
+The seller's saved palette, font, theme, product/service layout, gallery mode and selected hero image are active design constraints. Profile composition must adapt to these choices; it must not silently override them. A palette recommendation is only a default suggestion, not a forced profile palette. Verify that all existing palette presets can support the profile through semantic color tokens.
+
+Do not add generic copy or section headings just to label a component. Every heading must improve orientation or help a customer decide. Photography must retain enough visual prominence to serve its purpose; do not shrink portfolio/product images merely to fit a new card layout.
+
+Acceptance requires whole-page desktop/mobile screenshots and a visual review of the full page—not a code diff or isolated component screenshot.
