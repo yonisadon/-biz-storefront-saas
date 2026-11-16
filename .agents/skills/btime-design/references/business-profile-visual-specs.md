@@ -1,0 +1,110 @@
+# BTime Business Profile — Visual Design Specifications
+
+Status: design direction for implementation; visual acceptance still required.
+
+## Shared principles
+
+All profiles use the same tenant data, existing customer actions and shared accessibility/RTL foundations. Profile differences are expressed through page composition, hierarchy, section order, image treatment and component arrangement. Seller-selected palette and typography remain active. No profile may invent content or suppress a configured product, service or capability.
+
+Default is the existing general BTime storefront exactly as the baseline. It is always selectable.
+
+## Default — existing general storefront
+
+- Preserve current intro/hero, gallery, catalog/order section, contact information and legal footer.
+- Keep existing section order, card behavior, selection/cart and action flows.
+- No profile-specific decoration or content assumptions.
+- Switching to Default restores this structure without changing saved tenant settings.
+
+## Nails — studio portfolio
+
+**Concept:** a visual nail-art studio where the work is the strongest proof of quality, while service selection and booking remain immediately practical.
+
+**Page hierarchy:**
+1. Compact studio identity: business name, short description and a primary configured action.
+2. Work gallery/portfolio immediately after the intro, with image-led presentation and captions when provided.
+3. Nail services menu: service name, duration and price where configured; booking controls remain the existing BTime controls.
+4. Optional retail products in a distinct secondary section when the business actually has products.
+5. Business details/contact and legal footer.
+
+**Composition:** mobile-first image gallery with carefully cropped portrait/square work photos; services should be easy to scan without forcing a long catalog of tall cards. Use the seller's chosen palette as accents, not as a replacement for the imagery. Avoid generic beauty stock motifs and invented before/after results.
+
+## Hair salon — style portfolio
+
+**Concept:** a contemporary salon identity with strong visual evidence of hair work and a clear route to the right treatment.
+
+**Page hierarchy:**
+1. Salon identity and primary appointment/contact action.
+2. Portfolio/gallery emphasizing real haircut, color and styling work.
+3. Services grouped by the actual configured catalog; no invented categories.
+4. Optional products section when product records exist.
+5. Business details/contact and legal footer.
+
+**Composition:** editorial split/offset hero on desktop where assets permit; on mobile, title and action first, then gallery. Service cards should prioritize service name, description, duration and price without crowding. Maintain clear separation between product and service items in mixed businesses.
+
+## Beauty institute — treatment-led presentation
+
+**Concept:** organized treatment discovery, balancing visual results with clear explanations and practical booking.
+
+**Page hierarchy:**
+1. Institute identity and main action.
+2. Treatment portfolio/gallery if real images exist.
+3. Configured treatments/services with details and booking availability.
+4. Optional product catalog.
+5. Contact, address/hours and legal footer.
+
+**Composition:** calm structured sections, clear treatment names and optional details; avoid medical claims, credentials or results that are not provided by the business. If no gallery exists, do not leave an empty image area.
+
+## Treatment professional — personal professional service
+
+**Concept:** clarity and trust through the professional's real description, services and contact details rather than decorative retail design.
+
+**Page hierarchy:**
+1. Professional identity, description and primary configured action.
+2. Service/treatment explanation and practical booking path.
+3. Optional portfolio/gallery and products only when real data exists.
+4. Hours/location/contact and legal footer.
+
+**Composition:** typography-led, spacious but compact, readable service descriptions. No invented credentials, certifications, reviews or treatment promises.
+
+## Proposal planning — experience-led business
+
+**Concept:** sell the experience through real event imagery and configured packages, not a generic product grid.
+
+**Page hierarchy:**
+1. Large visual introduction with business name, actual about text and configured inquiry action.
+2. Event gallery/portfolio with captions where available.
+3. Configured packages/services with details and prices when provided.
+4. Optional related products only when configured.
+5. Contact details and legal footer.
+
+**Composition:** wide imagery and more deliberate storytelling rhythm; mobile uses a single-column flow with inquiry action visible early. Do not fabricate packages, testimonials, event locations or sample prices.
+
+## Jewelry and watches — editorial product shop
+
+**Concept:** let product photography, craftsmanship and details carry the experience.
+
+**Page hierarchy:**
+1. Brand identity with concise description and catalog entry point.
+2. Product catalog with product imagery and useful details.
+3. Gallery/brand imagery if the business has real portfolio assets.
+4. Configured services (such as repair or consultation) remain visible in a separate service grouping.
+5. Contact and legal footer.
+
+**Composition:** restrained editorial grid with consistent image ratios and no forced tall card text. Product details and prices are easy to scan. Preserve product selection, cart, WhatsApp and other existing actions.
+
+## Gifts and cosmetics — discovery-led retail
+
+**Concept:** approachable product discovery with clear product names, imagery, prices and details.
+
+**Page hierarchy:**
+1. Business identity and catalog action.
+2. Product catalog, with actual categories only if the data model supports them.
+3. Optional gallery/brand content.
+4. Configured services remain visible if the business offers them.
+5. Contact and legal footer.
+
+**Composition:** flexible product cards that handle mixed image availability and long names. Do not create fake collections or category chips.
+
+## Other
+
+Use Default unless the actual business content clearly supports a safe, separately documented presentation. Never infer a niche from a name alone.
