@@ -1171,3 +1171,14 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     order: 4;
   }
 }
+
+
+/* Collapse the optional portfolio row when a tenant has no gallery assets. */
+.brand-root[data-storefront-profile="jewelry"] #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+  grid-row: 2;
+}
+.brand-root[data-storefront-profile="jewelry"] #storefront-main:has(.storefront-gallery-wrap) #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #storefront-main:has(.storefront-gallery-wrap) #contact-section {
+  grid-row: 3;
+}
