@@ -1,58 +1,53 @@
-# BTime Storefront Type & Adaptation Matrix
+# BTime Business Profile & Storefront Design Matrix
 
-Status: approved first-release scope, 2026-11-16.
+Status: approved direction, 2026-11-16.
 
-## First-release storefront types
+## Core decision
+BTime does not classify a business as either products or services. A business may sell products, provide services, or do both. The selected business profile determines the customer-facing design and information architecture. It never limits capabilities.
 
-The first release deliberately uses only two platform-level storefront types:
+The Default / general BTime design is a permanent selectable option. It must preserve the existing general storefront and remain available after any profile is selected. Food businesses are out of scope.
 
-| ID | Hebrew label | Initial examples | Presentation emphasis |
+## Initial profiles
+
+| ID | Hebrew label | Examples | Design emphasis |
 |---|---|---|---|
-| `products` | חנות מוצרים | תכשיטים, תכשירים/קוסמטיקה, מתנות, אביזרים ומוצרים דומים | Product discovery, strong product imagery, product details, prices and catalog |
-| `services` | עסק שירותים | מספרות, ציפורניים, מכוני יופי, הצעות נישואין, בעלי מקצוע ושירותים נוספים | Service explanation, portfolio/work examples, duration/pricing when configured, contact and appointment options when enabled |
+| default | עיצוב בסיסי (ברירת מחדל) | Any business without a specialized profile | Existing general BTime storefront, unchanged |
+| nails | סטודיו לציפורניים | Manicure, gel polish, nail construction | Real work portfolio, nail-service menu, treatment details, prices/durations and appointment action when configured |
+| hair_salon | מספרה | Haircut, color, styling, barber | Salon identity, real hair-work imagery, service hierarchy and appointment action when configured |
+| beauty_institute | מכון יופי | Beauty treatments and cosmetology | Treatment-led presentation, real results/gallery where available, service details and booking/inquiry |
+| treatment_professional | מטפל/ת ובעל/ת מקצוע | Appointment-based professionals and treatments | Clear explanation of services, practitioner identity, practical appointment/contact path |
+| proposal_planning | הצעות נישואין והפקות | Marriage proposals and related experiences | Experience-led hero, real event gallery, packages/services and inquiry |
+| jewelry | תכשיטים ושעונים | Jewelry stores and watch shops | Editorial product discovery, product imagery and details; configured services remain visible |
+| gifts_cosmetics | מתנות וקוסמטיקה | Gifts, preparations, cosmetics and related products | Product discovery, collections only when supported by real data, imagery and details |
+| other | עסק אחר | Business not represented above | Safe general presentation; no invented industry assumptions |
 
-This is a deliberately broad first classification, not a complete profession taxonomy. Do not add food businesses in this initiative.
+The profile list is extensible. Add a profile only when it has a distinct information architecture and concrete design specification.
 
-## Type is not capability
+## Ownership and selection
+- The profile is selected during business setup.
+- The seller can change the profile later from business settings.
+- The seller can always choose default to return to the existing general design.
+- Missing or unrecognized values resolve to default; never infer a profile from the business name or item kinds.
+- A profile change is presentation-only.
 
-The selected type affects storefront presentation, content emphasis and suitable labels only. It does not restrict what a tenant can use.
+## Profile is not operating model
+The profile must not be conflated with product/service item kind, site_mode (catalog_order / services_whatsapp), booking mode, appointment duration, availability, opening hours, WhatsApp, site inquiry, CRM or waitlist settings.
 
-Every business retains all existing BTime capabilities and configuration options. A business may have both products and services regardless of its selected storefront type. Actual item records, booking modes, availability, opening hours, order flow, WhatsApp, inquiry, CRM and waitlist settings determine which actions are available.
+Mixed businesses are first-class: show both products and services from actual tenant data. A profile may change emphasis and ordering, but may not hide or disable an existing item kind or enabled customer journey.
 
-Never confuse `storefront_type` (`products` / `services`) with the existing operational `site_mode` (`catalog_order` / `services_whatsapp`). Do not infer one from the other or change either when the other changes.
+## Visual specification required before implementation
+For each profile, document the visual concept, hero and primary action, section order, product/service/mixed presentation, gallery treatment, typography and palette compatibility, mobile/desktop RTL composition, empty/missing/long-content states, reusable components and seller preferences that remain effective.
 
-## Provisioning and ownership
+A profile is not implemented if it only changes CSS colors, border radius or image aspect ratio. It must create a meaningful difference in composition and content hierarchy.
 
-- The platform administrator selects one of the two types in the existing Super Admin create-business form.
-- The selection is not editable by the seller in BusinessPanel or DesignPanel.
-- Store the value as top-level `storefront_type` in the existing business config JSONB and seed it through the current provisioning/config-copy path.
-- Do not add a separate registry column, table, seller control, or second onboarding flow.
-- Existing tenants without the field remain unclassified and use the generic/legacy presentation. Do not infer or backfill a type from business name, products, or `site_mode`.
-
-## Presentation contract
-
-- Product stores should emphasize product imagery, product names/details and price/catalog discovery.
-- Service businesses should emphasize service descriptions, professional/work imagery, durations/prices when configured, and the available contact or booking journey.
-- The type may influence section hierarchy, visual emphasis, labels and default presentation.
-- It must never hide existing content, disable a capability, or fabricate content/actions.
-- Every action must be backed by actual tenant data and enabled configuration.
-- Preserve explicit visual settings such as palette, font, theme, gallery layout and product/service layouts. The type must not overwrite those settings.
-- Keep the existing public storefront as fallback for unclassified legacy tenants.
-
-## Data preservation and regression boundaries
-
-No change to the following when a storefront type is selected or used:
-- products, services, item kinds, images, descriptions, details, prices or active states;
-- booking modes, durations, opening hours, availability, blocked times, appointments or waitlist;
-- order flow, site mode, WhatsApp, inquiry, CRM or lead history;
-- legal text, domains, contact details, gallery or existing design preferences.
-
-No SQL migration is required for the first implementation because the value is a property in the existing validated JSONB config.
+## Data and regression boundaries
+Changing profile must not modify products/services, item kinds, media, descriptions, prices, booking, availability, appointments, waitlist, site mode, order flow, WhatsApp, inquiry, CRM, legal text, domains, gallery assets or branding preferences. Only the profile field may change.
 
 ## Acceptance examples
-
-1. Product shop with jewelry and WhatsApp: product-led visual emphasis; existing WhatsApp flow remains exactly as configured.
-2. Service business with bookable nail services: service-led emphasis and appointment action only if the service booking configuration supports it.
-3. Service business without online booking: show services and configured contact/inquiry actions; do not invent booking.
-4. Mixed business: both product and service items remain visible and usable, with no forced conversion.
-5. Legacy tenant without a type: unchanged generic/legacy presentation.
+1. Nail studio: work imagery and configured nail services are prominent; booking appears only when supported by service configuration.
+2. Hair salon: salon-specific composition; configured products remain available alongside services.
+3. Jewelry shop: product-led composition; configured repair/consultation services remain visible.
+4. Proposal planner: experience-led layout; real gallery and configured packages only.
+5. Mixed business: both item kinds remain available and usable.
+6. Switch any specialized profile to Default: existing general BTime presentation returns; no data or branding is lost.
+7. Legacy tenant without a profile: unchanged general storefront.
