@@ -112,12 +112,13 @@ export default async function StorefrontPage({ params }: Props) {
   const hasCatalogProducts = catalogItems.some((item) => item.kind === 'product');
   const hasCatalogServices = catalogItems.some((item) => item.kind === 'service');
   const primaryActionHref = serviceMode
-    ? (whatsappItems.length > 0 ? '#services-section' : undefined)
+    ? (serviceLedProfile && hasServices ? '#services-subsection' : whatsappItems.length > 0 ? '#services-section' : undefined)
     : (serviceLedProfile && hasCatalogServices ? '#services-subsection'
       : catalogItems.length > 0 ? '#catalog-section' : hasContact ? '#contact-section' : undefined);
   const primaryActionLabel = serviceMode
     ? 'לצפייה בשירותים'
-    : hasCatalogServices && hasCatalogProducts ? 'לצפייה במוצרים ובשירותים'
+    : serviceLedProfile && hasCatalogServices ? 'לצפייה בשירותים ולקביעת תור'
+      : hasCatalogServices && hasCatalogProducts ? 'לצפייה במוצרים ובשירותים'
       : hasCatalogServices ? 'לצפייה בשירותים ולקביעת תור'
         : hasCatalogProducts ? 'לצפייה במוצרים'
           : 'יצירת קשר';

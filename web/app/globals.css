@@ -945,7 +945,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   letter-spacing: -.02em;
 }
 .brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap > section > div:first-child {
-  aspect-ratio: 5 / 4;
+  aspect-ratio: 4 / 5;
   border-radius: 1.25rem;
 }
 .brand-root[data-storefront-profile="nails"] #services-section,
@@ -1007,4 +1007,12 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   .brand-root[data-storefront-profile="hair_salon"] .storefront-hero h1 {
     max-width: none;
   }
+}
+
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro[data-has-gallery="false"] {
+  display: block;
+  max-width: 56rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro[data-has-gallery="false"] .storefront-hero {
+  margin-inline: auto;
 }

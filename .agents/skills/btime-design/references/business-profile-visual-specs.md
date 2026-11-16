@@ -116,7 +116,7 @@ These two service-led profiles are the first acceptance targets. The public cata
 
 ### Nails studio — composition details
 - Keep the identity compact and centered; the portfolio heading and real gallery form the visual proof immediately below it.
-- Use a closer, more tactile crop for the gallery (4:5 desktop, square mobile) while retaining the seller's selected slider/thumbnails behavior.
+- Use a closer, more tactile crop for the gallery (portrait 4:5 desktop, square mobile) while retaining the seller's selected slider/thumbnails behavior.
 - Make the configured service menu the first catalog group and visually distinguish its cards with a restrained brand-colored edge.
 - Any actual retail products remain visible after services as a secondary group.
 

@@ -353,7 +353,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   return (
     <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? (['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'].includes(storefrontProfile) ? 'השירותים שלנו' : 'מוצרים ושירותים') : 'יצירת קשר'}</h2>
+        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? (['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'].includes(storefrontProfile) ? (items.some((item) => item.kind === 'service') ? 'השירותים שלנו' : 'המוצרים שלנו') : 'מוצרים ושירותים') : 'יצירת קשר'}</h2>
       </div>
 
       {catalogTotal >= 5 && (
