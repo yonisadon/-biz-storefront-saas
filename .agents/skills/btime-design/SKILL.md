@@ -217,3 +217,57 @@ Before designing or implementing a profile:
 - Prefer direct inspection of the live business site when possible. A case study screenshot may be stale; note its date and verify the live site before implementation.
 - Save a concise research note and source links in the relevant profile reference. Revisit sources when a later design pass materially changes direction.
 
+ 
+
+## 2C. Whole-storefront design benchmark (mandatory; not just catalog styling)
+
+The design unit is the **entire public website**, not an isolated product/service card or gallery.
+
+Before proposing a profile design, study and document the complete customer-facing experience of at least three relevant reference sites:
+- first screen and header/brand identity;
+- hero composition, scale, whitespace and primary action;
+- navigation and section order;
+- page width, grid, alignment and visual rhythm;
+- image strategy across hero, gallery and catalog (size, aspect ratio, crop, density);
+- product/service presentation as one part of the page, not the whole design;
+- contact, footer, trust and supporting information;
+- mobile layout and transitions between desktop/mobile;
+- palette, typography, contrast, borders, radii, shadows and interaction states.
+
+For each reference, capture screenshots or detailed observations for the full page where possible. Record source URL, date inspected, observed facts, and transferable design lessons. Do not treat a template thumbnail or a single hero screenshot as sufficient research.
+
+Then compare the reference sites with the **current BTime Default storefront** and the real tenant being redesigned. Produce a gap analysis:
+1. What currently makes BTime look generic?
+2. Which page-level patterns from references solve a real customer task?
+3. Which patterns fit the actual tenant content and assets?
+4. What must remain because it is part of BTime's shared product behavior?
+5. What is a deliberate design decision versus a limitation of the current component system?
+
+The proposal must show a whole-page wireframe/section map for desktop and mobile, with relative proportions and image scale—not merely a list of CSS changes. It must include at least two materially different design directions and explain the chosen direction.
+
+### Seller controls are a design constraint, not an afterthought
+
+Design the profile as a flexible visual system that works with seller choices:
+- **Business profile** chooses industry-specific composition and information hierarchy.
+- **Palette** supplies the actual semantic colors. Profile styling must use the selected palette tokens and remain coherent across all six existing presets.
+- **Typography** uses the seller's selected supported font style; hierarchy and weights can be profile-specific, but do not silently replace the font.
+- **Storefront theme** (soft/flat/editorial/creative) continues to affect the presentation where supported; profile and theme must compose rather than one silently canceling the other.
+- **Product and service layouts** remain seller-controlled. A profile may recommend a layout but must not force a different saved selection. If a selected layout cannot work in a profile, document the conflict and propose a compatible implementation instead of ignoring the setting.
+- **Gallery mode and selected hero image** remain seller-controlled. Profile may define sizing and placement, not silently replace the selected image or mode.
+- Any new seller choice must be explicit, persisted safely, previewable and reversible. Do not create hidden per-profile overrides that make the DesignPanel misleading.
+
+Create a compatibility matrix for every profile against all existing palette, font, theme, product/service layout and gallery options. At minimum, visually test representative combinations that stress the system (light/dark-like palettes, rounded/elegant fonts, all themes, cards/list layouts, slider/thumbnails), and explain any intentional limitations.
+
+### Acceptance rule: full-page before/after
+
+A profile is not accepted because its cards look different or because a heading/color changed. Acceptance requires:
+- a visibly distinct and coherent full-page composition at desktop and mobile;
+- correct large/small image hierarchy and no accidental shrinking of important work/product photography;
+- readable section rhythm, spacing and content density;
+- clear customer journey and primary action;
+- all seller selections still visibly respected;
+- no generic explanatory copy or headings unless they help the customer complete a task;
+- side-by-side screenshots of BTime Default, current tenant baseline and proposed profile;
+- confirmation that the design remains coherent under seller-selected palettes and typography.
+
+If a change makes photography smaller, content harder to scan, or the page less coherent, reject it even if it adds a new component or looks more "designed".
