@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import NailPortfolioGallery from '@/components/NailPortfolioGallery';
-import StorefrontItemImage from '@/components/StorefrontItemImage';
+import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
@@ -162,34 +162,19 @@ export default async function StorefrontPage({ params }: Props) {
             return <div key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind}>
               {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
-          {groupItems.map((item) => {
-            const imageUrl = item.image?.url ?? item.additional_images?.[0]?.url ?? null;
-            return <li key={item.id} id={`item-${item.id}`} data-has-image={imageUrl ? 'true' : 'false'} tabIndex={-1} className="storefront-card scroll-mt-24 flex flex-col overflow-hidden target:ring-4 target:ring-primary/40">
-            <StorefrontItemImage product={item} />
-            <div className="flex min-w-0 flex-col gap-3 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{item.name}</h3>
-                {item.kind === 'service' && <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">שירות</span>}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <span className="storefront-card-price text-lg font-extrabold">{item.price_agorot === null ? (data.catalog?.quote_label ?? 'לפי הצעת מחיר') : ils(item.price_agorot)}</span>
-                {waNumber && <a href={itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id))} target="_blank" rel="noopener noreferrer" className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">לפרטים ב-WhatsApp</a>}
-              </div>
-              {item.details?.length > 0 && <details className="text-sm">
-                <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({item.details.length})</summary>
-                <dl className="mt-2">
-                  {item.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
-                    <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
-                  </div>)}
-                </dl>
-              </details>}
-              {item.description && <details className="text-sm">
-                <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{item.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
-                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{item.description}</p>
-              </details>}
-            </div>
-          </li>;
-          })}
+          {groupItems.map((item) => (
+            <StorefrontCatalogItem
+              key={item.id}
+              itemId={`item-${item.id}`}
+              focusableTarget
+              product={item}
+              quoteLabel={data.catalog?.quote_label ?? 'לפי הצעת מחיר'}
+              action={{
+                type: 'whatsapp',
+                href: waNumber ? itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id)) : undefined,
+              }}
+            />
+          ))}
               </ul>
             </div>;
           })}
