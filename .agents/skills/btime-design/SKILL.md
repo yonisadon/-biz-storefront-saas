@@ -39,20 +39,42 @@ If the brief does not provide enough information to choose a meaningful directio
 
 ## 2A. Business profile and adaptive storefront structure
 
-BTime is moving toward a business-aware storefront. Keep these two concepts separate:
+BTime uses a business-specific storefront profile, not a products-versus-services classification.
 
-- **Business category** describes the professional domain (initial focus: appointment-oriented services and professionals; product shops such as jewelry, gifts, and similar goods; mixed businesses; and a safe "other" option). Food businesses are out of scope for the current initiative.
-- **Operating model** describes what the tenant actually offers and how customers act: appointment-based services, service inquiries/quotes, product catalog, or a combination.
+### Profile selection
+- The seller selects a precise business profile during setup and may change it later.
+- The explicit Default / general BTime design is always available, including after a specialized profile has been selected.
+- Missing, unknown or legacy profile values resolve to the unchanged general storefront. Never infer a profile from the business name.
+- Initial profiles: default (existing general storefront), nails, hair_salon, beauty_institute, treatment_professional, proposal_planning, jewelry, gifts_cosmetics and other.
+- Food businesses are out of scope for this initiative. Keep the profile list extensible; add a profile only when it has a distinct audience, information architecture and concrete design specification.
 
-At onboarding, the seller explicitly selects the business category and may add a short description. Do not infer a new tenant's category from its name alone. For existing tenants, any suggested classification must be derived from actual configured services, products, booking modes, availability, and inquiry settings, then confirmed by the seller. If evidence is ambiguous, keep a neutral profile and ask; do not silently reclassify.
+### Profile is not capability
+A profile defines visual information architecture: section order, composition, emphasis, image treatment, relevant labels and placement of actions. It does not define whether the tenant can sell products, offer services, accept appointments, take inquiries or use WhatsApp.
 
-The category and operating model should inform information architecture, section order, content emphasis, and relevant customer actions—not merely accent colors. Always ground the resulting page in the tenant's actual data and enabled capabilities. Never render empty sections or actions without valid destinations.
+A single business may combine products and services. Render both from actual tenant records. Booking, availability, CRM, waitlist, WhatsApp, inquiry, order-flow and contact settings remain independent and authoritative.
 
-Seller-controlled visual design remains independent: palette, typography, visual theme, gallery style, and product/service layouts remain editable. A business category must not lock the seller into one visual template or overwrite explicit design choices.
+### Default design and seller control
+- The default profile must render the existing general BTime storefront, not a new approximation.
+- The seller can select Default at setup or later, and can switch back from any specialized profile.
+- The seller can change the profile later. Changing it changes presentation only.
+- Palette, font, title color and other supported seller branding preferences remain seller-controlled. A profile may define a recommended composition, but must not silently overwrite saved colors, fonts, gallery content or explicit design choices.
+- A profile-specific design must remain recognizable when the seller chooses a different palette.
 
-**Data preservation is mandatory:** changing the category must not delete, convert, reset, or rewrite existing business details, products, services, media, prices, booking modes, opening hours, availability, appointments, blocked times, waitlist entries, CRM leads, contact channels, legal content, domains, branding, or visual preferences. Do not infer permission to convert a product into a service or alter booking behavior. Save only the intended profile fields; avoid whole-config replacement that could overwrite unrelated settings. If content becomes less relevant to the new profile, retain it and make any visibility behavior an explicit, separately reviewed decision.
+### Design contract for each profile
+Before coding a profile, document its visual concept, hero composition and primary action, section hierarchy, product/service/mixed item presentation, gallery treatment, mobile and desktop RTL behavior, empty/missing-image/one-item states, and reusable versus profile-specific components.
 
-Before implementing adaptive behavior, write a category/operating-model matrix and inspect the actual onboarding, tenant provisioning, config schema, public rendering, and seller settings. Do not assume a database migration is or is not required until those paths are mapped.
+Examples:
+- Nails: prominent real work portfolio, nail-service menu, treatment details and appointment action when configured.
+- Hair salon: salon identity and real hair-work imagery; service and appointment hierarchy follows the actual configured offer.
+- Jewelry: editorial product imagery, product discovery and details; configured services must remain visible.
+- Proposal planning: experience-led storytelling and real event gallery, with packages and inquiry only when configured.
+
+These are design directions, not permission to fabricate content. If a section has no real data, omit it or use the existing truthful fallback.
+
+### Data preservation
+Changing profile must not delete, convert, reset or rewrite business details, products, services, media, prices, booking modes, opening hours, availability, appointments, blocked times, waitlist entries, CRM leads, contact channels, legal content, domains, branding or visual preferences. Save only the intended profile field. Avoid whole-config replacement that could overwrite unrelated settings.
+
+Before implementation, inspect onboarding, tenant provisioning, config schema, public rendering, seller settings and tests. Document the profile matrix and actual component-level design plan first.
 
 ## 3. Plan a distinctive visual direction before coding
 
