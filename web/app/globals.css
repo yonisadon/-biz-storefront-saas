@@ -1587,6 +1587,14 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   gap: clamp(2rem, 5vw, 5rem);
   margin: 0 0 clamp(4rem, 8vw, 7rem);
 }
+.brand-root .storefront-universal-hero[data-has-gallery="false"] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 58rem;
+  margin-inline: auto;
+}
+.brand-root .storefront-universal-hero[data-has-gallery="false"] .storefront-universal-hero-copy {
+  grid-column: 1;
+}
 .brand-root .storefront-universal-hero-media {
   min-width: 0;
   grid-column: 1;
