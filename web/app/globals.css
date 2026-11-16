@@ -1454,3 +1454,9 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     transition: none;
   }
 }
+
+/* Service cards without an uploaded image keep the full text width. */
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card[data-has-image="false"] > div:last-child {
+  width: 100%;
+  flex: 1 1 100%;
+}
