@@ -335,3 +335,15 @@ Before any profile redesign, create or update `references/storefront-rendering-a
 ### Reference-product analysis
 
 When a user supplies a competitor/product URL, analyze the specific experience that is actually accessible. Distinguish marketing pages, product screenshots, logged-in business dashboards and real customer booking flows. Do not claim to have inspected screens that require an account or are not accessible. Use screenshots supplied by the user or accessible public examples as evidence, and ask for a particular screen only if it materially blocks the analysis. Extract transferable interaction and composition patterns; do not copy branding, copy, assets or proprietary UI.
+
+
+## 2026-11-16 — Current product baseline: one universal storefront
+
+This accepted product decision supersedes the earlier business-profile/adaptive-profile implementation guidance in this skill and its profile reference documents:
+- Use one shared storefront composition for every business category. Do not build, select, or infer separate storefront designs for nails, hair, jewelry, treatment, gifts, or other sub-business categories.
+- The former Nails composition is the visual starting point for the universal baseline, but use the shared `StorefrontGallery` and actual seller gallery settings. The gallery remains the business portfolio; do not create a separate portfolio data concept.
+- The seller's business description remains exactly as entered. Seller-controlled content, images, selected hero image, gallery mode, palette, font, storefront theme, business-title color, and independent product/service layout selections remain intact.
+- Product and service layouts are independently selectable from exactly: `cards`, `list`, `carousel`, `luxury_catalog`. Do not expose `gallery` or `grid` as selectable options. Legacy saved `gallery` and `grid` values must render safely as `cards`; do not rewrite tenant data just to normalize old values.
+- The seller-defined closed-business banner remains a shared capability. Show it only when enabled and when a non-empty custom message exists; do not synthesize a generic message.
+- Opening status must appear once only. Preserve existing order, booking, availability, WhatsApp, CRM, accessibility, and contact behavior.
+- Keep legacy `storefront_profile` values for backwards compatibility, but they no longer drive rendering or seller choices. No DB migration is required for this visual/product change.
