@@ -7,7 +7,6 @@ import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
-type StorefrontProfile = 'default' | 'nails' | 'hair_salon' | 'beauty_institute' | 'treatment_professional' | 'proposal_planning' | 'jewelry' | 'gifts_cosmetics' | 'other';
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
 type Done = { route: 'site'; message: string } | { route: 'whatsapp'; url: string; message: string };
