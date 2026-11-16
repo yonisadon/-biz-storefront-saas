@@ -2193,3 +2193,10 @@
 - סוגי פריטים ומצבי הזמנה כבר קיימים בנתוני הקטלוג: `kind` הוא `product` או `service`, ו-`booking_mode` הוא `none`, `free_datetime` או `availability`. אלה אותות שימושיים להצעת סיווג לעסקים קיימים, אך אינם תחליף לבחירה מפורשת של המוכר.
 - ה-PublicPayload והמסלול הציבורי מרכיבים כיום את פרטי העסק, `site_mode`, `order_flow`, הקטלוג והגלריה. הוספת פרופיל עסק תשפיע על חוזה הנתונים הציבורי ועל בחירת מבנה האתר, ולכן אינה שינוי עיצובי בלבד.
 - מסקנה: יש לתכנן שדה/מודל תחום עסק נפרד מ-`site_mode`, למפות כיצד הוא נשמר ומסונכרן בין registry ל-tenant, ולהעבירו באופן מבוקר ל-ManageBusiness ול-PublicPayload. עדיין לא נבחרה סכמת DB/API ולא הוחלט אם נדרשת מיגרציה.
+
+
+### מסמכי אפיון משלימים (2026-11-16)
+- מטריצת תחומי העסק וההתאמות: `.agents/skills/btime-design/references/business-category-matrix.md`.
+- הצעת ארכיטקטורה לפרופיל העסק ומנגנון ההתאמה: `.agents/skills/btime-design/references/business-profile-architecture.md`.
+- תוכנית מימוש מדורגת, כולל תנאי יציאה ובדיקות: `.agents/skills/btime-design/references/business-profile-implementation-plan.md`.
+- המסמכים הם אפיון בלבד. קטגוריות, מיקום שמירה, API ומיגרציות אינם מאושרים למימוש עד השלמת בדיקת הזרימה המלאה ואישור מפורש.
