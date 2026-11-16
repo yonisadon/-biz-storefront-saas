@@ -1460,3 +1460,78 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   width: 100%;
   flex: 1 1 100%;
 }
+
+/* Nail portfolio gallery modes retain the seller's saved slider/thumbnail choice. */
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-view {
+  width: 100%;
+  overflow: hidden;
+  border-radius: .4rem;
+  background: color-mix(in srgb, var(--brand-secondary) 28%, var(--brand-background));
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main img {
+  transition: transform .55s cubic-bezier(.2,.7,.2,1);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main:hover img {
+  transform: scale(1.025);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-view--thumbnails .nail-portfolio-main {
+  aspect-ratio: 16 / 8;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumbnails {
+  display: flex;
+  gap: .55rem;
+  overflow-x: auto;
+  padding: .65rem;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumb {
+  position: relative;
+  width: 5.25rem;
+  height: 4rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: .2rem;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumb[aria-pressed="true"] {
+  border-color: var(--brand-primary);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-controls {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .5rem .85rem;
+  background: color-mix(in srgb, var(--brand-text) 88%, black);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-autoplay {
+  min-height: 2.5rem;
+  border: 1px solid rgb(255 255 255 / .45);
+  border-radius: 999px;
+  padding: .35rem .8rem;
+  color: white;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-dialog::backdrop {
+  background: rgb(0 0 0 / .88);
+}
+@media (max-width: 639px) {
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-main,
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-view--thumbnails .nail-portfolio-main {
+    aspect-ratio: 4 / 3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-main img {
+    transition: none;
+  }
+}
