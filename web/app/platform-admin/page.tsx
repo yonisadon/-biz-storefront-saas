@@ -27,7 +27,7 @@ export default function PlatformAdminPage() {
   const [phone, setPhone] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [storefrontType, setStorefrontType] = useState<'products' | 'services' | ''>('');
+  const [storefrontProfile, setStorefrontProfile] = useState('default');
   const [palette, setPalette] = useState<PaletteId>('natural');
   const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
   const [galleryLayout, setGalleryLayout] = useState<'slider' | 'thumbnails'>('slider');
@@ -63,7 +63,7 @@ export default function PlatformAdminPage() {
         body: JSON.stringify({
           name,
           slug,
-          storefront_type: storefrontType,
+          storefront_profile: storefrontProfile,
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
@@ -96,7 +96,7 @@ export default function PlatformAdminPage() {
       setPhone('');
       setWhatsappNumber('');
       setEmail('');
-      setStorefrontType('');
+      setStorefrontProfile('default');
       setPalette('natural');
       setStorefrontTheme('soft');
       setGalleryLayout('slider');
@@ -149,18 +149,21 @@ export default function PlatformAdminPage() {
             </div>
           </div>
 
-          <fieldset className="space-y-3 rounded-xl border border-slate-200 p-4">
-            <legend className="px-1 text-sm font-semibold">סוג האתר *</legend>
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
-              <input className="mt-1" type="radio" name="storefrontType" value="products" required checked={storefrontType === 'products'} onChange={() => setStorefrontType('products')} />
-              <span><strong className="block text-sm">חנות מוצרים</strong><span className="mt-1 block text-xs leading-5 text-slate-500">תכשיטים, תכשירים, מתנות, אביזרים ומוצרים נוספים.</span></span>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
-              <input className="mt-1" type="radio" name="storefrontType" value="services" required checked={storefrontType === 'services'} onChange={() => setStorefrontType('services')} />
-              <span><strong className="block text-sm">עסק שירותים</strong><span className="mt-1 block text-xs leading-5 text-slate-500">מספרות, ציפורניים, מכוני יופי, הצעות נישואין ובעלי מקצוע.</span></span>
-            </label>
-            <p className="text-xs leading-5 text-slate-500">הבחירה מתאימה את מבנה האתר והדגשים שלו. היא אינה מגבילה מוצרים, שירותים, תורים או אפשרויות אחרות במערכת.</p>
-          </fieldset>
+          <label className="block space-y-2 rounded-xl border border-slate-200 p-4">
+            <span className="block text-sm font-semibold">עיצוב האתר לפי תחום העסק</span>
+            <select className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm" value={storefrontProfile} onChange={(event) => setStorefrontProfile(event.target.value)}>
+              <option value="default">עיצוב בסיסי (ברירת מחדל)</option>
+              <option value="nails">סטודיו לציפורניים</option>
+              <option value="hair_salon">מספרה</option>
+              <option value="beauty_institute">מכון יופי</option>
+              <option value="treatment_professional">מטפל/ת ובעל/ת מקצוע</option>
+              <option value="proposal_planning">הצעות נישואין והפקות</option>
+              <option value="jewelry">תכשיטים ושעונים</option>
+              <option value="gifts_cosmetics">מתנות וקוסמטיקה</option>
+              <option value="other">עסק אחר</option>
+            </select>
+            <span className="block text-xs leading-5 text-slate-500">הבחירה מתאימה את מבנה האתר והצגת התוכן לתחום העסק. אפשר לבחור בעיצוב הבסיסי בכל עת. היא אינה מגבילה מוצרים, שירותים, תורים או יכולות אחרות.</span>
+          </label>
           <PalettePicker value={palette} onChange={setPalette} />
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
 
