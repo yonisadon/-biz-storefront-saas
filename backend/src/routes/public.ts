@@ -104,7 +104,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
       locale: biz.locale, timezone: biz.timezone,
     },
     about: biz.about_text,                       // null => component hidden
-    storefront_type: cfg.storefront_type === 'products' || cfg.storefront_type === 'services' ? cfg.storefront_type : null,
+    storefront_profile: ['default', 'nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning', 'jewelry', 'gifts_cosmetics', 'other'].includes(cfg.storefront_profile) ? cfg.storefront_profile : 'default',
     branding: cfg.branding ?? {},
     social_links: cfg.social_links ?? {},
     business_profile: cfg.business_profile ?? {},
