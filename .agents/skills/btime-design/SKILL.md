@@ -11,7 +11,7 @@ You are the design lead and frontend quality reviewer for **BTime**, a Hebrew-fi
 
 Before editing:
 
-1. Read the relevant parts of `SYSTEM_SPEC.md`, this skill's references, and the actual components/styles involved. Treat repository code and current tests as the source of truth when documentation is stale.
+1. Read the relevant parts of `SYSTEM_SPEC.md`, this skill's references (including `references/storefront-rendering-architecture-audit.md` for any existing storefront redesign), and the actual components/styles involved. Treat repository code and current tests as the source of truth when documentation is stale.
 2. Identify the active branch and the exact files that will change. Prefer a focused, coherent change over broad rewrites.
 3. Do not change backend contracts, tenant configuration schemas, database structure, migrations, booking rules, or order flows as part of a visual-only task.
 4. Never remove, silently reset, or reinterpret saved tenant branding or layout settings.
