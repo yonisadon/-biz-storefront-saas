@@ -308,3 +308,30 @@ A profile is not accepted because its cards look different or because a heading/
 - confirmation that the design remains coherent under seller-selected palettes and typography.
 
 If a change makes photography smaller, content harder to scan, or the page less coherent, reject it even if it adds a new component or looks more "designed".
+
+
+## 2D. Existing-system adaptation protocol (mandatory before redesigning an existing storefront)
+
+The existing implementation is a technical and behavioral constraint, not a visual template that must be preserved. Do not assume that a profile can become distinctive through CSS overrides alone.
+
+Before any profile redesign, create or update `references/storefront-rendering-architecture-audit.md` with evidence from the current branch:
+
+1. Trace the complete public page from route/data assembly through JSX composition, shared components, CSS selectors and seller settings. Record the actual files and responsibilities.
+2. Classify each concern as:
+   - **Business behavior** — booking, availability, cart/selection, WhatsApp, inquiry, CRM, contact and data rules. Preserve exactly.
+   - **Tenant configuration** — saved palette, font, theme, product/service layout, gallery mode and selected images. Preserve and render truthfully.
+   - **Presentation** — section composition, order, alignment, responsive behavior, visual primitives and image treatment. Freely redesign within the first two boundaries.
+3. Identify where presentation and behavior are coupled inside large components. Do not mistake a component's current markup for a required business contract.
+4. Decide whether the existing component is reusable as-is, needs a presentation slot/variant, should be split into behavior + presentation, or should be replaced by a profile-specific composition that calls the same behavior.
+5. Prefer a thin page/data orchestration layer plus profile-specific composition components and shared functional modules. Do not duplicate booking/cart/availability logic to get a new design.
+6. Do not build a parallel booking system or change API/data contracts. Keep existing action handlers and data snapshots as the source of truth.
+7. Map all seller settings to explicit rendering responsibilities. Never silently override a selected setting; if a setting is incompatible with a proposed composition, document the conflict and propose an honest UI-compatible solution.
+8. Only implement after the audit names the exact components to reuse, wrap, split or create, and identifies the smallest safe seam between behavior and presentation.
+
+### Required architectural principle
+
+**Preserve behavior; redesign presentation.** Existing JSX, DOM hierarchy and CSS are not sacred. A visual redesign may change the component tree and page information architecture when needed, provided the same validated data, handlers, actions, accessibility guarantees and seller settings remain intact.
+
+### Reference-product analysis
+
+When a user supplies a competitor/product URL, analyze the specific experience that is actually accessible. Distinguish marketing pages, product screenshots, logged-in business dashboards and real customer booking flows. Do not claim to have inspected screens that require an account or are not accessible. Use screenshots supplied by the user or accessible public examples as evidence, and ask for a particular screen only if it materially blocks the analysis. Extract transferable interaction and composition patterns; do not copy branding, copy, assets or proprietary UI.
