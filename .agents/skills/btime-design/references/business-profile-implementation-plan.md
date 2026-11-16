@@ -91,3 +91,13 @@ Before merge or production:
 - Deleting, hiding, or rewriting existing business content on category changes.
 - Replacing the current seller design system or forcing category-specific themes/palettes.
 - Creating a separate seller onboarding system.
+
+## Approved implementation scope update (2026-11-16)
+
+1. Add a required two-choice `storefront_type` selector to the existing Super Admin business-creation form: product shop (`products`) or service business (`services`).
+2. Validate and seed the value through the existing admin provisioning API into the existing config JSONB; the provisioner already copies config to the tenant database.
+3. Extend the business-config JSON schema and public payload/types to expose the value. No SQL migration or new registry column/table.
+4. Do not add the field to seller settings or design settings. Do not change seller save behavior.
+5. Use the value only for storefront presentation, content hierarchy and defaults. Preserve all existing features and operational settings. Keep `site_mode` independent.
+6. Existing tenants without a value remain generic/unclassified until an explicit platform-admin decision; no guessed backfill.
+7. After implementation, run CI/build/tests and then conduct the representative-business acceptance checks as the final stage. Do not merge or deploy without explicit approval.
