@@ -121,3 +121,20 @@ Date: 2026-11-16
 Validation status:
 - Vercel preview build for commit `00257c1ef0457fbbb0d48b2d3936b6852f43f948` is still in progress at the time of this note. The immediately preceding intermediate commit failed because it contained the import before the new component file was committed; the branch-head build includes both commits and is the authoritative check.
 - No browser screenshot review or end-to-end booking regression has been completed yet.
+
+
+## Implementation progress — shared item contract and profile composition
+
+Date: 2026-11-16
+
+- Extended `StorefrontCatalogItem` with an explicit action contract: `catalog` actions receive the existing selection callback and state; `whatsapp` actions receive the existing per-item WhatsApp URL. The component does not own either business flow.
+- Updated the WhatsApp-only page path to reuse the shared item presentation while retaining the same item-specific inquiry URL, text and destination.
+- Added `web/components/StorefrontPageComposition.tsx` with explicit identity, gallery, services, catalog, contact and footer slots.
+- The Default composition preserves the previous order: identity + gallery, services/catalog, contact, footer.
+- Nails now has its own composition order: portfolio gallery first, then business identity, then services/catalog, contact and footer. This is a genuine DOM/composition distinction, not just a CSS class toggle.
+- The route remains the data/behavior orchestrator and passes the already-validated tenant content into slots. No API, database, tenant data, booking, cart, availability, waitlist or CRM logic was changed.
+
+Validation:
+- Latest Vercel preview for commit `288314702830d1ba5a576875412a8bedaae2a0c2` compiled successfully and passed the TypeScript validity phase; final deployment state is being checked.
+- Earlier commits in this extraction sequence failed during intermediate states due to incomplete slot JSX and were corrected in subsequent commits. Do not treat those failed intermediate deployments as the current branch state.
+- Browser screenshots and end-to-end interaction regressions remain outstanding. This is a structural milestone, not visual acceptance.
