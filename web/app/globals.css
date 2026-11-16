@@ -1899,3 +1899,10 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     transition: none;
   }
 }
+
+.brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="list"] > li.storefront-card[data-has-image="false"] {
+  display: flex;
+  grid-template-columns: none;
+  width: 100%;
+  max-width: 42rem;
+}
