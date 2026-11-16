@@ -138,3 +138,14 @@ Validation:
 - Latest Vercel preview for commit `288314702830d1ba5a576875412a8bedaae2a0c2` compiled successfully and passed the TypeScript validity phase; final deployment state is being checked.
 - Earlier commits in this extraction sequence failed during intermediate states due to incomplete slot JSX and were corrected in subsequent commits. Do not treat those failed intermediate deployments as the current branch state.
 - Browser screenshots and end-to-end interaction regressions remain outstanding. This is a structural milestone, not visual acceptance.
+
+
+### Nails hero composition — implementation and preview validation
+
+- Added a dedicated `nails-profile-hero` composition: portfolio media and identity/actions occupy independent layout regions on desktop and stack on mobile.
+- The composition consumes the existing selected gallery component and selected hero image/layout. It does not replace or fabricate portfolio imagery.
+- The hero uses the existing brand CSS variables for colors and retains the selected font/theme attributes on the root.
+- Default continues through its original `storefront-intro` path and original content order.
+- Latest preview commit: `21848d4b33e9bf71c59cfb97d5adbe3768776edb`.
+- Vercel state: READY. Noy page fetch: HTTP 200; server-rendered HTML contains the new `nails-profile-hero` composition.
+- No visual screenshot review is available yet; HTML/HTTP validation is not a substitute for mobile/desktop visual acceptance.
