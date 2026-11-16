@@ -27,6 +27,7 @@ export default function PlatformAdminPage() {
   const [phone, setPhone] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [storefrontType, setStorefrontType] = useState<'products' | 'services' | ''>('');
   const [palette, setPalette] = useState<PaletteId>('natural');
   const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
   const [galleryLayout, setGalleryLayout] = useState<'slider' | 'thumbnails'>('slider');
@@ -62,6 +63,7 @@ export default function PlatformAdminPage() {
         body: JSON.stringify({
           name,
           slug,
+          storefront_type: storefrontType,
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
@@ -94,6 +96,7 @@ export default function PlatformAdminPage() {
       setPhone('');
       setWhatsappNumber('');
       setEmail('');
+      setStorefrontType('');
       setPalette('natural');
       setStorefrontTheme('soft');
       setGalleryLayout('slider');
@@ -146,6 +149,18 @@ export default function PlatformAdminPage() {
             </div>
           </div>
 
+          <fieldset className="space-y-3 rounded-xl border border-slate-200 p-4">
+            <legend className="px-1 text-sm font-semibold">סוג האתר *</legend>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
+              <input className="mt-1" type="radio" name="storefrontType" value="products" required checked={storefrontType === 'products'} onChange={() => setStorefrontType('products')} />
+              <span><strong className="block text-sm">חנות מוצרים</strong><span className="mt-1 block text-xs leading-5 text-slate-500">תכשיטים, תכשירים, מתנות, אביזרים ומוצרים נוספים.</span></span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
+              <input className="mt-1" type="radio" name="storefrontType" value="services" required checked={storefrontType === 'services'} onChange={() => setStorefrontType('services')} />
+              <span><strong className="block text-sm">עסק שירותים</strong><span className="mt-1 block text-xs leading-5 text-slate-500">מספרות, ציפורניים, מכוני יופי, הצעות נישואין ובעלי מקצוע.</span></span>
+            </label>
+            <p className="text-xs leading-5 text-slate-500">הבחירה מתאימה את מבנה האתר והדגשים שלו. היא אינה מגבילה מוצרים, שירותים, תורים או אפשרויות אחרות במערכת.</p>
+          </fieldset>
           <PalettePicker value={palette} onChange={setPalette} />
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
 
