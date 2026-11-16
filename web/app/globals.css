@@ -763,34 +763,30 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   }
 }
 
-/* Business-category presentation: the platform-level storefront type adds
-   visual emphasis without changing catalog capabilities or operational flows. */
-.brand-root[data-storefront-type="products"] .storefront-hero {
-  border: 1px solid color-mix(in srgb, var(--brand-primary) 12%, transparent);
-  border-radius: 1.5rem;
-  background: linear-gradient(180deg, #fff 0%, var(--brand-background) 100%);
+/* Business-profile presentation hooks. Default intentionally keeps the existing general storefront. */
+.brand-root[data-storefront-profile="nails"] .storefront-hero {
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  padding-bottom: clamp(1.5rem, 4vw, 3rem);
 }
-.brand-root[data-storefront-type="products"] .storefront-items-list[data-kind="product"] > li.storefront-card {
-  border-radius: 1rem;
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  border-radius: 1.4rem;
 }
-.brand-root[data-storefront-type="products"] .storefront-items-list[data-kind="product"] > li[data-has-image="true"] > :first-child {
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+  border-inline-start: 4px solid var(--brand-primary);
+  padding-inline-start: clamp(1rem, 3vw, 2rem);
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border-radius: .25rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li[data-has-image="true"] > :first-child {
   aspect-ratio: 4 / 5;
 }
-.brand-root[data-storefront-type="services"] .storefront-hero {
-  border-inline-start: 3px solid var(--brand-accent);
-  padding-inline-start: 1.25rem;
-  text-align: start;
-}
-.brand-root[data-storefront-type="services"] .storefront-hero > div[aria-hidden="true"] {
-  margin-inline-start: 0;
-}
-.brand-root[data-storefront-type="services"] .storefront-items-list[data-kind="service"] > li.storefront-card {
-  border-inline-start: 2px solid color-mix(in srgb, var(--brand-accent) 55%, transparent);
-}
-.brand-root[data-storefront-type="services"] .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
-  aspect-ratio: 16 / 10;
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-hero {
+  text-align: center;
+  border-radius: 1.5rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
 }
 @media (max-width: 639px) {
-  .brand-root[data-storefront-type="services"] .storefront-hero { text-align: center; }
-  .brand-root[data-storefront-type="services"] .storefront-hero > div[aria-hidden="true"] { margin-inline: auto; }
+  .brand-root[data-storefront-profile="proposal_planning"] .storefront-hero > div[aria-hidden="true"] { margin-inline: auto; }
 }
