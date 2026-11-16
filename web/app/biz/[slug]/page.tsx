@@ -92,8 +92,8 @@ export default async function StorefrontPage({ params }: Props) {
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
   const serviceMode = data.site_mode === 'services_whatsapp';
   // Legacy tenants may still have the retired grid setting saved; render them with safe classic cards.
-  const productLayout = data.branding?.product_layout === 'grid' ? 'cards' : data.branding?.product_layout ?? 'cards';
-  const serviceLayout = data.branding?.service_layout === 'grid' ? 'cards' : data.branding?.service_layout ?? 'cards';
+  const productLayout = ['grid', 'gallery'].includes(data.branding?.product_layout ?? '') ? 'cards' : data.branding?.product_layout ?? 'cards';
+  const serviceLayout = ['grid', 'gallery'].includes(data.branding?.service_layout ?? '') ? 'cards' : data.branding?.service_layout ?? 'cards';
   const whatsappItems = data.catalog?.items ?? [];
   const hasProducts = whatsappItems.some((item) => item.kind === 'product');
   const hasServices = whatsappItems.some((item) => item.kind === 'service');
@@ -211,8 +211,6 @@ export default async function StorefrontPage({ params }: Props) {
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     {oh?.show_out_of_hours_banner && typeof oh.banner_message === 'string' && oh.banner_message.trim() && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message.trim()}</div>}
     <StorefrontPageComposition
-      profile={data.storefront_profile ?? 'default'}
-      hasGallery={data.gallery.length > 0}
       identity={identitySlot}
       gallery={gallerySlot}
       services={servicesSlot}
