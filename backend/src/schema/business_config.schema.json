@@ -7,6 +7,10 @@
     "crm_enabled": {
       "type": "boolean"
     },
+    "storefront_type": {
+      "type": "string",
+      "enum": ["products", "services"]
+    },
     "site_mode": {
       "type": "string",
       "enum": [
