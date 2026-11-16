@@ -211,6 +211,7 @@ export default async function StorefrontPage({ params }: Props) {
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     {oh?.show_out_of_hours_banner && typeof oh.banner_message === 'string' && oh.banner_message.trim() && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message.trim()}</div>}
     <StorefrontPageComposition
+      hasGallery={data.gallery.length > 0}
       identity={identitySlot}
       gallery={gallerySlot}
       services={servicesSlot}
