@@ -64,7 +64,7 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 3. Optional portfolio/gallery and products only when real data exists.
 4. Hours/location/contact and legal footer.
 
-**Composition:** typography-led, spacious but compact, readable service descriptions. No invented credentials, certifications, reviews or treatment promises.
+**Composition:** typography-led, spacious but compact, readable service descriptions. On desktop, pair the professional identity with the configured service menu in a two-column opening; place any real portfolio/gallery after the service path. On mobile, stack identity, services and then gallery. No invented credentials, certifications, reviews or treatment promises.
 
 ## Proposal planning — experience-led business
 
@@ -90,7 +90,7 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 4. Configured services (such as repair or consultation) remain visible in a separate service grouping.
 5. Contact and legal footer.
 
-**Composition:** restrained editorial grid with consistent image ratios and no forced tall card text. Product details and prices are easy to scan. Preserve product selection, cart, WhatsApp and other existing actions.
+**Composition:** product-led editorial opening: identity beside the live product catalog on desktop, then any real gallery below the catalog; mobile stacks identity, catalog and gallery. Use consistent image ratios and no forced tall card text. Product details and prices are easy to scan. Preserve product selection, cart, WhatsApp and other existing actions.
 
 ## Gifts and cosmetics — discovery-led retail
 
@@ -103,7 +103,7 @@ Default is the existing general BTime storefront exactly as the baseline. It is 
 4. Configured services remain visible if the business offers them.
 5. Contact and legal footer.
 
-**Composition:** flexible product cards that handle mixed image availability and long names. Do not create fake collections or category chips.
+**Composition:** discovery-led sequence: concise identity, product catalog, optional real gallery, then contact. Keep product cards flexible for missing images and long names. Do not create fake collections or category chips.
 
 ## Other
 
@@ -126,3 +126,12 @@ These two service-led profiles are the first acceptance targets. The public cata
 - Place configured services before any product catalog, while retaining products as a separate group.
 
 Both profiles must continue to respect the seller's palette, font, hero-gallery control and independent product/service layout settings. If there are no gallery assets, the layout must naturally collapse to the identity block without an empty media placeholder.
+
+
+## Second implementation refinement — jewelry, treatment professional and gifts/cosmetics
+
+These profiles now use distinct page-level hierarchy rather than only card styling:
+- Jewelry: business identity and product catalog share the desktop opening; the optional real gallery follows the catalog. Mobile stacks identity, catalog, gallery and contact.
+- Treatment professional: professional identity and configured service menu share the desktop opening; optional real gallery follows the service path. Mobile stacks identity, services, gallery and contact.
+- Gifts/cosmetics: identity first, product discovery second, optional real gallery third, contact last.
+- All placements reuse the same tenant records and existing action handlers. Missing gallery/catalog sections naturally disappear; no placeholder content is introduced. Seller palette, font, gallery mode and item layout preferences remain unchanged.

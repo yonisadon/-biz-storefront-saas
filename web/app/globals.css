@@ -1016,3 +1016,158 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 .brand-root[data-storefront-profile="hair_salon"] .storefront-intro[data-has-gallery="false"] .storefront-hero {
   margin-inline: auto;
 }
+
+
+/* Second profile pass: category-specific page hierarchy, using the shared live catalog and gallery. */
+.brand-root[data-storefront-profile="jewelry"] #storefront-main,
+.brand-root[data-storefront-profile="treatment_professional"] #storefront-main {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: start;
+  column-gap: clamp(1rem, 3vw, 2.5rem);
+  row-gap: 1.5rem;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-intro,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  margin: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"],
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section,
+.brand-root[data-storefront-profile="jewelry"] #services-section,
+.brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+.brand-root[data-storefront-profile="treatment_professional"] #services-section {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin-top: 0;
+  padding: clamp(.75rem, 2vw, 1.5rem);
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="jewelry"] #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin-top: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section,
+.brand-root[data-storefront-profile="jewelry"] #services-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 24%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 16%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+.brand-root[data-storefront-profile="treatment_professional"] #services-section {
+  border-inline-start: 3px solid var(--brand-primary);
+  border-radius: .75rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 14%, transparent);
+  padding-top: 1.25rem;
+}
+
+.brand-root[data-storefront-profile="gifts_cosmetics"] #storefront-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-hero {
+  order: 1;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] #catalog-section,
+.brand-root[data-storefront-profile="gifts_cosmetics"] #services-section {
+  order: 2;
+  margin-top: 0;
+  border: 0;
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-gallery-wrap {
+  order: 3;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 14%, transparent);
+  padding-top: 1.25rem;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] #contact-section {
+  order: 4;
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="jewelry"] #storefront-main,
+  .brand-root[data-storefront-profile="treatment_professional"] #storefront-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-intro,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-intro {
+    display: contents;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+    order: 1;
+    width: 100%;
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"],
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+    justify-content: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] #catalog-section,
+  .brand-root[data-storefront-profile="jewelry"] #services-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #services-section {
+    order: 2;
+    width: 100%;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+    order: 3;
+  }
+  .brand-root[data-storefront-profile="jewelry"] #contact-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+    order: 4;
+  }
+}
