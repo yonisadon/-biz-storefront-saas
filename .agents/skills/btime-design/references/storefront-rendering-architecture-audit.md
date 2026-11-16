@@ -106,3 +106,18 @@ Not allowed without a separate decision:
 ## Decision
 
 The current Quiet Atelier CSS experiment is useful as a design probe, but it does not yet solve the architecture problem. Do not keep polishing it through additional CSS overrides. The next implementation should first establish the profile composition boundary and the shared item presentation contract, then rebuild the Nails page composition on that foundation. Keep this audit experimental; do not update `SYSTEM_SPEC.md` or the production design baseline.
+
+
+## Implementation progress — first safe extraction
+
+Date: 2026-11-16
+
+- Added `web/components/StorefrontCatalogItem.tsx` as a presentation-only component for the regular catalog path.
+- Updated `web/components/OrderSection.tsx` to delegate the catalog item's visual markup to that component.
+- `OrderSection` remains the owner of cart state, quantity updates, selected product snapshots, availability requests, booking, waitlist and submission. It passes the existing quantity-change callback into the new component.
+- The extracted component retains the existing item image/lightbox component, labels, price formatting, details, descriptions and selection controls.
+- This is the first seam for later profile-specific item presentation; no booking or API logic was moved.
+
+Validation status:
+- Vercel preview build for commit `00257c1ef0457fbbb0d48b2d3936b6852f43f948` is still in progress at the time of this note. The immediately preceding intermediate commit failed because it contained the import before the new component file was committed; the branch-head build includes both commits and is the authoritative check.
+- No browser screenshot review or end-to-end booking regression has been completed yet.
