@@ -1577,3 +1577,89 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 @media (prefers-reduced-motion: reduce) {
   .brand-root[data-storefront-profile="nails"] .nail-portfolio-main img { transition: none; }
 }
+
+
+/* Nails profile composition: portfolio-led editorial hero, independent from Default. */
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(17rem, .7fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-media {
+  min-width: 0;
+  grid-column: 1;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy {
+  min-width: 0;
+  grid-column: 2;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero {
+  max-width: none;
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 2.5rem) 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero h1 {
+  max-width: 9ch;
+  font-size: clamp(3rem, 5.1vw, 5.35rem);
+  font-weight: 600;
+  letter-spacing: -.065em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-description {
+  max-width: 29rem;
+  margin: 1.6rem 0 0;
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+  font-weight: 400;
+  line-height: 1.9;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  margin-top: 2.2rem;
+}
+.brand-root[data-storefront-profile="nails"] .nails-profile-hero-media .storefront-gallery-wrap {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 3.75rem;
+  }
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-media,
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy {
+    grid-column: 1;
+  }
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero {
+    padding: .75rem 0 .25rem;
+  }
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero h1 {
+    max-width: 12ch;
+    font-size: clamp(2.35rem, 10vw, 3rem);
+  }
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-description {
+    max-width: 34rem;
+    margin-top: 1rem;
+    font-size: 1rem;
+  }
+  .brand-root[data-storefront-profile="nails"] .nails-profile-hero-copy .storefront-hero-actions {
+    margin-top: 1.5rem;
+    gap: .7rem 1rem;
+  }
+}
