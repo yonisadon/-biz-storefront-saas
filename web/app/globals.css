@@ -772,7 +772,8 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   width: 100%;
   margin-inline: auto;
 }
-.brand-root[data-storefront-profile="nails"] #services-section {
+.brand-root[data-storefront-profile="nails"] #services-section,
+.brand-root[data-storefront-profile="nails"] #catalog-section {
   border-top: 3px solid var(--brand-primary);
 }
 .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
@@ -805,7 +806,8 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   min-width: 0;
   margin: 0;
 }
-.brand-root[data-storefront-profile="hair_salon"] #services-section {
+.brand-root[data-storefront-profile="hair_salon"] #services-section,
+.brand-root[data-storefront-profile="hair_salon"] #catalog-section {
   border-inline-start: 4px solid var(--brand-primary);
 }
 @media (max-width: 767px) {
