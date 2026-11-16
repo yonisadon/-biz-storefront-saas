@@ -379,11 +379,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               key={p.id}
               product={p}
               quoteLabel={quoteLabel}
-              quantity={cart[p.id] ?? 0}
-              canOrder={canOrder}
-              calendarOnlyAvailable={calendarOnlyAvailable}
-              bookingMode={modeOf(p)}
-              onQuantityChange={(quantity) => setQty(p, quantity)}
+              action={{
+                type: 'catalog',
+                quantity: cart[p.id] ?? 0,
+                canOrder,
+                calendarOnlyAvailable,
+                bookingMode: modeOf(p),
+                onQuantityChange: (quantity) => setQty(p, quantity),
+              }}
             />
           ))}
               </ul>
