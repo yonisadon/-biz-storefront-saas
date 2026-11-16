@@ -84,3 +84,16 @@ test('unsupported business title color is rejected', () => {
   });
   assert.ok(errors?.some((error) => error.includes('business_title_color')));
 });
+
+test('all supported business profiles validate and legacy configs remain valid', () => {
+  for (const storefront_profile of ["default", "nails", "hair_salon", "beauty_institute", "treatment_professional", "proposal_planning", "jewelry", "gifts_cosmetics", "other"] as const) {
+    const errors = validateConfig({ ...baseConfig, storefront_profile });
+    assert.equal(errors, null, errors?.join('; '));
+  }
+  assert.equal(validateConfig(baseConfig), null);
+});
+
+test('unsupported business profile is rejected', () => {
+  const errors = validateConfig({ ...baseConfig, storefront_profile: 'restaurant' });
+  assert.ok(errors?.some((error) => error.includes('storefront_profile')));
+});
