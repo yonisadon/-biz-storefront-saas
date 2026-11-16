@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
+import NailPortfolioGallery from '@/components/NailPortfolioGallery';
 import StorefrontItemImage from '@/components/StorefrontItemImage';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
@@ -143,8 +144,9 @@ export default async function StorefrontPage({ params }: Props) {
         </div>
       </header>
       {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8">
-        {(data.storefront_profile === 'nails' || data.storefront_profile === 'hair_salon') && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">{data.storefront_profile === 'nails' ? 'העבודות שלנו' : 'תיק העבודות'}</h2>}
-        <StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
+        {data.storefront_profile === 'nails'
+          ? <><h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">תיק עבודות</h2><NailPortfolioGallery images={data.gallery} /></>
+          : <><div className={data.storefront_profile === 'hair_salon' ? 'block' : 'hidden'}>{data.storefront_profile === 'hair_salon' && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">תיק העבודות</h2>}</div><StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></>}
       </div>}
       </div>
       {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
