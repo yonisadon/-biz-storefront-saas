@@ -190,3 +190,30 @@ When implementing, report:
 - Remaining risks or unverified states.
 
 Do not merge, deploy, or claim production success without explicit approval.
+## 2B. Evidence-led industry design workflow (mandatory)
+
+A business profile must be designed from research and real customer tasks, not from a label, a palette swap, or a small set of CSS variations.
+
+Before designing or implementing a profile:
+
+1. **Research at least 3 relevant live websites or credible, detailed case studies** for that exact business category. Prefer real operating businesses and documented design case studies over generic template galleries. Open the sources and inspect their actual information hierarchy, image use, navigation, typography, palette, service/product presentation, and mobile behavior where available.
+2. Record the source URL, business/category, what was observed, and what is worth learning. Separate observed facts from interpretation. Do not copy a site's identity, copy, assets, or distinctive proprietary treatment.
+3. Extract recurring customer tasks and decision questions. For nails: assess real work, understand service/price/duration, and book. For proposal planning: understand the experience, inspect real setups, compare actual packages, and inquire. For retail: discover products, inspect images/details/prices, and take the configured purchase/contact action.
+4. Produce a short visual benchmark: at least 2 distinct directions considered, strengths/weaknesses, and the selected direction with reasons. Avoid treating all sites in one industry as visually identical.
+5. Define a **design token proposal** before component styling: palette role mapping (primary, secondary, accent, background, text), typography hierarchy using supported fonts, spacing/radius/border/shadow principles, image aspect ratios/crop rules, and CTA treatment. Use the tenant's saved choices as authoritative; profile recommendations are defaults only.
+6. Define page architecture and a component map: hero, gallery/portfolio, services or products, details, contact and footer; specify order and composition at mobile and desktop widths. Identify which existing components can support the design and where a genuinely new composition is needed.
+7. Validate the concept against actual tenant content and images. No fabricated reviews, packages, labels, categories, photos, or descriptions. Missing sections collapse naturally.
+8. Only then implement. After implementation, compare screenshots side-by-side with the benchmark and the pre-implementation design plan. If the result only changes wording, colors, borders, or card radius, it has failed the profile objective.
+
+### Palette and typography discipline
+- Start from the existing supported palette presets in `web/lib/palettes.ts`: lavender, rose, natural, luxury, blue, minimal. Verify exact values in code before making claims about contrast or color roles.
+- Recommend a profile default palette, but never silently overwrite a seller's saved palette. If a new preset or palette selector behavior is needed, treat it as a separate product decision.
+- Define colors by semantic roles, not scattered hex values. Test text, controls, focus, selected states and image overlays for contrast.
+- Select a supported Hebrew font style intentionally. Explain why the hierarchy fits the industry; do not assume serif = luxury or rounded = beauty.
+- A profile must remain visually coherent with any seller-selected palette and supported font. If this cannot be achieved, revise component styling rather than forcing the preset.
+
+### Research integrity
+- Agency case studies and design galleries are useful evidence of design patterns, not proof that their claimed conversion results are causal or transferable to BTime.
+- Prefer direct inspection of the live business site when possible. A case study screenshot may be stale; note its date and verify the live site before implementation.
+- Save a concise research note and source links in the relevant profile reference. Revisit sources when a later design pass materially changes direction.
+
