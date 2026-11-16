@@ -1817,7 +1817,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 }
 
 /* Keep each saved layout distinct: cards, gallery, list, carousel and luxury catalog. */
-.brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="cards"] > li > :first-child > button:first-child { aspect-ratio: 5 / 3; }
+.brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="cards"] > li > :first-child > button:first-child { aspect-ratio: 16 / 9; }
 .brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="gallery"] > li > :first-child > button:first-child { aspect-ratio: 1 / 1; }
 .brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="luxury_catalog"] > li > :first-child > button:first-child { aspect-ratio: 4 / 5; }
 .brand-root[data-storefront-profile="nails"] .nails-profile-content .storefront-items-list[data-layout="list"] > li.storefront-card {
