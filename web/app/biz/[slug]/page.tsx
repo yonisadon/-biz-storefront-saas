@@ -197,11 +197,11 @@ export default async function StorefrontPage({ params }: Props) {
     <>
           {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">{data.storefront_profile === 'nails' ? 'יצירת קשר' : 'פרטי העסק'}</h2>
-              {data.storefront_profile !== 'nails' && oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
-              {data.storefront_profile !== 'nails' && oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /> סגור עכשיו</span>}
+              {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
+              {oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /> סגור עכשיו</span>}
             </div>
             <div className={oh?.days && hasContact ? 'grid gap-6 sm:grid-cols-2 sm:gap-8' : ''}>
-              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={oh.open_now} embedded={true} /></div>}
+              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={data.storefront_profile === 'nails' ? null : oh.open_now} embedded={true} /></div>}
               {publicAddress && <div className={hasContact ? 'mb-6 border-b border-ink/10 pb-5 sm:mb-0 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}>
                 <h3 className="mb-2 text-base font-bold">כתובת העסק</h3>
                 <p className="text-sm leading-6 text-ink/75">{publicAddress}</p>
