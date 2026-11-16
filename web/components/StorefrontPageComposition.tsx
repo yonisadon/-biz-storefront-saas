@@ -36,12 +36,10 @@ export default function StorefrontPageComposition({
       className={`mx-auto max-w-6xl px-3 pb-28 sm:px-6 sm:pb-10 ${isNails ? 'pt-2 sm:pt-4' : 'pt-3 sm:pt-6'}`}
     >
       {isNails ? (
-        <>
-          {gallery}
-          <div className="storefront-intro" data-has-gallery={hasGallery ? 'true' : 'false'}>
-            {identity}
-          </div>
-        </>
+        <section className="nails-profile-hero" aria-label="העסק ותיק העבודות">
+          <div className="nails-profile-hero-media">{gallery}</div>
+          <div className="nails-profile-hero-copy">{identity}</div>
+        </section>
       ) : (
         <div className="storefront-intro" data-has-gallery={hasGallery ? 'true' : 'false'}>
           {identity}
