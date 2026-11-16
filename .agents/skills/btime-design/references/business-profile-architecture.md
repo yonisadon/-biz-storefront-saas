@@ -1,64 +1,48 @@
-# BTime Storefront Type — Architecture
+# BTime Business Profile — Architecture
 
-Status: approved first-release architecture, 2026-11-16.
+Status: approved direction, 2026-11-16.
 
 ## Existing flow to reuse
+1. Platform admin creates a tenant in web/app/platform-admin/page.tsx.
+2. POST /api/admin/businesses is handled in backend/src/routes/admin.ts.
+3. Tenant config is validated by backend/src/schema/business_config.schema.json.
+4. Public business data is assembled in backend/src/routes/public.ts.
+5. The public storefront is rendered in web/app/biz/[slug]/page.tsx and shared components.
+6. Seller business settings are edited in web/components/manage/BusinessPanel.tsx; visual preferences are in DesignPanel.tsx.
 
-The current repository provisions tenants through the platform administrator:
-1. `web/app/platform-admin/page.tsx` collects business identity and base visual settings.
-2. It sends `POST /api/admin/businesses`.
-3. `backend/src/routes/admin.ts` validates the request, creates the central business, provisions the dedicated tenant DB, and initializes the tenant.
-4. The initial business config is copied from the registry business record into the tenant database.
-5. The seller later edits business details in `BusinessPanel.tsx` and seller-editable visual settings in `DesignPanel.tsx`.
+Extend these paths; do not create a parallel onboarding or storefront system.
 
-Use this exact provisioning path. Do not create a new onboarding flow.
+## Domain model
+Replace the broad products/services concept with one business profile:
+default, nails, hair_salon, beauty_institute, treatment_professional, proposal_planning, jewelry, gifts_cosmetics, other.
 
-## Approved domain model
+This field is presentation metadata only. It must not infer item kinds, booking behavior, order flow, CRM, WhatsApp or any other operating capability. Missing or unknown values resolve to default.
 
-The first release has exactly two broad storefront types:
-- `products`: product shops such as jewelry, preparations/cosmetics, gifts and accessories.
-- `services`: service businesses such as hair salons, nail studios, beauty institutes, proposal planning and other professional services.
+## Ownership
+- Initial profile can be selected during Super Admin provisioning; default is the initial value.
+- Seller can change the profile later in BusinessPanel.
+- Seller can always switch back to default.
+- Seller palette/font/branding settings remain independent and preserved.
 
-The type is a platform-level presentation choice. It is not a business capability or an item-kind restriction. All existing BTime features remain available according to their own settings and actual tenant data.
+## Persistence and compatibility
+Inspect all uses of the existing storefront_type field before changing it. Prefer one canonical profile field, but do not leave competing fields. Existing tenants with products/services values must use default until an explicit profile choice; never auto-classify them. Preserve old values during a compatibility period only if needed to avoid API breakage.
 
-## Ownership and persistence
+Seller updates must be partial and concurrency-safe: fetch latest config, update only the profile property, preserve unrelated fields, and validate allowed profile IDs server-side.
 
-- The platform administrator selects `storefront_type` in the existing Super Admin provisioning form.
-- Sellers cannot edit this value. Do not add it to BusinessPanel or DesignPanel.
-- Persist it as a top-level property in the existing business config JSONB.
-- The existing provisioning process already copies config to the tenant DB. No separate registry column, table, sync process or migration is needed.
-- Extend `backend/src/schema/business_config.schema.json` with an optional enum property. It is optional to preserve existing tenants.
-- The public API exposes the validated value as `storefront_type: 'products' | 'services' | null`.
-- Missing/invalid legacy values resolve to `null` and use the existing generic presentation. Do not guess or backfill.
-
-## Keep operational settings independent
-
-The existing `site_mode` is an operational setting (`catalog_order` / `services_whatsapp`). It is not the storefront type and must never be repurposed.
-
-Do not modify:
-- item kinds or the ability to have both products and services;
-- booking modes, appointment durations, availability, opening hours or blocked times;
-- appointments, waitlist, CRM leads or customer data;
-- WhatsApp, inquiry, order flow, quote settings or catalog behavior;
-- domains, legal text, seller contact information or design settings.
-
-The category influences only presentation: content emphasis, section hierarchy, labels and CSS/design hooks. It must not hide content or create actions unsupported by real data and enabled settings.
-
-## Existing design system
-
-The current palette, theme, font, gallery layout, product layout, service layout and title color remain independent controls in the existing design system. The storefront type can influence the presentation layer but must not overwrite those stored values. The seller's existing design panel and save behavior remain unchanged.
+No database migration is expected because config is JSONB, but verify central and tenant validation and provisioning copies before recording that conclusion.
 
 ## Public rendering
+Pass the normalized profile to the public storefront root as a stable data attribute or typed property. Keep the existing general storefront markup/styles as the default implementation. Add profile-specific composition in focused components/slots rather than piling on broad CSS selectors.
 
-The public backend reads tenant config from the tenant DB and adds the normalized `storefront_type` to the public payload. The Next.js storefront uses the value as a presentation hook, while all operational behavior continues to be driven by current catalog data and configuration.
+Profile components must consume the same product/service records and action handlers as the general storefront. Mixed businesses must remain fully supported. Profile-specific emphasis may reorder or style sections but may not suppress existing item kinds or enabled customer journeys.
 
-Start with composable visual/content emphasis rather than creating separate page templates for every profession. Keep the generic path for legacy tenants.
+## Design implementation sequence
+1. Map current page composition and identify shared sections/actions.
+2. Produce a visual spec for each profile, with Default as the baseline.
+3. Implement one profile at a time, beginning with nails and hair salon, then jewelry and proposal planning, followed by beauty/treatment and gifts/cosmetics.
+4. Build shared primitives where real patterns repeat; avoid one monolithic conditional page.
+5. Add responsive RTL and content-state tests.
+6. Verify switching profiles in both directions and preserving branding/settings.
 
-## Validation and tests
-
-- Super Admin request must accept only `products` or `services`.
-- New provisioning stores the selected value in the initial config copied into the tenant DB.
-- Config validation accepts the optional field and rejects unsupported values.
-- Public payload returns the two valid values or null.
-- Seller API and seller UI are not extended with this field.
-- Tests must confirm `site_mode`, branding, item kinds, booking rules and other config remain unchanged.
+## Non-goals
+No payment flow, no product/service conversion, no automatic profile inference, no food profile, and no database redesign unless verified evidence requires it.
