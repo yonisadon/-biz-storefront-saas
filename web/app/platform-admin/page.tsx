@@ -27,11 +27,10 @@ export default function PlatformAdminPage() {
   const [phone, setPhone] = useState('');
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [storefrontProfile, setStorefrontProfile] = useState('default');
   const [palette, setPalette] = useState<PaletteId>('natural');
   const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
   const [galleryLayout, setGalleryLayout] = useState<'slider' | 'thumbnails'>('slider');
-  const [productLayout, setProductLayout] = useState<'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'>('cards');
+  const [productLayout, setProductLayout] = useState<'cards' | 'list' | 'carousel' | 'luxury_catalog'>('cards');
   const [serviceLayout, setServiceLayout] = useState<'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -63,7 +62,6 @@ export default function PlatformAdminPage() {
         body: JSON.stringify({
           name,
           slug,
-          storefront_profile: storefrontProfile,
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(whatsappNumber.trim() ? { whatsapp_number: whatsappNumber.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
@@ -96,7 +94,6 @@ export default function PlatformAdminPage() {
       setPhone('');
       setWhatsappNumber('');
       setEmail('');
-      setStorefrontProfile('default');
       setPalette('natural');
       setStorefrontTheme('soft');
       setGalleryLayout('slider');
@@ -149,21 +146,6 @@ export default function PlatformAdminPage() {
             </div>
           </div>
 
-          <label className="block space-y-2 rounded-xl border border-slate-200 p-4">
-            <span className="block text-sm font-semibold">עיצוב האתר לפי תחום העסק</span>
-            <select className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm" value={storefrontProfile} onChange={(event) => setStorefrontProfile(event.target.value)}>
-              <option value="default">עיצוב בסיסי (ברירת מחדל)</option>
-              <option value="nails">סטודיו לציפורניים</option>
-              <option value="hair_salon">מספרה</option>
-              <option value="beauty_institute">מכון יופי</option>
-              <option value="treatment_professional">מטפל/ת ובעל/ת מקצוע</option>
-              <option value="proposal_planning">הצעות נישואין והפקות</option>
-              <option value="jewelry">תכשיטים ושעונים</option>
-              <option value="gifts_cosmetics">מתנות וקוסמטיקה</option>
-              <option value="other">עסק אחר</option>
-            </select>
-            <span className="block text-xs leading-5 text-slate-500">הבחירה מתאימה את מבנה האתר והצגת התוכן לתחום העסק. אפשר לבחור בעיצוב הבסיסי בכל עת. היא אינה מגבילה מוצרים, שירותים, תורים או יכולות אחרות.</span>
-          </label>
           <PalettePicker value={palette} onChange={setPalette} />
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
 
