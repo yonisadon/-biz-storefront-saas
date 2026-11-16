@@ -36,6 +36,24 @@ Use the actual business subject matter to guide visual decisions. A jewelry shop
 
 If the brief does not provide enough information to choose a meaningful direction, make a conservative proposal based on the business's actual content and state the assumption. Ask one concise question only when the missing information would materially change the design.
 
+
+## 2A. Business profile and adaptive storefront structure
+
+BTime is moving toward a business-aware storefront. Keep these two concepts separate:
+
+- **Business category** describes the professional domain (initial focus: appointment-oriented services and professionals; product shops such as jewelry, gifts, and similar goods; mixed businesses; and a safe "other" option). Food businesses are out of scope for the current initiative.
+- **Operating model** describes what the tenant actually offers and how customers act: appointment-based services, service inquiries/quotes, product catalog, or a combination.
+
+At onboarding, the seller explicitly selects the business category and may add a short description. Do not infer a new tenant's category from its name alone. For existing tenants, any suggested classification must be derived from actual configured services, products, booking modes, availability, and inquiry settings, then confirmed by the seller. If evidence is ambiguous, keep a neutral profile and ask; do not silently reclassify.
+
+The category and operating model should inform information architecture, section order, content emphasis, and relevant customer actions—not merely accent colors. Always ground the resulting page in the tenant's actual data and enabled capabilities. Never render empty sections or actions without valid destinations.
+
+Seller-controlled visual design remains independent: palette, typography, visual theme, gallery style, and product/service layouts remain editable. A business category must not lock the seller into one visual template or overwrite explicit design choices.
+
+**Data preservation is mandatory:** changing the category must not delete, convert, reset, or rewrite existing business details, products, services, media, prices, booking modes, opening hours, availability, appointments, blocked times, waitlist entries, CRM leads, contact channels, legal content, domains, branding, or visual preferences. Do not infer permission to convert a product into a service or alter booking behavior. Save only the intended profile fields; avoid whole-config replacement that could overwrite unrelated settings. If content becomes less relevant to the new profile, retain it and make any visibility behavior an explicit, separately reviewed decision.
+
+Before implementing adaptive behavior, write a category/operating-model matrix and inspect the actual onboarding, tenant provisioning, config schema, public rendering, and seller settings. Do not assume a database migration is or is not required until those paths are mapped.
+
 ## 3. Plan a distinctive visual direction before coding
 
 Before implementation, create a compact design plan:
