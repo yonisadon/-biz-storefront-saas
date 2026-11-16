@@ -17,6 +17,7 @@ const CreateBusiness = z.object({
   phone: z.string().trim().max(40).optional(),
   whatsapp_number: z.string().trim().max(40).optional(),
   email: z.string().trim().email().max(254).optional().or(z.literal('')),
+  storefront_type: z.enum(['products', 'services']),
   branding: z.object({ colors: z.object({
     primary: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i), secondary: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
     accent: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i), background: z.string().regex(/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i),
@@ -165,6 +166,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
             input.name,
             whatsappNumber,
             JSON.stringify({
+              storefront_type: input.storefront_type,
               ...(input.branding ? { branding: input.branding } : {}),
               opening_hours: {
                 days: { sun: [], mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] },
