@@ -142,3 +142,13 @@ Whether this requires a tenant migration, registry migration, both, or neither d
 - Whether the category profile is included in public payload immediately or only consumed server-side for layout resolution.
 - Feature-flag / rollout mechanism and fallback behavior.
 - Whether any category-specific content labels require translation/localization beyond Hebrew.
+
+## Approved first-release architecture decision (2026-11-16)
+
+- Replace the earlier detailed category taxonomy for the first release with the two top-level values `storefront_type: 'products' | 'services'`.
+- Selection is required in the existing Super Admin create-business form only. There is no seller editing control and no separate onboarding flow.
+- Persist it as a top-level property in the existing tenant business `config` JSONB. The current provisioning path already seeds registry config and copies that config into the tenant DB; do not add a dedicated registry column, table, or independent synchronization mechanism.
+- The public API exposes the tenant value as `storefront_type`; the storefront uses it for presentation and content emphasis only.
+- The existing `site_mode` remains a separate operational control and is not reused or changed. Product/service item kinds, booking modes, booking availability, order flow, CRM, WhatsApp, waitlist and appointments remain independently available.
+- The schema property is optional to preserve existing tenants. Missing values resolve to a neutral legacy/generic presentation; no automatic classification or destructive backfill.
+- No migration is required because this is a property in the existing validated JSONB config. Update the JSON schema, provisioning validation, public payload types and UI. Keep the seller's existing partial-config save paths untouched.
