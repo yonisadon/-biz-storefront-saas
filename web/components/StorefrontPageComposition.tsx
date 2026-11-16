@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 type Props = {
   profile: string;
+  hasGallery: boolean;
   identity: ReactNode;
   gallery: ReactNode;
   services: ReactNode;
@@ -17,6 +18,7 @@ type Props = {
  */
 export default function StorefrontPageComposition({
   profile,
+  hasGallery,
   identity,
   gallery,
   services,
@@ -36,12 +38,12 @@ export default function StorefrontPageComposition({
       {isNails ? (
         <>
           {gallery}
-          <div className="storefront-intro" data-has-gallery="true">
+          <div className="storefront-intro" data-has-gallery={hasGallery ? 'true' : 'false'}>
             {identity}
           </div>
         </>
       ) : (
-        <div className="storefront-intro">
+        <div className="storefront-intro" data-has-gallery={hasGallery ? 'true' : 'false'}>
           {identity}
           {gallery}
         </div>
