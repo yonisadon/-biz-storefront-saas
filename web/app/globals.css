@@ -1286,85 +1286,294 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 
 
 
-/* Nails studio — whole-page editorial composition; seller branding and layout remain authoritative. */
-.brand-root[data-storefront-profile="nails"] #storefront-main { max-width:78rem; padding-top:clamp(1.25rem,3vw,2.75rem); }
-.brand-root[data-storefront-profile="nails"] .storefront-intro {
- display:grid; grid-template-columns:minmax(17rem,.78fr) minmax(0,1.22fr); align-items:center;
- gap:clamp(2rem,5vw,5rem); margin-bottom:clamp(3rem,6vw,5.5rem);
+/* Nails studio — Quiet Atelier art direction. Neutral editorial surfaces; seller choices remain active. */
+.brand-root[data-storefront-profile="nails"] {
+  --atelier-paper: color-mix(in srgb, var(--brand-background) 94%, #ffffff);
+  --atelier-surface: #ffffff;
+  --atelier-muted: color-mix(in srgb, var(--brand-text) 5%, var(--brand-background));
+  --atelier-line: color-mix(in srgb, var(--brand-text) 17%, transparent);
+  background: var(--atelier-paper) !important;
 }
-.brand-root[data-storefront-profile="nails"] .storefront-hero { max-width:none; margin:0; padding:1.5rem 0; text-align:start; }
-.brand-root[data-storefront-profile="nails"] .storefront-hero > div[aria-hidden="true"] { width:3.25rem; height:3px; margin:0 0 1.75rem; border-radius:0; opacity:.9; }
-.brand-root[data-storefront-profile="nails"] .storefront-hero h1 { max-width:11ch; font-size:clamp(2.35rem,4.2vw,4.35rem); font-weight:700; letter-spacing:-.045em; line-height:1.06; text-wrap:balance; }
-.brand-root[data-storefront-profile="nails"] .storefront-description { max-width:34rem; margin-inline:0; margin-top:1.35rem; font-size:clamp(1rem,1.3vw,1.12rem); line-height:1.9; font-weight:400; }
-.brand-root[data-storefront-profile="nails"] .storefront-hero-actions { display:flex; justify-content:flex-start; margin-top:2rem; gap:.75rem; }
-.brand-root[data-storefront-profile="nails"] .storefront-hero-action { min-height:3rem; padding-inline:1.35rem; border-radius:999px; }
-.brand-root[data-storefront-profile="nails"] .storefront-hero-action:first-child { border-color:var(--brand-primary); background:var(--brand-primary); color:var(--brand-primary-fg,white); }
-.brand-root[data-storefront-profile="nails"] .storefront-hero-action:first-child:hover { filter:brightness(.96); background:var(--brand-primary); }
-.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap { width:100%; min-width:0; margin:0; padding:0; }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-view { overflow:hidden; border-radius:1.25rem; background:color-mix(in srgb,var(--brand-secondary) 42%,var(--brand-background)); box-shadow:0 18px 48px color-mix(in srgb,var(--brand-text) 12%,transparent); }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-main { position:relative; display:block; width:100%; height:clamp(22rem,42vw,34rem); aspect-ratio:auto; overflow:hidden; background:color-mix(in srgb,var(--brand-secondary) 40%,var(--brand-background)); }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-main img { object-fit:contain; transition:transform .5s ease; }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-main:hover img { transform:scale(1.015); }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumbnails { gap:.65rem; padding:.85rem; background:var(--brand-background); }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumb { width:4.75rem; height:4.25rem; border-radius:.35rem; }
-.brand-root[data-storefront-profile="nails"] .nail-portfolio-controls { min-height:3.5rem; padding:.65rem 1rem; background:color-mix(in srgb,var(--brand-text) 92%,black); }
+.brand-root[data-storefront-profile="nails"] #storefront-main {
+  width: min(100% - 2rem, 82rem);
+  max-width: 82rem;
+  padding: clamp(1.5rem, 4vw, 3.75rem) 0 4rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(17rem, .72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5.5rem);
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero {
+  max-width: none;
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 2.5rem) 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero > div[aria-hidden="true"] {
+  width: 2.25rem;
+  height: 2px;
+  margin: 0 0 2rem;
+  border-radius: 0;
+  opacity: .75;
+}
+.brand-root[data-storefront-profile="nails"][data-business-title-color="brand"] .business-title {
+  color: color-mix(in srgb, var(--brand-primary) 42%, var(--brand-text));
+}
+.brand-root[data-storefront-profile="nails"][data-business-title-color="black"] .business-title {
+  color: #111111;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero h1 {
+  max-width: 9ch;
+  font-size: clamp(3rem, 5.1vw, 5.35rem);
+  font-weight: 600;
+  letter-spacing: -.065em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-description {
+  max-width: 29rem;
+  margin: 1.6rem 0 0;
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+  font-weight: 400;
+  line-height: 1.9;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  margin-top: 2.2rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-action {
+  min-height: 3.1rem;
+  padding: .8rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: .35rem;
+  color: var(--brand-text);
+  font-size: .92rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-action:first-child {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
+  color: var(--brand-primary-fg);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-action:first-child:hover {
+  background: var(--brand-primary);
+  filter: brightness(.94);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-hero-action:last-child:not(:first-child) {
+  padding-inline: .1rem;
+  border-bottom-color: var(--atelier-line);
+  border-radius: 0;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-view {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--atelier-muted);
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: clamp(27rem, 48vw, 40rem);
+  overflow: hidden;
+  background: var(--atelier-muted);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main img {
+  object-fit: contain;
+  transition: opacity .35s ease;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-main:hover img { opacity: .96; }
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumbnails {
+  gap: .5rem;
+  padding: .75rem 0 0;
+  background: transparent;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-thumb {
+  width: 4.25rem;
+  height: 4.25rem;
+  border: 1px solid var(--atelier-line);
+  border-radius: 0;
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-controls {
+  min-height: 3.25rem;
+  padding: .7rem .25rem 0;
+  background: transparent;
+  color: var(--brand-text);
+}
+.brand-root[data-storefront-profile="nails"] .nail-portfolio-autoplay { color: var(--brand-text); opacity: .72; }
 .brand-root[data-storefront-profile="nails"] #catalog-section,
 .brand-root[data-storefront-profile="nails"] #services-section {
- max-width:none; margin:0 0 clamp(3rem,6vw,5rem); padding:clamp(1.25rem,3vw,2.5rem) 0;
- border:0; border-top:1px solid color-mix(in srgb,var(--brand-text) 22%,transparent);
- border-radius:0; background:transparent; box-shadow:none;
+  max-width: none;
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+  padding: clamp(1.5rem, 3vw, 2.5rem) 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--atelier-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .brand-root[data-storefront-profile="nails"] #catalog-section h2,
-.brand-root[data-storefront-profile="nails"] #services-section h2 { margin-bottom:1.5rem; font-size:clamp(1.8rem,3.1vw,2.7rem); font-weight:700; letter-spacing:-.035em; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] { gap:1.25rem; }
-/* Respect the seller's selected layout instead of shrinking every service image to a thumbnail. */
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
- display:flex; flex-direction:column; align-items:stretch; min-width:0; overflow:hidden;
- border:1px solid color-mix(in srgb,var(--brand-text) 13%,transparent); border-radius:1rem;
- background:var(--brand-background); box-shadow:none;
+.brand-root[data-storefront-profile="nails"] #services-section h2 {
+  margin: 0 0 2rem;
+  color: var(--brand-text);
+  font-size: clamp(2rem, 3.4vw, 3.1rem);
+  font-weight: 600;
+  letter-spacing: -.045em;
+  line-height: 1.15;
 }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child { flex:initial; width:100%; min-height:0; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > div:last-child { min-width:0; flex:1 1 auto; gap:.85rem; padding:1.1rem; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li[data-has-image="false"] > div:last-child { width:100%; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] { grid-template-columns:minmax(0,1fr); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { display:grid; grid-template-columns:minmax(10rem,36%) minmax(0,1fr); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li[data-has-image="false"] { display:flex; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] { display:flex; overflow-x:auto; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex:0 0 min(82%,24rem); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="luxury_catalog"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] h3 { font-size:1.12rem; line-height:1.45; }
-.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] .storefront-card-price { font-size:1.2rem; }
-.brand-root[data-storefront-profile="nails"] #contact-section { margin-top:0; border:0; border-top:1px solid color-mix(in srgb,var(--brand-text) 22%,transparent); border-radius:0; background:transparent; box-shadow:none; }
-.brand-root[data-storefront-profile="nails"][data-storefront-theme="flat"] .nail-portfolio-view,
-.brand-root[data-storefront-profile="nails"][data-storefront-theme="flat"] .storefront-card { border-radius:0; box-shadow:none; }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] {
+  gap: clamp(1.25rem, 2.2vw, 2rem);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--atelier-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child {
+  flex: initial;
+  width: 100%;
+  min-height: 0;
+  background: var(--atelier-muted);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child > button {
+  aspect-ratio: 5 / 4;
+  border-radius: 0;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li.storefront-card > div:last-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: .8rem;
+  padding: 1.1rem .1rem 1.35rem;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] > li[data-has-image="false"] > div:last-child {
+  width: 100%;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] h3 {
+  color: var(--brand-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] .storefront-card-price {
+  color: var(--brand-text);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] span.shrink-0.rounded-full {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--brand-text) 65%, transparent);
+  font-size: .76rem;
+  font-weight: 500;
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] .storefront-card-action {
+  min-height: 2.8rem;
+  padding: .7rem 1rem;
+  border: 1px solid var(--brand-primary);
+  border-radius: .3rem;
+  background: var(--brand-primary);
+  color: var(--brand-primary-fg);
+}
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"] details summary {
+  color: color-mix(in srgb, var(--brand-primary) 72%, var(--brand-text));
+}
+.brand-root[data-storefront-profile="nails"] #contact-section {
+  margin: 0;
+  padding: 1.5rem 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--atelier-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.brand-root[data-storefront-profile="nails"] #contact-section h2 {
+  color: var(--brand-text);
+  font-size: 1.65rem;
+  font-weight: 600;
+}
+.brand-root[data-storefront-profile="nails"] #contact-section h3 { color: var(--brand-text); font-weight: 600; }
+
+/* Seller-selected service layouts remain independent and intact. */
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] { grid-template-columns: minmax(0, 1fr); }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { display: grid; grid-template-columns: minmax(10rem, 34%) minmax(0, 1fr); column-gap: 1.25rem; align-items: start; }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li[data-has-image="false"] { display: flex; }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex: 0 0 min(82%, 25rem); scroll-snap-align: start; }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="luxury_catalog"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="luxury_catalog"] > li.storefront-card { border-bottom: 0; }
+.brand-root[data-storefront-profile="nails"][data-storefront-theme="soft"] .nail-portfolio-view { border-radius: .75rem; }
+.brand-root[data-storefront-profile="nails"][data-storefront-theme="creative"] .nail-portfolio-view { border-radius: 1.25rem; }
+.brand-root[data-storefront-profile="nails"][data-storefront-theme="flat"] .nail-portfolio-view { border-radius: 0; }
 .brand-root[data-storefront-profile="nails"][data-storefront-theme="editorial"] .storefront-hero h1,
 .brand-root[data-storefront-profile="nails"][data-storefront-theme="editorial"] #catalog-section h2,
-.brand-root[data-storefront-profile="nails"][data-storefront-theme="editorial"] #services-section h2 { font-family:"Frank Ruhl Libre",serif; font-weight:500; }
-.brand-root[data-storefront-profile="nails"][data-storefront-theme="creative"] .storefront-gallery-wrap { transform:translateY(.65rem); }
-.brand-root[data-storefront-profile="nails"][data-storefront-theme="creative"] .storefront-hero > div[aria-hidden="true"] { width:4.5rem; height:5px; }
-@media (min-width:1024px) {
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns:repeat(3,minmax(0,1fr)); }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.brand-root[data-storefront-profile="nails"][data-storefront-theme="editorial"] #services-section h2 { font-family: "Frank Ruhl Libre", serif; font-weight: 500; }
+@media (min-width: 1024px) {
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-@media (max-width:767px) {
- .brand-root[data-storefront-profile="nails"] #storefront-main { padding-top:1rem; }
- .brand-root[data-storefront-profile="nails"] .storefront-intro { display:flex; flex-direction:column; align-items:stretch; gap:1.5rem; margin-bottom:2.75rem; }
- .brand-root[data-storefront-profile="nails"] .storefront-hero { order:0; padding:.5rem .25rem 0; text-align:center; }
- .brand-root[data-storefront-profile="nails"] .storefront-hero > div[aria-hidden="true"] { margin-inline:auto; margin-bottom:1rem; }
- .brand-root[data-storefront-profile="nails"] .storefront-hero h1 { max-width:100%; font-size:clamp(2.1rem,8vw,3rem); }
- .brand-root[data-storefront-profile="nails"] .storefront-description { margin-inline:auto; margin-top:1rem; font-size:1rem; }
- .brand-root[data-storefront-profile="nails"] .storefront-hero-actions { justify-content:center; margin-top:1.35rem; }
- .brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap { order:1; }
- .brand-root[data-storefront-profile="nails"] .nail-portfolio-main { height:clamp(19rem,82vw,28rem); }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns:minmax(0,1fr); }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns:minmax(7.5rem,34%) minmax(0,1fr); }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex-basis:min(88%,22rem); }
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="nails"] #storefront-main { width: calc(100% - 2rem); padding-top: 1.25rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    margin-bottom: 3.5rem;
+  }
+  .brand-root[data-storefront-profile="nails"] .storefront-hero { order: 0; padding: .75rem 0 .25rem; text-align: start; }
+  .brand-root[data-storefront-profile="nails"] .storefront-hero > div[aria-hidden="true"] { margin: 0 0 1.25rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-hero h1 { max-width: 12ch; font-size: clamp(2.65rem, 11vw, 4rem); }
+  .brand-root[data-storefront-profile="nails"] .storefront-description { max-width: 34rem; margin-top: 1rem; font-size: 1rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-hero-actions { justify-content: flex-start; margin-top: 1.5rem; gap: .7rem 1rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-gallery-wrap { order: 1; }
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-main { height: clamp(21rem, 105vw, 31rem); }
+  .brand-root[data-storefront-profile="nails"] #catalog-section,
+  .brand-root[data-storefront-profile="nails"] #services-section { margin-bottom: 3.75rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: minmax(0, 1fr); }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns: minmax(7.5rem, 34%) minmax(0, 1fr); column-gap: .9rem; }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex-basis: min(88%, 22rem); }
+  .brand-root[data-storefront-profile="nails"] #contact-section { margin-top: 0; }
 }
-@media (max-width:380px) {
- .brand-root[data-storefront-profile="nails"] .storefront-hero-actions { flex-wrap:wrap; }
- .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns:minmax(6.5rem,32%) minmax(0,1fr); }
+@media (max-width: 380px) {
+  .brand-root[data-storefront-profile="nails"] .storefront-hero h1 { font-size: clamp(2.35rem, 10vw, 3rem); }
+  .brand-root[data-storefront-profile="nails"] .storefront-hero-actions { flex-wrap: wrap; }
+  .brand-root[data-storefront-profile="nails"] .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns: minmax(6.25rem, 32%) minmax(0, 1fr); }
 }
-@media (prefers-reduced-motion:reduce) { .brand-root[data-storefront-profile="nails"] .nail-portfolio-main img { transition:none; } }
+@media (prefers-reduced-motion: reduce) {
+  .brand-root[data-storefront-profile="nails"] .nail-portfolio-main img { transition: none; }
+}
