@@ -49,7 +49,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     whatsappIntro: initialWhatsAppIntro(flow),
   });
   const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
-  const [storefrontProfile, setStorefrontProfile] = useState<string>(['default', 'nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning', 'jewelry', 'gifts_cosmetics', 'other'].includes(biz.config?.storefront_profile) ? biz.config.storefront_profile : 'default');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
@@ -75,7 +74,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           about_text: f.about.trim() || null,
           config: {
             site_mode: siteMode,
-            storefront_profile: storefrontProfile,
             crm_enabled: f.crm,
             order_flow: {
               ...latestFlow,
@@ -109,24 +107,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     <div className="grid gap-6 md:grid-cols-2">
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">עיצוב האתר לפי תחום העסק</legend>
-          <label className="block text-sm font-medium">
-            פרופיל עיצוב
-            <select className={input} value={storefrontProfile} onChange={(e) => setStorefrontProfile(e.target.value)}>
-              <option value="default">עיצוב בסיסי (ברירת מחדל)</option>
-              <option value="nails">סטודיו לציפורניים</option>
-              <option value="hair_salon">מספרה</option>
-              <option value="beauty_institute">מכון יופי</option>
-              <option value="treatment_professional">מטפל/ת ובעל/ת מקצוע</option>
-              <option value="proposal_planning">הצעות נישואין והפקות</option>
-              <option value="jewelry">תכשיטים ושעונים</option>
-              <option value="gifts_cosmetics">מתנות וקוסמטיקה</option>
-              <option value="other">עסק אחר</option>
-            </select>
-          </label>
-          <p className="text-xs leading-5 text-gray-500">אפשר לחזור לעיצוב הבסיסי בכל עת. הבחירה משנה את פריסת האתר והצגת התוכן בלבד; היא אינה משנה מוצרים, שירותים, תורים או הגדרות אחרות.</p>
-        </fieldset>
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
           <legend className="px-1 text-sm font-semibold">אופן קבלת הזמנות ופניות</legend>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
