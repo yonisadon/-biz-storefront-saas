@@ -51,3 +51,15 @@ Changing profile must not modify products/services, item kinds, media, descripti
 5. Mixed business: both item kinds remain available and usable.
 6. Switch any specialized profile to Default: existing general BTime presentation returns; no data or branding is lost.
 7. Legacy tenant without a profile: unchanged general storefront.
+## First foundation phase — narrowed scope (2026-11-16)
+
+The initial implementation/visual acceptance sequence is:
+1. Default — preserve the existing general storefront as the baseline and permanent fallback.
+2. Nails studio — first specialized profile to complete and validate.
+3. Marriage proposals / proposal production — experience-led profile.
+4. Shops — jewelry, gifts and cosmetics, with retail-specific sub-directions where actual brand/content supports them.
+
+Hair salon, beauty institute and treatment professional remain valid future profile values but are deferred from this first design acceptance phase. Do not treat them as completed merely because profile-specific code or draft specifications exist.
+
+A profile is accepted only after documented reference research, a palette/token sheet, page architecture, real-tenant screenshots at mobile and desktop sizes, and functional regression checks. The nail studio is the first acceptance target.
+
