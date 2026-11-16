@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
-import NailPortfolioGallery from '@/components/NailPortfolioGallery';
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import Hours from '@/components/Hours';
@@ -98,11 +97,9 @@ export default async function StorefrontPage({ params }: Props) {
   const whatsappItems = data.catalog?.items ?? [];
   const hasProducts = whatsappItems.some((item) => item.kind === 'product');
   const hasServices = whatsappItems.some((item) => item.kind === 'service');
-  const serviceLedProfiles = ['nails', 'hair_salon', 'beauty_institute', 'treatment_professional', 'proposal_planning'];
-  const serviceLedProfile = serviceLedProfiles.includes(data.storefront_profile ?? 'default');
-  const itemKinds = serviceLedProfile ? (['service', 'product'] as const) : (['product', 'service'] as const);
+  const itemKinds = ['product', 'service'] as const;
   const whatsappItemsHeading = hasProducts && hasServices
-    ? (serviceLedProfile ? 'השירותים והמוצרים שלנו' : 'המוצרים והשירותים שלנו')
+    ? 'המוצרים והשירותים שלנו'
     : hasProducts ? 'המוצרים שלנו' : 'השירותים שלנו';
   const waNumber = data.order_flow?.whatsapp_enabled && b?.whatsapp_number
     ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')
@@ -110,20 +107,6 @@ export default async function StorefrontPage({ params }: Props) {
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
   const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
-  const catalogItems = data.catalog?.items ?? [];
-  const hasCatalogProducts = catalogItems.some((item) => item.kind === 'product');
-  const hasCatalogServices = catalogItems.some((item) => item.kind === 'service');
-  const primaryActionHref = serviceMode
-    ? (serviceLedProfile && hasServices ? '#services-subsection' : whatsappItems.length > 0 ? '#services-section' : undefined)
-    : (serviceLedProfile && hasCatalogServices ? '#services-subsection'
-      : catalogItems.length > 0 ? '#catalog-section' : hasContact ? '#contact-section' : undefined);
-  const primaryActionLabel = serviceMode
-    ? 'לצפייה בשירותים'
-    : serviceLedProfile && hasCatalogServices ? 'לצפייה בשירותים ולקביעת תור'
-      : hasCatalogServices && hasCatalogProducts ? 'לצפייה במוצרים ובשירותים'
-      : hasCatalogServices ? 'לצפייה בשירותים ולקביעת תור'
-        : hasCatalogProducts ? 'לצפייה במוצרים'
-          : 'יצירת קשר';
   const phoneHref = b?.phone ? `tel:${toLocalPhone(b.phone)}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
@@ -135,19 +118,14 @@ export default async function StorefrontPage({ params }: Props) {
             <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
             <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
             {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
-            <div className={data.storefront_profile === 'nails' ? 'storefront-hero-actions mt-5 flex items-center justify-center' : 'storefront-hero-actions mt-5 grid grid-cols-2 items-center justify-center gap-2 sm:flex sm:flex-wrap sm:gap-3'}>
-              {data.storefront_profile !== 'nails' && primaryActionHref && <a href={primaryActionHref} className="storefront-hero-action inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border border-ink/15 bg-transparent px-3 py-2 text-center text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{primaryActionLabel}</a>}
-              {hasBusinessInfo && <a href="#contact-section" className={data.storefront_profile === 'nails' ? 'storefront-hero-action inline-flex min-h-11 min-w-0 items-center justify-center rounded-full border border-black bg-black px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black' : 'storefront-hero-action inline-flex min-h-10 min-w-0 items-center justify-center rounded-full border border-ink/15 bg-transparent px-3 py-2 text-center text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'}>{data.storefront_profile === 'nails' ? 'יצירת קשר' : 'פרטי העסק'}</a>}
-            </div>
+            {hasBusinessInfo && <div className="storefront-hero-actions mt-5"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">יצירת קשר</a></div>}
           </header>
     
   );
   const gallerySlot = (
     <>
           {data.gallery?.length > 0 && <div className="storefront-gallery-wrap mb-6 sm:mb-8">
-            {data.storefront_profile === 'nails'
-              ? <NailPortfolioGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
-              : <>{data.storefront_profile === 'hair_salon' && <h2 className="storefront-portfolio-heading mb-3 text-lg font-bold">תיק העבודות</h2>}<StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} /></>}
+            <StorefrontGallery images={data.gallery} heroId={data.branding?.hero_gallery_image_id} layout={data.branding?.hero_gallery_layout ?? 'slider'} />
           </div>}
     </>
   );
@@ -189,19 +167,19 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const catalogSlot = (
     <>
-          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} storefrontProfile={data.storefront_profile ?? 'default'} /></section> : null}
+          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} storefrontProfile="default" /></section> : null}
     
     </>
   );
   const contactSlot = (
     <>
           {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">{data.storefront_profile === 'nails' ? 'יצירת קשר' : 'פרטי העסק'}</h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">יצירת קשר</h2>
               {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
               {oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /> סגור עכשיו</span>}
             </div>
             <div className={oh?.days && hasContact ? 'grid gap-6 sm:grid-cols-2 sm:gap-8' : ''}>
-              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={data.storefront_profile === 'nails' ? null : oh.open_now} embedded={true} /></div>}
+              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={null} embedded={true} /></div>}
               {publicAddress && <div className={hasContact ? 'mb-6 border-b border-ink/10 pb-5 sm:mb-0 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}>
                 <h3 className="mb-2 text-base font-bold">כתובת העסק</h3>
                 <p className="text-sm leading-6 text-ink/75">{publicAddress}</p>
@@ -228,10 +206,10 @@ export default async function StorefrontPage({ params }: Props) {
     
   );
 
-  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile={data.storefront_profile ?? 'default'} style={themeVars(data.branding?.colors)}>
+  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
-    {data.storefront_profile !== 'nails' && oh?.show_out_of_hours_banner && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message ?? 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.'}</div>}
+    {oh?.show_out_of_hours_banner && typeof oh.banner_message === 'string' && oh.banner_message.trim() && <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-950">{oh.banner_message.trim()}</div>}
     <StorefrontPageComposition
       profile={data.storefront_profile ?? 'default'}
       hasGallery={data.gallery.length > 0}
