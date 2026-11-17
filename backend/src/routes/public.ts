@@ -107,6 +107,10 @@ async function buildPublicPayload(db: pg.PoolClient) {
     branding: cfg.branding ?? {},
     social_links: cfg.social_links ?? {},
     business_profile: cfg.business_profile ?? {},
+    business_announcement: {
+      enabled: cfg.business_announcement?.enabled === true,
+      message: typeof cfg.business_announcement?.message === 'string' ? cfg.business_announcement.message : '',
+    },
     site_mode: siteMode,
     order_flow: {
       crm_enabled: crmEnabled,
