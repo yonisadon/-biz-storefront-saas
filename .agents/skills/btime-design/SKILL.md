@@ -364,3 +364,13 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - Keep the product `list` layout visually distinct with a single item: image + details use a full-width horizontal composition; image-less list items must not inherit the narrow luxury-catalog max width.
 - Reduce the desktop main gallery height only modestly; do not alter mobile gallery sizing for this refinement.
 - Treat these as presentation-only changes. Preserve catalog data, product/service actions, booking, availability, cart/order, WhatsApp, CRM, accessibility, and tenant settings.
+
+
+## 2026-11-17 — Business announcement and contact-area refinement
+
+- Seller-managed customer announcement belongs in **פרטי העסק**, not in opening-hours settings. Store it in the existing tenant JSONB config as `business_announcement: { enabled, message }`; cap the message at 500 characters.
+- Render the announcement at the very top of the public storefront only when enabled and non-empty. It is general seller-authored content, independent of opening/closed status and opening hours. Do not display the legacy automatic closed-business banner.
+- Keep opening status (פתוח עכשיו / סגור עכשיו) in the business-information area only.
+- The hero "יצירת קשר" action is a normal in-page link, centered in the hero. Never make it sticky, fixed, floating, or persistent during scroll.
+- Tighten excess vertical spacing between opening hours/address and contact methods, and between catalog/services and business details on mobile, without collapsing the information hierarchy.
+- Preserve all existing tenant config and business data. No DB migration is required.
