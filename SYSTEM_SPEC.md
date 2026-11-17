@@ -2323,3 +2323,14 @@
 - Desktop portfolio/gallery: reduce the main gallery image height modestly on desktop only; mobile sizing remains unchanged.
 - These are frontend presentation changes only. No API, tenant data, booking, cart/order, availability, WhatsApp, CRM, schema, or database migration changes are required.
 - Verification must include one-product list with and without an image, cards/list/luxury_catalog, desktop and mobile gallery sizing, and the hero/contact headings. PR #88 may be merged after checks pass and the branch is reconciled with the current `main`; production deployment remains a separate step.
+
+
+## 2026-11-17 — הודעה כללית של העסק ושיפור אזור יצירת קשר
+
+- נוספה בפרטי העסק הגדרה עצמאית בשם **הודעה ללקוחות**: המוכר כותב הודעה חופשית ומחליט באמצעות מתג אם להציג אותה.
+- ההודעה נשמרת ב-JSONB של העסק תחת `business_announcement` עם `enabled` ו-`message` (עד 500 תווים). היא מוצגת בראש האתר לכל הלקוחות רק כאשר היא מופעלת והטקסט אינו ריק.
+- ההודעה אינה קשורה לשעות פעילות, אינה מציגה אוטומטית "העסק סגור", ואינה משתמשת ב-`opening_hours.out_of_hours_banner`. סטטוס פתוח/סגור נשאר באזור פרטי העסק בלבד.
+- כפתור "יצירת קשר" נשאר קישור רגיל בתוך אזור הפתיחה, ממורכז; הוא אינו צף, אינו מקובע ואינו נשאר במסך בזמן גלילה.
+- צומצמו הרווחים בין שעות/כתובת לבין דרכי התקשרות ובין אזור הקטלוג/שירותים לבין פרטי העסק במובייל.
+- אין שינוי בסכמת מסד הנתונים, בנתוני לקוחות, בהזמנות, בתורים, ב-CRM או בזרימות WhatsApp; אין צורך במיגרציה. שדה ההודעה הוא חלק מ-config JSONB הקיים.
+- בדיקות נדרשות: שמירת הודעה פעילה/כבויה, הודעה ריקה, הודעה ארוכה, הופעה בראש האתר, היעדר תלות בשעות פתיחה/סגירה, ושמירה על נתוני config אחרים; בדיקת כפתור יצירת קשר וריווח במובייל ובמחשב.
