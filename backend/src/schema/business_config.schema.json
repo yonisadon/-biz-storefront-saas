@@ -9,7 +9,10 @@
     },
     "storefront_type": {
       "type": "string",
-      "enum": ["products", "services"]
+      "enum": [
+        "products",
+        "services"
+      ]
     },
     "site_mode": {
       "type": "string",
@@ -102,23 +105,48 @@
         },
         "business_title_color": {
           "type": "string",
-          "enum": ["brand", "black"]
+          "enum": [
+            "brand",
+            "black"
+          ]
         },
         "storefront_theme": {
           "type": "string",
-          "enum": ["soft", "flat", "editorial", "creative"]
+          "enum": [
+            "soft",
+            "flat",
+            "editorial",
+            "creative"
+          ]
         },
         "hero_gallery_layout": {
           "type": "string",
-          "enum": ["slider", "thumbnails"]
+          "enum": [
+            "slider",
+            "thumbnails"
+          ]
         },
         "product_layout": {
           "type": "string",
-          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
+          "enum": [
+            "cards",
+            "gallery",
+            "list",
+            "grid",
+            "carousel",
+            "luxury_catalog"
+          ]
         },
         "service_layout": {
           "type": "string",
-          "enum": ["cards", "gallery", "list", "grid", "carousel", "luxury_catalog"]
+          "enum": [
+            "cards",
+            "gallery",
+            "list",
+            "grid",
+            "carousel",
+            "luxury_catalog"
+          ]
         }
       },
       "required": [
@@ -191,6 +219,23 @@
           "type": "boolean"
         }
       },
+      "additionalProperties": false
+    },
+    "business_announcement": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "enabled",
+        "message"
+      ],
       "additionalProperties": false
     }
   },
