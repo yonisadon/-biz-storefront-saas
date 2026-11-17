@@ -1928,3 +1928,32 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   width: 100%;
   max-width: 42rem;
 }
+
+
+/* Final storefront QA refinements — keep single actions centered and desktop gallery balanced. */
+.brand-root .storefront-universal-hero-copy .storefront-hero-actions {
+  width: 100%;
+  justify-content: center;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero-actions:has(> .storefront-hero-action:nth-child(2)) {
+  justify-content: space-between;
+}
+@media (min-width: 768px) {
+  .brand-root .nail-portfolio-main {
+    height: clamp(25rem, 42vw, 36rem);
+  }
+}
+
+/* A one-item list remains a full-width list, even when its item has no photo. */
+.brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="false"] {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+.brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="true"] {
+  display: grid;
+  grid-template-columns: minmax(8rem, 32%) minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: none;
+}
