@@ -31,7 +31,7 @@ export default function PlatformAdminPage() {
   const [storefrontTheme, setStorefrontTheme] = useState<'soft' | 'flat' | 'editorial' | 'creative'>('soft');
   const [galleryLayout, setGalleryLayout] = useState<'slider' | 'thumbnails'>('slider');
   const [productLayout, setProductLayout] = useState<'cards' | 'list' | 'carousel' | 'luxury_catalog'>('cards');
-  const [serviceLayout, setServiceLayout] = useState<'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'>('cards');
+  const [serviceLayout, setServiceLayout] = useState<'cards' | 'list' | 'carousel' | 'luxury_catalog'>('cards');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [created, setCreated] = useState<CreatedBusiness | null>(null);
