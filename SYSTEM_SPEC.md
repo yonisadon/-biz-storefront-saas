@@ -2313,3 +2313,13 @@
 - `business_profile` נשאר עבור פרטי העסק (כגון עיר וכתובת), והוא אינו פרופיל עיצוב/תת־עסק.
 - פריסת מוצרים ופריסת שירותים ניתנות לבחירה עצמאית בארבע האפשרויות בלבד: `cards`, `list`, `carousel`, `luxury_catalog`. ערכי פריסה היסטוריים `gallery` ו־`grid` מוצגים כ־`cards` ואינם מחייבים כתיבה חזרה למסד.
 - נדרש להשלים בדיקות build, בדיקות API ציבורי/יצירת עסק, תאימות config legacy, וכל תרחישי storefront לפני אישור Preview. PR #88 נשאר Draft; אין מיזוג ל־main או פריסה לייצור ללא אישור מפורש.
+
+
+## 2026-11-17 — Final universal storefront QA refinements
+
+- Hero action alignment: a single hero action is centered. If a second hero action is added in the future, the actions distribute across the available row. This is presentation-only.
+- Contact hierarchy: the outer information section is titled "פרטי העסק" and the inner contact-methods group is titled "דרכי התקשרות", avoiding repeated "יצירת קשר" headings.
+- Product list layout: product items configured as `list` retain a full-width horizontal image/content composition when an image exists. A list item without an image remains full-width instead of being artificially constrained to the narrow luxury-catalog width. This applies even when the catalog contains a single product.
+- Desktop portfolio/gallery: reduce the main gallery image height modestly on desktop only; mobile sizing remains unchanged.
+- These are frontend presentation changes only. No API, tenant data, booking, cart/order, availability, WhatsApp, CRM, schema, or database migration changes are required.
+- Verification must include one-product list with and without an image, cards/list/luxury_catalog, desktop and mobile gallery sizing, and the hero/contact headings. PR #88 may be merged after checks pass and the branch is reconciled with the current `main`; production deployment remains a separate step.
