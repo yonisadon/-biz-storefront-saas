@@ -762,3 +762,1198 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
     grid-template-columns: minmax(6rem, 38%) minmax(0, 1fr);
   }
 }
+
+/* Business-profile layouts. Default intentionally receives no overrides. */
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+  max-width: 100%;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+  margin: 0;
+  padding-inline: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-gallery-wrap {
+  min-width: 0;
+  margin: 0;
+}
+.brand-root[data-storefront-profile="hair_salon"] #services-section,
+.brand-root[data-storefront-profile="hair_salon"] #catalog-section {
+  border-inline-start: 4px solid var(--brand-primary);
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+}
+
+.brand-root[data-storefront-profile="beauty_institute"] #services-section,
+.brand-root[data-storefront-profile="beauty_institute"] #catalog-section {
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-card {
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--brand-primary) 7%, transparent);
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: 5 / 4;
+}
+
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+  text-align: start;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-hero {
+  max-width: 56rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  border-radius: 1.5rem;
+  text-align: center;
+}
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-gallery-wrap {
+  width: 100%;
+  margin-inline: auto;
+}
+.brand-root[data-storefront-profile="proposal_planning"] #services-section,
+.brand-root[data-storefront-profile="proposal_planning"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.brand-root[data-storefront-profile="jewelry"] .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+  align-items: center;
+  gap: clamp(1.25rem, 3vw, 3rem);
+  max-width: 100%;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero {
+  margin: 0;
+  padding-inline: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap {
+  min-width: 0;
+  margin: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 22%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 16%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: 4 / 5;
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="jewelry"] .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero {
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+}
+
+.brand-root[data-storefront-profile="gifts_cosmetics"] #catalog-section {
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border-radius: .85rem;
+}
+
+
+/* First focused profile compositions: nails studio and hair salon. */
+.brand-root .storefront-hero {
+  max-width: 42rem;
+  margin-bottom: 1rem;
+  padding: 1.25rem 1rem .75rem;
+  text-align: center;
+}
+.brand-root .storefront-hero h1 {
+  letter-spacing: -.035em;
+}
+.brand-root .storefront-hero-actions {
+  margin-top: 1rem;
+}
+.brand-root .storefront-gallery-wrap {
+  max-width: 56rem;
+  padding-inline: .25rem;
+}
+.brand-root .storefront-portfolio-heading {
+  text-align: start;
+  letter-spacing: -.02em;
+}
+.brand-root .storefront-gallery-wrap > section > div:first-child {
+  aspect-ratio: 4 / 5;
+  border-radius: 1.25rem;
+}
+.brand-root #services-section,
+.brand-root #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  border-radius: 1rem;
+  box-shadow: none;
+}
+.brand-root [data-profile-section="service"] {
+  scroll-margin-top: 6rem;
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card {
+  border-inline-start: 3px solid var(--brand-primary);
+}
+.brand-root .storefront-items-list[data-kind="service"] > li[data-has-image="true"] > :first-child {
+  aspect-ratio: auto;
+}
+
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero {
+  max-width: 34rem;
+  padding-block: clamp(1rem, 3vw, 2.5rem);
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-hero h1 {
+  max-width: 12ch;
+  text-wrap: balance;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-description {
+  max-width: 34rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-portfolio-heading {
+  margin-inline-start: .25rem;
+  font-size: .95rem;
+  letter-spacing: .04em;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-gallery-wrap > section > div:first-child {
+  aspect-ratio: 4 / 3;
+  border-radius: .75rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] #services-section,
+.brand-root[data-storefront-profile="hair_salon"] #catalog-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 18%, transparent);
+  border-radius: .75rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="hair_salon"] [data-profile-section="service"] {
+  scroll-margin-top: 6rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  border-radius: .75rem;
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  .brand-root .storefront-gallery-wrap > section > div:first-child {
+    aspect-ratio: 1 / 1;
+  }
+  .brand-root[data-storefront-profile="hair_salon"] .storefront-hero h1 {
+    max-width: none;
+  }
+}
+
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro[data-has-gallery="false"] {
+  display: block;
+  max-width: 56rem;
+}
+.brand-root[data-storefront-profile="hair_salon"] .storefront-intro[data-has-gallery="false"] .storefront-hero {
+  margin-inline: auto;
+}
+
+
+/* Second profile pass: category-specific page hierarchy, using the shared live catalog and gallery. */
+.brand-root[data-storefront-profile="jewelry"] #storefront-main,
+.brand-root[data-storefront-profile="treatment_professional"] #storefront-main {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  align-items: start;
+  column-gap: clamp(1rem, 3vw, 2.5rem);
+  row-gap: 1.5rem;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-intro,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  margin: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"],
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section,
+.brand-root[data-storefront-profile="jewelry"] #services-section,
+.brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+.brand-root[data-storefront-profile="treatment_professional"] #services-section {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin-top: 0;
+  padding: clamp(.75rem, 2vw, 1.5rem);
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap,
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="jewelry"] #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin-top: 0;
+}
+.brand-root[data-storefront-profile="jewelry"] #catalog-section,
+.brand-root[data-storefront-profile="jewelry"] #services-section {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 24%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="jewelry"] .storefront-items-list[data-kind="product"] > li.storefront-card {
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-text) 16%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+.brand-root[data-storefront-profile="treatment_professional"] #services-section {
+  border-inline-start: 3px solid var(--brand-primary);
+  border-radius: .75rem;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 14%, transparent);
+  padding-top: 1.25rem;
+}
+
+.brand-root[data-storefront-profile="gifts_cosmetics"] #storefront-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-hero {
+  order: 1;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] #catalog-section,
+.brand-root[data-storefront-profile="gifts_cosmetics"] #services-section {
+  order: 2;
+  margin-top: 0;
+  border: 0;
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] .storefront-gallery-wrap {
+  order: 3;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 14%, transparent);
+  padding-top: 1.25rem;
+}
+.brand-root[data-storefront-profile="gifts_cosmetics"] #contact-section {
+  order: 4;
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="jewelry"] #storefront-main,
+  .brand-root[data-storefront-profile="treatment_professional"] #storefront-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-intro,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-intro {
+    display: contents;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero {
+    order: 1;
+    width: 100%;
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero > div[aria-hidden="true"],
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-hero-actions,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-hero-actions {
+    justify-content: center;
+  }
+  .brand-root[data-storefront-profile="jewelry"] #catalog-section,
+  .brand-root[data-storefront-profile="jewelry"] #services-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #catalog-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #services-section {
+    order: 2;
+    width: 100%;
+  }
+  .brand-root[data-storefront-profile="jewelry"] .storefront-gallery-wrap,
+  .brand-root[data-storefront-profile="treatment_professional"] .storefront-gallery-wrap {
+    order: 3;
+  }
+  .brand-root[data-storefront-profile="jewelry"] #contact-section,
+  .brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+    order: 4;
+  }
+}
+
+
+/* Collapse the optional portfolio row when a tenant has no gallery assets. */
+.brand-root[data-storefront-profile="jewelry"] #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #contact-section {
+  grid-row: 2;
+}
+.brand-root[data-storefront-profile="jewelry"] #storefront-main:has(.storefront-gallery-wrap) #contact-section,
+.brand-root[data-storefront-profile="treatment_professional"] #storefront-main:has(.storefront-gallery-wrap) #contact-section {
+  grid-row: 3;
+}
+
+
+/* Beauty institute: treatment imagery introduces the offer, followed by the complete service menu. */
+.brand-root[data-storefront-profile="beauty_institute"] #storefront-main {
+  display: grid;
+  grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr);
+  align-items: center;
+  column-gap: clamp(1.25rem, 3vw, 2.75rem);
+  row-gap: 1.5rem;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-hero {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  text-align: start;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-hero > div[aria-hidden="true"] {
+  margin-inline-start: 0;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-hero-actions {
+  justify-content: flex-start;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-gallery-wrap {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.brand-root[data-storefront-profile="beauty_institute"] #catalog-section,
+.brand-root[data-storefront-profile="beauty_institute"] #services-section {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 0;
+}
+.brand-root[data-storefront-profile="beauty_institute"] #contact-section {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin-top: 0;
+}
+.brand-root[data-storefront-profile="beauty_institute"] #catalog-section,
+.brand-root[data-storefront-profile="beauty_institute"] #services-section {
+  border: 0;
+  border-top: 2px solid color-mix(in srgb, var(--brand-primary) 32%, transparent);
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-root[data-storefront-profile="beauty_institute"] .storefront-items-list[data-kind="service"] > li.storefront-card {
+  box-shadow: none;
+  border-radius: .85rem;
+}
+.brand-root[data-storefront-profile="proposal_planning"] #storefront-main {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+}
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-intro {
+  display: contents;
+}
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-hero {
+  order: 1;
+  width: 100%;
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 4vw, 3rem);
+  border-radius: 0;
+  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 28%, transparent);
+  background: transparent;
+}
+.brand-root[data-storefront-profile="proposal_planning"] .storefront-gallery-wrap {
+  order: 2;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="proposal_planning"] #catalog-section,
+.brand-root[data-storefront-profile="proposal_planning"] #services-section {
+  order: 3;
+  width: 100%;
+  max-width: 68rem;
+  margin: 0 auto;
+}
+.brand-root[data-storefront-profile="proposal_planning"] #contact-section {
+  order: 4;
+  margin-top: 0;
+}
+@media (max-width: 767px) {
+  .brand-root[data-storefront-profile="beauty_institute"] #storefront-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] .storefront-intro {
+    display: contents;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] .storefront-hero {
+    order: 1;
+    width: 100%;
+    text-align: center;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] .storefront-hero > div[aria-hidden="true"] {
+    margin-inline: auto;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] .storefront-hero-actions {
+    justify-content: center;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] .storefront-gallery-wrap {
+    order: 2;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] #catalog-section,
+  .brand-root[data-storefront-profile="beauty_institute"] #services-section {
+    order: 3;
+    width: 100%;
+  }
+  .brand-root[data-storefront-profile="beauty_institute"] #contact-section {
+    order: 4;
+  }
+}
+
+
+
+/* Nails studio — Quiet Atelier art direction. Neutral editorial surfaces; seller choices remain active. */
+.brand-root {
+  --atelier-paper: color-mix(in srgb, var(--brand-background) 94%, #ffffff);
+  --atelier-surface: #ffffff;
+  --atelier-muted: color-mix(in srgb, var(--brand-text) 5%, var(--brand-background));
+  --atelier-line: color-mix(in srgb, var(--brand-text) 17%, transparent);
+  background: var(--atelier-paper) !important;
+}
+.brand-root #storefront-main {
+  width: min(100% - 2rem, 82rem);
+  max-width: 82rem;
+  padding: clamp(1.5rem, 4vw, 3.75rem) 0 4rem;
+}
+.brand-root .storefront-intro {
+  display: grid;
+  grid-template-columns: minmax(17rem, .72fr) minmax(0, 1.28fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5.5rem);
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+}
+.brand-root .storefront-hero {
+  max-width: none;
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 2.5rem) 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: start;
+}
+.brand-root .storefront-hero > div[aria-hidden="true"] {
+  width: 2.25rem;
+  height: 2px;
+  margin: 0 0 2rem;
+  border-radius: 0;
+  opacity: .75;
+}
+.brand-root[data-business-title-color="brand"] .business-title {
+  color: color-mix(in srgb, var(--brand-primary) 42%, var(--brand-text));
+}
+.brand-root[data-business-title-color="black"] .business-title {
+  color: #111111;
+}
+.brand-root .storefront-hero h1 {
+  max-width: 9ch;
+  font-size: clamp(3rem, 5.1vw, 5.35rem);
+  font-weight: 600;
+  letter-spacing: -.065em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.brand-root .storefront-description {
+  max-width: 29rem;
+  margin: 1.6rem 0 0;
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+  font-weight: 400;
+  line-height: 1.9;
+}
+.brand-root .storefront-hero-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  margin-top: 2.2rem;
+}
+.brand-root .storefront-hero-action {
+  min-height: 3.1rem;
+  padding: .8rem 1.35rem;
+  border: 1px solid transparent;
+  border-radius: .35rem;
+  color: var(--brand-text);
+  font-size: .92rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.brand-root .storefront-hero-action:first-child {
+  border-color: var(--brand-primary);
+  background: var(--brand-primary);
+  color: var(--brand-primary-fg);
+}
+.brand-root .storefront-hero-action:first-child:hover {
+  background: var(--brand-primary);
+  filter: brightness(.94);
+}
+.brand-root .storefront-hero-action:last-child:not(:first-child) {
+  padding-inline: .1rem;
+  border-bottom-color: var(--atelier-line);
+  border-radius: 0;
+}
+.brand-root .storefront-gallery-wrap {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.brand-root .nail-portfolio-view {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--atelier-muted);
+  box-shadow: none;
+}
+.brand-root .nail-portfolio-main {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: clamp(27rem, 48vw, 40rem);
+  overflow: hidden;
+  background: var(--atelier-muted);
+}
+.brand-root .nail-portfolio-main img {
+  object-fit: contain;
+  transition: opacity .35s ease;
+}
+.brand-root .nail-portfolio-main:hover img { opacity: .96; }
+.brand-root .nail-portfolio-thumbnails {
+  gap: .5rem;
+  padding: .75rem 0 0;
+  background: transparent;
+}
+.brand-root .nail-portfolio-thumb {
+  width: 4.25rem;
+  height: 4.25rem;
+  border: 1px solid var(--atelier-line);
+  border-radius: 0;
+}
+.brand-root .nail-portfolio-controls {
+  min-height: 3.25rem;
+  padding: .7rem .25rem 0;
+  background: transparent;
+  color: var(--brand-text);
+}
+.brand-root .nail-portfolio-autoplay { color: var(--brand-text); opacity: .72; }
+.brand-root #catalog-section,
+.brand-root #services-section {
+  max-width: none;
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+  padding: clamp(1.5rem, 3vw, 2.5rem) 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--atelier-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.brand-root #catalog-section h2,
+.brand-root #services-section h2 {
+  margin: 0 0 2rem;
+  color: var(--brand-text);
+  font-size: clamp(2rem, 3.4vw, 3.1rem);
+  font-weight: 600;
+  letter-spacing: -.045em;
+  line-height: 1.15;
+}
+.brand-root .storefront-items-list[data-kind="service"] {
+  gap: clamp(1.25rem, 2.2vw, 2rem);
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid var(--atelier-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child {
+  flex: initial;
+  width: 100%;
+  min-height: 0;
+  background: var(--atelier-muted);
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card > :first-child > button {
+  aspect-ratio: 5 / 4;
+  border-radius: 0;
+}
+.brand-root .storefront-items-list[data-kind="service"] > li.storefront-card > div:last-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: .8rem;
+  padding: 1.1rem .1rem 1.35rem;
+}
+.brand-root .storefront-items-list[data-kind="service"] > li[data-has-image="false"] > div:last-child {
+  width: 100%;
+}
+.brand-root .storefront-items-list[data-kind="service"] h3 {
+  color: var(--brand-text);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.brand-root .storefront-items-list[data-kind="service"] .storefront-card-price {
+  color: var(--brand-text);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.brand-root .storefront-items-list[data-kind="service"] span.shrink-0.rounded-full {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--brand-text) 65%, transparent);
+  font-size: .76rem;
+  font-weight: 500;
+}
+.brand-root .storefront-items-list[data-kind="service"] .storefront-card-action {
+  min-height: 2.8rem;
+  padding: .7rem 1rem;
+  border: 1px solid var(--brand-primary);
+  border-radius: .3rem;
+  background: var(--brand-primary);
+  color: var(--brand-primary-fg);
+}
+.brand-root .storefront-items-list[data-kind="service"] details summary {
+  color: color-mix(in srgb, var(--brand-primary) 72%, var(--brand-text));
+}
+.brand-root #contact-section {
+  margin: 0;
+  padding: 1.5rem 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--atelier-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.brand-root #contact-section h2 {
+  color: var(--brand-text);
+  font-size: 1.65rem;
+  font-weight: 600;
+}
+.brand-root #contact-section h3 { color: var(--brand-text); font-weight: 600; }
+
+/* Seller-selected service layouts remain independent and intact. */
+.brand-root .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="list"] { grid-template-columns: minmax(0, 1fr); }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { display: grid; grid-template-columns: minmax(10rem, 34%) minmax(0, 1fr); column-gap: 1.25rem; align-items: start; }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="list"] > li[data-has-image="false"] { display: flex; }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="carousel"] { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex: 0 0 min(82%, 25rem); scroll-snap-align: start; }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="luxury_catalog"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.brand-root .storefront-items-list[data-kind="service"][data-layout="luxury_catalog"] > li.storefront-card { border-bottom: 0; }
+.brand-root[data-storefront-theme="soft"] .nail-portfolio-view { border-radius: .75rem; }
+.brand-root[data-storefront-theme="creative"] .nail-portfolio-view { border-radius: 1.25rem; }
+.brand-root[data-storefront-theme="flat"] .nail-portfolio-view { border-radius: 0; }
+.brand-root[data-storefront-theme="editorial"] .storefront-hero h1,
+.brand-root[data-storefront-theme="editorial"] #catalog-section h2,
+.brand-root[data-storefront-theme="editorial"] #services-section h2 { font-family: "Frank Ruhl Libre", serif; font-weight: 500; }
+@media (min-width: 1024px) {
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .brand-root #storefront-main { width: calc(100% - 2rem); padding-top: 1.25rem; }
+  .brand-root .storefront-intro {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+    margin-bottom: 3.5rem;
+  }
+  .brand-root .storefront-hero { order: 0; padding: .75rem 0 .25rem; text-align: start; }
+  .brand-root .storefront-hero > div[aria-hidden="true"] { margin: 0 0 1.25rem; }
+  .brand-root .storefront-hero h1 { max-width: 12ch; font-size: clamp(2.65rem, 11vw, 4rem); }
+  .brand-root .storefront-description { max-width: 34rem; margin-top: 1rem; font-size: 1rem; }
+  .brand-root .storefront-hero-actions { justify-content: flex-start; margin-top: 1.5rem; gap: .7rem 1rem; }
+  .brand-root .storefront-gallery-wrap { order: 1; }
+  .brand-root .nail-portfolio-main { height: clamp(21rem, 105vw, 31rem); }
+  .brand-root #catalog-section,
+  .brand-root #services-section { margin-bottom: 3.75rem; }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="cards"] { grid-template-columns: minmax(0, 1fr); }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="gallery"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns: minmax(7.5rem, 34%) minmax(0, 1fr); column-gap: .9rem; }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="carousel"] > li { flex-basis: min(88%, 22rem); }
+  .brand-root #contact-section { margin-top: 0; }
+}
+@media (max-width: 380px) {
+  .brand-root .storefront-hero h1 { font-size: clamp(2.35rem, 10vw, 3rem); }
+  .brand-root .storefront-hero-actions { flex-wrap: wrap; }
+  .brand-root .storefront-items-list[data-kind="service"][data-layout="list"] > li.storefront-card { grid-template-columns: minmax(6.25rem, 32%) minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .nail-portfolio-main img { transition: none; }
+}
+
+
+/* Nails profile composition: portfolio-led editorial hero, independent from Default. */
+.brand-root .storefront-universal-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(17rem, .7fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  margin: 0 0 clamp(4rem, 8vw, 7rem);
+}
+.brand-root .storefront-universal-hero[data-has-gallery="false"] {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 58rem;
+  margin-inline: auto;
+}
+.brand-root .storefront-universal-hero[data-has-gallery="false"] .storefront-universal-hero-copy {
+  grid-column: 1;
+}
+.brand-root .storefront-universal-hero-media {
+  min-width: 0;
+  grid-column: 1;
+}
+.brand-root .storefront-universal-hero-copy {
+  min-width: 0;
+  grid-column: 2;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero {
+  max-width: none;
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 2.5rem) 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: start;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero h1 {
+  max-width: 9ch;
+  font-size: clamp(3rem, 5.1vw, 5.35rem);
+  font-weight: 600;
+  letter-spacing: -.065em;
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.brand-root .storefront-universal-hero-copy .storefront-description {
+  max-width: 29rem;
+  margin: 1.6rem 0 0;
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  font-size: clamp(1rem, 1.25vw, 1.12rem);
+  font-weight: 400;
+  line-height: 1.9;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero-action {
+  border: 0 !important;
+  background: transparent !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero-action:hover {
+  border: 0 !important;
+  background: transparent !important;
+  color: #000 !important;
+  text-decoration: underline;
+  box-shadow: none !important;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.35rem;
+  margin-top: 2.2rem;
+}
+.brand-root .storefront-universal-hero-media .storefront-gallery-wrap {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 767px) {
+  .brand-root .storefront-universal-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 3.75rem;
+  }
+  .brand-root .storefront-universal-hero-media,
+  .brand-root .storefront-universal-hero-copy {
+    grid-column: 1;
+  }
+  .brand-root .storefront-universal-hero-copy .storefront-hero {
+    padding: .75rem 0 .25rem;
+  }
+  .brand-root .storefront-universal-hero-copy .storefront-hero h1 {
+    max-width: 12ch;
+    font-size: clamp(2.35rem, 10vw, 3rem);
+  }
+  .brand-root .storefront-universal-hero-copy .storefront-description {
+    max-width: 34rem;
+    margin-top: 1rem;
+    font-size: 1rem;
+  }
+  .brand-root .storefront-universal-hero-copy .storefront-hero-actions {
+    margin-top: 1.5rem;
+    gap: .7rem 1rem;
+  }
+}
+
+
+/* Nails storefront — visual system for the seller-selected service/product layouts.
+   This styles the actual item experience without changing the selected layout or actions. */
+.brand-root .storefront-universal-content {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3.5rem, 7vw, 6rem);
+}
+.brand-root .storefront-universal-content > #catalog-section,
+.brand-root .storefront-universal-content > #services-section {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(1.5rem, 3vw, 2.5rem) 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--atelier-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.brand-root .storefront-universal-content #catalog-section > section[aria-labelledby="catalog-h"] {
+  padding: 0;
+}
+.brand-root .storefront-universal-content #catalog-h,
+.brand-root .storefront-universal-content #services-heading {
+  margin: 0 0 clamp(1.5rem, 3vw, 2.25rem);
+  color: var(--brand-text);
+  font-size: clamp(2rem, 3.5vw, 3.15rem);
+  font-weight: 600;
+  letter-spacing: -.045em;
+  line-height: 1.12;
+}
+.brand-root .storefront-universal-content #services-section > div:first-child {
+  margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
+}
+.brand-root .storefront-universal-content #services-section > div:first-child p {
+  max-width: 38rem;
+  color: color-mix(in srgb, var(--brand-text) 68%, transparent);
+  font-size: .95rem;
+  line-height: 1.8;
+}
+.brand-root .storefront-universal-content [data-profile-section] > h3 {
+  margin: 0 0 1.1rem;
+  color: color-mix(in srgb, var(--brand-text) 72%, transparent);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.brand-root .storefront-universal-content .storefront-items-list {
+  align-items: start;
+  gap: clamp(.85rem, 1.5vw, 1.25rem);
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-text) 12%, transparent);
+  border-radius: .8rem;
+  background: var(--atelier-surface);
+  box-shadow: 0 5px 20px rgb(31 25 20 / 4%);
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, transparent);
+  box-shadow: 0 10px 28px rgb(31 25 20 / 8%);
+  transform: translateY(-2px);
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > :first-child {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--atelier-muted);
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > :first-child > button:first-child {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+  background: var(--atelier-muted);
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > :first-child > button:first-child img {
+  object-fit: cover;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > :first-child > div[role="group"] {
+  gap: .35rem;
+  padding: .45rem .55rem;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > :first-child > div[role="group"] button {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: .25rem;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > div:last-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: .8rem;
+  padding: 1.1rem 1.1rem 1.2rem;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card h3 {
+  color: var(--brand-text);
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card .storefront-card-price {
+  color: var(--brand-text);
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card span.shrink-0.rounded-full {
+  padding: .25rem .5rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary) 7%, white);
+  color: color-mix(in srgb, var(--brand-text) 78%, transparent);
+  font-size: .7rem;
+  font-weight: 600;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card .storefront-card-action {
+  min-height: 2.8rem;
+  padding: .7rem 1.1rem;
+  border: 1px solid var(--brand-primary);
+  border-radius: .35rem;
+  background: var(--brand-primary);
+  color: var(--brand-primary-fg);
+  font-size: .88rem;
+  font-weight: 650;
+  transition: filter .2s ease, transform .2s ease;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card .storefront-card-action:hover {
+  filter: brightness(.94);
+  transform: translateY(-1px);
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card details {
+  border-top: 1px solid color-mix(in srgb, var(--brand-text) 10%, transparent);
+  padding-top: .45rem;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card details > summary {
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  font-size: .82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card details p,
+.brand-root .storefront-universal-content .storefront-items-list > li.storefront-card details dl {
+  color: color-mix(in srgb, var(--brand-text) 76%, transparent);
+  line-height: 1.75;
+}
+
+/* Keep each saved layout distinct: cards, gallery, list, carousel and luxury catalog. */
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="cards"] > li > :first-child > button:first-child { aspect-ratio: 16 / 9; }
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="gallery"] > li > :first-child > button:first-child { aspect-ratio: 1 / 1; }
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="luxury_catalog"] > li > :first-child > button:first-child { aspect-ratio: 4 / 5; }
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card {
+  display: grid;
+  grid-template-columns: minmax(8rem, 32%) minmax(0, 1fr);
+  align-items: stretch;
+  column-gap: 0;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card > :first-child > button:first-child {
+  height: 100%;
+  min-height: 8.5rem;
+  aspect-ratio: 1 / 1;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card > div:last-child {
+  justify-content: center;
+  padding: 1rem 1.1rem;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="carousel"] {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: .2rem .1rem 1.1rem;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-inline: contain;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="carousel"] > li {
+  flex: 0 0 min(78%, 22rem);
+  scroll-snap-align: start;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="luxury_catalog"] > li.storefront-card {
+  border: 0;
+  border-bottom: 1px solid var(--atelier-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="luxury_catalog"] > li.storefront-card:hover {
+  border-color: var(--atelier-line);
+  box-shadow: none;
+  transform: none;
+}
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="luxury_catalog"] > li.storefront-card > div:last-child {
+  padding-inline: .15rem;
+}
+.brand-root .storefront-universal-content #catalog-section input[type="search"] {
+  max-width: 32rem;
+  border-radius: .4rem;
+  background: var(--atelier-surface);
+}
+.brand-root .storefront-universal-content button:focus-visible,
+.brand-root .storefront-universal-content a:focus-visible,
+.brand-root .storefront-universal-content summary:focus-visible {
+  outline-color: var(--brand-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .brand-root .storefront-universal-content {
+    gap: 3.5rem;
+  }
+  .brand-root .storefront-universal-content > #catalog-section,
+  .brand-root .storefront-universal-content > #services-section {
+    padding-top: 1.35rem;
+  }
+  .brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > div:last-child {
+    padding: .9rem .85rem 1rem;
+  }
+  .brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card {
+    grid-template-columns: minmax(6.5rem, 31%) minmax(0, 1fr);
+  }
+  .brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card > :first-child > button:first-child {
+    min-height: 7.5rem;
+  }
+  .brand-root .storefront-universal-content .storefront-items-list[data-layout="carousel"] > li {
+    flex-basis: min(86%, 21rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .storefront-universal-content .storefront-items-list > li.storefront-card {
+    transition: none;
+  }
+}
+
+.brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card[data-has-image="false"] {
+  display: flex;
+  grid-template-columns: none;
+  width: 100%;
+  max-width: 42rem;
+}
+
+
+/* Final storefront QA refinements — keep single actions centered and desktop gallery balanced. */
+.brand-root .storefront-universal-hero-copy .storefront-hero-actions {
+  width: 100%;
+  justify-content: center;
+}
+.brand-root .storefront-universal-hero-copy .storefront-hero-actions:has(> .storefront-hero-action:nth-child(2)) {
+  justify-content: space-between;
+}
+@media (min-width: 768px) {
+  .brand-root .nail-portfolio-main {
+    height: clamp(25rem, 42vw, 36rem);
+  }
+}
+
+/* A one-item list remains a full-width list, even when its item has no photo. */
+.brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="false"] {
+  display: block;
+  width: 100%;
+  max-width: none;
+}
+.brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="true"] {
+  display: grid;
+  grid-template-columns: minmax(8rem, 32%) minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
+  max-width: none;
+}

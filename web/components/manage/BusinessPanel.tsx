@@ -108,7 +108,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">סוג האתר</legend>
+          <legend className="px-1 text-sm font-semibold">אופן קבלת הזמנות ופניות</legend>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
           <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'services_whatsapp'} onChange={() => setSiteMode('services_whatsapp')} /><span><strong>הצגת מוצרים ושירותים ופנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">כל המוצרים והשירותים הפעילים יוצגו באתר. כל פריט יפנה לשיחה ב-WhatsApp, ללא סל, טופס הזמנה או בחירת תור באתר.</span></span></label>
         </fieldset>
