@@ -347,3 +347,11 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - The seller-defined closed-business banner remains a shared capability. Show it only when enabled and when a non-empty custom message exists; do not synthesize a generic message.
 - Opening status must appear once only. Preserve existing order, booking, availability, WhatsApp, CRM, accessibility, and contact behavior.
 - Keep legacy `storefront_profile` values for backwards compatibility, but they no longer drive rendering or seller choices. No DB migration is required for this visual/product change.
+
+
+## Universal storefront — profile-free rule (2026-11-17)
+
+- All business categories use the same storefront composition and ordering. Never branch layout, API payloads, onboarding, or rendering on a business subcategory/profile.
+- Do not create, request, persist, expose, or consume `storefront_profile` for new workflows. Existing values inside legacy tenant JSONB config may remain untouched as inert historical data; do not use them for decisions.
+- `business_profile` means factual business details only (for example address/city), not a design profile.
+- Keep product and service layouts independently selectable from `cards`, `list`, `carousel`, and `luxury_catalog`; map legacy `gallery`/`grid` to `cards` at render time without rewriting tenant data.
