@@ -355,3 +355,12 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - Do not create, request, persist, expose, or consume `storefront_profile` for new workflows. Existing values inside legacy tenant JSONB config may remain untouched as inert historical data; do not use them for decisions.
 - `business_profile` means factual business details only (for example address/city), not a design profile.
 - Keep product and service layouts independently selectable from `cards`, `list`, `carousel`, and `luxury_catalog`; map legacy `gallery`/`grid` to `cards` at render time without rewriting tenant data.
+
+
+## 2026-11-17 — Universal storefront QA refinements
+
+- Center the hero action when only one action is present. If multiple actions are rendered, distribute them across the action row without changing their behavior.
+- Avoid duplicate contact headings: use "פרטי העסק" for the outer business-information section and "דרכי התקשרות" for the contact-methods subgroup.
+- Keep the product `list` layout visually distinct with a single item: image + details use a full-width horizontal composition; image-less list items must not inherit the narrow luxury-catalog max width.
+- Reduce the desktop main gallery height only modestly; do not alter mobile gallery sizing for this refinement.
+- Treat these as presentation-only changes. Preserve catalog data, product/service actions, booking, availability, cart/order, WhatsApp, CRM, accessibility, and tenant settings.
