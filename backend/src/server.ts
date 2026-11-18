@@ -32,7 +32,7 @@ export async function buildServer() {
   });
 
   app.decorateRequest('tenantId', '');
-  await app.register(cors, { origin: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean) : false, credentials: true });
+  await app.register(cors, { origin: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : false });
   await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
 
   // <-- הוספת 2 השורות האלו מיד אחרי rateLimit:
