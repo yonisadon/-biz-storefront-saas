@@ -18,6 +18,7 @@ async function main() {
   await db.connect();
   try {
     await db.query('BEGIN');
+    await db.query("SELECT pg_advisory_xact_lock(hashtext('btime:first-super-admin-bootstrap'))");
 
     const existingAdmins = await db.query(
       "SELECT count(*)::int AS count FROM public.platform_users WHERE role = 'super_admin' AND disabled_at IS NULL",
