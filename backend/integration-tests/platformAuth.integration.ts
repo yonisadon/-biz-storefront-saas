@@ -180,6 +180,99 @@ test('platform account lifecycle and independent marketing consents', async () =
       }
     }
 
+    // Exercise ownerless/manual business visibility and the two-step deletion flow.
+    const adminToken = 'integration-superadmin-token-that-is-long-enough';
+    process.env.SUPERADMIN_API_TOKEN = adminToken;
+    const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const manualName = 'Manual Integration Business';
+    let manualBusinessId = '';
+    let manualDatabase = '';
+    try {
+      const manualCreated = await pool.query(
+        'SELECT app.create_business($1, $2, NULL, $3::jsonb) AS id',
+        [manualSlug, manualName, JSON.stringify({})],
+      );
+      manualBusinessId = manualCreated.rows[0].id as string;
+      manualDatabase = `biz_${manualBusinessId.replace(/-/g, '').slice(0, 24)}`;
+      await pool.query(`CREATE DATABASE "${manualDatabase}"`);
+      await pool.query(`GRANT CONNECT ON DATABASE "${manualDatabase}" TO app_runtime, app_superadmin`);
+
+      const tenantAdmin = new pgModule.default.Client({ connectionString: databaseUrl.replace(/\/[^/]*$/, `/${manualDatabase}`) });
+      try {
+        await tenantAdmin.connect();
+        const { readFileSync } = await import('node:fs');
+        await tenantAdmin.query(readFileSync('migrations/tenant-schema.sql', 'utf8'));
+        const { applyTenantMigrations } = await import('../src/tenantMigrations');
+        await applyTenantMigrations(tenantAdmin);
+      } finally {
+        await tenantAdmin.end().catch(() => {});
+      }
+      await pool.query(
+        'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
+        [manualBusinessId, manualDatabase],
+      );
+
+      const adminHeaders = { authorization: `Bearer ${adminToken}` };
+      const visibleBusinesses = await app.inject({ method: 'GET', url: '/api/admin/businesses', headers: adminHeaders });
+      assert.equal(visibleBusinesses.statusCode, 200);
+      const visibleManual = visibleBusinesses.json().businesses.find((business: { id: string }) => business.id === manualBusinessId);
+      assert.ok(visibleManual, 'ownerless manually created businesses must appear in Super Admin');
+      assert.equal(visibleManual.owner_email, null);
+
+      const requestResponse = await app.inject({
+        method: 'POST',
+        url: `/api/admin/businesses/${manualBusinessId}/deletion-request`,
+        headers: adminHeaders,
+      });
+      assert.equal(requestResponse.statusCode, 201);
+      const deletionRequestId = requestResponse.json().request.id as string;
+
+      const approval = await app.inject({
+        method: 'PATCH',
+        url: `/api/admin/deletion-requests/${deletionRequestId}/review`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { decision: 'approve', note: 'integration test' },
+      });
+      assert.equal(approval.statusCode, 200);
+
+      const blockedDeletion = await app.inject({
+        method: 'POST',
+        url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+        headers: adminHeaders,
+      });
+      assert.equal(blockedDeletion.statusCode, 400, 'deletion must require explicit verified-backup evidence');
+      const databaseBeforeBackup = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [manualDatabase]);
+      assert.equal(databaseBeforeBackup.rowCount, 1);
+
+      const executedDeletion = await app.inject({
+        method: 'POST',
+        url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { backupVerified: true, backupReference: 'railway-backup-integration-001' },
+      });
+      assert.equal(executedDeletion.statusCode, 200);
+      const deletionAudit = await pool.query(
+        `SELECT status, tenant_id, database_name, backup_reference, backup_verified_at
+           FROM public.business_deletion_requests WHERE id = $1`,
+        [deletionRequestId],
+      );
+      assert.equal(deletionAudit.rows[0].status, 'completed');
+      assert.equal(deletionAudit.rows[0].tenant_id, null);
+      assert.equal(deletionAudit.rows[0].database_name, manualDatabase);
+      assert.equal(deletionAudit.rows[0].backup_reference, 'railway-backup-integration-001');
+      assert.ok(deletionAudit.rows[0].backup_verified_at);
+      const databaseAfterDeletion = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [manualDatabase]);
+      assert.equal(databaseAfterDeletion.rowCount, 0);
+      const businessAfterDeletion = await pool.query('SELECT 1 FROM public.businesses WHERE id = $1', [manualBusinessId]);
+      assert.equal(businessAfterDeletion.rowCount, 0);
+    } finally {
+      if (manualDatabase) await pool.query(`DROP DATABASE IF EXISTS "${manualDatabase}" WITH (FORCE)`).catch(() => {});
+      if (manualBusinessId) {
+        await pool.query('DELETE FROM public.business_deletion_requests WHERE business_slug = $1', [manualSlug]).catch(() => {});
+        await pool.query('DELETE FROM public.businesses WHERE id = $1', [manualBusinessId]).catch(() => {});
+      }
+    }
+
     const rejectedEmail = `no-consent-${randomUUID()}@example.test`;
     const rejectedRegistration = await app.inject({
       method: 'POST',
