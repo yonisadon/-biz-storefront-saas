@@ -394,11 +394,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const { reason } = DeletionRequestInput.parse(req.body ?? {});
     const db = registry();
     const inserted = await db.query(
-      `INSERT INTO public.business_deletion_requests (tenant_id, requested_by_user_id, reason)
-       VALUES ($1, $2, $3)
+      `INSERT INTO public.business_deletion_requests (tenant_id, business_name, business_slug, requested_by_user_id, reason)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (tenant_id) WHERE status = 'pending' DO NOTHING
        RETURNING id, status, requested_at`,
-      [user.business_id, user.id, reason || null],
+      [user.business_id, user.business_name, user.business_slug, user.id, reason || null],
     );
     const request = inserted.rows[0] ?? (await db.query(
       "SELECT id, status, requested_at FROM public.business_deletion_requests WHERE tenant_id = $1 AND status = 'pending' LIMIT 1",
