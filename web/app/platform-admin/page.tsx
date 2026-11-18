@@ -206,6 +206,23 @@ export default function PlatformAdminPage() {
     finally { setAdminLoading(false); }
   }
 
+  async function requestBusinessDeletion(id: string) {
+    const business = businesses.find((item) => item.id === id);
+    if (!business) return;
+    if (!window.confirm(`לפתוח בקשת מחיקה עבור העסק "${business.name}"? העסק לא יימחק מיד. תחילה תידרש הקפאה ואישור, ולאחר מכן ביצוע מחיקה מלאה של ה-DB והמדיה.`)) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/deletion-request`, {
+        method: 'POST', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לפתוח בקשת מחיקה לעסק.');
+      setAdminMessage(data?.message ?? 'בקשת המחיקה נפתחה.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'פתיחת בקשת המחיקה נכשלה.'); }
+    finally { setAdminLoading(false); }
+  }
+
   async function executeDeletion(id: string) {
     if (!window.confirm('אזהרה: פעולה בלתי הפיכה. מסד הנתונים הייעודי וקובצי המדיה של העסק יימחקו. להמשיך?')) return;
     setAdminLoading(true); setAdminMessage('');
@@ -306,6 +323,7 @@ export default function PlatformAdminPage() {
               </label>
             </div>
             {!business.owner_email_verified && business.owner_email && <button type="button" disabled={adminLoading} onClick={()=>verifyOwnerEmail(business.id)} className="mt-3 rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-900 disabled:opacity-50">אימות מייל ידני לאחר בדיקה</button>}
+            <button type="button" disabled={adminLoading || deletionRequests.some((request) => request.tenant_id === business.id)} onClick={()=>requestBusinessDeletion(business.id)} className="mt-3 mr-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-800 disabled:opacity-50">פתיחת בקשת מחיקה מלאה</button>
             {business.trial_ends_at && <p className="mt-2 text-xs text-slate-500">סיום ניסיון: {new Date(business.trial_ends_at).toLocaleDateString('he-IL')}</p>}
             {business.domains.length > 0 && <p className="mt-2 break-all text-xs text-slate-500">{business.domains.map(d=>d.domain).join(' · ')}</p>}
           </article>)}
@@ -315,7 +333,7 @@ export default function PlatformAdminPage() {
           <h2 className="font-bold">בקשות מחיקה ממתינות ({deletionRequests.length})</h2>
           <div className="mt-3 space-y-3">
             {deletionRequests.map(request => <div key={request.id} className="rounded-xl bg-amber-50 p-3">
-              <p className="font-semibold">{request.business_name}</p><p className="mt-1 text-xs text-slate-600">{request.owner_email} · {request.owner_phone}</p>
+              <p className="font-semibold">{request.business_name}</p><p className="mt-1 text-xs text-slate-600">{request.owner_email ?? 'ללא חשבון בעלים'}{request.owner_phone ? ` · ${request.owner_phone}` : ''}</p>
               {request.reason && <p className="mt-2 text-sm">{request.reason}</p>}
               <p className="mt-2 text-xs font-semibold text-amber-900">{request.status === 'approved' ? 'אושרה — העסק חסום וממתין למחיקה מלאה' : 'ממתינה לאישור'}</p>
               <div className="mt-3 flex flex-wrap gap-2">
