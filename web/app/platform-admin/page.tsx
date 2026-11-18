@@ -216,12 +216,13 @@ export default function PlatformAdminPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-2xl">
-        <header className="mb-8">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <p className="mb-2 text-sm font-semibold text-blue-700">ניהול פלטפורמה</p>
           <h1 className="text-3xl font-bold tracking-tight">יצירת עסק חדש</h1>
           <p className="mt-3 leading-7 text-slate-600">
             כל עסק חדש יקבל מסד PostgreSQL נפרד בתוך שירות Railway הקיים, אתר ציבורי וקישור ניהול פרטי.
           </p>
+          <Link href="/login" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התחברות סופר אדמין</Link>
         </header>
 
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
