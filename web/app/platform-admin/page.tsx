@@ -207,7 +207,7 @@ export default function PlatformAdminPage() {
             <div><h2 className="text-lg font-bold">לוח בקרה</h2><p className="mt-1 text-sm text-slate-600">ניהול עסקים, מנויים ובקשות מחיקה.</p></div>
             <div className="flex flex-wrap gap-2">
               <Link href="/register" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">הרשמת בעל עסק</Link>
-              <button type="button" onClick={loadAdminData} disabled={!adminToken.trim() || adminLoading} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{adminLoading ? 'טוען…' : 'טעינת נתוני מערכת'}</button>
+              <button type="button" onClick={loadAdminData} disabled={adminLoading} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{adminLoading ? 'טוען…' : 'טעינת נתוני מערכת'}</button>
             </div>
           </div>
           {adminMessage && <p role="status" className="mt-3 text-sm text-slate-700">{adminMessage}</p>}
@@ -264,12 +264,12 @@ export default function PlatformAdminPage() {
 
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div>
-            <label htmlFor="adminToken" className="mb-2 block text-sm font-semibold">מפתח ניהול הפלטפורמה</label>
-            <input id="adminToken" type="password" autoComplete="off" required minLength={32}
+            <label htmlFor="adminToken" className="mb-2 block text-sm font-semibold">מפתח API חלופי (לא חובה)</label>
+            <input id="adminToken" type="password" autoComplete="off"
               value={adminToken} onChange={(e) => setAdminToken(e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              placeholder="הדבק כאן את SUPERADMIN_API_TOKEN" />
-            <p className="mt-1 text-xs text-slate-500">המפתח נשמר בזיכרון הדף בלבד ולא נשלח לשום מקום מלבד השרת שלך.</p>
+              placeholder="לשימוש חירום בלבד; אפשר להתחבר באמצעות חשבון הסופר אדמין" />
+            <p className="mt-1 text-xs text-slate-500">אפשר להיכנס באמצעות מייל וסיסמה של חשבון הסופר אדמין. מפתח API חלופי נשמר בזיכרון הדף בלבד.</p>
           </div>
 
           <div>
