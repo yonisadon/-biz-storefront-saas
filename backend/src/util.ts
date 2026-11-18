@@ -45,8 +45,8 @@ export function isOpenNow(hours: any, tz: string, now = new Date()): boolean | n
   const get = (t: string) => parts.find((p) => p.type === t)!.value;
   const day = days[get('weekday').toLowerCase().slice(0, 3)];
   if (!day || day === 'closed') return false;
-  const hhmm = \`\${get('hour')}:\${get('minute')}\`;
+  const hhmm = get('hour') + ':' + get('minute');
   return day.some((r: { open: string; close: string }) => r.open <= hhmm && hhmm < r.close);
 }
 
-export const mediaUrl = (base: string, storageKey: string) => \`\${base.replace(/\/+$/, '')}/media/\${storageKey}\`;
+export const mediaUrl = (base: string, storageKey: string) => base.replace(/\/+$/, '') + '/media/' + storageKey;
