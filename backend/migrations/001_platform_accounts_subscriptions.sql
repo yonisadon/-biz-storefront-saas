@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT platform_users_email_format CHECK (
     email = lower(btrim(email))
-    AND email ~ '^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$'
+    AND email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'
   ),
-  CONSTRAINT platform_users_phone_format CHECK (phone ~ '^\\+[1-9][0-9]{7,14}$'),
+  CONSTRAINT platform_users_phone_format CHECK (phone ~ '^\+[1-9][0-9]{7,14}$'),
   CONSTRAINT platform_users_password_hash_nonempty CHECK (length(password_hash) >= 40)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_users_email ON public.platform_users (email);
