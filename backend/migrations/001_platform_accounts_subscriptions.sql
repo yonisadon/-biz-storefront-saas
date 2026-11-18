@@ -97,8 +97,15 @@ CREATE TABLE IF NOT EXISTS public.business_deletion_requests (
   reviewed_at timestamptz,
   reviewed_by_email text,
   review_note text CHECK (review_note IS NULL OR length(btrim(review_note)) <= 1000),
-  completed_at timestamptz
+  completed_at timestamptz,
+  backup_verified_at timestamptz,
+  backup_reference text CHECK (backup_reference IS NULL OR length(btrim(backup_reference)) BETWEEN 8 AND 500),
+  backup_verified_by text
 );
+ALTER TABLE public.business_deletion_requests
+  ADD COLUMN IF NOT EXISTS backup_verified_at timestamptz,
+  ADD COLUMN IF NOT EXISTS backup_reference text,
+  ADD COLUMN IF NOT EXISTS backup_verified_by text;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_business_deletion_one_pending
   ON public.business_deletion_requests (tenant_id) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_business_deletion_requests_status_date
