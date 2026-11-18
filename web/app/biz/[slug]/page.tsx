@@ -135,7 +135,7 @@ export default async function StorefrontPage({ params }: Props) {
           {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
             <div className="mb-5">
               <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
-              <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
+              <p className="mt-2 text-sm leading-6 text-ink/65">לחצו על הפריט שמעניין אתכם כדי לקבל עליו פרטים ולפנות לעסק ישירות ב-WhatsApp.</p>
             </div>
             <div className="space-y-8">
               {itemKinds.map((kind) => {
