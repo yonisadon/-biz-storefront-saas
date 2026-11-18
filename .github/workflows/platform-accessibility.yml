@@ -22,6 +22,7 @@ on:
 jobs:
   accessibility:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,7 +37,6 @@ jobs:
         working-directory: web
         run: |
           npm install --no-save --package-lock=false playwright@1.65.1 @axe-core/playwright@4.14.0
-          npx playwright install --with-deps chromium
       - name: Build web application
         working-directory: web
         run: npm run build
