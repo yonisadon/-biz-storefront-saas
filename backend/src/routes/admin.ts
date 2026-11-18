@@ -530,7 +530,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     });
     try {
       const business = await registry.query(
-        `SELECT b.id, b.name, b.slug, td.database_name
+        `SELECT b.id, b.name, b.slug
            FROM public.businesses b
            JOIN app.tenant_databases td ON td.tenant_id = b.id
           WHERE b.id = $1
@@ -541,11 +541,11 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       const b = business.rows[0];
       const inserted = await registry.query(
         `INSERT INTO public.business_deletion_requests
-           (tenant_id, business_name, business_slug, database_name, requested_by_admin, reason)
-         VALUES ($1, $2, $3, $4, true, 'מחיקה ביוזמת סופר אדמין')
+           (tenant_id, business_name, business_slug, requested_by_admin, reason)
+         VALUES ($1, $2, $3, true, 'מחיקה ביוזמת סופר אדמין')
          ON CONFLICT (tenant_id) WHERE status = 'pending' DO NOTHING
          RETURNING id, status, requested_at`,
-        [tenantId, b.name, b.slug, b.database_name],
+        [tenantId, b.name, b.slug],
       );
       const request = inserted.rows[0] ?? (await registry.query(
         "SELECT id, status, requested_at FROM public.business_deletion_requests WHERE tenant_id = $1 AND status = 'pending' LIMIT 1",
