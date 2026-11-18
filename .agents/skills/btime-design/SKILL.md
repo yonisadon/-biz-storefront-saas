@@ -4,6 +4,7 @@
 - Do not fetch legal documents or other resources during storefront SSR unless their returned data is actually rendered there. Legal documents belong to their dedicated routes and should load when those routes are visited.
 - Keep independent API dependencies independent: an unavailable, unused endpoint must not take down the entire customer storefront through a shared `Promise.all`.
 - If the required business payload fails, diagnose `/api/biz/{slug}` and report the real failure; never substitute invented business data.
+- Log API failures with the endpoint path and HTTP status or network error message, but never log environment-variable values, tokens, or personal data.
 
 ---
 name: btime-design
