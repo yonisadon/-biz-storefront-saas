@@ -10,9 +10,8 @@ const Env = z.object({
   // PostgreSQL owner/CREATEDB-capable connection used only for provisioning.
   DATABASE_ADMIN_URL: z.string().optional(),
   SUPERADMIN_API_TOKEN: z.string().min(32).optional(),
-  SUPERADMIN_EMAIL: z.string().email().optional(),
   PUBLIC_BASE_URL: z.string().url().optional(),
-  RESEND_API_KEY: z.string().min(1).optional(),
+  BREVO_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(3).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
