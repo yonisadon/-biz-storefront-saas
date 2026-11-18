@@ -83,8 +83,8 @@ export async function provisionBusinessForOwner(
     if (existingOwner.rowCount) throw new HttpError(409, 'business_already_exists');
 
     const duplicateContact = await registry.query(
-      'SELECT 1 FROM public.businesses WHERE lower(COALESCE(email, \'\')) = $1 OR phone = $2 LIMIT 1',
-      [owner.email.toLowerCase(), owner.phone],
+      'SELECT 1 FROM public.businesses WHERE lower(COALESCE(email, \'\')) = $1 LIMIT 1',
+      [owner.email.toLowerCase()],
     );
     if (duplicateContact.rowCount) throw new HttpError(409, 'business_contact_already_registered');
 
