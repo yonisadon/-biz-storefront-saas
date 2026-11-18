@@ -3,6 +3,11 @@ name: Platform registry migrations
 on:
   workflow_dispatch:
     inputs:
+      backup_confirmed:
+        description: 'Confirm that a restorable backup of the central Registry was created and verified for this run'
+        required: true
+        type: boolean
+        default: false
       proceed_without_backup:
         description: 'Explicitly authorize pending Registry migrations without a verified restorable backup'
         required: true
@@ -28,7 +33,7 @@ jobs:
       DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
       SUPERADMIN_DATABASE_URL: ${{ secrets.SUPERADMIN_DATABASE_URL }}
       DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
-      PLATFORM_REGISTRY_MIGRATION_BACKUP_CONFIRMED: ${{ secrets.PLATFORM_REGISTRY_MIGRATION_BACKUP_CONFIRMED }}
+      PLATFORM_REGISTRY_MIGRATION_BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
       PROCEED_WITHOUT_BACKUP: ${{ inputs.proceed_without_backup }}
       GITHUB_EVENT_NAME: ${{ github.event_name }}
     steps:
