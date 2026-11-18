@@ -154,8 +154,8 @@ export default function PlatformAdminPage() {
     try {
       const [overviewResponse, businessesResponse, deletionResponse] = await Promise.all([
         fetch('/api/admin/overview', { cache: 'no-store' }),
-        fetch('/api/admin/businesses', { headers, cache: 'no-store' }),
-        fetch('/api/admin/deletion-requests', { headers, cache: 'no-store' }),
+        fetch('/api/admin/businesses', { cache: 'no-store' }),
+        fetch('/api/admin/deletion-requests', { cache: 'no-store' }),
       ]);
       const [overviewData, businessesData, deletionData] = await Promise.all([
         overviewResponse.json().catch(() => null),
