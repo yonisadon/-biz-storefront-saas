@@ -145,6 +145,41 @@ test('platform account lifecycle and independent marketing consents', async () =
     const afterLogout = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: newCookie } });
     assert.equal(afterLogout.statusCode, 401);
 
+    // Exercise the real dedicated-database provisioning path against the disposable CI registry.
+    const { provisionBusinessForOwner } = await import('../src/provisioning');
+    const businessSlug = `integration-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    let provisioned: Awaited<ReturnType<typeof provisionBusinessForOwner>> | undefined;
+    try {
+      provisioned = await provisionBusinessForOwner(
+        { id: userId, email, phone: '+972501234567' },
+        { name: 'Integration Test Business', slug: businessSlug },
+      );
+      assert.match(provisioned.database, /^biz_[a-f0-9]{24}$/);
+      assert.equal(provisioned.slug, businessSlug);
+      const registryState = await pool.query(
+        `SELECT b.status, s.status AS subscription_status, s.trial_ends_at, td.database_name
+           FROM public.businesses b
+           JOIN app.tenant_databases td ON td.tenant_id = b.id
+           JOIN public.platform_subscriptions s ON s.tenant_id = b.id
+          WHERE b.id = $1`,
+        [provisioned.id],
+      );
+      assert.equal(registryState.rowCount, 1);
+      assert.equal(registryState.rows[0].status, 'active');
+      assert.equal(registryState.rows[0].subscription_status, 'trialing');
+      assert.equal(registryState.rows[0].database_name, provisioned.database);
+      assert.ok(new Date(registryState.rows[0].trial_ends_at).getTime() > Date.now());
+      await assert.rejects(
+        provisionBusinessForOwner({ id: userId, email, phone: '+972501234567' }, { name: 'Duplicate Business', slug: `duplicate-${businessSlug}` }),
+        /business_already_exists/,
+      );
+    } finally {
+      if (provisioned) {
+        await pool.query(`DROP DATABASE IF EXISTS "${provisioned.database}" WITH (FORCE)`).catch(() => {});
+        await pool.query('DELETE FROM public.businesses WHERE id = $1', [provisioned.id]).catch(() => {});
+      }
+    }
+
     const rejectedEmail = `no-consent-${randomUUID()}@example.test`;
     const rejectedRegistration = await app.inject({
       method: 'POST',
