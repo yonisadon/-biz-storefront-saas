@@ -115,7 +115,7 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
        LEFT JOIN public.businesses b ON b.id = bo.tenant_id
        LEFT JOIN public.platform_subscriptions s ON s.tenant_id = b.id
       WHERE ps.token_hash = $1 AND ps.revoked_at IS NULL AND ps.expires_at > now()
-        AND u.disabled_at IS NULL AND u.email_verified_at IS NOT NULL
+        AND u.disabled_at IS NULL AND (u.email_verified_at IS NOT NULL OR u.role = 'super_admin')
       LIMIT 1`,
     [digest(token)],
   );
@@ -128,13 +128,21 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
+  if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
     throw new HttpError(503, 'email_service_not_configured');
   }
-  const response = await fetch('https://api.resend.com/emails', {
+  const match = env.EMAIL_FROM.match(/^(?:(.*?)\\s*)?<([^<>]+)>$/);
+  const senderEmail = match?.[2] ?? env.EMAIL_FROM;
+  const senderName = match?.[1]?.trim() || 'BTime';
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
-    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], subject, html }),
+    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
   if (!response.ok) {
     console.error('Transactional email delivery failed', { status: response.status });
@@ -159,14 +167,14 @@ async function issueEmailToken(userId: string, purpose: 'verify_email' | 'reset_
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/register', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = RegisterInput.parse(req.body);
-    if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
+    if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
     const email = input.email.toLowerCase();
     const phone = normalizeILPhone(input.phone);
     if (!phone) throw new HttpError(400, 'invalid_il_phone');
     const db = registry();
 
     try {
-      const role = env.SUPERADMIN_EMAIL?.toLowerCase() === email ? 'super_admin' : 'owner';
+      const role = 'owner';
       const inserted = await db.query(
         'INSERT INTO public.platform_users (email, phone, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
         [email, phone, passwordHash(input.password), role],
@@ -191,7 +199,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       'SELECT id, email FROM public.platform_users WHERE email = $1 AND email_verified_at IS NULL AND disabled_at IS NULL LIMIT 1',
       [email.toLowerCase()],
     );
-    if (result.rows[0] && env.RESEND_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
+    if (result.rows[0] && env.BREVO_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
       try {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
         const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
@@ -270,12 +278,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!user || user.disabled_at || !passwordMatches(input.password, user.password_hash)) {
       throw new HttpError(401, 'invalid_credentials');
     }
-    if (!user.email_verified_at) throw new HttpError(403, 'email_not_verified');
-    let role = user.role as string;
-    if (env.SUPERADMIN_EMAIL?.toLowerCase() === input.email.toLowerCase() && role !== 'super_admin') {
-      await registry().query("UPDATE public.platform_users SET role = 'super_admin', updated_at = now() WHERE id = $1", [user.id]);
-      role = 'super_admin';
-    }
+    const role = user.role as string;
+    if (!user.email_verified_at && role !== 'super_admin') throw new HttpError(403, 'email_not_verified');
     await createSession(user.id, reply);
     return { authenticated: true, role };
   });
