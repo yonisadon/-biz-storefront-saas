@@ -52,6 +52,7 @@ export default function PlatformAdminPage() {
   const [businessSearch, setBusinessSearch] = useState('');
   const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
+  const [emailVerificationFilter, setEmailVerificationFilter] = useState('all');
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
   const filteredBusinesses = businesses.filter((business) => {
@@ -59,7 +60,8 @@ export default function PlatformAdminPage() {
     const matchesSearch = !term || [business.name, business.slug, business.owner_email, business.owner_phone, business.email, business.phone].some((value) => value?.toLocaleLowerCase('he-IL').includes(term));
     const matchesStatus = businessStatusFilter === 'all' || business.status === businessStatusFilter;
     const matchesSubscription = subscriptionFilter === 'all' || (subscriptionFilter === 'none' ? !business.subscription_status : business.subscription_status === subscriptionFilter);
-    return matchesSearch && matchesStatus && matchesSubscription;
+    const matchesVerification = emailVerificationFilter === 'all' || (emailVerificationFilter === 'verified' ? business.owner_email_verified === true : business.owner_email_verified !== true);
+    return matchesSearch && matchesStatus && matchesSubscription && matchesVerification;
   });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -275,11 +277,12 @@ export default function PlatformAdminPage() {
 
         {businesses.length > 0 && <section className="mb-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">עסקים ({filteredBusinesses.length} מתוך {businesses.length})</h2><button type="button" onClick={loadAdminData} disabled={adminLoading} className="text-sm font-semibold text-blue-700 underline">רענון הרשימה</button></div>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <input aria-label="חיפוש עסקים" value={businessSearch} onChange={e=>setBusinessSearch(e.target.value)} placeholder="חיפוש לפי עסק, כתובת, מייל או טלפון" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-3" />
+          <div className="grid gap-2 sm:grid-cols-4">
+            <input aria-label="חיפוש עסקים" value={businessSearch} onChange={e=>setBusinessSearch(e.target.value)} placeholder="חיפוש לפי עסק, כתובת, מייל או טלפון" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-4" />
             <select aria-label="סינון לפי סטטוס עסק" value={businessStatusFilter} onChange={e=>setBusinessStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי העסק</option><option value="active">פעיל</option><option value="suspended">חסום</option><option value="archived">בארכיון</option></select>
             <select aria-label="סינון לפי מנוי" value={subscriptionFilter} onChange={e=>setSubscriptionFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי המנוי</option><option value="trialing">תקופת ניסיון</option><option value="active">מנוי פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option><option value="none">ללא מנוי</option></select>
-            <button type="button" onClick={()=>{setBusinessSearch('');setBusinessStatusFilter('all');setSubscriptionFilter('all');}} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">ניקוי סינון</button>
+            <select aria-label="סינון לפי אימות מייל" value={emailVerificationFilter} onChange={e=>setEmailVerificationFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי אימות המייל</option><option value="verified">מייל מאומת</option><option value="unverified">מייל לא אומת</option></select>
+            <button type="button" onClick={()=>{setBusinessSearch('');setBusinessStatusFilter('all');setSubscriptionFilter('all');setEmailVerificationFilter('all');}} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">ניקוי סינון</button>
           </div>
           {filteredBusinesses.length===0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500">לא נמצאו עסקים התואמים לסינון.</p>}
           {filteredBusinesses.map(business => <article key={business.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -296,6 +299,7 @@ export default function PlatformAdminPage() {
                 </select>
               </label>
               <label className="text-xs font-semibold text-slate-600">מנוי
+                <span className="mt-1 block font-normal text-slate-500">אפשר לאשר מנוי גם כשהמייל עדיין לא אומת.</span>
                 <select value={business.subscription_status ?? 'none'} disabled={adminLoading} onChange={e=>updateSubscription(business.id,e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm text-slate-900">
                   <option value="none" disabled>ללא מנוי קיים</option><option value="trialing">ניסיון ל-30 יום</option><option value="active">פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option>
                 </select>
