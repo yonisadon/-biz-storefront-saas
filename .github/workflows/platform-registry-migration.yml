@@ -8,6 +8,10 @@ on:
       - 'backend/migrations/001_platform_accounts_subscriptions.sql'
       - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
+      - 'backend/integration-tests/**'
+      - 'backend/src/routes/auth.ts'
+      - 'backend/src/server.ts'
+      - 'backend/package.json'
       - '.github/workflows/platform-registry-migration.yml'
 
 jobs:
