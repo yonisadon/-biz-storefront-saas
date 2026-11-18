@@ -84,13 +84,13 @@ BEGIN
   RETURNING id INTO v_user;
 
   INSERT INTO public.platform_user_consents
-    (user_id, consent_type, granted, consent_version, source)
+    (user_id, consent_type, granted, consent_version, source, recorded_at)
   VALUES
-    (v_user, 'terms_of_use', true, 'test-v1', 'registration'),
-    (v_user, 'privacy_policy', true, 'test-v1', 'registration'),
-    (v_user, 'marketing_email', false, 'test-v1', 'registration'),
-    (v_user, 'marketing_sms', false, 'test-v1', 'registration'),
-    (v_user, 'marketing_email', true, 'test-v1', 'account_settings');
+    (v_user, 'terms_of_use', true, 'test-v1', 'registration', now() - interval '1 minute'),
+    (v_user, 'privacy_policy', true, 'test-v1', 'registration', now() - interval '1 minute'),
+    (v_user, 'marketing_email', false, 'test-v1', 'registration', now() - interval '1 minute'),
+    (v_user, 'marketing_sms', false, 'test-v1', 'registration', now() - interval '1 minute'),
+    (v_user, 'marketing_email', true, 'test-v1', 'account_settings', now());
 
   SELECT granted INTO v_email_latest FROM public.platform_user_consents
    WHERE user_id = v_user AND consent_type = 'marketing_email'
