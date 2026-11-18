@@ -145,7 +145,7 @@ function authorized(req: FastifyRequest): boolean {
 }
 
 async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
-  if (!env.SUPERADMIN_EMAIL || !env.SUPERADMIN_DATABASE_URL) return false;
+  if (!env.SUPERADMIN_DATABASE_URL) return false;
   const raw = String(req.headers.cookie ?? '');
   const sessionCookie = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith('btime_session='));
   let token = '';
@@ -165,10 +165,9 @@ async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
          FROM public.platform_sessions s
          JOIN public.platform_users u ON u.id = s.user_id
         WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
-          AND u.role = 'super_admin' AND lower(u.email) = lower($2)
-          AND u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL
+          AND u.role = 'super_admin' AND u.disabled_at IS NULL
         LIMIT 1`,
-      [createHash('sha256').update(token, 'utf8').digest(), env.SUPERADMIN_EMAIL],
+      [createHash('sha256').update(token, 'utf8').digest()],
     );
     return Boolean(result.rowCount);
   } catch {
@@ -180,7 +179,7 @@ async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
 
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', async (req) => {
-    if (!env.SUPERADMIN_API_TOKEN && !env.SUPERADMIN_EMAIL) throw new HttpError(503, 'admin_not_configured');
+    if (!env.SUPERADMIN_API_TOKEN && !env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
     if (!authorized(req) && !(await authorizedBySession(req))) throw new HttpError(401, 'unauthorized');
   });
 
@@ -329,6 +328,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         `SELECT b.id, b.name, b.slug, b.status, b.email, b.phone, b.created_at,
                 s.status AS subscription_status, s.trial_ends_at, s.current_period_ends_at,
                 u.email AS owner_email, u.phone AS owner_phone,
+                (u.email_verified_at IS NOT NULL) AS owner_email_verified,
                 (SELECT dr.status FROM public.business_deletion_requests dr
                   WHERE dr.tenant_id = b.id ORDER BY dr.requested_at DESC LIMIT 1) AS deletion_request_status,
                 COALESCE(json_agg(json_build_object('domain', d.domain, 'is_verified', d.is_verified, 'is_primary', d.is_primary)
@@ -389,11 +389,45 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       await tenant.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [tenantId, input.status]);
       await registry.query(
         "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_status_changed', $1, $3::jsonb)",
-        [tenantId, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ status: input.status, reason: input.reason ?? null })],
+        [tenantId, 'super_admin', JSON.stringify({ status: input.status, reason: input.reason ?? null })],
       );
       return updated.rows[0];
     } finally {
       if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.patch('/businesses/:id/owner-email-verification', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const owner = await registry.query(
+        `SELECT u.id, u.email FROM public.platform_business_owners bo
+         JOIN public.platform_users u ON u.id = bo.user_id WHERE bo.tenant_id = $1 LIMIT 1`,
+        [tenantId],
+      );
+      if (!owner.rows[0]) throw new HttpError(404, 'business_owner_not_found');
+      await registry.query(
+        `UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`,
+        [owner.rows[0].id],
+      );
+      await registry.query(
+        `UPDATE public.platform_email_tokens SET consumed_at = now()
+         WHERE user_id = $1 AND purpose = 'verify_email' AND consumed_at IS NULL`,
+        [owner.rows[0].id],
+      );
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'super_admin', 'owner_email_verified_manually', $1, $2::jsonb)",
+        [tenantId, JSON.stringify({ owner_email: owner.rows[0].email })],
+      );
+      return { tenant_id: tenantId, owner_email_verified: true };
+    } finally {
       if (registry) await registry.end().catch(() => {});
     }
   });
@@ -432,7 +466,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       );
       await registry.query(
         "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'subscription_status_changed', $1, $3::jsonb)",
-        [tenantId, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ status: input.status })],
+        [tenantId, 'super_admin', JSON.stringify({ status: input.status })],
       );
       return result.rows[0];
     } finally {
@@ -478,7 +512,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
             SET status = $2, reviewed_at = now(), reviewed_by_email = $4, review_note = $3
           WHERE id = $1 AND status = 'pending'
           RETURNING id, tenant_id, status`,
-        [requestId, input.decision === 'approve' ? 'approved' : 'rejected', input.note ?? null, env.SUPERADMIN_EMAIL ?? 'api-token-admin'],
+        [requestId, input.decision === 'approve' ? 'approved' : 'rejected', input.note ?? null, 'super_admin'],
       );
       if (!result.rows[0]) throw new HttpError(404, 'deletion_request_not_found');
       if (input.decision === 'approve') {
@@ -486,7 +520,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       }
       await registry.query(
         "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_deletion_reviewed', $1, $3::jsonb)",
-        [result.rows[0].tenant_id, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ decision: input.decision, note: input.note ?? null })],
+        [result.rows[0].tenant_id, 'super_admin', JSON.stringify({ decision: input.decision, note: input.note ?? null })],
       );
       await registry.query('COMMIT');
       return result.rows[0];
@@ -559,7 +593,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         );
         await registry.query(
           "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', $1, 'business_deleted', $2::jsonb)",
-          [env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
+          ['super_admin', JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
         );
         await registry.query('COMMIT');
       } catch (error) {
