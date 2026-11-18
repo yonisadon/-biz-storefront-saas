@@ -16,7 +16,8 @@
     "sync-google-calendar": "tsx scripts/sync-google-calendar.ts",
     "test:platform-integration": "tsx --test integration-tests/platformAuth.integration.ts",
     "migrate-platform-registry": "tsx --env-file=.env scripts/migrate-platform-registry.ts",
-    "migrate-platform-registry:deploy": "tsx scripts/migrate-platform-registry.ts --apply"
+    "migrate-platform-registry:deploy": "tsx scripts/migrate-platform-registry.ts --apply",
+    "bootstrap-superadmin": "tsx scripts/bootstrap-superadmin.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
