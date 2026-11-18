@@ -339,7 +339,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
            LEFT JOIN public.platform_subscriptions s ON s.tenant_id = b.id
            LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
            LEFT JOIN public.platform_users u ON u.id = bo.user_id
-          GROUP BY b.id, s.status, s.trial_ends_at, s.current_period_ends_at, u.email, u.phone
+          GROUP BY b.id, s.status, s.trial_ends_at, s.current_period_ends_at, u.email, u.phone, u.email_verified_at
           ORDER BY b.created_at DESC`,
       );
       return { businesses: result.rows };
