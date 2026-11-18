@@ -150,7 +150,7 @@ export default function AccountDashboard() {
         <p className="mt-1 text-sm leading-6 text-slate-600">אפשר לפנות לתמיכת BTime במייל או ב-WhatsApp.</p>
         <div className="mt-3 flex flex-wrap gap-3 text-sm font-semibold">
           <a href="mailto:matchmakeradm1992@gmail.com" className="text-blue-700 underline">שליחת מייל לתמיכה</a>
-          {process.env.NEXT_PUBLIC_PLATFORM_SUPPORT_WHATSAPP && <a href={`https://wa.me/${process.env.NEXT_PUBLIC_PLATFORM_SUPPORT_WHATSAPP.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-green-700 underline">פנייה ב-WhatsApp</a>}
+          <a href="https://wa.me/972549910450" target="_blank" rel="noreferrer" className="text-green-700 underline">פנייה ב-WhatsApp</a>
         </div>
       </section>
 
