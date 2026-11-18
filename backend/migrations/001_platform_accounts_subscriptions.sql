@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
   CONSTRAINT platform_users_password_hash_nonempty CHECK (length(password_hash) >= 40)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_users_email ON public.platform_users (email);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_users_phone ON public.platform_users (phone);
 
 CREATE TABLE IF NOT EXISTS public.platform_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
