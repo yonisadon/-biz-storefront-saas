@@ -148,7 +148,12 @@ async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
   if (!env.SUPERADMIN_EMAIL || !env.SUPERADMIN_DATABASE_URL) return false;
   const raw = String(req.headers.cookie ?? '');
   const sessionCookie = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith('btime_session='));
-  const token = sessionCookie ? decodeURIComponent(sessionCookie.slice('btime_session='.length)) : '';
+  let token = '';
+  try {
+    token = sessionCookie ? decodeURIComponent(sessionCookie.slice('btime_session='.length)) : '';
+  } catch {
+    return false;
+  }
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
   let registry: pg.Client | undefined;
   try {
