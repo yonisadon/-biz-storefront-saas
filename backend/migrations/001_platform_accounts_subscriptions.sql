@@ -203,7 +203,8 @@ REVOKE ALL ON public.platform_users, public.platform_sessions, public.platform_e
   public.business_deletion_requests, public.platform_audit_log FROM PUBLIC, app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.platform_users, public.platform_sessions,
   public.platform_email_tokens, public.platform_business_owners, public.platform_subscriptions,
-  public.business_deletion_requests, public.platform_audit_log, public.platform_user_consents TO app_superadmin;
+  public.business_deletion_requests, public.platform_audit_log TO app_superadmin;
+GRANT SELECT, INSERT ON public.platform_user_consents TO app_superadmin;
 GRANT USAGE, SELECT ON SEQUENCE public.platform_audit_log_id_seq TO app_superadmin;
 
 REVOKE ALL ON FUNCTION app.is_tenant_subscription_accessible(uuid) FROM PUBLIC;
