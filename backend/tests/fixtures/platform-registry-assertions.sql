@@ -61,3 +61,25 @@ BEGIN
   END IF;
 END
 $$;
+
+
+-- Destructive deletion must retain an auditable backup verification reference.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'business_deletion_requests'
+       AND column_name = 'backup_verified_at'
+  ) THEN RAISE EXCEPTION 'backup_verified_at column is missing'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'business_deletion_requests'
+       AND column_name = 'backup_reference'
+  ) THEN RAISE EXCEPTION 'backup_reference column is missing'; END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'business_deletion_requests'
+       AND column_name = 'backup_verified_by'
+  ) THEN RAISE EXCEPTION 'backup_verified_by column is missing'; END IF;
+END
+$$;
