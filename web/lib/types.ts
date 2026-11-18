@@ -28,6 +28,7 @@ export type PublicPayload = {
   branding: { colors?: Partial<Record<'primary' | 'secondary' | 'accent' | 'background' | 'text', string>>; hero_gallery_image_id?: string; icon_gallery_image_id?: string; font_style?: 'modern' | 'rounded' | 'elegant' | 'warm'; storefront_theme?: 'soft' | 'flat' | 'editorial' | 'creative'; hero_gallery_layout?: 'slider' | 'thumbnails'; product_layout?: 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'; service_layout?: 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog'; business_title_color?: 'brand' | 'black' };
   social_links?: { instagram?: string; facebook?: string };
   business_profile?: { city?: string; street_address?: string; show_address?: boolean };
+  business_announcement?: { enabled: boolean; message: string };
   site_mode: 'catalog_order' | 'services_whatsapp';
   order_flow: OrderFlow;
   opening_hours: {

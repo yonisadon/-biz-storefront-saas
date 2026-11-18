@@ -47,6 +47,8 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     crm: biz.config.crm_enabled !== false,
     whatsappCrm: flow.whatsapp_crm_enabled !== false,
     whatsappIntro: initialWhatsAppIntro(flow),
+    announcementEnabled: biz.config.business_announcement?.enabled === true,
+    announcementMessage: typeof biz.config.business_announcement?.message === 'string' ? biz.config.business_announcement.message : '',
   });
   const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -88,6 +90,10 @@ export default function BusinessPanel({ token, biz, onSaved }: {
               city: f.city.trim(),
               street_address: f.streetAddress.trim(),
               show_address: f.showAddress,
+            },
+            business_announcement: {
+              enabled: f.announcementEnabled,
+              message: f.announcementMessage.trim(),
             },
           },
         }),
@@ -148,6 +154,18 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <textarea className={input} rows={4} maxLength={5000} placeholder="כמה מילים על העסק, השירותים או מה שמייחד אתכם" value={f.about} onChange={(e) => set('about', e.target.value)} />
           <span className="mt-1 block text-xs font-normal text-gray-500">יופיע מתחת לשם העסק באתר, רק אם מילאתם אותו.</span>
         </label>
+
+        <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">הודעה בולטת ללקוחות</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={f.announcementEnabled} onChange={(e) => set('announcementEnabled', e.target.checked)} />
+            הצגת הודעה בולטת בראש האתר
+          </label>
+          <label className="block text-sm font-medium">תוכן ההודעה
+            <textarea className={input} rows={3} maxLength={500} placeholder="הודעה שהלקוחות יראו בראש האתר" value={f.announcementMessage} onChange={(e) => set('announcementMessage', e.target.value)} />
+            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">ההודעה תופיע כאזור מודגש בראש אתר הלקוחות, רק כשהאפשרות מופעלת ויש תוכן. אפשר להשתמש בה למבצעים, עדכונים, חופשות או הודעות חשובות. היא נפרדת לחלוטין משעות הפעילות וממצב פתוח/סגור.</span>
+          </label>
+        </fieldset>
 
         {(f.wa || siteMode === 'services_whatsapp') && (
           <label className="block text-sm font-medium">נוסח הודעת WhatsApp (משמש גם לפנייה כללית וגם להזמנה)
