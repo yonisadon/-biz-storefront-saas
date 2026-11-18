@@ -302,7 +302,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/forgot-password', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { email } = z.object({ email: z.string().trim().email().max(254) }).strict().parse(req.body);
     const result = await registry().query(
-      'SELECT id, email FROM public.platform_users WHERE email = $1 AND email_verified_at IS NOT NULL AND disabled_at IS NULL LIMIT 1',
+      `SELECT id, email FROM public.platform_users WHERE email = $1 AND (email_verified_at IS NOT NULL OR role = 'super_admin') AND disabled_at IS NULL LIMIT 1`,
       [email.toLowerCase()],
     );
     if (result.rows[0]) {
