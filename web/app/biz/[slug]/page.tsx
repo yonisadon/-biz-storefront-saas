@@ -7,7 +7,7 @@ import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
-import { getCtx, getLegal, getStorefront } from '@/lib/api';
+import { getCtx, getStorefront } from '@/lib/api';
 import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
 import type { Product } from '@/lib/types';
@@ -81,10 +81,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StorefrontPage({ params }: Props) {
   const resolvedParams = await params;
   const ctx = await getCtx(resolvedParams.slug);
-  const [data, legalDocs] = await Promise.all([
-    getStorefront(ctx),
-    Promise.all([getLegal(ctx, 'terms_of_use'), getLegal(ctx, 'privacy_policy'), getLegal(ctx, 'accessibility_statement')]),
-  ]);
+  // Legal documents are loaded by their dedicated routes, not this storefront.
+  // Avoid making the customer page depend on three unused API requests during SSR.
+  const data = await getStorefront(ctx);
   if (!data) notFound();
   const { business: b, opening_hours: oh } = data;
   const social = data.social_links ?? {};
