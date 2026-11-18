@@ -182,6 +182,25 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  app.post('/resend-verification', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    const { email } = z.object({ email: z.string().trim().email().max(254) }).strict().parse(req.body);
+    const result = await registry().query(
+      'SELECT id, email FROM public.platform_users WHERE email = $1 AND email_verified_at IS NULL AND disabled_at IS NULL LIMIT 1',
+      [email.toLowerCase()],
+    );
+    if (result.rows[0] && env.RESEND_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
+      try {
+        const token = await issueEmailToken(result.rows[0].id, 'verify_email');
+        const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+        await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
+          `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>אימות כתובת המייל</h2><p>לחצו על הקישור כדי להשלים את ההרשמה:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות.</p></div>`);
+      } catch (error) {
+        req.log.warn({ err: error }, 'verification email could not be resent');
+      }
+    }
+    return reply.code(202).send({ message: 'אם קיים חשבון שממתין לאימות, יישלח אליו קישור חדש.' });
+  });
+
   app.post('/verify-email', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { token } = TokenInput.parse(req.body);
     const db = registry();
