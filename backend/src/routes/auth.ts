@@ -239,10 +239,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
              FROM public.businesses b
              LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
             WHERE bo.tenant_id IS NULL
-              AND (lower(COALESCE(b.email, '')) = $1 OR b.phone = $2)
+              AND lower(COALESCE(b.email, '')) = $1
             ORDER BY b.created_at DESC
             LIMIT 2`,
-          [result.rows[0].email, result.rows[0].phone],
+          [result.rows[0].email],
         );
         if (matches.rows.length === 1) {
           const claimed = await client.query(
