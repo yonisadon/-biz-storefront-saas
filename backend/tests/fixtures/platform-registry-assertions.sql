@@ -45,3 +45,19 @@ BEGIN
     RAISE EXCEPTION 'admin-originated deletion request was not persisted correctly';
   END IF;
 END $$;
+
+
+-- Consent history is present and isolated from public runtime access.
+DO $$
+BEGIN
+  IF to_regclass('public.platform_user_consents') IS NULL THEN
+    RAISE EXCEPTION 'platform_user_consents table is missing';
+  END IF;
+  IF has_table_privilege('app_runtime', 'public.platform_user_consents', 'SELECT') THEN
+    RAISE EXCEPTION 'app_runtime must not read platform consent history';
+  END IF;
+  IF NOT has_table_privilege('app_superadmin', 'public.platform_user_consents', 'INSERT') THEN
+    RAISE EXCEPTION 'app_superadmin must be able to write platform consent history';
+  END IF;
+END
+$$;
