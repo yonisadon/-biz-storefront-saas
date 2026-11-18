@@ -59,8 +59,53 @@ BEGIN
   IF NOT has_table_privilege('app_superadmin', 'public.platform_user_consents', 'INSERT') THEN
     RAISE EXCEPTION 'app_superadmin must be able to write platform consent history';
   END IF;
+  IF has_table_privilege('app_superadmin', 'public.platform_user_consents', 'UPDATE')
+     OR has_table_privilege('app_superadmin', 'public.platform_user_consents', 'DELETE') THEN
+    RAISE EXCEPTION 'consent history must be append-only for app_superadmin';
+  END IF;
+  IF has_table_privilege('app_runtime', 'public.platform_user_consents', 'INSERT')
+     OR has_table_privilege('app_runtime', 'public.platform_user_consents', 'UPDATE')
+     OR has_table_privilege('app_runtime', 'public.platform_user_consents', 'DELETE') THEN
+    RAISE EXCEPTION 'app_runtime must not modify platform consent history';
+  END IF;
 END
-$$;
+$;
+
+-- The registry stores separate, append-only decisions for each marketing channel.
+DO $
+DECLARE
+  v_user uuid;
+  v_email_latest boolean;
+  v_sms_latest boolean;
+  v_email_events integer;
+BEGIN
+  INSERT INTO public.platform_users (email, phone, password_hash)
+  VALUES ('consent-fixture@example.test', '+972501234567', repeat('x', 64))
+  RETURNING id INTO v_user;
+
+  INSERT INTO public.platform_user_consents
+    (user_id, consent_type, granted, consent_version, source)
+  VALUES
+    (v_user, 'terms_of_use', true, 'test-v1', 'registration'),
+    (v_user, 'privacy_policy', true, 'test-v1', 'registration'),
+    (v_user, 'marketing_email', false, 'test-v1', 'registration'),
+    (v_user, 'marketing_sms', false, 'test-v1', 'registration'),
+    (v_user, 'marketing_email', true, 'test-v1', 'account_settings');
+
+  SELECT granted INTO v_email_latest FROM public.platform_user_consents
+   WHERE user_id = v_user AND consent_type = 'marketing_email'
+   ORDER BY recorded_at DESC, id DESC LIMIT 1;
+  SELECT granted INTO v_sms_latest FROM public.platform_user_consents
+   WHERE user_id = v_user AND consent_type = 'marketing_sms'
+   ORDER BY recorded_at DESC, id DESC LIMIT 1;
+  SELECT count(*) INTO v_email_events FROM public.platform_user_consents
+   WHERE user_id = v_user AND consent_type = 'marketing_email';
+
+  IF v_email_latest IS DISTINCT FROM true OR v_sms_latest IS DISTINCT FROM false OR v_email_events <> 2 THEN
+    RAISE EXCEPTION 'independent consent changes must preserve append-only history';
+  END IF;
+END
+$;
 
 
 -- Destructive deletion must retain an auditable backup verification reference.
