@@ -338,7 +338,30 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
            LEFT JOIN public.business_domains d ON d.tenant_id = b.id
            LEFT JOIN public.platform_subscriptions s ON s.tenant_id = b.id
            LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
-           LEFT JOIN public.platform_users u ON u.id = bo.user_id
+           LEFT JOIN LATERAL (
+             SELECT candidate.id
+               FROM public.platform_users candidate
+              WHERE NOT EXISTS (
+                SELECT 1 FROM public.platform_business_owners existing_owner
+                 WHERE existing_owner.user_id = candidate.id
+              )
+                AND (lower(candidate.email) = lower(COALESCE(b.email, ''))
+                     OR candidate.phone = b.phone
+                     OR candidate.phone = b.whatsapp_number)
+                AND (
+                  SELECT count(*)
+                    FROM public.platform_users possible
+                   WHERE NOT EXISTS (
+                     SELECT 1 FROM public.platform_business_owners linked_owner
+                      WHERE linked_owner.user_id = possible.id
+                   )
+                     AND (lower(possible.email) = lower(COALESCE(b.email, ''))
+                          OR possible.phone = b.phone
+                          OR possible.phone = b.whatsapp_number)
+                ) = 1
+              LIMIT 1
+           ) candidate_owner ON bo.user_id IS NULL
+           LEFT JOIN public.platform_users u ON u.id = COALESCE(bo.user_id, candidate_owner.id)
           GROUP BY b.id, s.status, s.trial_ends_at, s.current_period_ends_at, u.email, u.phone, u.email_verified_at
           ORDER BY b.created_at DESC`,
       );
@@ -408,11 +431,43 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
       });
       const owner = await registry.query(
-        `SELECT u.id, u.email FROM public.platform_business_owners bo
-         JOIN public.platform_users u ON u.id = bo.user_id WHERE bo.tenant_id = $1 LIMIT 1`,
+        `SELECT u.id, u.email
+           FROM public.businesses b
+           LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
+           LEFT JOIN public.platform_users linked_owner ON linked_owner.id = bo.user_id
+           LEFT JOIN LATERAL (
+             SELECT candidate.id
+               FROM public.platform_users candidate
+              WHERE NOT EXISTS (
+                SELECT 1 FROM public.platform_business_owners existing_owner
+                 WHERE existing_owner.user_id = candidate.id
+              )
+                AND (lower(candidate.email) = lower(COALESCE(b.email, ''))
+                     OR candidate.phone = b.phone
+                     OR candidate.phone = b.whatsapp_number)
+                AND (
+                  SELECT count(*)
+                    FROM public.platform_users possible
+                   WHERE NOT EXISTS (
+                     SELECT 1 FROM public.platform_business_owners linked_owner_check
+                      WHERE linked_owner_check.user_id = possible.id
+                   )
+                     AND (lower(possible.email) = lower(COALESCE(b.email, ''))
+                          OR possible.phone = b.phone
+                          OR possible.phone = b.whatsapp_number)
+                ) = 1
+              LIMIT 1
+           ) candidate_owner ON bo.user_id IS NULL
+           JOIN public.platform_users u ON u.id = COALESCE(linked_owner.id, candidate_owner.id)
+          WHERE b.id = $1
+          LIMIT 1`,
         [tenantId],
       );
-      if (!owner.rows[0]) throw new HttpError(404, 'business_owner_not_found');
+      if (!owner.rows[0]) throw new HttpError(404, 'business_owner_not_found_or_ambiguous');
+      await registry.query(
+        'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [owner.rows[0].id, tenantId],
+      );
       await registry.query(
         `UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`,
         [owner.rows[0].id],
