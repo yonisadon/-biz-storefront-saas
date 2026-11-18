@@ -41,13 +41,30 @@ export async function getCtx(slug: string): Promise<Ctx> {
   return { path: `/api/biz/${slug}`, origin: origin.replace(/\/$/, ''), base: `/biz/${slug}` };
 }
 async function get<T>(ctx: Ctx, sub: string, revalidate: number): Promise<T | null> {
+  const endpoint = `${ctx.path}${sub}`;
+  if (!API) {
+    console.error('[btime-api] API_URL is not configured', { endpoint });
+    throw new Error('API_URL_NOT_CONFIGURED');
+  }
   const qs = ctx.host ? `?h=${encodeURIComponent(ctx.host)}` : '';
-  const res = await fetch(`${API}${ctx.path}${sub}${qs}`, {
-    headers: ctx.host ? { 'x-original-host': ctx.host, 'x-forwarded-host': ctx.host } : {},
-    next: { revalidate },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API.replace(/\\/+$/, '')}${endpoint}${qs}`, {
+      headers: ctx.host ? { 'x-original-host': ctx.host, 'x-forwarded-host': ctx.host } : {},
+      next: { revalidate },
+    });
+  } catch (error) {
+    console.error('[btime-api] request failed', {
+      endpoint,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`backend ${res.status}`);
+  if (!res.ok) {
+    console.error('[btime-api] backend returned non-success status', { endpoint, status: res.status });
+    throw new Error(`BACKEND_HTTP_${res.status}:${endpoint}`);
+  }
   return res.json() as Promise<T>;
 }
 export const getStorefront = (ctx: Ctx) => get<PublicPayload>(ctx, '', 30);
