@@ -143,7 +143,8 @@ export async function provisionBusinessForOwner(
        b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
     );
 
-    const client = await registry.connect();
+    const client = registry;
+    if (!client) throw new Error('registry_connection_unavailable');
     let trialEndsAt = '';
     try {
       await client.query('BEGIN');
@@ -172,8 +173,6 @@ export async function provisionBusinessForOwner(
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
       throw error;
-    } finally {
-      client.release();
     }
 
     return { id: tenantId, name: b.name, slug: b.slug, database: databaseName, trial_ends_at: trialEndsAt };
