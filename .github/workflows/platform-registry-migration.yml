@@ -49,3 +49,22 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/tests/fixtures/platform-registry-assertions.sql
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Exercise account registration, verification, sessions, password reset and consent API
+        working-directory: backend
+        env:
+          APP_DATABASE_URL: postgres://postgres:postgres@localhost:5432/btime_registry_test
+          SUPERADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/btime_registry_test
+          DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/btime_registry_test
+          MEDIA_BASE_URL: http://localhost:3000
+          PUBLIC_BASE_URL: http://localhost:3000
+          BREVO_API_KEY: integration-test-key
+          EMAIL_FROM: BTime Tests <noreply@example.test>
+          DATABASE_SSL: 'false'
+          NODE_ENV: test
+        run: npm run test:platform-integration
