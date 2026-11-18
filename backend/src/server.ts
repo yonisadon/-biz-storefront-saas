@@ -10,6 +10,7 @@ import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
 import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
+import { authRoutes } from './routes/auth';
 import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
 
 // Management tokens are secrets: keep them out of logs
@@ -44,6 +45,7 @@ export async function buildServer() {
   await app.register(publicRoutes(resolveByHost), { prefix: '/api/site' });
   await app.register(manageRoutes, { prefix: '/api/manage/:token' });
   await app.register(adminRoutes, { prefix: '/api/admin' });
+  await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
 
   app.setErrorHandler((err: any, req, reply) => {
