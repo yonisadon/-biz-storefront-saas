@@ -47,6 +47,21 @@ BEGIN
 END $$;
 
 
+
+-- A completed deletion cannot be recorded without a verified backup reference.
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.business_deletion_requests
+       SET status = 'completed'
+     WHERE business_name = 'Legacy test' AND business_slug = 'legacy-test';
+    RAISE EXCEPTION 'deletion without verified backup unexpectedly completed';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+END
+$$;
+
 -- Consent history is present and isolated from public runtime access.
 DO $$
 BEGIN
