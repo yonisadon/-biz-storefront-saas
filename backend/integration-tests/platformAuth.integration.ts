@@ -218,6 +218,42 @@ test('platform account lifecycle and independent marketing consents', async () =
     });
     assert.equal(ownerSessionAdmin.statusCode, 401);
 
+    // A verified account promoted to super_admin must be able to use its session cookie
+    // without sending the emergency API token from the browser.
+    const superAdminEmail = `platform-admin-${randomUUID()}@example.test`;
+    const superAdminRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        email: superAdminEmail,
+        phone: '+972501234569',
+        password: 'correct-horse-admin-password',
+        termsAccepted: true,
+        privacyAccepted: true,
+        marketingEmail: false,
+        marketingSms: false,
+      },
+    });
+    assert.equal(superAdminRegistration.statusCode, 202);
+    const superAdminVerifyToken = extractToken(sentEmails[2].htmlContent, 'verify-email');
+    const superAdminVerification = await app.inject({
+      method: 'POST',
+      url: '/api/auth/verify-email',
+      payload: { token: superAdminVerifyToken },
+    });
+    assert.equal(superAdminVerification.statusCode, 200);
+    const superAdminCookie = String(superAdminVerification.headers['set-cookie']).split(';')[0];
+    await pool.query(
+      "UPDATE public.platform_users SET role = 'super_admin' WHERE email = $1",
+      [superAdminEmail],
+    );
+    const superAdminAccess = await app.inject({
+      method: 'GET',
+      url: '/api/admin/overview',
+      headers: { cookie: superAdminCookie },
+    });
+    assert.equal(superAdminAccess.statusCode, 200);
+
     // Exercise ownerless/manual business visibility and the two-step deletion flow.
     const adminToken = 't'.repeat(48);
     process.env.SUPERADMIN_API_TOKEN = adminToken;
