@@ -106,6 +106,20 @@ ALTER TABLE public.business_deletion_requests
   ADD COLUMN IF NOT EXISTS backup_verified_at timestamptz,
   ADD COLUMN IF NOT EXISTS backup_reference text,
   ADD COLUMN IF NOT EXISTS backup_verified_by text;
+DO $
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_deletion_backup_reference_length') THEN
+    ALTER TABLE public.business_deletion_requests
+      ADD CONSTRAINT business_deletion_backup_reference_length
+      CHECK (backup_reference IS NULL OR length(btrim(backup_reference)) BETWEEN 8 AND 500) NOT VALID;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_deletion_completed_requires_backup') THEN
+    ALTER TABLE public.business_deletion_requests
+      ADD CONSTRAINT business_deletion_completed_requires_backup
+      CHECK (status <> 'completed' OR (backup_verified_at IS NOT NULL AND backup_reference IS NOT NULL)) NOT VALID;
+  END IF;
+END
+$;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_business_deletion_one_pending
   ON public.business_deletion_requests (tenant_id) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_business_deletion_requests_status_date
