@@ -1,0 +1,51 @@
+name: Platform registry migration smoke test
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/migrations/000_tenant_registry.sql'
+      - 'backend/migrations/001_platform_accounts_subscriptions.sql'
+      - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
+      - 'backend/tests/fixtures/platform-registry-assertions.sql'
+      - '.github/workflows/platform-registry-migration.yml'
+
+jobs:
+  migration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: btime_registry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d btime_registry_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable registry prerequisites
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/tests/fixtures/platform-registry-prerequisites.sql
+      - name: Apply tenant registry migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/000_tenant_registry.sql
+      - name: Apply platform accounts migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/001_platform_accounts_subscriptions.sql
+      - name: Re-run platform migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/001_platform_accounts_subscriptions.sql
+      - name: Verify access rules and admin-originated deletion requests
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/tests/fixtures/platform-registry-assertions.sql
