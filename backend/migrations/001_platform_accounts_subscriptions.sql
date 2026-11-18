@@ -106,7 +106,7 @@ ALTER TABLE public.business_deletion_requests
   ADD COLUMN IF NOT EXISTS backup_verified_at timestamptz,
   ADD COLUMN IF NOT EXISTS backup_reference text,
   ADD COLUMN IF NOT EXISTS backup_verified_by text;
-DO $
+DO $btime$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_deletion_backup_reference_length') THEN
     ALTER TABLE public.business_deletion_requests
@@ -119,7 +119,7 @@ BEGIN
       CHECK (status <> 'completed' OR (backup_verified_at IS NOT NULL AND backup_reference IS NOT NULL)) NOT VALID;
   END IF;
 END
-$;
+$btime$;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_business_deletion_one_pending
   ON public.business_deletion_requests (tenant_id) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS idx_business_deletion_requests_status_date
