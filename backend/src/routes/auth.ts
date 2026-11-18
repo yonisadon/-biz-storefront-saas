@@ -4,7 +4,7 @@ import pg from 'pg';
 import { z } from 'zod';
 import { env } from '../config';
 import { HttpError } from '../errors';
-import { normalizeILPhone } from '../util';
+import { normalizeInternationalPhone } from '../util';
 import { createManagementToken, provisionBusinessForOwner } from '../provisioning';
 
 const SESSION_COOKIE = 'btime_session';
@@ -169,8 +169,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const input = RegisterInput.parse(req.body);
     if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
     const email = input.email.toLowerCase();
-    const phone = normalizeILPhone(input.phone);
-    if (!phone) throw new HttpError(400, 'invalid_il_phone');
+    const phone = normalizeInternationalPhone(input.phone);
+    if (!phone) throw new HttpError(400, 'invalid_phone');
     const db = registry();
 
     try {
