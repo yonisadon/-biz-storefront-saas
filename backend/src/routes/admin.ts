@@ -388,8 +388,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
       await tenant.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [tenantId, input.status]);
       await registry.query(
-        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'platform-admin', 'business_status_changed', $1, $2::jsonb)",
-        [tenantId, JSON.stringify({ status: input.status, reason: input.reason ?? null })],
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_status_changed', $1, $3::jsonb)",
+        [tenantId, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ status: input.status, reason: input.reason ?? null })],
       );
       return updated.rows[0];
     } finally {
@@ -431,8 +431,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         [tenantId, input.status, input.trial_ends_at ?? null, input.current_period_ends_at ?? null],
       );
       await registry.query(
-        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'platform-admin', 'subscription_status_changed', $1, $2::jsonb)",
-        [tenantId, JSON.stringify({ status: input.status })],
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'subscription_status_changed', $1, $3::jsonb)",
+        [tenantId, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ status: input.status })],
       );
       return result.rows[0];
     } finally {
@@ -475,18 +475,18 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       await registry.query('BEGIN');
       const result = await registry.query(
         `UPDATE public.business_deletion_requests
-            SET status = $2, reviewed_at = now(), reviewed_by_email = 'platform-admin', review_note = $3
+            SET status = $2, reviewed_at = now(), reviewed_by_email = $4, review_note = $3
           WHERE id = $1 AND status = 'pending'
           RETURNING id, tenant_id, status`,
-        [requestId, input.decision === 'approve' ? 'approved' : 'rejected', input.note ?? null],
+        [requestId, input.decision === 'approve' ? 'approved' : 'rejected', input.note ?? null, env.SUPERADMIN_EMAIL ?? 'api-token-admin'],
       );
       if (!result.rows[0]) throw new HttpError(404, 'deletion_request_not_found');
       if (input.decision === 'approve') {
         await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [result.rows[0].tenant_id]);
       }
       await registry.query(
-        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'platform-admin', 'business_deletion_reviewed', $1, $2::jsonb)",
-        [result.rows[0].tenant_id, JSON.stringify({ decision: input.decision, note: input.note ?? null })],
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_deletion_reviewed', $1, $3::jsonb)",
+        [result.rows[0].tenant_id, env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ decision: input.decision, note: input.note ?? null })],
       );
       await registry.query('COMMIT');
       return result.rows[0];
@@ -558,8 +558,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
           [requestId, databaseName, JSON.stringify(storageKeys)],
         );
         await registry.query(
-          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'platform-admin', 'business_deleted', $1::jsonb)",
-          [JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
+          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', $1, 'business_deleted', $2::jsonb)",
+          [env.SUPERADMIN_EMAIL ?? 'api-token-admin', JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
         );
         await registry.query('COMMIT');
       } catch (error) {
