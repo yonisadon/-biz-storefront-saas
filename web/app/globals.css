@@ -1662,7 +1662,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   .brand-root .storefront-universal-hero {
     grid-template-columns: minmax(0, 1fr);
     gap: 1.25rem;
-    margin-bottom: 3.75rem;
+    margin-bottom: .5rem;
   }
   .brand-root .storefront-universal-hero-media,
   .brand-root .storefront-universal-hero-copy {
@@ -1901,7 +1901,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   }
   .brand-root .storefront-universal-content > #catalog-section,
   .brand-root .storefront-universal-content > #services-section {
-    padding-top: 1.35rem;
+    padding-top: .5rem;
   }
   .brand-root .storefront-universal-content .storefront-items-list > li.storefront-card > div:last-child {
     padding: .9rem .85rem 1rem;
@@ -1961,9 +1961,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 
 /* Seller-authored announcement: a calm, lightly tinted notice, independent of opening-hours status. */
 .brand-root .storefront-business-announcement {
-  display: grid;
-  justify-items: center;
-  gap: .2rem;
+  display: block;
   width: 100%;
   padding: .75rem 1.25rem .8rem;
   border-block: 1px solid color-mix(in srgb, var(--brand-primary) 14%, transparent);
@@ -1971,12 +1969,6 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   color: var(--brand-text);
   text-align: center;
   line-height: 1.6;
-}
-.brand-root .storefront-business-announcement-label {
-  color: color-mix(in srgb, var(--brand-primary) 72%, var(--brand-text));
-  font-size: .75rem;
-  font-weight: 700;
-  letter-spacing: .02em;
 }
 .brand-root .storefront-business-announcement p {
   max-width: 68rem;
