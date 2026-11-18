@@ -2334,3 +2334,11 @@
 - צומצמו הרווחים בין שעות/כתובת לבין דרכי התקשרות ובין אזור הקטלוג/שירותים לבין פרטי העסק במובייל.
 - אין שינוי בסכמת מסד הנתונים, בנתוני לקוחות, בהזמנות, בתורים, ב-CRM או בזרימות WhatsApp; אין צורך במיגרציה. שדה ההודעה הוא חלק מ-config JSONB הקיים.
 - בדיקות נדרשות: שמירת הודעה פעילה/כבויה, הודעה ריקה, הודעה ארוכה, הופעה בראש האתר, היעדר תלות בשעות פתיחה/סגירה, ושמירה על נתוני config אחרים; בדיקת כפתור יצירת קשר וריווח במובייל ובמחשב.
+
+
+## 2026-11-18 — Storefront identity, contact and seller announcement
+- Business name and hero identity are centered across all storefront themes; the hero accent remains centered as well.
+- The “יצירת קשר” action is a normal in-page link inside the hero, centered and never fixed, sticky, floating, or pinned to a screen edge.
+- Seller announcements are independent business content, not opening-hours information. They are displayed only when enabled and non-empty, in a clearly labeled, high-visibility banner at the top of the customer site. The seller may use the message for promotions, updates, holidays, new products, or other notices.
+- Reduce excess vertical spacing around the contact/business-information section on mobile without changing its content or contact actions.
+- A seller-uploaded business logo remains a future optional enhancement; this change does not add logo storage or upload controls.
