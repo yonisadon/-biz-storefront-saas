@@ -10,6 +10,7 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
+import { storage, variantKeys } from '../storage';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -442,12 +443,13 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     try {
       const result = await registry.query(
         `SELECT dr.id, dr.tenant_id, dr.reason, dr.status, dr.requested_at,
-                b.name AS business_name, b.slug AS business_slug,
-                u.email AS owner_email, u.phone AS owner_phone
+                COALESCE(dr.business_name, b.name) AS business_name,
+                COALESCE(dr.business_slug, b.slug) AS business_slug,
+                dr.database_name, u.email AS owner_email, u.phone AS owner_phone
            FROM public.business_deletion_requests dr
-           JOIN public.businesses b ON b.id = dr.tenant_id
+           LEFT JOIN public.businesses b ON b.id = dr.tenant_id
            JOIN public.platform_users u ON u.id = dr.requested_by_user_id
-          WHERE dr.status = 'pending'
+          WHERE dr.status IN ('pending', 'approved')
           ORDER BY dr.requested_at ASC`,
       );
       return { requests: result.rows };
@@ -488,6 +490,84 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       throw error;
     } finally {
       await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/deletion-requests/:id/execute', async (req) => {
+    const requestId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw new HttpError(404, 'deletion_request_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let databaseAdmin: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const selected = await registry.query(
+        `SELECT id, tenant_id, business_name, business_slug, database_name, storage_keys, status
+           FROM public.business_deletion_requests WHERE id = $1 LIMIT 1`,
+        [requestId],
+      );
+      const request = selected.rows[0];
+      if (!request) throw new HttpError(404, 'deletion_request_not_found');
+      if (request.status !== 'approved') throw new HttpError(409, 'deletion_request_not_approved');
+
+      let databaseName = request.database_name as string | null;
+      let storageKeys = Array.isArray(request.storage_keys) ? request.storage_keys as string[] : [];
+      if (!databaseName && request.tenant_id) {
+        databaseName = await getTenantDatabase(registry, request.tenant_id);
+        tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+        const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+        storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+        await tenant.end();
+        tenant = undefined;
+        // Persist the cleanup manifest before touching storage or dropping the DB,
+        // so an interrupted deletion can be retried safely.
+        await registry.query(
+          'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
+          [requestId, databaseName, JSON.stringify(storageKeys)],
+        );
+      }
+
+      if (storageKeys.length) await storage.remove(storageKeys);
+      if (databaseName) {
+        databaseAdmin = await connectClientWithRetry(env.DATABASE_ADMIN_URL, options);
+        await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
+        await databaseAdmin.end();
+        databaseAdmin = undefined;
+      }
+
+      await registry.query('BEGIN');
+      try {
+        if (request.tenant_id) {
+          await registry.query('DELETE FROM public.businesses WHERE id = $1', [request.tenant_id]);
+        }
+        await registry.query(
+          `UPDATE public.business_deletion_requests
+              SET status = 'completed', completed_at = now(), tenant_id = NULL,
+                  database_name = COALESCE(database_name, $2), storage_keys = $3::jsonb
+            WHERE id = $1`,
+          [requestId, databaseName, JSON.stringify(storageKeys)],
+        );
+        await registry.query(
+          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'platform-admin', 'business_deleted', $1::jsonb)",
+          [JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
+        );
+        await registry.query('COMMIT');
+      } catch (error) {
+        await registry.query('ROLLBACK').catch(() => {});
+        throw error;
+      }
+      return { deleted: true, business_name: request.business_name, message: 'העסק, מסד הנתונים הייעודי וקובצי המדיה שנרשמו הוסרו.' };
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      req.log.error({ err: error }, 'approved business deletion failed');
+      throw new HttpError(500, 'business_deletion_failed', 'Business deletion failed; the approved request can be retried safely.');
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (databaseAdmin) await databaseAdmin.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
     }
   });
 
