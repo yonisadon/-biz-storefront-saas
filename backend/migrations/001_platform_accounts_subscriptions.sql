@@ -22,6 +22,18 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_users_email ON public.platform_users (email);
 
+CREATE TABLE IF NOT EXISTS public.platform_user_consents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
+  consent_type text NOT NULL CHECK (consent_type IN ('terms_of_use', 'privacy_policy', 'marketing_email', 'marketing_sms')),
+  granted boolean NOT NULL,
+  consent_version text NOT NULL,
+  source text NOT NULL CHECK (source IN ('registration', 'account_settings')),
+  recorded_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_platform_user_consents_latest
+  ON public.platform_user_consents (user_id, consent_type, recorded_at DESC);
+
 CREATE TABLE IF NOT EXISTS public.platform_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.platform_users(id) ON DELETE CASCADE,
@@ -187,11 +199,11 @@ END
 $function$;
 
 REVOKE ALL ON public.platform_users, public.platform_sessions, public.platform_email_tokens,
-  public.platform_business_owners, public.platform_subscriptions,
+  public.platform_business_owners, public.platform_subscriptions, public.platform_user_consents,
   public.business_deletion_requests, public.platform_audit_log FROM PUBLIC, app_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.platform_users, public.platform_sessions,
   public.platform_email_tokens, public.platform_business_owners, public.platform_subscriptions,
-  public.business_deletion_requests, public.platform_audit_log TO app_superadmin;
+  public.business_deletion_requests, public.platform_audit_log, public.platform_user_consents TO app_superadmin;
 GRANT USAGE, SELECT ON SEQUENCE public.platform_audit_log_id_seq TO app_superadmin;
 
 REVOKE ALL ON FUNCTION app.is_tenant_subscription_accessible(uuid) FROM PUBLIC;
