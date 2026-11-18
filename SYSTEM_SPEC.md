@@ -2632,3 +2632,5 @@
 - מיגרציות Registry ו-tenant יופעלו רק באמצעות ה-workflows הידניים הייעודיים, לאחר preflight ואישור גיבוי/חריגת no-backup. Deploy רגיל לא יריץ מיגרציות.
 - משתני Railway הנדרשים ל-Brevo (`BREVO_API_KEY`, `EMAIL_FROM`) וכן `PUBLIC_BASE_URL` קיימים לפי שמות המשתנים. חיבור OAuth אינו חושף את הערכים, ולכן לא ניתן לאמת מכאן את תוכנם או את תקינות שליחת המייל בפועל.
 - ההגדרה הממתינה לא אושרה ולא הוחלה. יש לבדוק את ה-diff ב-Railway לפני אישור/פריסה.
+
+- שירות Backend ב-Railway מחובר כרגע למאגר `yonisadon/-biz-storefront-saas` ולענף `main`. מצב ה-auto-deploy של חיבור Git לא אומת בכלי הקריאה הזמין; לפני merge יש לוודא בלוח Railway ש-push ל-main לא יפעיל Deploy לא מתוכנן, או לתאם במפורש את ה-Deploy. אין לבצע merge לפני בדיקת נקודה זו.
