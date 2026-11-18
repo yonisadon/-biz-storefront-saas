@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { FormEvent } from 'react';
 import PalettePicker from '@/components/PalettePicker';
 import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
@@ -16,12 +17,15 @@ type CreatedBusiness = {
   status: string;
 };
 
-type BusinessOption = { id: string; name: string; slug: string; status: string; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+type BusinessOption = { id: string; name: string; slug: string; status: string; email?: string | null; phone?: string | null; owner_email?: string | null; owner_phone?: string | null; owner_email_verified?: boolean; created_at?: string; subscription_status?: string | null; trial_ends_at?: string | null; current_period_ends_at?: string | null; deletion_request_status?: string | null; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+type AdminOverview = { total_businesses: number; active_businesses: number; suspended_businesses: number; trialing_subscriptions: number; paid_subscriptions: number; pending_deletion_requests: number };
+type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email?: string | null; owner_phone?: string | null; database_name?: string | null };
 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
 export default function PlatformAdminPage() {
   const [adminToken, setAdminToken] = useState('');
+  const [showAdminToken, setShowAdminToken] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [phone, setPhone] = useState('');
@@ -42,8 +46,24 @@ export default function PlatformAdminPage() {
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [businessesMessage, setBusinessesMessage] = useState('');
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [businessSearch, setBusinessSearch] = useState('');
+  const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState('all');
+  const [emailVerificationFilter, setEmailVerificationFilter] = useState('all');
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
+  const filteredBusinesses = businesses.filter((business) => {
+    const term = businessSearch.trim().toLocaleLowerCase('he-IL');
+    const matchesSearch = !term || [business.name, business.slug, business.owner_email, business.owner_phone, business.email, business.phone].some((value) => value?.toLocaleLowerCase('he-IL').includes(term));
+    const matchesStatus = businessStatusFilter === 'all' || business.status === businessStatusFilter;
+    const matchesSubscription = subscriptionFilter === 'all' || (subscriptionFilter === 'none' ? !business.subscription_status : business.subscription_status === subscriptionFilter);
+    const matchesVerification = emailVerificationFilter === 'all' || (emailVerificationFilter === 'verified' ? Boolean(business.owner_email) && business.owner_email_verified === true : emailVerificationFilter === 'unverified' ? Boolean(business.owner_email) && business.owner_email_verified !== true : emailVerificationFilter === 'no_owner' ? !business.owner_email : false);
+    return matchesSearch && matchesStatus && matchesSubscription && matchesVerification;
+  });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -106,25 +126,252 @@ export default function PlatformAdminPage() {
     }
   }
 
+
+  const loadAdminData = useCallback(async () => {
+    setAdminLoading(true);
+    setAdminMessage('');
+    try {
+      const headers = { authorization: `Bearer ${adminToken.trim()}` };
+      const [overviewResponse, businessesResponse, deletionResponse] = await Promise.all([
+        fetch('/api/admin/overview', { headers, cache: 'no-store' }),
+        fetch('/api/admin/businesses', { headers, cache: 'no-store' }),
+        fetch('/api/admin/deletion-requests', { headers, cache: 'no-store' }),
+      ]);
+      const [overviewData, businessesData, deletionData] = await Promise.all([
+        overviewResponse.json().catch(() => null),
+        businessesResponse.json().catch(() => null),
+        deletionResponse.json().catch(() => null),
+      ]);
+      if (!overviewResponse.ok || !businessesResponse.ok || !deletionResponse.ok) {
+        throw new Error('לא ניתן לטעון את נתוני הניהול. התחבר באמצעות חשבון שהוגדר במסד הנתונים בתפקיד super_admin.');
+      }
+      setOverview(overviewData as AdminOverview);
+      setBusinesses((businessesData?.businesses ?? []) as BusinessOption[]);
+      setDeletionRequests((deletionData?.requests ?? []) as DeletionRequest[]);
+      setAdminMessage('נתוני המערכת עודכנו.');
+    } catch (err) {
+      setAdminMessage(err instanceof Error ? err.message : 'טעינת נתוני הניהול נכשלה.');
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [adminToken]);
+
+  useEffect(() => { void loadAdminData(); }, [loadAdminData]);
+
+  async function updateBusinessStatus(id: string, status: string) {
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/status`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ status }), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את סטטוס העסק.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, status: data.status } : item));
+      setAdminMessage('סטטוס העסק עודכן.');
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function updateSubscription(id: string, status: string) {
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const body = status === 'trialing'
+        ? { status, trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
+        : { status };
+      const response = await fetch(`/api/admin/businesses/${id}/subscription`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify(body), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את המנוי.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, subscription_status: data.status, trial_ends_at: data.trial_ends_at, current_period_ends_at: data.current_period_ends_at } : item));
+      setAdminMessage('סטטוס המנוי עודכן.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function verifyOwnerEmail(id: string) {
+    if (!window.confirm('לאמת ידנית את כתובת המייל של בעל העסק? יש לבצע זאת רק לאחר בדיקת זהותו או אישורו בערוץ אחר.')) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/owner-email-verification`, {
+        method: 'PATCH', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לאמת את כתובת המייל.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, owner_email_verified: true } : item));
+      setAdminMessage('כתובת המייל של בעל העסק סומנה כמאומתת ידנית. הפעולה תועדה.');
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'האימות נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function requestBusinessDeletion(id: string) {
+    const business = businesses.find((item) => item.id === id);
+    if (!business) return;
+    if (!window.confirm(`לפתוח בקשת מחיקה עבור העסק "${business.name}"? העסק לא יימחק מיד. תחילה תידרש הקפאה ואישור, ולאחר מכן ביצוע מחיקה מלאה של ה-DB והמדיה.`)) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/deletion-request`, {
+        method: 'POST', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לפתוח בקשת מחיקה לעסק.');
+      setAdminMessage(data?.message ?? 'בקשת המחיקה נפתחה.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'פתיחת בקשת המחיקה נכשלה.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function executeDeletion(id: string) {
+    const backupReference = window.prompt('לפני מחיקה יש ליצור גיבוי למסד הנתונים ב-Railway, לוודא שניתן לשחזר/לקרוא אותו, ולהזין כאן מזהה גיבוי או אסמכתה (לפחות 8 תווים):');
+    if (!backupReference || backupReference.trim().length < 8) {
+      setAdminMessage('המחיקה בוטלה. נדרשת אסמכתה לגיבוי מאומת.');
+      return;
+    }
+    if (!window.confirm('אני מאשר/ת שיצרתי גיבוי Railway למסד הנתונים הייעודי, בדקתי שהוא תקין ושניתן לשחזר ממנו, והאסמכתה שהזנתי נכונה. המחיקה בלתי הפיכה. להמשיך?')) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/deletion-requests/${id}/execute`, {
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ backupVerified: true, backupReference: backupReference.trim() }), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'המחיקה נכשלה. הבקשה נשארה מאושרת וניתן לנסות שוב לאחר בדיקה.');
+      setAdminMessage(data?.message ?? 'העסק נמחק.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'המחיקה נכשלה.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function reviewDeletion(id: string, decision: 'approve' | 'reject') {
+    const prompt = decision === 'approve'
+      ? 'לאשר את בקשת המחיקה? העסק ייחסם ויועבר לשלב מחיקה מבוקר.'
+      : 'לדחות את בקשת המחיקה?';
+    if (!window.confirm(prompt)) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/deletion-requests/${id}/review`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ decision }), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את בקשת המחיקה.');
+      setDeletionRequests(current => current.filter(item => item.id !== id));
+      if (decision === 'approve') setBusinesses(current => current.map(item => item.id === data.tenant_id ? { ...item, status: 'suspended' } : item));
+      setAdminMessage(decision === 'approve' ? 'הבקשה אושרה והעסק הוקפא. המחיקה הפיזית תתבצע בשלב מאובטח נפרד.' : 'בקשת המחיקה נדחתה.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-2xl">
-        <header className="mb-8">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <p className="mb-2 text-sm font-semibold text-blue-700">ניהול פלטפורמה</p>
           <h1 className="text-3xl font-bold tracking-tight">יצירת עסק חדש</h1>
           <p className="mt-3 leading-7 text-slate-600">
             כל עסק חדש יקבל מסד PostgreSQL נפרד בתוך שירות Railway הקיים, אתר ציבורי וקישור ניהול פרטי.
           </p>
+          <Link href="/login" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התחברות</Link>
         </header>
+
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-lg font-bold">לוח בקרה</h2><p className="mt-1 text-sm text-slate-600">ניהול עסקים, מנויים ובקשות מחיקה.</p></div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/register" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">הרשמת בעל עסק</Link>
+              <button type="button" onClick={loadAdminData} disabled={adminLoading} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{adminLoading ? 'טוען…' : 'טעינת נתוני מערכת'}</button>
+            </div>
+          </div>
+          {adminMessage && <p role="status" className="mt-3 text-sm text-slate-700">{adminMessage}</p>}
+          {overview && <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              ['עסקים במערכת', overview.total_businesses],
+              ['עסקים פעילים', overview.active_businesses],
+              ['עסקים חסומים', overview.suspended_businesses],
+              ['בתקופת ניסיון', overview.trialing_subscriptions],
+              ['מנויים פעילים', overview.paid_subscriptions],
+              ['בקשות מחיקה', overview.pending_deletion_requests],
+            ].map(([label, value]) => <div key={String(label)} className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold tabular-nums">{value}</p></div>)}
+          </div>}
+        </section>
+
+        {businesses.length > 0 && <section className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">עסקים ({filteredBusinesses.length} מתוך {businesses.length})</h2><button type="button" onClick={loadAdminData} disabled={adminLoading} className="text-sm font-semibold text-blue-700 underline">רענון הרשימה</button></div>
+          <div className="grid gap-2 sm:grid-cols-4">
+            <input aria-label="חיפוש עסקים" value={businessSearch} onChange={e=>setBusinessSearch(e.target.value)} placeholder="חיפוש לפי עסק, כתובת, מייל או טלפון" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-4" />
+            <select aria-label="סינון לפי סטטוס עסק" value={businessStatusFilter} onChange={e=>setBusinessStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי העסק</option><option value="active">פעיל</option><option value="suspended">חסום</option><option value="archived">בארכיון</option></select>
+            <select aria-label="סינון לפי מנוי" value={subscriptionFilter} onChange={e=>setSubscriptionFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי המנוי</option><option value="trialing">תקופת ניסיון</option><option value="active">מנוי פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option><option value="none">ללא מנוי</option></select>
+            <select aria-label="סינון לפי אימות מייל" value={emailVerificationFilter} onChange={e=>setEmailVerificationFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי הבעלות</option><option value="verified">מייל בעלים מאומת</option><option value="unverified">מייל בעלים לא אומת</option><option value="no_owner">ללא חשבון בעלים</option></select>
+            <button type="button" onClick={()=>{setBusinessSearch('');setBusinessStatusFilter('all');setSubscriptionFilter('all');setEmailVerificationFilter('all');}} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">ניקוי סינון</button>
+          </div>
+          {filteredBusinesses.length===0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500">לא נמצאו עסקים התואמים לסינון.</p>}
+          {filteredBusinesses.map(business => <article key={business.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h3 className="font-bold">{business.name}</h3><p className="mt-1 text-xs text-slate-500" dir="ltr">/biz/{business.slug}</p>
+                <p className="mt-1 text-xs text-slate-500">{business.owner_email ?? business.email ?? 'ללא מייל בעלים'} · {business.owner_phone ?? business.phone ?? 'ללא טלפון'}</p>
+                <p className="mt-1 text-xs">{business.owner_email ? <>אימות מייל בעלים: <span className={business.owner_email_verified?'text-emerald-700':'text-amber-700'}>{business.owner_email_verified?'מאומת':'לא אומת'}</span></> : <span className="text-slate-500">לעסק אין חשבון בעלים משויך</span>}</p></div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{business.status === 'active' ? 'פעיל' : business.status === 'suspended' ? 'חסום' : business.status}</span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-slate-600">סטטוס גישה
+                <select value={business.status} disabled={adminLoading} onChange={e=>updateBusinessStatus(business.id,e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm text-slate-900">
+                  <option value="active">פעיל</option><option value="suspended">חסום</option><option value="archived">בארכיון</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-slate-600">מנוי
+                <span className="mt-1 block font-normal text-slate-500">אפשר לאשר מנוי גם כשהמייל עדיין לא אומת.</span>
+                <select value={business.subscription_status ?? 'none'} disabled={adminLoading} onChange={e=>updateSubscription(business.id,e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm text-slate-900">
+                  <option value="none" disabled>ללא מנוי קיים</option><option value="trialing">ניסיון ל-30 יום</option><option value="active">פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option>
+                </select>
+              </label>
+            </div>
+            {!business.owner_email_verified && business.owner_email && <button type="button" disabled={adminLoading} onClick={()=>verifyOwnerEmail(business.id)} className="mt-3 rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-900 disabled:opacity-50">אימות מייל ידני לאחר בדיקה</button>}
+            <button type="button" disabled={adminLoading || deletionRequests.some((request) => request.tenant_id === business.id)} onClick={()=>requestBusinessDeletion(business.id)} className="mt-3 mr-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-800 disabled:opacity-50">פתיחת בקשת מחיקה מלאה</button>
+            {business.trial_ends_at && <p className="mt-2 text-xs text-slate-500">סיום ניסיון: {new Date(business.trial_ends_at).toLocaleDateString('he-IL')}</p>}
+            {business.domains.length > 0 && <p className="mt-2 break-all text-xs text-slate-500">{business.domains.map(d=>d.domain).join(' · ')}</p>}
+          </article>)}
+        </section>}
+
+        {deletionRequests.length > 0 && <section className="mb-6 rounded-2xl border border-amber-200 bg-white p-5 shadow-sm">
+          <h2 className="font-bold">בקשות מחיקה ממתינות ({deletionRequests.length})</h2>
+          <div className="mt-3 space-y-3">
+            {deletionRequests.map(request => <div key={request.id} className="rounded-xl bg-amber-50 p-3">
+              <p className="font-semibold">{request.business_name}</p><p className="mt-1 text-xs text-slate-600">{request.owner_email ?? 'ללא חשבון בעלים'}{request.owner_phone ? ` · ${request.owner_phone}` : ''}</p>
+              {request.reason && <p className="mt-2 text-sm">{request.reason}</p>}
+              <p className="mt-2 text-xs font-semibold text-amber-900">{request.status === 'approved' ? 'אושרה — העסק חסום וממתין למחיקה מלאה' : 'ממתינה לאישור'}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {request.status === 'approved' ? <>
+                  <button type="button" disabled={adminLoading} onClick={()=>executeDeletion(request.id)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">ביצוע מחיקה מלאה</button>
+                </> : <>
+                  <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'approve')} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">אישור והקפאת העסק</button>
+                  <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'reject')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">דחיית בקשה</button>
+                </>}
+              </div>
+            </div>)}
+          </div>
+        </section>}
 
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div>
-            <label htmlFor="adminToken" className="mb-2 block text-sm font-semibold">מפתח ניהול הפלטפורמה</label>
-            <input id="adminToken" type="password" autoComplete="off" required minLength={32}
-              value={adminToken} onChange={(e) => setAdminToken(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              placeholder="הדבק כאן את SUPERADMIN_API_TOKEN" />
-            <p className="mt-1 text-xs text-slate-500">המפתח נשמר בזיכרון הדף בלבד ולא נשלח לשום מקום מלבד השרת שלך.</p>
+            <label htmlFor="adminToken" className="mb-2 block text-sm font-semibold">מפתח API חלופי (לא חובה)</label>
+            <div className="relative">
+              <input id="adminToken" type={showAdminToken ? 'text' : 'password'} autoComplete="off"
+                value={adminToken} onChange={(e) => setAdminToken(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-3 py-3 pl-12 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                placeholder="לשימוש חירום בלבד; אפשר להתחבר באמצעות חשבון הסופר אדמין" dir="ltr" />
+              <button type="button" onClick={() => setShowAdminToken((value) => !value)}
+                aria-label={showAdminToken ? 'הסתרת מפתח הניהול' : 'הצגת מפתח הניהול'} aria-pressed={showAdminToken}
+                className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                {showAdminToken
+                  ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0112 5c5 0 8.5 4.5 9.5 7-.4 1-1.3 2.3-2.6 3.5M6.2 6.2C3.8 7.7 2.5 10.1 2.5 12c1.3 2.5 4.5 7 9.5 7 1.3 0 2.5-.3 3.6-.8"/></svg>
+                  : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">אפשר להיכנס באמצעות מייל וסיסמה של חשבון הסופר אדמין. מפתח API חלופי נשמר בזיכרון הדף בלבד.</p>
           </div>
 
           <div>
@@ -199,7 +446,7 @@ export default function PlatformAdminPage() {
         <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
           <h2 className="text-lg font-bold">בחירת עסק קיים</h2>
           <p className="text-sm text-slate-600">אם האתר כבר הוקם, אפשר לבחור אותו כאן — אין צורך ליצור עסק נוסף.</p>
-          <button type="button" disabled={!adminToken.trim() || domainLoading} onClick={async () => {
+          <button type="button" disabled={domainLoading} onClick={async () => {
             setDomainLoading(true); setBusinessesMessage('');
             try {
               const response = await fetch('/api/admin/businesses', { headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store' });
@@ -312,7 +559,7 @@ export default function PlatformAdminPage() {
           </section>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">הגישה ל-API מוגנת באמצעות מפתח Super Admin. אין לשתף את המפתח.</p>
+        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון שתפקידו super_admin מוגדר במסד הנתונים. מפתח API חלופי משמש למקרי חירום בלבד.</p>
       </div>
     </main>
   );

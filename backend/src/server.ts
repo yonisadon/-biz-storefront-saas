@@ -10,6 +10,7 @@ import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
 import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
+import { authRoutes } from './routes/auth';
 import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
 
 // Management tokens are secrets: keep them out of logs
@@ -31,21 +32,6 @@ export async function buildServer() {
   });
 
   app.decorateRequest('tenantId', '');
-  await app.register(cors, { origin: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : false });
-  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
-
-  // <-- הוספת 2 השורות האלו מיד אחרי rateLimit:
-  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5 } });
-  await app.register(mediaRoutes);
-
-  app.get('/health', async () => ({ ok: true }));
-
-  await app.register(publicRoutes(resolveBySlug), { prefix: '/api/biz/:slug' });
-  await app.register(publicRoutes(resolveByHost), { prefix: '/api/site' });
-  await app.register(manageRoutes, { prefix: '/api/manage/:token' });
-  await app.register(adminRoutes, { prefix: '/api/admin' });
-  await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
-
   app.setErrorHandler((err: any, req, reply) => {
     if (err instanceof ZodError) {
       return reply.code(400).send({
@@ -77,10 +63,30 @@ export async function buildServer() {
     req.log.error(err);
     return reply.code(500).send({ error: 'internal_error' });
   });
+  await app.register(cors, { origin: env.CORS_ORIGINS ? env.CORS_ORIGINS.split(',') : false });
+  await app.register(rateLimit, { max: 120, timeWindow: '1 minute' });
+
+  // <-- הוספת 2 השורות האלו מיד אחרי rateLimit:
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5 } });
+  await app.register(mediaRoutes);
+
+  app.get('/health', async () => ({ ok: true }));
+
+  await app.register(publicRoutes(resolveBySlug), { prefix: '/api/biz/:slug' });
+  await app.register(publicRoutes(resolveByHost), { prefix: '/api/site' });
+  await app.register(manageRoutes, { prefix: '/api/manage/:token' });
+  await app.register(adminRoutes, { prefix: '/api/admin' });
+  await app.register(authRoutes, { prefix: '/api/auth' });
+  await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
+
+
 
   return app;
 }
 
-buildServer()
-  .then((app) => app.listen({ port: env.PORT, host: '0.0.0.0' }))
-  .catch((err) => { console.error(err); process.exit(1); });
+// Importing the server from integration tests must not start a listener.
+if (require.main === module) {
+  buildServer()
+    .then((app) => app.listen({ port: env.PORT, host: '0.0.0.0' }))
+    .catch((err) => { console.error(err); process.exit(1); });
+}

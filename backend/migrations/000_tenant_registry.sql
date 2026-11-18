@@ -3,6 +3,42 @@
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS app;
 
+-- Central registry entry point for owner/Super Admin provisioning. Keep it
+-- idempotent and independent of the tenant schema bootstrap file.
+CREATE OR REPLACE FUNCTION app.create_business(
+  p_slug text,
+  p_name text,
+  p_whatsapp_number text DEFAULT NULL,
+  p_config jsonb DEFAULT '{}'::jsonb
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+AS $create_business$
+DECLARE
+  new_id uuid;
+BEGIN
+  INSERT INTO public.businesses (slug, name, whatsapp_number, config)
+  VALUES (
+    lower(p_slug),
+    p_name,
+    p_whatsapp_number,
+    jsonb_build_object(
+      'version', 1,
+      'order_flow', jsonb_build_object(
+        'whatsapp_enabled', p_whatsapp_number IS NOT NULL,
+        'site_inquiry_enabled', true
+      )
+    ) || COALESCE(p_config, '{}'::jsonb)
+  )
+  RETURNING id INTO new_id;
+  RETURN new_id;
+END
+$create_business$;
+REVOKE ALL ON FUNCTION app.create_business(text, text, text, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app.create_business(text, text, text, jsonb) TO app_superadmin;
+
 CREATE TABLE IF NOT EXISTS app.tenant_databases (
   tenant_id uuid PRIMARY KEY REFERENCES public.businesses(id) ON DELETE CASCADE,
   database_name text NOT NULL UNIQUE

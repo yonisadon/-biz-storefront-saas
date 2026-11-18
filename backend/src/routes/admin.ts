@@ -10,6 +10,7 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
+import { storage, variantKeys } from '../storage';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -31,6 +32,27 @@ const CreateBusiness = z.object({
 }).strict();
 
 
+
+const BusinessStatusInput = z.object({
+  status: z.enum(['active', 'suspended', 'archived']),
+  reason: z.string().trim().max(500).optional(),
+}).strict();
+
+const SubscriptionInput = z.object({
+  status: z.enum(['trialing', 'active', 'past_due', 'canceled', 'suspended']),
+  trial_ends_at: z.string().datetime().optional().nullable(),
+  current_period_ends_at: z.string().datetime().optional().nullable(),
+}).strict();
+
+const DeletionReviewInput = z.object({
+  decision: z.enum(['approve', 'reject']),
+  note: z.string().trim().max(1000).optional(),
+}).strict();
+
+const ExecuteDeletionInput = z.object({
+  backupVerified: z.literal(true),
+  backupReference: z.string().trim().min(8).max(500),
+}).strict();
 
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
@@ -127,10 +149,43 @@ function authorized(req: FastifyRequest): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
+  if (!env.SUPERADMIN_DATABASE_URL) return false;
+  const raw = String(req.headers.cookie ?? '');
+  const sessionCookie = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith('btime_session='));
+  let token = '';
+  try {
+    token = sessionCookie ? decodeURIComponent(sessionCookie.slice('btime_session='.length)) : '';
+  } catch {
+    return false;
+  }
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
+  let registry: pg.Client | undefined;
+  try {
+    registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    const result = await registry.query(
+      `SELECT 1
+         FROM public.platform_sessions s
+         JOIN public.platform_users u ON u.id = s.user_id
+        WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
+          AND u.role = 'super_admin' AND u.disabled_at IS NULL
+        LIMIT 1`,
+      [createHash('sha256').update(token, 'utf8').digest()],
+    );
+    return Boolean(result.rowCount);
+  } catch {
+    return false;
+  } finally {
+    if (registry) await registry.end().catch(() => {});
+  }
+}
+
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', async (req) => {
-    if (!env.SUPERADMIN_API_TOKEN) throw new HttpError(503, 'admin_not_configured');
-    if (!authorized(req)) throw new HttpError(401, 'unauthorized');
+    if (!env.SUPERADMIN_API_TOKEN && !env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
+    if (!authorized(req) && !(await authorizedBySession(req))) throw new HttpError(401, 'unauthorized');
   });
 
   app.post('/businesses', async (req, reply) => {
@@ -275,17 +330,395 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     try {
       registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
       const result = await registry.query(
-        `SELECT b.id, b.name, b.slug, b.status,
+        `SELECT b.id, b.name, b.slug, b.status, b.email, b.phone, b.created_at,
+                s.status AS subscription_status, s.trial_ends_at, s.current_period_ends_at,
+                u.email AS owner_email, u.phone AS owner_phone,
+                (u.email_verified_at IS NOT NULL) AS owner_email_verified,
+                (SELECT dr.status FROM public.business_deletion_requests dr
+                  WHERE dr.tenant_id = b.id ORDER BY dr.requested_at DESC LIMIT 1) AS deletion_request_status,
                 COALESCE(json_agg(json_build_object('domain', d.domain, 'is_verified', d.is_verified, 'is_primary', d.is_primary)
                   ORDER BY d.is_primary DESC, d.domain) FILTER (WHERE d.id IS NOT NULL), '[]'::json) AS domains
            FROM public.businesses b
            JOIN app.tenant_databases td ON td.tenant_id = b.id
            LEFT JOIN public.business_domains d ON d.tenant_id = b.id
-          GROUP BY b.id, b.name, b.slug, b.status
+           LEFT JOIN public.platform_subscriptions s ON s.tenant_id = b.id
+           LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
+           LEFT JOIN LATERAL (
+             SELECT candidate.id
+               FROM public.platform_users candidate
+              WHERE NOT EXISTS (
+                SELECT 1 FROM public.platform_business_owners existing_owner
+                 WHERE existing_owner.user_id = candidate.id
+              )
+                AND lower(candidate.email) = lower(COALESCE(b.email, ''))
+                AND (
+                  SELECT count(*)
+                    FROM public.platform_users possible
+                   WHERE NOT EXISTS (
+                     SELECT 1 FROM public.platform_business_owners linked_owner
+                      WHERE linked_owner.user_id = possible.id
+                   )
+                     AND lower(possible.email) = lower(COALESCE(b.email, ''))
+                ) = 1
+              LIMIT 1
+           ) candidate_owner ON bo.user_id IS NULL
+           LEFT JOIN public.platform_users u ON u.id = COALESCE(bo.user_id, candidate_owner.id)
+          GROUP BY b.id, s.status, s.trial_ends_at, s.current_period_ends_at, u.email, u.phone, u.email_verified_at
           ORDER BY b.created_at DESC`,
       );
       return { businesses: result.rows };
     } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.get('/overview', async () => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const result = await registry.query(`
+        SELECT
+          (SELECT count(*)::int FROM public.businesses b JOIN app.tenant_databases td ON td.tenant_id = b.id) AS total_businesses,
+          (SELECT count(*)::int FROM public.businesses b JOIN app.tenant_databases td ON td.tenant_id = b.id WHERE b.status = 'active') AS active_businesses,
+          (SELECT count(*)::int FROM public.businesses b JOIN app.tenant_databases td ON td.tenant_id = b.id WHERE b.status = 'suspended') AS suspended_businesses,
+          (SELECT count(*)::int FROM public.platform_subscriptions WHERE status = 'trialing' AND trial_ends_at > now()) AS trialing_subscriptions,
+          (SELECT count(*)::int FROM public.platform_subscriptions WHERE status = 'active') AS paid_subscriptions,
+          (SELECT count(*)::int FROM public.business_deletion_requests WHERE status = 'pending') AS pending_deletion_requests
+      `);
+      return result.rows[0];
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.patch('/businesses/:id/status', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    const input = BusinessStatusInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const databaseName = await getTenantDatabase(registry, tenantId);
+      const updated = await registry.query(
+        'UPDATE public.businesses SET status = $2 WHERE id = $1 RETURNING id, name, slug, status',
+        [tenantId, input.status],
+      );
+      if (!updated.rows[0]) throw new HttpError(404, 'business_not_found');
+      tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+      await tenant.query('UPDATE public.businesses SET status = $2 WHERE id = $1', [tenantId, input.status]);
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_status_changed', $1, $3::jsonb)",
+        [tenantId, 'super_admin', JSON.stringify({ status: input.status, reason: input.reason ?? null })],
+      );
+      return updated.rows[0];
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.patch('/businesses/:id/owner-email-verification', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const owner = await registry.query(
+        `SELECT u.id, u.email
+           FROM public.businesses b
+           LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
+           LEFT JOIN public.platform_users linked_owner ON linked_owner.id = bo.user_id
+           LEFT JOIN LATERAL (
+             SELECT candidate.id
+               FROM public.platform_users candidate
+              WHERE NOT EXISTS (
+                SELECT 1 FROM public.platform_business_owners existing_owner
+                 WHERE existing_owner.user_id = candidate.id
+              )
+                AND lower(candidate.email) = lower(COALESCE(b.email, ''))
+                AND (
+                  SELECT count(*)
+                    FROM public.platform_users possible
+                   WHERE NOT EXISTS (
+                     SELECT 1 FROM public.platform_business_owners linked_owner_check
+                      WHERE linked_owner_check.user_id = possible.id
+                   )
+                     AND lower(possible.email) = lower(COALESCE(b.email, ''))
+                ) = 1
+              LIMIT 1
+           ) candidate_owner ON bo.user_id IS NULL
+           JOIN public.platform_users u ON u.id = COALESCE(linked_owner.id, candidate_owner.id)
+          WHERE b.id = $1
+          LIMIT 1`,
+        [tenantId],
+      );
+      if (!owner.rows[0]) throw new HttpError(404, 'business_owner_not_found_or_ambiguous');
+      await registry.query(
+        'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [owner.rows[0].id, tenantId],
+      );
+      await registry.query(
+        `UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1`,
+        [owner.rows[0].id],
+      );
+      await registry.query(
+        `UPDATE public.platform_email_tokens SET consumed_at = now()
+         WHERE user_id = $1 AND purpose = 'verify_email' AND consumed_at IS NULL`,
+        [owner.rows[0].id],
+      );
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'super_admin', 'owner_email_verified_manually', $1, $2::jsonb)",
+        [tenantId, JSON.stringify({ owner_email: owner.rows[0].email })],
+      );
+      return { tenant_id: tenantId, owner_email_verified: true };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.patch('/businesses/:id/subscription', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    const input = SubscriptionInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const exists = await registry.query('SELECT 1 FROM public.businesses WHERE id = $1', [tenantId]);
+      if (!exists.rowCount) throw new HttpError(404, 'business_not_found');
+      const result = await registry.query(
+        `INSERT INTO public.platform_subscriptions
+           (tenant_id, status, plan_code, trial_started_at, trial_ends_at, current_period_ends_at, canceled_at)
+         VALUES (
+           $1, $2, 'standard',
+           CASE WHEN $2 = 'trialing' THEN now() ELSE NULL END,
+           CASE WHEN $2 = 'trialing' THEN COALESCE($3::timestamptz, now() + interval '30 days') ELSE NULL END,
+           $4::timestamptz,
+           CASE WHEN $2 = 'canceled' THEN now() ELSE NULL END
+         )
+         ON CONFLICT (tenant_id) DO UPDATE SET
+           status = EXCLUDED.status,
+           trial_started_at = EXCLUDED.trial_started_at,
+           trial_ends_at = EXCLUDED.trial_ends_at,
+           current_period_ends_at = EXCLUDED.current_period_ends_at,
+           canceled_at = EXCLUDED.canceled_at,
+           updated_at = now()
+         RETURNING tenant_id, status, trial_started_at, trial_ends_at, current_period_ends_at, canceled_at`,
+        [tenantId, input.status, input.trial_ends_at ?? null, input.current_period_ends_at ?? null],
+      );
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'subscription_status_changed', $1, $3::jsonb)",
+        [tenantId, 'super_admin', JSON.stringify({ status: input.status })],
+      );
+      return result.rows[0];
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/businesses/:id/deletion-request', async (req, reply) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const business = await registry.query(
+        `SELECT b.id, b.name, b.slug
+           FROM public.businesses b
+           JOIN app.tenant_databases td ON td.tenant_id = b.id
+          WHERE b.id = $1
+          LIMIT 1`,
+        [tenantId],
+      );
+      if (!business.rows[0]) throw new HttpError(404, 'business_not_found');
+      const b = business.rows[0];
+      const inserted = await registry.query(
+        `INSERT INTO public.business_deletion_requests
+           (tenant_id, business_name, business_slug, requested_by_admin, reason)
+         VALUES ($1, $2, $3, true, 'מחיקה ביוזמת סופר אדמין')
+         ON CONFLICT (tenant_id) WHERE status = 'pending' DO NOTHING
+         RETURNING id, status, requested_at`,
+        [tenantId, b.name, b.slug],
+      );
+      const request = inserted.rows[0] ?? (await registry.query(
+        "SELECT id, status, requested_at FROM public.business_deletion_requests WHERE tenant_id = $1 AND status = 'pending' LIMIT 1",
+        [tenantId],
+      )).rows[0];
+      if (inserted.rowCount) {
+        await registry.query(
+          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'super_admin', 'business_deletion_requested_by_admin', $1, $2::jsonb)",
+          [tenantId, JSON.stringify({ request_id: request.id, business_name: b.name, business_slug: b.slug })],
+        );
+      }
+      return reply.code(inserted.rowCount ? 201 : 200).send({
+        request,
+        message: inserted.rowCount ? 'בקשת המחיקה נוצרה. יש לאשר ולהקפיא את העסק לפני מחיקה מלאה.' : 'כבר קיימת בקשת מחיקה פתוחה לעסק.',
+      });
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.get('/deletion-requests', async () => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const result = await registry.query(
+        `SELECT dr.id, dr.tenant_id, dr.reason, dr.status, dr.requested_at,
+                COALESCE(dr.business_name, b.name) AS business_name,
+                COALESCE(dr.business_slug, b.slug) AS business_slug,
+                dr.database_name, COALESCE(u.email, CASE WHEN dr.requested_by_admin THEN 'סופר אדמין' END) AS owner_email,
+                u.phone AS owner_phone
+           FROM public.business_deletion_requests dr
+           LEFT JOIN public.businesses b ON b.id = dr.tenant_id
+           LEFT JOIN public.platform_users u ON u.id = dr.requested_by_user_id
+          WHERE dr.status IN ('pending', 'approved')
+          ORDER BY dr.requested_at ASC`,
+      );
+      return { requests: result.rows };
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.patch('/deletion-requests/:id/review', async (req) => {
+    const requestId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw new HttpError(404, 'deletion_request_not_found');
+    const input = DeletionReviewInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      await registry.query('BEGIN');
+      const result = await registry.query(
+        `UPDATE public.business_deletion_requests
+            SET status = $2, reviewed_at = now(), reviewed_by_email = $4, review_note = $3
+          WHERE id = $1 AND status = 'pending'
+          RETURNING id, tenant_id, status`,
+        [requestId, input.decision === 'approve' ? 'approved' : 'rejected', input.note ?? null, 'super_admin'],
+      );
+      if (!result.rows[0]) throw new HttpError(404, 'deletion_request_not_found');
+      if (input.decision === 'approve') {
+        await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [result.rows[0].tenant_id]);
+      }
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', $2, 'business_deletion_reviewed', $1, $3::jsonb)",
+        [result.rows[0].tenant_id, 'super_admin', JSON.stringify({ decision: input.decision, note: input.note ?? null })],
+      );
+      await registry.query('COMMIT');
+      return result.rows[0];
+    } catch (error) {
+      await registry.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/deletion-requests/:id/execute', async (req) => {
+    const requestId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw new HttpError(404, 'deletion_request_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const backupInput = ExecuteDeletionInput.parse(req.body);
+
+    const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
+    let registry: pg.Client | undefined;
+    let databaseAdmin: pg.Client | undefined;
+    let tenant: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const selected = await registry.query(
+        `SELECT id, tenant_id, business_name, business_slug, database_name, storage_keys, status
+           FROM public.business_deletion_requests WHERE id = $1 LIMIT 1`,
+        [requestId],
+      );
+      const request = selected.rows[0];
+      if (!request) throw new HttpError(404, 'deletion_request_not_found');
+      if (request.status !== 'approved') throw new HttpError(409, 'deletion_request_not_approved');
+
+      // Destructive deletion is blocked unless an operator explicitly attests that
+      // a Railway backup was created and its restore/readability was verified.
+      const backupRecorded = await registry.query(
+        'UPDATE public.business_deletion_requests SET backup_verified_at = now(), backup_reference = $2, backup_verified_by = $3 WHERE id = $1 AND status = \'approved\' RETURNING id',
+        [requestId, backupInput.backupReference, 'super_admin'],
+      );
+      if (!backupRecorded.rowCount) throw new HttpError(409, 'deletion_request_not_approved');
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'super_admin', 'business_deletion_backup_verified', $1::jsonb)",
+        [JSON.stringify({ deletion_request_id: requestId, backup_reference: backupInput.backupReference })],
+      );
+
+      let databaseName = request.database_name as string | null;
+      let storageKeys = Array.isArray(request.storage_keys) ? request.storage_keys as string[] : [];
+      if (!databaseName && request.tenant_id) {
+        databaseName = await getTenantDatabase(registry, request.tenant_id);
+        tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+        const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+        storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+        await tenant.end();
+        tenant = undefined;
+        // Persist the cleanup manifest before touching storage or dropping the DB,
+        // so an interrupted deletion can be retried safely.
+        await registry.query(
+          'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
+          [requestId, databaseName, JSON.stringify(storageKeys)],
+        );
+      }
+
+      for (let offset = 0; offset < storageKeys.length; offset += 1000) {
+        await storage.remove(storageKeys.slice(offset, offset + 1000));
+      }
+      if (databaseName) {
+        databaseAdmin = await connectClientWithRetry(env.DATABASE_ADMIN_URL, options);
+        await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
+        await databaseAdmin.end();
+        databaseAdmin = undefined;
+      }
+
+      await registry.query('BEGIN');
+      try {
+        if (request.tenant_id) {
+          await registry.query('DELETE FROM public.businesses WHERE id = $1', [request.tenant_id]);
+        }
+        await registry.query(
+          `UPDATE public.business_deletion_requests
+              SET status = 'completed', completed_at = now(), tenant_id = NULL,
+                  database_name = COALESCE(database_name, $2), storage_keys = $3::jsonb
+            WHERE id = $1`,
+          [requestId, databaseName, JSON.stringify(storageKeys)],
+        );
+        await registry.query(
+          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', $1, 'business_deleted', $2::jsonb)",
+          ['super_admin', JSON.stringify({ deletion_request_id: requestId, business_name: request.business_name, business_slug: request.business_slug, database_name: databaseName })],
+        );
+        await registry.query('COMMIT');
+      } catch (error) {
+        await registry.query('ROLLBACK').catch(() => {});
+        throw error;
+      }
+      return { deleted: true, business_name: request.business_name, message: 'העסק, מסד הנתונים הייעודי וקובצי המדיה שנרשמו הוסרו.' };
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      req.log.error({ err: error }, 'approved business deletion failed');
+      throw new HttpError(500, 'business_deletion_failed', 'Business deletion failed; the approved request can be retried safely.');
+    } finally {
+      if (tenant) await tenant.end().catch(() => {});
+      if (databaseAdmin) await databaseAdmin.end().catch(() => {});
       if (registry) await registry.end().catch(() => {});
     }
   });

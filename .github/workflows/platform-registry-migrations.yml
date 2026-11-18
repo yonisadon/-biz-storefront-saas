@@ -1,0 +1,61 @@
+name: Platform registry migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_confirmed:
+        description: 'Confirm that a restorable backup of the central Registry was created and verified for this run'
+        required: true
+        type: boolean
+        default: false
+      proceed_without_backup:
+        description: 'Explicitly authorize pending Registry migrations without a verified restorable backup'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-registry-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Preflight and apply pending Registry migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+      SUPERADMIN_DATABASE_URL: ${{ secrets.SUPERADMIN_DATABASE_URL }}
+      DATABASE_SSL: ${{ secrets.DATABASE_SSL }}
+      PLATFORM_REGISTRY_MIGRATION_BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
+      PROCEED_WITHOUT_BACKUP: ${{ inputs.proceed_without_backup }}
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate required database secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$DATABASE_ADMIN_URL" || -z "$SUPERADMIN_DATABASE_URL" ]]; then
+            echo "::error::Configure DATABASE_ADMIN_URL and SUPERADMIN_DATABASE_URL in GitHub Actions secrets."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Preflight and apply pending Registry migrations
+        run: npm run migrate-platform-registry:deploy

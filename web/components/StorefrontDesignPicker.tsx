@@ -41,6 +41,7 @@ export default function StorefrontDesignPicker({
   const layoutPicker = (id: string, value: Layout, onChange: (value: Layout) => void) => (
     <fieldset className="space-y-2">
       <legend className="text-sm font-semibold">{id === 'products' ? 'תצוגת מוצרים' : 'תצוגת שירותים'}</legend>
+      <p className="text-xs leading-5 text-slate-500">אפשר להחליף את אופן ההצגה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {layouts.map((option) => <label key={option.id} className={`flex min-h-20 cursor-pointer flex-col justify-center rounded-xl border p-3 text-start transition ${value === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
           <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name={id + '-layout'} value={option.id} checked={value === option.id} onChange={() => onChange(option.id)} />{option.title}</span>
@@ -50,7 +51,7 @@ export default function StorefrontDesignPicker({
     </fieldset>
   );
   return <section className="space-y-5" aria-labelledby="storefront-design-title">
-    <div><h3 id="storefront-design-title" className="text-base font-bold">סגנון האתר</h3><p className="mt-1 text-xs leading-5 text-slate-500">הסגנון משנה את העיצוב והפריסה בלבד. התוכן, התמונות, המוצרים וההזמנות נשארים ללא שינוי. אפשר להחליף סגנון בכל עת.</p></div>
+    <div><h3 id="storefront-design-title" className="text-base font-bold">סגנון האתר</h3><p className="mt-1 text-xs leading-5 text-slate-500">הסגנון משנה את העיצוב והפריסה בלבד. התוכן, התמונות, המוצרים וההזמנות נשארים ללא שינוי. אפשר להחליף אותו בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p></div>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {themes.map((option) => <label key={option.id} className={`cursor-pointer rounded-2xl border p-3 transition ${theme === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
         <span className="flex items-center gap-2 text-sm font-bold"><input type="radio" name="storefront-theme" value={option.id} checked={theme === option.id} onChange={() => onThemeChange(option.id)} />{option.title}</span>
@@ -60,6 +61,7 @@ export default function StorefrontDesignPicker({
     </div>
     <fieldset className="space-y-2">
       <legend className="text-sm font-semibold">תצוגת גלריית התמונות הראשית</legend>
+      <p className="text-xs leading-5 text-slate-500">אפשר לשנות את אופן הצגת התמונות בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {galleryLayouts.map((option) => <label key={option.id} className={`flex min-h-20 cursor-pointer flex-col justify-center rounded-xl border p-3 text-start transition ${galleryLayout === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
           <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name="hero-gallery-layout" value={option.id} checked={galleryLayout === option.id} onChange={() => onGalleryLayoutChange(option.id)} />{option.title}</span>

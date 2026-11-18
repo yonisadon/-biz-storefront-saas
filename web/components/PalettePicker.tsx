@@ -3,7 +3,7 @@ import { BRAND_PALETTES, type PaletteId } from '@/lib/palettes';
 export default function PalettePicker({ value, onChange }: { value: PaletteId; onChange: (value: PaletteId) => void }) {
   return <fieldset>
     <legend className="mb-2 block text-sm font-semibold">ערכת צבעים</legend>
-    <p className="mb-3 text-xs leading-5 text-slate-500">אפשר לשנות את הערכה גם בהמשך דרך ניהול העסק.</p>
+    <p className="mb-3 text-xs leading-5 text-slate-500">הבחירה קובעת את צבעי המותג באתר. אפשר לשנות את ערכת הצבעים בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="בחירת ערכת צבעים">
       {(Object.entries(BRAND_PALETTES) as [PaletteId, (typeof BRAND_PALETTES)[PaletteId]][]).map(([id, palette]) =>
         <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange(id)}
