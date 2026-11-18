@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { FormEvent } from 'react';
 import PalettePicker from '@/components/PalettePicker';
@@ -17,7 +17,7 @@ type CreatedBusiness = {
   status: string;
 };
 
-type BusinessOption = { id: string; name: string; slug: string; status: string; email?: string | null; phone?: string | null; owner_email?: string | null; owner_phone?: string | null; created_at?: string; subscription_status?: string | null; trial_ends_at?: string | null; current_period_ends_at?: string | null; deletion_request_status?: string | null; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+type BusinessOption = { id: string; name: string; slug: string; status: string; email?: string | null; phone?: string | null; owner_email?: string | null; owner_phone?: string | null; owner_email_verified?: boolean; created_at?: string; subscription_status?: string | null; trial_ends_at?: string | null; current_period_ends_at?: string | null; deletion_request_status?: string | null; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
 type AdminOverview = { total_businesses: number; active_businesses: number; suspended_businesses: number; trialing_subscriptions: number; paid_subscriptions: number; pending_deletion_requests: number };
 type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email: string; owner_phone: string; database_name?: string | null };
 
@@ -49,8 +49,18 @@ export default function PlatformAdminPage() {
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
+  const [businessSearch, setBusinessSearch] = useState('');
+  const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
+  const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
+  const filteredBusinesses = businesses.filter((business) => {
+    const term = businessSearch.trim().toLocaleLowerCase('he-IL');
+    const matchesSearch = !term || [business.name, business.slug, business.owner_email, business.owner_phone, business.email, business.phone].some((value) => value?.toLocaleLowerCase('he-IL').includes(term));
+    const matchesStatus = businessStatusFilter === 'all' || business.status === businessStatusFilter;
+    const matchesSubscription = subscriptionFilter === 'all' || (subscriptionFilter === 'none' ? !business.subscription_status : business.subscription_status === subscriptionFilter);
+    return matchesSearch && matchesStatus && matchesSubscription;
+  });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -114,7 +124,7 @@ export default function PlatformAdminPage() {
   }
 
 
-  async function loadAdminData() {
+  const loadAdminData = useCallback(async () => {
     setAdminLoading(true);
     setAdminMessage('');
     try {
@@ -141,7 +151,9 @@ export default function PlatformAdminPage() {
     } finally {
       setAdminLoading(false);
     }
-  }
+  }, [adminToken]);
+
+  useEffect(() => { void loadAdminData(); }, [loadAdminData]);
 
   async function updateBusinessStatus(id: string, status: string) {
     setAdminLoading(true); setAdminMessage('');
@@ -174,6 +186,21 @@ export default function PlatformAdminPage() {
       setAdminMessage('סטטוס המנוי עודכן.');
       await loadAdminData();
     } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function verifyOwnerEmail(id: string) {
+    if (!window.confirm('לאמת ידנית את כתובת המייל של בעל העסק? יש לבצע זאת רק לאחר בדיקת זהותו או אישורו בערוץ אחר.')) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/owner-email-verification`, {
+        method: 'PATCH', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לאמת את כתובת המייל.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, owner_email_verified: true } : item));
+      setAdminMessage('כתובת המייל של בעל העסק סומנה כמאומתת ידנית. הפעולה תועדה.');
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'האימות נכשל.'); }
     finally { setAdminLoading(false); }
   }
 
@@ -247,11 +274,19 @@ export default function PlatformAdminPage() {
         </section>
 
         {businesses.length > 0 && <section className="mb-6 space-y-3">
-          <h2 className="text-lg font-bold">עסקים ({businesses.length})</h2>
-          {businesses.map(business => <article key={business.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold">עסקים ({filteredBusinesses.length} מתוך {businesses.length})</h2><button type="button" onClick={loadAdminData} disabled={adminLoading} className="text-sm font-semibold text-blue-700 underline">רענון הרשימה</button></div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input aria-label="חיפוש עסקים" value={businessSearch} onChange={e=>setBusinessSearch(e.target.value)} placeholder="חיפוש לפי עסק, כתובת, מייל או טלפון" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-3" />
+            <select aria-label="סינון לפי סטטוס עסק" value={businessStatusFilter} onChange={e=>setBusinessStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי העסק</option><option value="active">פעיל</option><option value="suspended">חסום</option><option value="archived">בארכיון</option></select>
+            <select aria-label="סינון לפי מנוי" value={subscriptionFilter} onChange={e=>setSubscriptionFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי המנוי</option><option value="trialing">תקופת ניסיון</option><option value="active">מנוי פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option><option value="none">ללא מנוי</option></select>
+            <button type="button" onClick={()=>{setBusinessSearch('');setBusinessStatusFilter('all');setSubscriptionFilter('all');}} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">ניקוי סינון</button>
+          </div>
+          {filteredBusinesses.length===0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500">לא נמצאו עסקים התואמים לסינון.</p>}
+          {filteredBusinesses.map(business => <article key={business.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><h3 className="font-bold">{business.name}</h3><p className="mt-1 text-xs text-slate-500" dir="ltr">/biz/{business.slug}</p>
-                <p className="mt-1 text-xs text-slate-500">{business.owner_email ?? business.email ?? 'ללא מייל בעלים'} · {business.owner_phone ?? business.phone ?? 'ללא טלפון'}</p></div>
+                <p className="mt-1 text-xs text-slate-500">{business.owner_email ?? business.email ?? 'ללא מייל בעלים'} · {business.owner_phone ?? business.phone ?? 'ללא טלפון'}</p>
+                <p className="mt-1 text-xs">אימות מייל: <span className={business.owner_email_verified?'text-emerald-700':'text-amber-700'}>{business.owner_email_verified?'מאומת':'לא אומת'}</span></p></div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{business.status === 'active' ? 'פעיל' : business.status === 'suspended' ? 'חסום' : business.status}</span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -266,6 +301,7 @@ export default function PlatformAdminPage() {
                 </select>
               </label>
             </div>
+            {!business.owner_email_verified && business.owner_email && <button type="button" disabled={adminLoading} onClick={()=>verifyOwnerEmail(business.id)} className="mt-3 rounded-lg border border-amber-300 px-3 py-2 text-xs font-semibold text-amber-900 disabled:opacity-50">אימות מייל ידני לאחר בדיקה</button>}
             {business.trial_ends_at && <p className="mt-2 text-xs text-slate-500">סיום ניסיון: {new Date(business.trial_ends_at).toLocaleDateString('he-IL')}</p>}
             {business.domains.length > 0 && <p className="mt-2 break-all text-xs text-slate-500">{business.domains.map(d=>d.domain).join(' · ')}</p>}
           </article>)}
