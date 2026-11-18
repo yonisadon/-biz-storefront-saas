@@ -12,6 +12,7 @@ on:
       - 'backend/src/routes/auth.ts'
       - 'backend/src/server.ts'
       - 'backend/package.json'
+      - 'backend/tsconfig.json'
       - '.github/workflows/platform-registry-migration.yml'
 
 jobs:
