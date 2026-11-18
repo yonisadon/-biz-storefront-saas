@@ -140,7 +140,7 @@ export default function PlatformAdminPage() {
         deletionResponse.json().catch(() => null),
       ]);
       if (!overviewResponse.ok || !businessesResponse.ok || !deletionResponse.ok) {
-        throw new Error('לא ניתן לטעון את נתוני הניהול. בדוק את מפתח הסופר אדמין.');
+        throw new Error('לא ניתן לטעון את נתוני הניהול. התחבר באמצעות חשבון שהוגדר במסד הנתונים בתפקיד super_admin.');
       }
       setOverview(overviewData as AdminOverview);
       setBusinesses((businessesData?.businesses ?? []) as BusinessOption[]);
@@ -249,7 +249,7 @@ export default function PlatformAdminPage() {
           <p className="mt-3 leading-7 text-slate-600">
             כל עסק חדש יקבל מסד PostgreSQL נפרד בתוך שירות Railway הקיים, אתר ציבורי וקישור ניהול פרטי.
           </p>
-          <Link href="/login" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התחברות סופר אדמין</Link>
+          <Link href="/login" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התחברות</Link>
         </header>
 
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -521,7 +521,7 @@ export default function PlatformAdminPage() {
           </section>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">הגישה ל-API מוגנת באמצעות מפתח Super Admin. אין לשתף את המפתח.</p>
+        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון שתפקידו super_admin מוגדר במסד הנתונים. מפתח API חלופי משמש למקרי חירום בלבד.</p>
       </div>
     </main>
   );
