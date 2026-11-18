@@ -169,6 +169,14 @@ async function issueEmailToken(userId: string, purpose: 'verify_email' | 'reset_
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
+  app.addHook('onClose', async () => {
+    if (registryPool) {
+      const pool = registryPool;
+      registryPool = undefined;
+      await pool.end();
+    }
+  });
+
   app.post('/register', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = RegisterInput.parse(req.body);
     if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
