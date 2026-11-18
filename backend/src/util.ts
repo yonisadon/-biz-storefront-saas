@@ -1,16 +1,17 @@
 // ---- International phone normalization -> E.164 or null ----
 export function normalizeInternationalPhone(input: string): string | null {
-  const compact = input.replace(/[\s\-().\u200e\u200f\u202a-\u202e]/g, '');
+  const compact = input.replace(/[\\s\\-().\\u200e\\u200f\\u202a-\\u202e]/g, '');
   if (!compact) return null;
 
-  // Explicit international format: + followed by 8-15 digits, first digit non-zero.
-  if (compact.startsWith('+')) {
-    const digits = compact.slice(1);
-    return /^[1-9]\d{7,14}$/.test(digits) ? '+' + digits : null;
+  // Accept international + or 00 prefix, then normalize to E.164.
+  const international = compact.startsWith('00') ? '+' + compact.slice(2) : compact;
+  if (international.startsWith('+')) {
+    const digits = international.slice(1);
+    return /^[1-9]\\d{6,14}$/.test(digits) ? '+' + digits : null;
   }
 
   // Backward-compatible Israeli local format; foreign numbers must include +country code.
-  if (/^0(?:5\d{8}|[23489]\d{7}|7\d{8})$/.test(compact)) {
+  if (/^0(?:5\\d{8}|[23489]\\d{7}|7\\d{8})$/.test(compact)) {
     return '+972' + compact.slice(1);
   }
   return null;
