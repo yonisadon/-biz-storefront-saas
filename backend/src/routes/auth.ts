@@ -75,7 +75,9 @@ function cookieValue(req: FastifyRequest): string | null {
   const raw = String(req.headers.cookie ?? '');
   for (const item of raw.split(';')) {
     const [name, ...parts] = item.trim().split('=');
-    if (name === SESSION_COOKIE) return decodeURIComponent(parts.join('='));
+    if (name === SESSION_COOKIE) {
+      try { return decodeURIComponent(parts.join('=')); } catch { return null; }
+    }
   }
   return null;
 }
