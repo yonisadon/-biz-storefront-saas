@@ -32,6 +32,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   const email = `platform-test-${randomUUID()}@example.test`;
   let app: Awaited<ReturnType<typeof buildServer>> | undefined;
   let sessionCookie = '';
+  let ownerSessionCookie = '';
 
   const extractToken = (html: string, route: 'verify-email' | 'reset-password') => {
     const match = html.match(new RegExp(`/${route}\\?token=([^"&]+)`));
@@ -180,6 +181,7 @@ test('platform account lifecycle and independent marketing consents', async () =
       });
       assert.equal(ownerLogin.statusCode, 200);
       const ownerCookie = String(ownerLogin.headers['set-cookie']).split(';')[0];
+      ownerSessionCookie = ownerCookie;
       const cancellation = await app.inject({
         method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
       });
@@ -212,7 +214,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     const ownerSessionAdmin = await app.inject({
       method: 'GET',
       url: '/api/admin/businesses',
-      headers: { cookie: sessionCookie },
+      headers: { cookie: ownerSessionCookie },
     });
     assert.equal(ownerSessionAdmin.statusCode, 401);
 
