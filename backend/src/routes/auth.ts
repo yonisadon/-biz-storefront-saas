@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
+import { createManagementToken, provisionBusinessForOwner } from '../provisioning';
 
 const SESSION_COOKIE = 'btime_session';
 const SESSION_DAYS = 14;
@@ -24,6 +25,12 @@ const LoginInput = z.object({
 
 const TokenInput = z.object({ token: z.string().min(32).max(128) }).strict();
 const ResetInput = TokenInput.extend({ password: z.string().min(10).max(128) }).strict();
+const OwnerBusinessInput = z.object({
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().toLowerCase().min(2).max(63).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
+  whatsapp_number: z.string().trim().max(40).optional(),
+}).strict();
+const DeletionRequestInput = z.object({ reason: z.string().trim().max(1000).optional() }).strict();
 
 let registryPool: pg.Pool | undefined;
 function registry(): pg.Pool {
@@ -98,7 +105,8 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
   const result = await registry().query(
     `SELECT u.id, u.email, u.phone, u.email_verified_at, u.created_at,
             b.id AS business_id, b.name AS business_name, b.slug AS business_slug, b.status AS business_status,
-            s.status AS subscription_status, s.trial_ends_at, s.current_period_ends_at
+            s.status AS subscription_status, s.trial_ends_at, s.current_period_ends_at,
+            (SELECT dr.status FROM public.business_deletion_requests dr WHERE dr.tenant_id = b.id ORDER BY dr.requested_at DESC LIMIT 1) AS deletion_request_status
        FROM public.platform_sessions ps
        JOIN public.platform_users u ON u.id = ps.user_id
        LEFT JOIN public.platform_business_owners bo ON bo.user_id = u.id
@@ -311,4 +319,93 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
     return { reset: true, message: 'הסיסמה עודכנה. אפשר להתחבר מחדש.' };
   });
+  app.post('/business', async (req, reply) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.business_id) throw new HttpError(409, 'business_already_exists');
+    const input = OwnerBusinessInput.parse(req.body);
+    const created = await provisionBusinessForOwner(
+      { id: user.id, email: user.email, phone: user.phone },
+      input,
+    );
+    return reply.code(201).send({
+      business: created,
+      public_url: `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/biz/${created.slug}`,
+      trial_days: 30,
+    });
+  });
+
+  app.post('/management-link', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (!user.business_id) throw new HttpError(404, 'business_not_found');
+    const access = await registry().query(
+      'SELECT app.is_tenant_subscription_accessible($1) AS allowed',
+      [user.business_id],
+    );
+    if (access.rows[0]?.allowed !== true) throw new HttpError(403, 'subscription_inactive');
+    const { token, tokenHash } = createManagementToken();
+    await registry().query(
+      "INSERT INTO public.access_tokens (tenant_id, token_hash, label, expires_at) VALUES ($1, $2, 'owner account session', now() + interval '8 hours')",
+      [user.business_id, tokenHash],
+    );
+    return { management_url: `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/manage/${token}`, expires_in_hours: 8 };
+  });
+
+  app.post('/subscription/cancel', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (!user.business_id) throw new HttpError(404, 'business_not_found');
+    const db = registry();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query(
+        "UPDATE public.platform_subscriptions SET status = 'canceled', canceled_at = now(), updated_at = now() WHERE tenant_id = $1 AND status IN ('trialing', 'active') RETURNING status",
+        [user.business_id],
+      );
+      if (!updated.rowCount) throw new HttpError(409, 'subscription_not_cancellable');
+      await client.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id) VALUES ('owner', $1, $2, 'subscription_cancelled', $3)",
+        [user.id, user.email, user.business_id],
+      );
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+    return { canceled: true, message: 'המנוי בוטל. אתר העסק וממשק הניהול נחסמו; החשבון האישי נשאר זמין.' };
+  });
+
+  app.post('/deletion-request', async (req, reply) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (!user.business_id) throw new HttpError(404, 'business_not_found');
+    const { reason } = DeletionRequestInput.parse(req.body ?? {});
+    const db = registry();
+    const inserted = await db.query(
+      `INSERT INTO public.business_deletion_requests (tenant_id, requested_by_user_id, reason)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (tenant_id) WHERE status = 'pending' DO NOTHING
+       RETURNING id, status, requested_at`,
+      [user.business_id, user.id, reason || null],
+    );
+    const request = inserted.rows[0] ?? (await db.query(
+      "SELECT id, status, requested_at FROM public.business_deletion_requests WHERE tenant_id = $1 AND status = 'pending' LIMIT 1",
+      [user.business_id],
+    )).rows[0];
+    if (inserted.rowCount) {
+      await db.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id, metadata) VALUES ('owner', $1, $2, 'business_deletion_requested', $3, $4::jsonb)",
+        [user.id, user.email, user.business_id, JSON.stringify({ request_id: request.id })],
+      );
+    }
+    return reply.code(inserted.rowCount ? 201 : 200).send({
+      request,
+      message: 'בקשת המחיקה נשלחה וממתינה לאישור מנהל. העסק והנתונים לא יימחקו עד לאישור מפורש.',
+    });
+  });
+
 };
