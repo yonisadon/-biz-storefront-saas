@@ -1959,30 +1959,30 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 }
 
 
-/* Seller-authored announcement: a distinct, high-visibility business message, never opening-hours status. */
+/* Seller-authored announcement: a calm, lightly tinted notice, independent of opening-hours status. */
 .brand-root .storefront-business-announcement {
   display: grid;
   justify-items: center;
   gap: .2rem;
   width: 100%;
-  padding: .9rem 1.25rem 1rem;
-  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 32%, transparent);
-  background: color-mix(in srgb, var(--brand-primary) 10%, var(--brand-background));
+  padding: .75rem 1.25rem .8rem;
+  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 7%, var(--brand-background));
   color: var(--brand-text);
   text-align: center;
   line-height: 1.6;
 }
 .brand-root .storefront-business-announcement-label {
-  color: var(--brand-primary);
+  color: color-mix(in srgb, var(--brand-primary) 72%, var(--brand-text));
   font-size: .75rem;
-  font-weight: 800;
-  letter-spacing: .04em;
+  font-weight: 700;
+  letter-spacing: .02em;
 }
 .brand-root .storefront-business-announcement p {
   max-width: 68rem;
   margin: 0;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 

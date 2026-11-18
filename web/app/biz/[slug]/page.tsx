@@ -115,11 +115,11 @@ export default async function StorefrontPage({ params }: Props) {
 
 
   const identitySlot = (
-          <header className="storefront-hero mx-auto mb-4 max-w-4xl px-4 py-5 text-center sm:mb-6 sm:px-10 sm:py-7">
+          <header className="storefront-hero mx-auto mb-0 max-w-4xl px-4 py-4 text-center sm:px-10 sm:py-6">
             <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
             <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
             {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
-            {hasBusinessInfo && <div className="storefront-hero-actions mt-5"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">יצירת קשר</a></div>}
+            {hasBusinessInfo && <div className="storefront-hero-actions mt-4"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">יצירת קשר</a></div>}
           </header>
     
   );
@@ -132,7 +132,7 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const servicesSlot = (
     <>
-          {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8">
+          {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
             <div className="mb-5">
               <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
               <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
@@ -168,7 +168,7 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const catalogSlot = (
     <>
-          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
+          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
     
     </>
   );
@@ -210,7 +210,7 @@ export default async function StorefrontPage({ params }: Props) {
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
-    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="הודעה מהעסק" role="status"><span className="storefront-business-announcement-label">הודעה מהעסק</span><p>{announcement.message.trim()}</p></aside>}
+    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="הודעה" role="status"><span className="storefront-business-announcement-label">הודעה</span><p>{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
       hasGallery={data.gallery.length > 0}
       identity={identitySlot}

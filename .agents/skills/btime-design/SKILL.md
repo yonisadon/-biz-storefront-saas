@@ -382,3 +382,13 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - Seller-authored announcements are a separate business-content feature, never part of opening hours or automatic open/closed status. Show a clearly labeled, high-visibility banner at the top only when the seller enabled it and supplied non-empty text. It may contain promotions, updates, holidays, new products, or important notices. It is not required to remain visible while scrolling.
 - Keep contact details compact and reduce unnecessary vertical gaps on mobile while preserving all contact methods and opening-hours information.
 - Business logo upload is a future optional capability, not part of the current implementation. Do not invent a default logo or alter existing gallery/icon behavior.
+
+
+## 2026-11-18 — Announcement tone and hero-to-catalog spacing
+
+- The public announcement label is exactly **„הודעה”**; never label it „הודעה מהעסק”. The seller's message remains independent of opening-hours and open/closed status.
+- Style the announcement as a quiet, light-tinted notice: mix a low percentage of the tenant primary color into the tenant background. Avoid a dominant filled block or strong border; preserve readable text and compatibility with all supported palettes.
+- The announcement remains an inline notice at the top of the storefront for this release. A popup/modal treatment is future-only and must not be implemented in this change.
+- Reduce unnecessary vertical space between the hero contact link and the start of products/services. Keep the hero action centered and normal-flow; do not make it sticky/fixed/floating. Preserve catalog search placement and behavior, including search appearing after five products.
+- Preserve all data, API, catalog/search behavior, booking, availability, cart/order, WhatsApp, CRM, opening-hours behavior and seller settings. No DB migration.
+- Verify mobile and desktop, enabled/disabled and short/long announcement text, multiple palettes, catalog/no-catalog and the five-product search state. Report visual checks honestly.
