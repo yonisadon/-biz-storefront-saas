@@ -99,7 +99,7 @@ export default function PlatformAdminPage() {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          },
+        },
         body: JSON.stringify({
           name,
           slug,
@@ -152,9 +152,8 @@ export default function PlatformAdminPage() {
     setAdminLoading(true);
     setAdminMessage('');
     try {
-      const headers: HeadersInit = {};
       const [overviewResponse, businessesResponse, deletionResponse] = await Promise.all([
-        fetch('/api/admin/overview', { headers, cache: 'no-store' }),
+        fetch('/api/admin/overview', { cache: 'no-store' }),
         fetch('/api/admin/businesses', { headers, cache: 'no-store' }),
         fetch('/api/admin/deletion-requests', { headers, cache: 'no-store' }),
       ]);
@@ -183,7 +182,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/businesses/${id}/status`, {
-        method: 'PATCH', headers: { 'content-type': 'application/json', },
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ status }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -218,7 +217,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/businesses/${id}/owner-email-verification`, {
-        method: 'PATCH', headers: { }, cache: 'no-store',
+        method: 'PATCH', cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לאמת את כתובת המייל.');
