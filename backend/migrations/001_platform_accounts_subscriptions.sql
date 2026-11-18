@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.platform_users (
   email text NOT NULL,
   phone text NOT NULL,
   password_hash text NOT NULL,
+  role text NOT NULL DEFAULT 'owner' CHECK (role IN ('owner', 'super_admin')),
   email_verified_at timestamptz,
   disabled_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
