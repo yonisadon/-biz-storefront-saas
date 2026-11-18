@@ -106,6 +106,91 @@ export default function PlatformAdminPage() {
     }
   }
 
+
+  async function loadAdminData() {
+    setAdminLoading(true);
+    setAdminMessage('');
+    try {
+      const headers = { authorization: `Bearer ${adminToken.trim()}` };
+      const [overviewResponse, businessesResponse, deletionResponse] = await Promise.all([
+        fetch('/api/admin/overview', { headers, cache: 'no-store' }),
+        fetch('/api/admin/businesses', { headers, cache: 'no-store' }),
+        fetch('/api/admin/deletion-requests', { headers, cache: 'no-store' }),
+      ]);
+      const [overviewData, businessesData, deletionData] = await Promise.all([
+        overviewResponse.json().catch(() => null),
+        businessesResponse.json().catch(() => null),
+        deletionResponse.json().catch(() => null),
+      ]);
+      if (!overviewResponse.ok || !businessesResponse.ok || !deletionResponse.ok) {
+        throw new Error('לא ניתן לטעון את נתוני הניהול. בדוק את מפתח הסופר אדמין.');
+      }
+      setOverview(overviewData as AdminOverview);
+      setBusinesses((businessesData?.businesses ?? []) as BusinessOption[]);
+      setDeletionRequests((deletionData?.requests ?? []) as DeletionRequest[]);
+      setAdminMessage('נתוני המערכת עודכנו.');
+    } catch (err) {
+      setAdminMessage(err instanceof Error ? err.message : 'טעינת נתוני הניהול נכשלה.');
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function updateBusinessStatus(id: string, status: string) {
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/status`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ status }), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את סטטוס העסק.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, status: data.status } : item));
+      setAdminMessage('סטטוס העסק עודכן.');
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function updateSubscription(id: string, status: string) {
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const body = status === 'trialing'
+        ? { status, trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
+        : { status };
+      const response = await fetch(`/api/admin/businesses/${id}/subscription`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify(body), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את המנוי.');
+      setBusinesses(current => current.map(item => item.id === id ? { ...item, subscription_status: data.status, trial_ends_at: data.trial_ends_at, current_period_ends_at: data.current_period_ends_at } : item));
+      setAdminMessage('סטטוס המנוי עודכן.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
+  async function reviewDeletion(id: string, decision: 'approve' | 'reject') {
+    const prompt = decision === 'approve'
+      ? 'לאשר את בקשת המחיקה? העסק ייחסם ויועבר לשלב מחיקה מבוקר.'
+      : 'לדחות את בקשת המחיקה?';
+    if (!window.confirm(prompt)) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/deletion-requests/${id}/review`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ decision }), cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לעדכן את בקשת המחיקה.');
+      setDeletionRequests(current => current.filter(item => item.id !== id));
+      if (decision === 'approve') setBusinesses(current => current.map(item => item.id === data.tenant_id ? { ...item, status: 'suspended' } : item));
+      setAdminMessage(decision === 'approve' ? 'הבקשה אושרה והעסק הוקפא. המחיקה הפיזית תתבצע בשלב מאובטח נפרד.' : 'בקשת המחיקה נדחתה.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'עדכון נכשל.'); }
+    finally { setAdminLoading(false); }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-2xl">
