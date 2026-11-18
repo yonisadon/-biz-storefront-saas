@@ -16,6 +16,10 @@ const RegisterInput = z.object({
   email: z.string().trim().email().max(254),
   phone: z.string().trim().min(8).max(40),
   password: z.string().min(10).max(128),
+  termsAccepted: z.literal(true),
+  privacyAccepted: z.literal(true),
+  marketingEmail: z.boolean().default(false),
+  marketingSms: z.boolean().default(false),
 }).strict();
 
 const LoginInput = z.object({
@@ -180,6 +184,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         [email, phone, passwordHash(input.password), role],
       );
       const userId = inserted.rows[0].id as string;
+      const consentVersion = '2026-11-18-v1';
+      await db.query(
+        `INSERT INTO public.platform_user_consents (user_id, consent_type, granted, consent_version, source)
+         VALUES ($1, 'terms_of_use', true, $2, 'registration'),
+                ($1, 'privacy_policy', true, $2, 'registration'),
+                ($1, 'marketing_email', $3, $2, 'registration'),
+                ($1, 'marketing_sms', $4, $2, 'registration')`,
+        [userId, consentVersion, input.marketingEmail, input.marketingSms],
+      );
       const token = await issueEmailToken(userId, 'verify_email');
       const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
       await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
@@ -288,6 +301,61 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const user = await currentUser(req);
     if (!user) throw new HttpError(401, 'not_authenticated');
     return { user };
+  });
+
+  app.get('/consents', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    const result = await registry().query(
+      `SELECT DISTINCT ON (consent_type) consent_type, granted, consent_version, recorded_at
+         FROM public.platform_user_consents
+        WHERE user_id = $1 AND consent_type IN ('marketing_email', 'marketing_sms')
+        ORDER BY consent_type, recorded_at DESC, id DESC`,
+      [user.id],
+    );
+    const latest = new Map(result.rows.map((row: any) => [row.consent_type, row.granted]));
+    return { marketingEmail: latest.get('marketing_email') === true, marketingSms: latest.get('marketing_sms') === true };
+  });
+
+  app.put('/consents', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    const input = z.object({ marketingEmail: z.boolean(), marketingSms: z.boolean() }).strict().parse(req.body);
+    const db = registry();
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await client.query(
+        `SELECT DISTINCT ON (consent_type) consent_type, granted
+           FROM public.platform_user_consents
+          WHERE user_id = $1 AND consent_type IN ('marketing_email', 'marketing_sms')
+          ORDER BY consent_type, recorded_at DESC, id DESC`,
+        [user.id],
+      );
+      const latest = new Map(current.rows.map((row: any) => [row.consent_type, row.granted]));
+      const version = '2026-11-18-v1';
+      for (const [type, granted] of [['marketing_email', input.marketingEmail], ['marketing_sms', input.marketingSms]] as const) {
+        if (latest.get(type) !== granted) {
+          await client.query(
+            `INSERT INTO public.platform_user_consents (user_id, consent_type, granted, consent_version, source)
+             VALUES ($1, $2, $3, $4, 'account_settings')`,
+            [user.id, type, granted, version],
+          );
+        }
+      }
+      await client.query(
+        `INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, metadata)
+         VALUES ('owner', $1, $2, 'consent_preferences_updated', $3::jsonb)`,
+        [user.id, user.email, JSON.stringify({ marketingEmail: input.marketingEmail, marketingSms: input.marketingSms })],
+      );
+      await client.query('COMMIT');
+      return { marketingEmail: input.marketingEmail, marketingSms: input.marketingSms };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
   });
 
   app.post('/logout', async (req, reply) => {
