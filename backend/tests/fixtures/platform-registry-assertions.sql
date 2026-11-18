@@ -63,7 +63,7 @@ END
 $$;
 
 -- Consent history is present and isolated from public runtime access.
-DO $$
+DO $consent_permissions$
 BEGIN
   IF to_regclass('public.platform_user_consents') IS NULL THEN
     RAISE EXCEPTION 'platform_user_consents table is missing';
@@ -84,7 +84,7 @@ BEGIN
     RAISE EXCEPTION 'app_runtime must not modify platform consent history';
   END IF;
 END
-$;
+$consent_permissions$;
 
 -- The registry stores separate, append-only decisions for each marketing channel.
 DO $consent_fixture$
