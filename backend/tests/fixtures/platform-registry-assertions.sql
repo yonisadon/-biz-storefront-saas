@@ -29,9 +29,9 @@ BEGIN
   END IF;
 
   INSERT INTO public.business_deletion_requests
-    (tenant_id, business_name, business_slug, database_name, requested_by_admin, reason)
+    (tenant_id, business_name, business_slug, requested_by_admin, reason)
   VALUES
-    (v_legacy, 'Legacy test', 'legacy-test', 'biz_0123456789abcdef01234567', true, 'admin initiated')
+    (v_legacy, 'Legacy test', 'legacy-test', true, 'admin initiated')
   RETURNING id INTO v_admin_request;
 
   IF NOT EXISTS (
@@ -39,6 +39,8 @@ BEGIN
      WHERE id = v_admin_request
        AND requested_by_user_id IS NULL
        AND requested_by_admin = true
+       AND database_name IS NULL
+       AND storage_keys = '[]'::jsonb
   ) THEN
     RAISE EXCEPTION 'admin-originated deletion request was not persisted correctly';
   END IF;
