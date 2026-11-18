@@ -174,6 +174,31 @@ test('platform account lifecycle and independent marketing consents', async () =
         provisionBusinessForOwner({ id: userId, email, phone: '+972501234567' }, { name: 'Duplicate Business', slug: `duplicate-${businessSlug}` }),
         /business_already_exists/,
       );
+
+      const ownerLogin = await app.inject({
+        method: 'POST', url: '/api/auth/login', payload: { email, password: 'new-correct-horse-battery' },
+      });
+      assert.equal(ownerLogin.statusCode, 200);
+      const ownerCookie = String(ownerLogin.headers['set-cookie']).split(';')[0];
+      const cancellation = await app.inject({
+        method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
+      });
+      assert.equal(cancellation.statusCode, 200);
+      assert.equal(cancellation.json().canceled, true);
+      const canceledState = await pool.query(
+        `SELECT s.status, app.is_tenant_subscription_accessible(b.id) AS accessible
+           FROM public.businesses b JOIN public.platform_subscriptions s ON s.tenant_id = b.id
+          WHERE b.id = $1`,
+        [provisioned.id],
+      );
+      assert.equal(canceledState.rows[0].status, 'canceled');
+      assert.equal(canceledState.rows[0].accessible, false);
+      const ownerAccountAfterCancel = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: ownerCookie } });
+      assert.equal(ownerAccountAfterCancel.statusCode, 200, 'owner account must remain available after subscription cancellation');
+      const secondCancellation = await app.inject({
+        method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
+      });
+      assert.equal(secondCancellation.statusCode, 409);
     } finally {
       if (provisioned) {
         await pool.query(`DROP DATABASE IF EXISTS "${provisioned.database}" WITH (FORCE)`).catch(() => {});
