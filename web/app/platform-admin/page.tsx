@@ -572,7 +572,7 @@ export default function PlatformAdminPage() {
           </section>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון שתפקידו super_admin מוגדר במסד הנתונים. מפתח API חלופי משמש למקרי חירום בלבד.</p>
+        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון מאומת שתפקידו super_admin.</p>
       </div>
     </main>
   );
