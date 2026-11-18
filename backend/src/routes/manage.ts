@@ -31,10 +31,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                 locale, timezone, config
            FROM businesses WHERE id = app.current_tenant_id()`,
       )).rows[0];
-      const domains = (await db.query(
-        'SELECT domain, is_verified, is_primary FROM business_domains ORDER BY is_primary DESC, domain',
-      )).rows;
-      return { ...biz, domains };
+      return biz;
     }));
 
   app.patch('/business', async (req) => {

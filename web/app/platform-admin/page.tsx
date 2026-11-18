@@ -24,8 +24,7 @@ type DeletionRequest = { id: string; tenant_id: string | null; reason: string | 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
 export default function PlatformAdminPage() {
-  const [adminToken, setAdminToken] = useState('');
-  const [showAdminToken, setShowAdminToken] = useState(false);
+  const [accessState, setAccessState] = useState<'checking' | 'allowed'>('checking');
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [phone, setPhone] = useState('');
@@ -54,6 +53,29 @@ export default function PlatformAdminPage() {
   const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [emailVerificationFilter, setEmailVerificationFilter] = useState('all');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyPlatformAdmin() {
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' });
+        if (!response.ok) {
+          if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
+          return;
+        }
+        const data = await response.json().catch(() => null);
+        if (data?.user?.role !== 'super_admin') {
+          if (!cancelled) window.location.replace('/account');
+          return;
+        }
+        if (!cancelled) setAccessState('allowed');
+      } catch {
+        if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
+      }
+    }
+    void verifyPlatformAdmin();
+    return () => { cancelled = true; };
+  }, []);
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
   const filteredBusinesses = businesses.filter((business) => {
@@ -77,7 +99,6 @@ export default function PlatformAdminPage() {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${adminToken.trim()}`,
         },
         body: JSON.stringify({
           name,
@@ -92,8 +113,8 @@ export default function PlatformAdminPage() {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         const messages: Record<string, string> = {
-          unauthorized: 'מפתח הניהול אינו נכון.',
-          admin_not_configured: 'מפתח הניהול לא הוגדר בשרת.',
+          unauthorized: 'נדרשת התחברות לחשבון סופר אדמין מורשה.',
+          admin_not_configured: 'שירות ניהול הפלטפורמה אינו מוגדר בשרת.',
           provisioning_not_configured: 'חסרות הגדרות מסד הנתונים או כתובת האתר בשרת.',
           slug_already_exists: 'כתובת האתר הזו כבר תפוסה.',
           invalid_il_phone: 'יש להזין מספר טלפון ישראלי תקין.',
@@ -131,11 +152,10 @@ export default function PlatformAdminPage() {
     setAdminLoading(true);
     setAdminMessage('');
     try {
-      const headers = { authorization: `Bearer ${adminToken.trim()}` };
       const [overviewResponse, businessesResponse, deletionResponse] = await Promise.all([
-        fetch('/api/admin/overview', { headers, cache: 'no-store' }),
-        fetch('/api/admin/businesses', { headers, cache: 'no-store' }),
-        fetch('/api/admin/deletion-requests', { headers, cache: 'no-store' }),
+        fetch('/api/admin/overview', { cache: 'no-store' }),
+        fetch('/api/admin/businesses', { cache: 'no-store' }),
+        fetch('/api/admin/deletion-requests', { cache: 'no-store' }),
       ]);
       const [overviewData, businessesData, deletionData] = await Promise.all([
         overviewResponse.json().catch(() => null),
@@ -154,15 +174,15 @@ export default function PlatformAdminPage() {
     } finally {
       setAdminLoading(false);
     }
-  }, [adminToken]);
+  }, []);
 
-  useEffect(() => { void loadAdminData(); }, [loadAdminData]);
+  useEffect(() => { if (accessState === 'allowed') void loadAdminData(); }, [accessState, loadAdminData]);
 
   async function updateBusinessStatus(id: string, status: string) {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/businesses/${id}/status`, {
-        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ status }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -180,7 +200,7 @@ export default function PlatformAdminPage() {
         ? { status, trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
         : { status };
       const response = await fetch(`/api/admin/businesses/${id}/subscription`, {
-        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        method: 'PATCH', headers: { 'content-type': 'application/json', },
         body: JSON.stringify(body), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -197,7 +217,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/businesses/${id}/owner-email-verification`, {
-        method: 'PATCH', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+        method: 'PATCH', cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לאמת את כתובת המייל.');
@@ -214,7 +234,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/businesses/${id}/deletion-request`, {
-        method: 'POST', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+        method: 'POST', headers: { }, cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לפתוח בקשת מחיקה לעסק.');
@@ -234,7 +254,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/deletion-requests/${id}/execute`, {
-        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        method: 'POST', headers: { 'content-type': 'application/json', },
         body: JSON.stringify({ backupVerified: true, backupReference: backupReference.trim() }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -253,7 +273,7 @@ export default function PlatformAdminPage() {
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/deletion-requests/${id}/review`, {
-        method: 'PATCH', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        method: 'PATCH', headers: { 'content-type': 'application/json', },
         body: JSON.stringify({ decision }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -266,6 +286,14 @@ export default function PlatformAdminPage() {
     finally { setAdminLoading(false); }
   }
 
+  if (accessState !== 'allowed') {
+    return (
+      <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-slate-700">
+        <p role="status" aria-live="polite">בודק הרשאות גישה לממשק ניהול הפלטפורמה…</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-2xl">
@@ -275,7 +303,10 @@ export default function PlatformAdminPage() {
           <p className="mt-3 leading-7 text-slate-600">
             כל עסק חדש יקבל מסד PostgreSQL נפרד בתוך שירות Railway הקיים, אתר ציבורי וקישור ניהול פרטי.
           </p>
-          <Link href="/login" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התחברות</Link>
+          <button type="button" onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' }).catch(() => {});
+            window.location.assign('/login');
+          }} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">התנתקות</button>
         </header>
 
         <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -357,24 +388,6 @@ export default function PlatformAdminPage() {
 
         <form onSubmit={submit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
           <div>
-            <label htmlFor="adminToken" className="mb-2 block text-sm font-semibold">מפתח API חלופי (לא חובה)</label>
-            <div className="relative">
-              <input id="adminToken" type={showAdminToken ? 'text' : 'password'} autoComplete="off"
-                value={adminToken} onChange={(e) => setAdminToken(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-3 pl-12 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                placeholder="לשימוש חירום בלבד; אפשר להתחבר באמצעות חשבון הסופר אדמין" dir="ltr" />
-              <button type="button" onClick={() => setShowAdminToken((value) => !value)}
-                aria-label={showAdminToken ? 'הסתרת מפתח הניהול' : 'הצגת מפתח הניהול'} aria-pressed={showAdminToken}
-                className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {showAdminToken
-                  ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0112 5c5 0 8.5 4.5 9.5 7-.4 1-1.3 2.3-2.6 3.5M6.2 6.2C3.8 7.7 2.5 10.1 2.5 12c1.3 2.5 4.5 7 9.5 7 1.3 0 2.5-.3 3.6-.8"/></svg>
-                  : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>}
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-slate-500">אפשר להיכנס באמצעות מייל וסיסמה של חשבון הסופר אדמין. מפתח API חלופי נשמר בזיכרון הדף בלבד.</p>
-          </div>
-
-          <div>
             <label htmlFor="name" className="mb-2 block text-sm font-semibold">שם העסק *</label>
             <input id="name" required minLength={2} maxLength={120} value={name}
               onChange={(e) => setName(e.target.value)}
@@ -449,7 +462,7 @@ export default function PlatformAdminPage() {
           <button type="button" disabled={domainLoading} onClick={async () => {
             setDomainLoading(true); setBusinessesMessage('');
             try {
-              const response = await fetch('/api/admin/businesses', { headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store' });
+              const response = await fetch('/api/admin/businesses', { headers: { }, cache: 'no-store' });
               const data = await response.json().catch(() => null);
               if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לטעון את רשימת העסקים.');
               setBusinesses((data?.businesses ?? []) as BusinessOption[]);
@@ -479,7 +492,7 @@ export default function PlatformAdminPage() {
               try {
                 const response = await fetch(`/api/admin/businesses/${targetBusinessId}/domains`, {
                   method: 'POST',
-                  headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+                  headers: { 'content-type': 'application/json', },
                   body: JSON.stringify({ domain: domain.trim() }),
                   cache: 'no-store',
                 });
@@ -529,7 +542,7 @@ export default function PlatformAdminPage() {
                   try {
                     const response = await fetch(`/api/admin/businesses/${targetBusinessId}/domains/${encodeURIComponent(domainSetup.domain)}/verify`, {
                       method: 'POST',
-                      headers: { authorization: `Bearer ${adminToken.trim()}` },
+                      headers: { },
                       cache: 'no-store',
                     });
                     const data = await response.json().catch(() => null);
@@ -559,7 +572,7 @@ export default function PlatformAdminPage() {
           </section>
         )}
 
-        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון שתפקידו super_admin מוגדר במסד הנתונים. מפתח API חלופי משמש למקרי חירום בלבד.</p>
+        <p className="mt-6 text-center text-xs text-slate-500">הגישה לניהול הפלטפורמה זמינה רק לחשבון מאומת שתפקידו super_admin.</p>
       </div>
     </main>
   );

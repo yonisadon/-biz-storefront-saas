@@ -221,12 +221,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           <h2 className="text-lg font-bold">קישורים</h2>
           <ul className="mt-2 space-y-1 text-sm">
             <li>כתובת האתר: <span dir="ltr">/biz/{biz.slug}</span></li>
-            {biz.domains.map((d) => (
-              <li key={d.domain}>
-                דומיין: <span dir="ltr">{d.domain}</span>{' '}
-                <span className="text-gray-500">({d.is_verified ? 'מאומת' : 'ממתין לאימות'}{d.is_primary ? ', ראשי' : ''})</span>
-              </li>
-            ))}
           </ul>
         </section>
       </div>

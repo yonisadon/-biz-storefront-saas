@@ -74,7 +74,6 @@ export type ManageBusiness = {
   // Business config is server-validated JSON with feature-specific sections.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   config: Record<string, any>;
-  domains: { domain: string; is_verified: boolean; is_primary: boolean }[];
 };
 // הוסף את השורות האלו בסוף הקובץ:
 export type MProduct = {

@@ -9,9 +9,10 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const headers = new Headers();
   const ct = req.headers.get('content-type'); // keeps the multipart boundary intact
   if (ct) headers.set('content-type', ct);
-  // Needed only for the manually authenticated Super Admin screen.
+  // Platform admin API access must use the authenticated super-admin session cookie.
+  // Never accept a browser-supplied API token through this public proxy.
   const authorization = req.headers.get('authorization');
-  if (authorization) headers.set('authorization', authorization);
+  if (authorization && path[0] !== 'admin') headers.set('authorization', authorization);
   const cookie = req.headers.get('cookie');
   if (cookie) headers.set('cookie', cookie);
   const xff = req.headers.get('x-forwarded-for');
