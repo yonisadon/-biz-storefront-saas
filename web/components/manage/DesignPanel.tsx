@@ -82,7 +82,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
             <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
-            <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים.</p>
+            <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות את הבחירה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
             <div className="grid grid-cols-2 gap-2">
               {([
                 { id: 'modern', title: 'מודרני', sample: 'נקי וברור', family: '"Heebo", Arial, sans-serif', note: 'חד ומאוזן' },
@@ -101,7 +101,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
           </fieldset>
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
             <legend className="px-1 text-sm font-semibold">צבע שם העסק</legend>
-            <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר.</p>
+            <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר. אפשר לשנות אותה בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
             <div className="grid grid-cols-2 gap-2">
               <label className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${businessTitleColor === 'brand' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200'}`}>
                 <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'brand'} onChange={() => setBusinessTitleColor('brand')} />
