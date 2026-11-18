@@ -145,6 +145,15 @@ export default function AccountDashboard() {
         </form>
       </section>}
 
+      <section className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="font-bold">צריכים עזרה?</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">אפשר לפנות לתמיכת BTime במייל או ב-WhatsApp.</p>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm font-semibold">
+          <a href="mailto:matchmakeradm1992@gmail.com" className="text-blue-700 underline">שליחת מייל לתמיכה</a>
+          {process.env.NEXT_PUBLIC_PLATFORM_SUPPORT_WHATSAPP && <a href={`https://wa.me/${process.env.NEXT_PUBLIC_PLATFORM_SUPPORT_WHATSAPP.replace(/\\D/g, '')}`} target="_blank" rel="noreferrer" className="text-green-700 underline">פנייה ב-WhatsApp</a>}
+        </div>
+      </section>
+
       {user?.business_id&&<section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-lg font-bold">{user.business_name}</h2><p className="mt-1 text-sm text-slate-500" dir="ltr">/biz/{user.business_slug}</p></div>
