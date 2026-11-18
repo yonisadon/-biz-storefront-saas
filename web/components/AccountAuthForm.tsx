@@ -31,8 +31,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [marketingEmail, setMarketingEmail] = useState(false);
   const [marketingSms, setMarketingSms] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,7 +49,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
       const response = await fetch(`/api/auth/${isRegister ? 'register' : 'login'}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, ...(isRegister ? { phone, termsAccepted, privacyAccepted, marketingEmail, marketingSms } : {}) }),
+        body: JSON.stringify({ email, password, ...(isRegister ? { phone, termsAccepted: legalAccepted, privacyAccepted: legalAccepted, marketingEmail, marketingSms } : {}) }),
         cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -65,7 +64,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן להשלים את הפעולה כרגע.');
       }
       if (isRegister) {
-        setMessage(data?.message ?? 'אם פרטי ההרשמה תקינים, נשלח אליך מייל לאימות הכתובת.');
+        setMessage(data?.message ?? 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.');
         setPassword('');
         setConfirmPassword('');
       } else {
@@ -103,9 +102,9 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
     <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
       <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <Link href="/" className="text-sm font-semibold text-blue-700">BTime</Link>
-        <h1 className="mt-5 text-2xl font-bold">{isRegister ? 'פתיחת חשבון עסקי' : 'התחברות ל-BTime'}</h1>
+        <h1 className="mt-5 text-2xl font-bold">{isRegister ? 'יוצרים אתר עסקי עם BTime' : 'התחברות ל-BTime'}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          {isRegister ? 'נרשמים, מאמתים את המייל ומקימים את העסק. תקופת הניסיון היא 30 יום.' : 'התחברו כדי לנהל את העסק או להמשיך בהקמתו.'}
+          {isRegister ? 'מקימים אתר עסקי מקצועי עם קישור אישי ללקוחות וממשק ניהול פשוט לעדכון שירותים, מוצרים, תמונות ופרטי העסק — וגם לניהול פניות ותורים. מתחילים ב-30 ימי ניסיון ללא התחייבות.' : 'התחברו לממשק הניהול כדי לעדכן את האתר, לנהל פניות ותורים ולהמשיך להפעיל את העסק.'}
         </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div>
@@ -129,12 +128,8 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <p className="mt-1 text-xs text-slate-500">הסיסמה צריכה להכיל לפחות 10 תווים. אין חובה לאות גדולה או לסימן מיוחד.</p>
             <div className="space-y-3 rounded-xl border border-slate-200 p-3 text-sm">
               <label className="flex items-start gap-2">
-                <input type="checkbox" required checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
-                <span>אני מאשר/ת את <Link href="/platform-legal#terms_of_use" target="_blank" className="font-semibold text-blue-700 underline">תנאי השימוש של BTime</Link>.</span>
-              </label>
-              <label className="flex items-start gap-2">
-                <input type="checkbox" required checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
-                <span>קראתי את <Link href="/platform-legal#privacy_policy" target="_blank" className="font-semibold text-blue-700 underline">מדיניות הפרטיות של BTime</Link>.</span>
+                <input type="checkbox" required checked={legalAccepted} onChange={e=>setLegalAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
+                <span>קראתי ואני מאשר/ת את <Link href="/platform-legal#terms_of_use" target="_blank" className="font-semibold text-blue-700 underline">תנאי השימוש</Link> ואת <Link href="/platform-legal#privacy_policy" target="_blank" className="font-semibold text-blue-700 underline">מדיניות הפרטיות</Link> של BTime.</span>
               </label>
               <div className="border-t border-slate-200 pt-3">
                 <p className="mb-2 font-semibold">עדכונים והצעות שיווקיות (רשות)</p>
