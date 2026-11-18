@@ -12,6 +12,8 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   // Needed only for the manually authenticated Super Admin screen.
   const authorization = req.headers.get('authorization');
   if (authorization) headers.set('authorization', authorization);
+  const cookie = req.headers.get('cookie');
+  if (cookie) headers.set('cookie', cookie);
   const xff = req.headers.get('x-forwarded-for');
   if (xff) headers.set('x-forwarded-for', xff);
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
@@ -27,13 +29,13 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   }
 
   const res = await fetch(url, { method: req.method, headers, body, cache: 'no-store' });
-  return new Response(res.body, {
-    status: res.status,
-    headers: {
-      'content-type': res.headers.get('content-type') ?? 'application/json',
-      'cache-control': 'no-store',
-    },
+  const responseHeaders = new Headers({
+    'content-type': res.headers.get('content-type') ?? 'application/json',
+    'cache-control': 'no-store',
   });
+  const setCookie = res.headers.get('set-cookie');
+  if (setCookie) responseHeaders.set('set-cookie', setCookie);
+  return new Response(res.body, { status: res.status, headers: responseHeaders });
 }
 
 export { proxy as GET, proxy as POST, proxy as PATCH, proxy as PUT, proxy as DELETE };
