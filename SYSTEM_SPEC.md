@@ -2606,3 +2606,14 @@
 
 - בדיקת האינטגרציה מוודאת שביטול מנוי trialing משנה את סטטוס המנוי ל-canceled, חוסם גישה לעסק דרך `app.is_tenant_subscription_accessible`, אך משאיר את חשבון בעל העסק זמין להתחברות ולניהול העדפותיו.
 - ניסיון ביטול שני של אותו מנוי נדחה כפעולה שאינה ניתנת לביטול נוסף.
+
+
+## 2026-11-18 — הפרדת מיגרציות Registry מעליית שרת (תיקון PR #93)
+
+- אין להריץ מיגרציות DB כחלק מ-`prestart`, מעליית API, Restart או Deploy רגיל. ה-hook `prestart` הוסר, וסקריפט ה-bootstrap הישן שהריץ את מיגרציות ה-Registry בכל הפעלה הוסר.
+- מיגרציות Registry המרכזי (`000_tenant_registry.sql`, `001_platform_accounts_subscriptions.sql`) מופעלות רק באמצעות GitHub Actions ידני: **Platform registry migrations**. Deploy רגיל של Railway אינו מפעיל אותן.
+- ה-workflow מבצע preflight לקיום טבלאות הבסיס והתפקידים הנדרשים, משתמש ב-`DATABASE_ADMIN_URL` בעל הרשאות מתאימות אך מכוון אותו במפורש לאותו DB שאליו מתחבר `SUPERADMIN_DATABASE_URL`, ונועל הרצות מקבילות באמצעות PostgreSQL advisory lock.
+- קובצי Registry שהושלמו נרשמים ב-`public.platform_registry_schema_migrations`. הרצה ידנית נוספת בודקת את ה-ledger; אם אין מיגרציות ממתינות, היא מסתיימת ללא שינוי DB וללא דרישת גיבוי.
+- כאשר קיימת מיגרציה ממתינה, נדרש אישור מפורש באותה הרצת workflow: סימון גיבוי Registry שנוצר ונבדק, או סימון נפרד לאישור המשך ללא גיבוי. אישור ללא גיבוי אינו נשמר ב-Railway ואינו יכול להיות מופעל על ידי push/Deploy אוטומטי.
+- מיגרציות tenant נשארות בתהליך הקיים והנפרד שלהן (`tenant-schema-migrations.yml`), עם preflight, ledger לכל DB tenant ואישור גיבוי/חריגת no-backup.
+- לא בוצעה הרצה של workflow המיגרציה, לא בוצעה מיגרציה ל-Registry ב-Railway ולא בוצעה פריסה. השינוי בקוד ובתיעוד בלבד; יש להריץ את ה-workflow באופן יזום רק כאשר רוצים לקדם שינוי DB שמצריך מיגרציה.
