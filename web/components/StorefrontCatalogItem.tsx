@@ -57,12 +57,13 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
             <QuantityStepper quantity={catalogAction.quantity} label={`כמות: ${product.name}`} onChange={catalogAction.onQuantityChange} />
           ) : (
             <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
-              className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-              {catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
+              className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
+              <span>{catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}</span>
+              <span aria-hidden="true" className="text-base leading-none">←</span>
             </button>
           ))}
           {action.type === 'whatsapp' && action.href && (
-            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">לפרטים ב-WhatsApp</a>
+            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5"><span>לפרטים ב-WhatsApp</span><span aria-hidden="true" className="text-base leading-none">←</span></a>
           )}
         </div>
         {product.details?.length > 0 && (
