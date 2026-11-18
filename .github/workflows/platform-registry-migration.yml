@@ -14,7 +14,13 @@ on:
       - 'backend/src/provisioning.ts'
       - 'backend/src/server.ts'
       - 'backend/package.json'
+      - 'backend/scripts/migrate-platform-registry.ts'
+      - 'backend/src/platformRegistryMigrationPolicy.ts'
+      - 'backend/tests/platformRegistryMigrationPolicy.test.ts'
       - 'backend/tsconfig.json'
+      - '.github/workflows/platform-registry-migrations.yml'
+      - 'database-migrations/README.md'
+      - 'SYSTEM_SPEC.md'
       - '.github/workflows/platform-registry-migration.yml'
 
 jobs:
