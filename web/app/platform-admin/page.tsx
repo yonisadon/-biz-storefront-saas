@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { FormEvent } from 'react';
 import PalettePicker from '@/components/PalettePicker';
 import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
@@ -16,7 +17,9 @@ type CreatedBusiness = {
   status: string;
 };
 
-type BusinessOption = { id: string; name: string; slug: string; status: string; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+type BusinessOption = { id: string; name: string; slug: string; status: string; email?: string | null; phone?: string | null; owner_email?: string | null; owner_phone?: string | null; created_at?: string; subscription_status?: string | null; trial_ends_at?: string | null; current_period_ends_at?: string | null; deletion_request_status?: string | null; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
+type AdminOverview = { total_businesses: number; active_businesses: number; suspended_businesses: number; trialing_subscriptions: number; paid_subscriptions: number; pending_deletion_requests: number };
+type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email: string; owner_phone: string; database_name?: string | null };
 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
@@ -42,6 +45,10 @@ export default function PlatformAdminPage() {
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [businessesMessage, setBusinessesMessage] = useState('');
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
 
