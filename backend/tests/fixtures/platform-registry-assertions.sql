@@ -83,3 +83,15 @@ BEGIN
   ) THEN RAISE EXCEPTION 'backup_verified_by column is missing'; END IF;
 END
 $$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_deletion_completed_requires_backup') THEN
+    RAISE EXCEPTION 'completed deletion must require backup verification';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'business_deletion_backup_reference_length') THEN
+    RAISE EXCEPTION 'backup reference length constraint is missing';
+  END IF;
+END
+$$;
