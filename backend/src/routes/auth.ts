@@ -395,7 +395,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         req.log.warn({ err: error }, 'password reset email could not be sent');
       }
     }
-    return reply.code(202).send({ message: 'אם קיימת כתובת מאומתת המתאימה לפרטים, יישלח אליה קישור לאיפוס סיסמה.' });
+    return reply.code(202).send({ message: 'בקשת איפוס הסיסמה התקבלה. אם קיימת כתובת מייל מאומתת המשויכת לחשבון, יישלח אליה קישור חד-פעמי. הקישור יהיה בתוקף למשך 30 דקות. כדאי לבדוק גם בתיקיית הספאם.' });
   });
 
   app.post('/reset-password', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req) => {
