@@ -5,7 +5,6 @@ import multipart from '@fastify/multipart'; // <-- אימפורט חדש
 import { ZodError } from 'zod';
 import { env } from './config';
 import { HttpError } from './errors';
-import { pathToFileURL } from 'node:url';
 import { resolveByHost, resolveBySlug } from './tenant';
 import { publicRoutes } from './routes/public';
 import { manageRoutes } from './routes/manage';
@@ -85,7 +84,7 @@ export async function buildServer() {
 }
 
 // Importing the server from integration tests must not start a listener.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (require.main === module) {
   buildServer()
     .then((app) => app.listen({ port: env.PORT, host: '0.0.0.0' }))
     .catch((err) => { console.error(err); process.exit(1); });
