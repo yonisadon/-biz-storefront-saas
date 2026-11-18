@@ -144,7 +144,7 @@ export async function provisionBusinessForOwner(
     );
 
     const client = await registry.connect();
-    let trialEndsAt: string;
+    let trialEndsAt = '';
     try {
       await client.query('BEGIN');
       await client.query(
