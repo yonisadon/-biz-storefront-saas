@@ -1959,20 +1959,41 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 }
 
 
-/* Seller-authored business announcement; independent from opening hours. */
+/* Seller-authored announcement: a distinct, high-visibility business message, never opening-hours status. */
 .brand-root .storefront-business-announcement {
-  padding: .75rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 18%, transparent);
-  background: color-mix(in srgb, var(--brand-secondary) 38%, var(--brand-background));
+  display: grid;
+  justify-items: center;
+  gap: .2rem;
+  width: 100%;
+  padding: .9rem 1.25rem 1rem;
+  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 32%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--brand-background));
   color: var(--brand-text);
   text-align: center;
-  font-size: .925rem;
   line-height: 1.6;
-  font-weight: 600;
+}
+.brand-root .storefront-business-announcement-label {
+  color: var(--brand-primary);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.brand-root .storefront-business-announcement p {
+  max-width: 68rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
-/* A normal in-page link, centered in the hero; never sticky or floating. */
-.brand-root .storefront-universal-hero-copy .storefront-hero-actions {
+/* Business identity and its contact link stay centered in every theme. */
+.brand-root .storefront-hero {
+  text-align: center !important;
+}
+.brand-root .storefront-hero > div[aria-hidden="true"] {
+  margin-inline: auto !important;
+}
+.brand-root .storefront-hero-actions {
   display: flex;
   width: 100%;
   justify-content: center !important;
@@ -1980,9 +2001,10 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   margin-inline: auto;
   text-align: center;
 }
-.brand-root #contact-section > div:nth-child(2) { row-gap: .75rem; }
-.brand-root #contact-section h3 { margin-bottom: .5rem; }
+.brand-root #contact-section > div:nth-child(2) { row-gap: .6rem; }
+.brand-root #contact-section h3 { margin-bottom: .4rem; }
 @media (max-width: 767px) {
   .brand-root #catalog-section,
-  .brand-root #services-section { margin-bottom: 1.5rem; }
+  .brand-root #services-section { margin-bottom: .75rem; }
+  .brand-root #contact-section { margin-top: .75rem; }
 }
