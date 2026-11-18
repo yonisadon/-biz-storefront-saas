@@ -8,15 +8,15 @@
     "issue-token": "tsx --env-file=.env scripts/issue-token.ts",
     "migrate-tenants": "tsx --env-file=.env scripts/migrate-tenants-to-databases.ts",
     "grant-lead-delete": "tsx --env-file=.env scripts/grant-lead-delete.ts",
-    "setup-tenant-registry": "tsx --env-file=.env scripts/setup-tenant-registry.ts",
-    "prestart": "node dist/scripts/setup-tenant-registry.js",
     "migrate-tenant-schemas": "tsx --env-file=.env scripts/migrate-tenant-schemas.ts",
     "cleanup-expired-appointments": "tsx --env-file=.env scripts/cleanup-expired-appointments.ts",
     "test": "tsx --test tests/*.test.ts",
     "migrate-tenant-schemas:deploy": "tsx scripts/migrate-tenant-schemas.ts --apply",
     "cleanup-expired-crm": "tsx scripts/cleanup-expired-crm.ts",
     "sync-google-calendar": "tsx scripts/sync-google-calendar.ts",
-    "test:platform-integration": "tsx --test integration-tests/platformAuth.integration.ts"
+    "test:platform-integration": "tsx --test integration-tests/platformAuth.integration.ts",
+    "migrate-platform-registry": "tsx --env-file=.env scripts/migrate-platform-registry.ts",
+    "migrate-platform-registry:deploy": "tsx scripts/migrate-platform-registry.ts --apply"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
