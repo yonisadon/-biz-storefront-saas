@@ -131,7 +131,7 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
   return result.rows[0];
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(to: string, subject: string, html: string, textContent: string): Promise<void> {
   if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
     throw new HttpError(503, 'email_service_not_configured');
   }
@@ -146,6 +146,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
       to: [{ email: to }],
       subject,
       htmlContent: html,
+      textContent,
     }),
   });
   if (!response.ok) {
@@ -204,7 +205,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const token = await issueEmailToken(userId, 'verify_email');
       const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
       await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
-        `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי לאמת את כתובת המייל ולהמשיך להקמת העסק, לחצו על הקישור:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></div>`);
+        `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי לאמת את כתובת המייל ולהמשיך להקמת העסק, לחצו על הקישור:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
+        `ברוכים הבאים ל-BTime\n\nכדי לאמת את כתובת המייל ולהמשיך להקמת העסק, פתחו את הקישור הבא:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
       return reply.code(202).send({ message: 'נשלח אליך מייל אם פרטי ההרשמה תקינים. יש לבדוק גם בתיקיית הספאם.' });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
@@ -225,7 +227,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
         const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
         await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
-          `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>אימות כתובת המייל</h2><p>לחצו על הקישור כדי להשלים את ההרשמה:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות.</p></div>`);
+          `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>אימות כתובת המייל</h2><p>לחצו על הקישור כדי להשלים את ההרשמה:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות.</p></body></html>`,
+          `אימות כתובת המייל\n\nלחצו על הקישור כדי להשלים את ההרשמה:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות.`);
       } catch (error) {
         req.log.warn({ err: error }, 'verification email could not be resent');
       }
@@ -386,7 +389,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const resetUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
       try {
         await sendEmail(result.rows[0].email, 'איפוס סיסמה ל-BTime',
-          `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>איפוס סיסמה</h2><p>כדי לבחור סיסמה חדשה, לחצו על הקישור:</p><p><a href="${resetUrl}">איפוס סיסמה</a></p><p>הקישור תקף ל-30 דקות. אם לא ביקשת לאפס סיסמה, אפשר להתעלם מההודעה.</p></div>`);
+          `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>איפוס סיסמה</h2><p>כדי לבחור סיסמה חדשה, לחצו על הקישור:</p><p><a href="${resetUrl}">איפוס סיסמה</a></p><p>הקישור תקף ל-30 דקות. אם לא ביקשת לאפס סיסמה, אפשר להתעלם מההודעה.</p></body></html>`,
+          `איפוס סיסמה ל-BTime\n\nכדי לבחור סיסמה חדשה, פתחו את הקישור הבא:\n${resetUrl}\n\nהקישור תקף ל-30 דקות. אם לא ביקשת לאפס סיסמה, אפשר להתעלם מההודעה.`);
       } catch (error) {
         req.log.warn({ err: error }, 'password reset email could not be sent');
       }
