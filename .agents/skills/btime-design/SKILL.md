@@ -396,7 +396,7 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 
 ## 2026-11-18 — Clarification: announcement has no visible heading; close the actual mobile gap
 
-- Render the seller announcement with **no visible label or heading at all**. Do not show “הודעה”, “הודעה מהעסק”, or any replacement label; render only the seller-authored message inside the subtle tinted notice.
+- Render the seller announcement with **no visible label or heading at all**. Do not show “הודעה”, “הודעה מהעסק”, or any replacement label; render only the seller-authored message inside a very subtle tinted notice (4% brand-color tint and an 8% border tint).
 - The notice remains conditional on seller enablement and non-empty content. An accessible label may be used for assistive technology only; it must not create visible text.
 - The mobile gap to fix is specifically between the contact link below the business description and the products/services heading. The oversized spacing comes from `.storefront-universal-hero { margin-bottom: 3.75rem }` plus catalog/services top padding of `1.35rem`. Reduce both to `.5rem`. Do not treat small margin changes on the link or catalog wrapper as a sufficient fix.
 - Preserve catalog search placement and behavior, including the search that appears after five products. No booking, API, tenant data, or DB changes.
