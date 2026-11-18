@@ -185,20 +185,22 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/verify-email', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { token } = TokenInput.parse(req.body);
     const db = registry();
-    const result = await db.query(
-      `SELECT t.id AS token_id, u.id AS user_id
-         FROM public.platform_email_tokens t
-         JOIN public.platform_users u ON u.id = t.user_id
-        WHERE t.token_hash = $1 AND t.purpose = 'verify_email'
-          AND t.consumed_at IS NULL AND t.expires_at > now() AND u.disabled_at IS NULL
-        LIMIT 1`,
-      [digest(token)],
-    );
-    if (!result.rows[0]) throw new HttpError(400, 'verification_link_invalid_or_expired');
-    const { token_id, user_id } = result.rows[0];
     const client = await db.connect();
+    let userId: string | undefined;
     try {
       await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT t.id AS token_id, u.id AS user_id
+           FROM public.platform_email_tokens t
+           JOIN public.platform_users u ON u.id = t.user_id
+          WHERE t.token_hash = $1 AND t.purpose = 'verify_email'
+            AND t.consumed_at IS NULL AND t.expires_at > now() AND u.disabled_at IS NULL
+          FOR UPDATE OF t`,
+        [digest(token)],
+      );
+      if (!result.rows[0]) throw new HttpError(400, 'verification_link_invalid_or_expired');
+      const { token_id, user_id } = result.rows[0];
+      userId = user_id as string;
       await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE id = $1', [token_id]);
       await client.query('UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1', [user_id]);
       await client.query('COMMIT');
@@ -208,7 +210,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     } finally {
       client.release();
     }
-    await createSession(user_id, reply);
+    await createSession(userId!, reply);
     return { verified: true, message: 'כתובת המייל אומתה בהצלחה.' };
   });
 
@@ -264,22 +266,23 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/reset-password', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req) => {
     const { token, password } = ResetInput.parse(req.body);
     const db = registry();
-    const result = await db.query(
-      `SELECT t.id AS token_id, u.id AS user_id
-         FROM public.platform_email_tokens t
-         JOIN public.platform_users u ON u.id = t.user_id
-        WHERE t.token_hash = $1 AND t.purpose = 'reset_password'
-          AND t.consumed_at IS NULL AND t.expires_at > now() AND u.disabled_at IS NULL
-        LIMIT 1`,
-      [digest(token)],
-    );
-    if (!result.rows[0]) throw new HttpError(400, 'reset_link_invalid_or_expired');
     const client = await db.connect();
     try {
       await client.query('BEGIN');
-      await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [result.rows[0].user_id]);
-      await client.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [result.rows[0].user_id, passwordHash(password)]);
-      await client.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [result.rows[0].user_id]);
+      const result = await client.query(
+        `SELECT t.id AS token_id, u.id AS user_id
+           FROM public.platform_email_tokens t
+           JOIN public.platform_users u ON u.id = t.user_id
+          WHERE t.token_hash = $1 AND t.purpose = 'reset_password'
+            AND t.consumed_at IS NULL AND t.expires_at > now() AND u.disabled_at IS NULL
+          FOR UPDATE OF t`,
+        [digest(token)],
+      );
+      if (!result.rows[0]) throw new HttpError(400, 'reset_link_invalid_or_expired');
+      const userId = result.rows[0].user_id as string;
+      await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [userId]);
+      await client.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [userId, passwordHash(password)]);
+      await client.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [userId]);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
