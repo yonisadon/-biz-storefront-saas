@@ -345,9 +345,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                 SELECT 1 FROM public.platform_business_owners existing_owner
                  WHERE existing_owner.user_id = candidate.id
               )
-                AND (lower(candidate.email) = lower(COALESCE(b.email, ''))
-                     OR candidate.phone = b.phone
-                     OR candidate.phone = b.whatsapp_number)
+                AND lower(candidate.email) = lower(COALESCE(b.email, ''))
                 AND (
                   SELECT count(*)
                     FROM public.platform_users possible
@@ -355,9 +353,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                      SELECT 1 FROM public.platform_business_owners linked_owner
                       WHERE linked_owner.user_id = possible.id
                    )
-                     AND (lower(possible.email) = lower(COALESCE(b.email, ''))
-                          OR possible.phone = b.phone
-                          OR possible.phone = b.whatsapp_number)
+                     AND lower(possible.email) = lower(COALESCE(b.email, ''))
                 ) = 1
               LIMIT 1
            ) candidate_owner ON bo.user_id IS NULL
@@ -442,9 +438,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                 SELECT 1 FROM public.platform_business_owners existing_owner
                  WHERE existing_owner.user_id = candidate.id
               )
-                AND (lower(candidate.email) = lower(COALESCE(b.email, ''))
-                     OR candidate.phone = b.phone
-                     OR candidate.phone = b.whatsapp_number)
+                AND lower(candidate.email) = lower(COALESCE(b.email, ''))
                 AND (
                   SELECT count(*)
                     FROM public.platform_users possible
@@ -452,9 +446,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                      SELECT 1 FROM public.platform_business_owners linked_owner_check
                       WHERE linked_owner_check.user_id = possible.id
                    )
-                     AND (lower(possible.email) = lower(COALESCE(b.email, ''))
-                          OR possible.phone = b.phone
-                          OR possible.phone = b.whatsapp_number)
+                     AND lower(possible.email) = lower(COALESCE(b.email, ''))
                 ) = 1
               LIMIT 1
            ) candidate_owner ON bo.user_id IS NULL
