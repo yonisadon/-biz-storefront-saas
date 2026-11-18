@@ -13,8 +13,8 @@ CREATE TABLE public.businesses (
   phone text,
   email text,
   about_text text,
-  locale text,
-  timezone text,
+  locale text NOT NULL DEFAULT 'he-IL',
+  timezone text NOT NULL DEFAULT 'Asia/Jerusalem',
   config jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
