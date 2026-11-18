@@ -40,7 +40,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
       if (isRegister) {
         setMessage(data?.message ?? 'אם פרטי ההרשמה תקינים, נשלח אליך מייל לאימות הכתובת.');
       } else {
-        window.location.assign('/account');
+        window.location.assign(data?.role === 'super_admin' ? '/platform-admin' : '/account');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה.');
