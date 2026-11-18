@@ -1964,8 +1964,8 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   display: block;
   width: 100%;
   padding: .75rem 1.25rem .8rem;
-  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 14%, transparent);
-  background: color-mix(in srgb, var(--brand-primary) 7%, var(--brand-background));
+  border-block: 1px solid color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 4%, var(--brand-background));
   color: var(--brand-text);
   text-align: center;
   line-height: 1.6;
