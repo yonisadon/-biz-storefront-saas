@@ -165,14 +165,6 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!phone) throw new HttpError(400, 'invalid_il_phone');
     const db = registry();
 
-    const existingBusiness = await db.query(
-      'SELECT 1 FROM public.businesses WHERE lower(COALESCE(email, \'\')) = $1 OR phone = $2 LIMIT 1',
-      [email, phone],
-    );
-    if (existingBusiness.rowCount) {
-      return reply.code(202).send({ message: 'אם ניתן להשלים את ההרשמה, יישלח אליך מייל עם המשך התהליך.' });
-    }
-
     try {
       const role = env.SUPERADMIN_EMAIL?.toLowerCase() === email ? 'super_admin' : 'owner';
       const inserted = await db.query(
@@ -220,7 +212,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     try {
       await client.query('BEGIN');
       const result = await client.query(
-        `SELECT t.id AS token_id, u.id AS user_id
+        `SELECT t.id AS token_id, u.id AS user_id, u.email, u.phone, u.role
            FROM public.platform_email_tokens t
            JOIN public.platform_users u ON u.id = t.user_id
           WHERE t.token_hash = $1 AND t.purpose = 'verify_email'
@@ -233,6 +225,30 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       userId = user_id as string;
       await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE id = $1', [token_id]);
       await client.query('UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1', [user_id]);
+      if (result.rows[0].role !== 'super_admin') {
+        const matches = await client.query(
+          `SELECT b.id
+             FROM public.businesses b
+             LEFT JOIN public.platform_business_owners bo ON bo.tenant_id = b.id
+            WHERE bo.tenant_id IS NULL
+              AND (lower(COALESCE(b.email, '')) = $1 OR b.phone = $2)
+            ORDER BY b.created_at DESC
+            LIMIT 2`,
+          [result.rows[0].email, result.rows[0].phone],
+        );
+        if (matches.rows.length === 1) {
+          const claimed = await client.query(
+            'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING tenant_id',
+            [user_id, matches.rows[0].id],
+          );
+          if (claimed.rowCount) {
+            await client.query(
+              "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id) VALUES ('owner', $1, $2, 'business_claimed', $3)",
+              [user_id, result.rows[0].email, matches.rows[0].id],
+            );
+          }
+        }
+      }
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
