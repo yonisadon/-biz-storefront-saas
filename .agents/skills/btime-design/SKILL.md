@@ -374,3 +374,11 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - The hero "יצירת קשר" action is a normal in-page link, centered in the hero. Never make it sticky, fixed, floating, or persistent during scroll.
 - Tighten excess vertical spacing between opening hours/address and contact methods, and between catalog/services and business details on mobile, without collapsing the information hierarchy.
 - Preserve all existing tenant config and business data. No DB migration is required.
+
+
+## 11. Current storefront decisions — identity, contact and announcements
+- Center the business name and hero identity across every storefront theme. Do not let a theme-specific alignment rule move the business title to the side.
+- “יצירת קשר” is a normal centered in-page link inside the hero. It must never be fixed, sticky, floating, or pinned to a viewport edge.
+- Seller-authored announcements are a separate business-content feature, never part of opening hours or automatic open/closed status. Show a clearly labeled, high-visibility banner at the top only when the seller enabled it and supplied non-empty text. It may contain promotions, updates, holidays, new products, or important notices. It is not required to remain visible while scrolling.
+- Keep contact details compact and reduce unnecessary vertical gaps on mobile while preserving all contact methods and opening-hours information.
+- Business logo upload is a future optional capability, not part of the current implementation. Do not invent a default logo or alter existing gallery/icon behavior.
