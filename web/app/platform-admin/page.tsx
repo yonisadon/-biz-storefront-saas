@@ -24,28 +24,6 @@ type DeletionRequest = { id: string; tenant_id: string | null; reason: string | 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
 export default function PlatformAdminPage() {
-  useEffect(() => {
-    let cancelled = false;
-    async function verifyPlatformAdmin() {
-      try {
-        const response = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' });
-        if (!response.ok) {
-          if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
-          return;
-        }
-        const data = await response.json().catch(() => null);
-        if (data?.user?.role !== 'super_admin') {
-          if (!cancelled) window.location.replace('/account');
-          return;
-        }
-        if (!cancelled) setAccessState('allowed');
-      } catch {
-        if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
-      }
-    }
-    void verifyPlatformAdmin();
-    return () => { cancelled = true; };
-  }, []);
   const [accessState, setAccessState] = useState<'checking' | 'allowed'>('checking');
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -75,6 +53,29 @@ export default function PlatformAdminPage() {
   const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [emailVerificationFilter, setEmailVerificationFilter] = useState('all');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyPlatformAdmin() {
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' });
+        if (!response.ok) {
+          if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
+          return;
+        }
+        const data = await response.json().catch(() => null);
+        if (data?.user?.role !== 'super_admin') {
+          if (!cancelled) window.location.replace('/account');
+          return;
+        }
+        if (!cancelled) setAccessState('allowed');
+      } catch {
+        if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
+      }
+    }
+    void verifyPlatformAdmin();
+    return () => { cancelled = true; };
+  }, []);
   const targetBusinessId = selectedBusinessId || created?.id;
   const targetBusiness = businesses.find((business) => business.id === targetBusinessId);
   const filteredBusinesses = businesses.filter((business) => {
@@ -112,8 +113,8 @@ export default function PlatformAdminPage() {
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         const messages: Record<string, string> = {
-          unauthorized: 'מפתח הניהול אינו נכון.',
-          admin_not_configured: 'מפתח הניהול לא הוגדר בשרת.',
+          unauthorized: 'נדרשת התחברות לחשבון סופר אדמין מורשה.',
+          admin_not_configured: 'שירות ניהול הפלטפורמה אינו מוגדר בשרת.',
           provisioning_not_configured: 'חסרות הגדרות מסד הנתונים או כתובת האתר בשרת.',
           slug_already_exists: 'כתובת האתר הזו כבר תפוסה.',
           invalid_il_phone: 'יש להזין מספר טלפון ישראלי תקין.',
