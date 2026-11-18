@@ -127,8 +127,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
     body: JSON.stringify({ from: env.EMAIL_FROM, to: [to], subject, html }),
   });
   if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    console.error('Transactional email delivery failed', { status: response.status, response: body.slice(0, 300) });
+    console.error('Transactional email delivery failed', { status: response.status });
     throw new HttpError(503, 'email_delivery_failed');
   }
 }
@@ -150,6 +149,7 @@ async function issueEmailToken(userId: string, purpose: 'verify_email' | 'reset_
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/register', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = RegisterInput.parse(req.body);
+    if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
     const email = input.email.toLowerCase();
     const phone = normalizeILPhone(input.phone);
     if (!phone) throw new HttpError(400, 'invalid_il_phone');
@@ -196,14 +196,17 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     );
     if (!result.rows[0]) throw new HttpError(400, 'verification_link_invalid_or_expired');
     const { token_id, user_id } = result.rows[0];
-    await db.query('BEGIN');
+    const client = await db.connect();
     try {
-      await db.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE id = $1', [token_id]);
-      await db.query('UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1', [user_id]);
-      await db.query('COMMIT');
+      await client.query('BEGIN');
+      await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE id = $1', [token_id]);
+      await client.query('UPDATE public.platform_users SET email_verified_at = COALESCE(email_verified_at, now()), updated_at = now() WHERE id = $1', [user_id]);
+      await client.query('COMMIT');
     } catch (error) {
-      await db.query('ROLLBACK').catch(() => {});
+      await client.query('ROLLBACK').catch(() => {});
       throw error;
+    } finally {
+      client.release();
     }
     await createSession(user_id, reply);
     return { verified: true, message: 'כתובת המייל אומתה בהצלחה.' };
@@ -271,15 +274,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       [digest(token)],
     );
     if (!result.rows[0]) throw new HttpError(400, 'reset_link_invalid_or_expired');
-    await db.query('BEGIN');
+    const client = await db.connect();
     try {
-      await db.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [result.rows[0].user_id]);
-      await db.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [result.rows[0].user_id, passwordHash(password)]);
-      await db.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [result.rows[0].user_id]);
-      await db.query('COMMIT');
+      await client.query('BEGIN');
+      await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [result.rows[0].user_id]);
+      await client.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [result.rows[0].user_id, passwordHash(password)]);
+      await client.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [result.rows[0].user_id]);
+      await client.query('COMMIT');
     } catch (error) {
-      await db.query('ROLLBACK').catch(() => {});
+      await client.query('ROLLBACK').catch(() => {});
       throw error;
+    } finally {
+      client.release();
     }
     return { reset: true, message: 'הסיסמה עודכנה. אפשר להתחבר מחדש.' };
   });
