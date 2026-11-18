@@ -159,6 +159,9 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <Link href="/forgot-password" className="text-slate-600 underline">שכחתי סיסמה</Link>
           </>}
         </div>
+        <div className="mt-6 border-t border-slate-100 pt-4 text-center text-sm text-slate-600">
+          צריכים עזרה? <a href="https://wa.me/972549910450" target="_blank" rel="noopener noreferrer" className="font-semibold text-green-700 underline underline-offset-2">אפשר לפנות אלינו ב-WhatsApp</a>
+        </div>
       </section>
     </main>
   );
