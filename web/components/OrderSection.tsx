@@ -354,6 +354,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
       </div>
+      {(items.length > 0 || search.trim()) && <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות כדי להוסיף אותו להזמנה.</p>}
 
       {catalogTotal >= 5 && (
         <div className="mt-4">

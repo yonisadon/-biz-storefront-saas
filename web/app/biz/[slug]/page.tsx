@@ -7,7 +7,7 @@ import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
-import { getCtx, getLegal, getStorefront } from '@/lib/api';
+import { getCtx, getStorefront } from '@/lib/api';
 import { ils, toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
 import type { Product } from '@/lib/types';
@@ -81,10 +81,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function StorefrontPage({ params }: Props) {
   const resolvedParams = await params;
   const ctx = await getCtx(resolvedParams.slug);
-  const [data, legalDocs] = await Promise.all([
-    getStorefront(ctx),
-    Promise.all([getLegal(ctx, 'terms_of_use'), getLegal(ctx, 'privacy_policy'), getLegal(ctx, 'accessibility_statement')]),
-  ]);
+  // Legal documents are loaded by their dedicated routes, not this storefront.
+  // Avoid making the customer page depend on three unused API requests during SSR.
+  const data = await getStorefront(ctx);
   if (!data) notFound();
   const { business: b, opening_hours: oh } = data;
   const social = data.social_links ?? {};
@@ -135,7 +134,7 @@ export default async function StorefrontPage({ params }: Props) {
           {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
             <div className="mb-5">
               <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
-              <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות שמעניין אתכם ופנו לעסק ישירות ב-WhatsApp.</p>
+              <p className="mt-2 text-sm leading-6 text-ink/65">לחצו על הפריט שמעניין אתכם כדי לקבל עליו פרטים ולפנות לעסק ישירות ב-WhatsApp.</p>
             </div>
             <div className="space-y-8">
               {itemKinds.map((kind) => {
@@ -210,7 +209,7 @@ export default async function StorefrontPage({ params }: Props) {
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
-    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="הודעה" role="status"><span className="storefront-business-announcement-label">הודעה</span><p>{announcement.message.trim()}</p></aside>}
+    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="עדכון מטעם העסק" role="status"><p>{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
       hasGallery={data.gallery.length > 0}
       identity={identitySlot}

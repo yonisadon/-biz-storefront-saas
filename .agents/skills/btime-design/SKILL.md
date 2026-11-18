@@ -1,3 +1,11 @@
+## Storefront SSR and API dependency discipline
+
+- The public storefront route should fetch only the business payload required to render that page.
+- Do not fetch legal documents or other resources during storefront SSR unless their returned data is actually rendered there. Legal documents belong to their dedicated routes and should load when those routes are visited.
+- Keep independent API dependencies independent: an unavailable, unused endpoint must not take down the entire customer storefront through a shared `Promise.all`.
+- If the required business payload fails, diagnose `/api/biz/{slug}` and report the real failure; never substitute invented business data.
+- Log API failures with the endpoint path and HTTP status or network error message, but never log environment-variable values, tokens, or personal data.
+
 ---
 name: btime-design
 description: Design, improve, or review BTime customer-facing storefronts and their visual system. Use for storefront pages, product and service cards, galleries, themes, responsive layout, Hebrew RTL UI, and design-system reviews. Preserve existing business flows and tenant-specific configuration.
@@ -392,3 +400,28 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - Reduce unnecessary vertical space between the hero contact link and the start of products/services. Keep the hero action centered and normal-flow; do not make it sticky/fixed/floating. Preserve catalog search placement and behavior, including search appearing after five products.
 - Preserve all data, API, catalog/search behavior, booking, availability, cart/order, WhatsApp, CRM, opening-hours behavior and seller settings. No DB migration.
 - Verify mobile and desktop, enabled/disabled and short/long announcement text, multiple palettes, catalog/no-catalog and the five-product search state. Report visual checks honestly.
+
+
+## 2026-11-18 — Clarification: announcement has no visible heading; close the actual mobile gap
+
+- Render the seller announcement with **no visible label or heading at all**. Do not show “הודעה”, “הודעה מהעסק”, or any replacement label; render only the seller-authored message inside a very subtle tinted notice (4% brand-color tint and an 8% border tint).
+- The notice remains conditional on seller enablement and non-empty content. An accessible label may be used for assistive technology only; it must not create visible text.
+- The mobile gap to fix is specifically between the contact link below the business description and the products/services heading. The oversized spacing comes from `.storefront-universal-hero { margin-bottom: 3.75rem }` plus catalog/services top padding of `1.35rem`. Reduce both to `.5rem`. Do not treat small margin changes on the link or catalog wrapper as a sufficient fix.
+- Preserve catalog search placement and behavior, including the search that appears after five products. No booking, API, tenant data, or DB changes.
+- Popup announcements remain future-only.
+
+## Accordion disclosure affordance
+
+- Product descriptions, service descriptions and additional-details disclosures in `StorefrontCatalogItem` must show a small visible chevron at the end of each summary row.
+- The chevron points down while closed and up while open. Keep native `details/summary` semantics and keyboard behavior; respect RTL, tenant primary color and reduced-motion preferences.
+- Because `StorefrontCatalogItem` is shared, verify this affordance in all supported item layouts: cards, list, carousel and luxury_catalog, including the WhatsApp services flow.
+- Do not alter item data, default collapsed state, selection/cart/booking actions, search, API or database schema for this presentation-only change.
+
+## Clear product/service selection affordance
+
+- In the catalog/order flow, show a concise instruction under the section heading explaining that customers should choose a product or service to add it to the order.
+- In the services + WhatsApp flow, explain that tapping an item opens its details and lets the customer contact the business.
+- Add a small left-pointing arrow next to the item action label (choose product/service, book appointment, or WhatsApp details). Keep it subtle and consistent with the existing minimal visual language.
+- Implement the action cue in the shared `StorefrontCatalogItem` so it appears across cards, list, carousel and luxury_catalog layouts.
+- Do not change card behavior, cart, booking, WhatsApp destinations, search, data, API or DB schema.
+

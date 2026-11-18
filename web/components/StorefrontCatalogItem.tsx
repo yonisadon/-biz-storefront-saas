@@ -57,17 +57,18 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
             <QuantityStepper quantity={catalogAction.quantity} label={`כמות: ${product.name}`} onChange={catalogAction.onQuantityChange} />
           ) : (
             <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
-              className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-              {catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}
+              className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
+              <span>{catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}</span>
+              <span aria-hidden="true" className="text-base leading-none">←</span>
             </button>
           ))}
           {action.type === 'whatsapp' && action.href && (
-            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">לפרטים ב-WhatsApp</a>
+            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5"><span>לפרטים ב-WhatsApp</span><span aria-hidden="true" className="text-base leading-none">←</span></a>
           )}
         </div>
         {product.details?.length > 0 && (
-          <details className="text-sm">
-            <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({product.details.length})</summary>
+          <details className="storefront-item-accordion text-sm">
+            <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({product.details.length})</summary>
             <dl className="mt-2">
               {product.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
                 <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
@@ -76,8 +77,8 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
           </details>
         )}
         {product.description && (
-          <details className="text-sm">
-            <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{product.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+          <details className="storefront-item-accordion text-sm">
+            <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">{product.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{product.description}</p>
           </details>
         )}
