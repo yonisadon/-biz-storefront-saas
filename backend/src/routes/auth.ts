@@ -330,7 +330,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     );
     return reply.code(201).send({
       business: created,
-      public_url: `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/biz/${created.slug}`,
+      public_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/biz/${created.slug}`,
       trial_days: 30,
     });
   });
@@ -349,7 +349,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       "INSERT INTO public.access_tokens (tenant_id, token_hash, label, expires_at) VALUES ($1, $2, 'owner account session', now() + interval '8 hours')",
       [user.business_id, tokenHash],
     );
-    return { management_url: `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/manage/${token}`, expires_in_hours: 8 };
+    return { management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${token}`, expires_in_hours: 8 };
   });
 
   app.post('/subscription/cancel', async (req) => {
