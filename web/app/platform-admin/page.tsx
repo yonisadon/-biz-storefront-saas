@@ -344,7 +344,7 @@ export default function PlatformAdminPage() {
         <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
           <h2 className="text-lg font-bold">בחירת עסק קיים</h2>
           <p className="text-sm text-slate-600">אם האתר כבר הוקם, אפשר לבחור אותו כאן — אין צורך ליצור עסק נוסף.</p>
-          <button type="button" disabled={!adminToken.trim() || domainLoading} onClick={async () => {
+          <button type="button" disabled={domainLoading} onClick={async () => {
             setDomainLoading(true); setBusinessesMessage('');
             try {
               const response = await fetch('/api/admin/businesses', { headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store' });
