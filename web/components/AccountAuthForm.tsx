@@ -90,7 +90,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <input id="account-phone" type="tel" required autoComplete="tel" value={phone}
               onChange={(event) => setPhone(event.target.value)}
               className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" dir="ltr" placeholder="05X-XXXXXXX" />
-            <p className="mt-1 text-xs text-slate-500">המספר משמש לזיהוי החשבון ולמניעת פתיחת עסק כפול.</p>
+            <p className="mt-1 text-xs text-slate-500">המספר נשמר בפרטי החשבון לשימושים עתידיים וליצירת קשר. אימות החשבון ושיוך עסק קיים מתבצעים לפי כתובת המייל בלבד.</p>
           </div>}
           <div>
             <label htmlFor="account-password" className="mb-1.5 block text-sm font-semibold">סיסמה</label>
