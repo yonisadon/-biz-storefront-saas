@@ -103,7 +103,7 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
   const token = cookieValue(req);
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
   const result = await registry().query(
-    `SELECT u.id, u.email, u.phone, u.email_verified_at, u.created_at,
+    `SELECT u.id, u.email, u.phone, u.role, u.email_verified_at, u.created_at,
             b.id AS business_id, b.name AS business_name, b.slug AS business_slug, b.status AS business_status,
             s.status AS subscription_status, s.trial_ends_at, s.current_period_ends_at,
             (SELECT dr.status FROM public.business_deletion_requests dr WHERE dr.tenant_id = b.id ORDER BY dr.requested_at DESC LIMIT 1) AS deletion_request_status
@@ -172,9 +172,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     try {
+      const role = env.SUPERADMIN_EMAIL?.toLowerCase() === email ? 'super_admin' : 'owner';
       const inserted = await db.query(
-        'INSERT INTO public.platform_users (email, phone, password_hash) VALUES ($1, $2, $3) RETURNING id',
-        [email, phone, passwordHash(input.password)],
+        'INSERT INTO public.platform_users (email, phone, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
+        [email, phone, passwordHash(input.password), role],
       );
       const userId = inserted.rows[0].id as string;
       const token = await issueEmailToken(userId, 'verify_email');
@@ -244,7 +245,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = LoginInput.parse(req.body);
     const result = await registry().query(
-      'SELECT id, password_hash, email_verified_at, disabled_at FROM public.platform_users WHERE email = $1 LIMIT 1',
+      'SELECT id, password_hash, email_verified_at, disabled_at, role FROM public.platform_users WHERE email = $1 LIMIT 1',
       [input.email.toLowerCase()],
     );
     const user = result.rows[0];
@@ -252,8 +253,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       throw new HttpError(401, 'invalid_credentials');
     }
     if (!user.email_verified_at) throw new HttpError(403, 'email_not_verified');
+    let role = user.role as string;
+    if (env.SUPERADMIN_EMAIL?.toLowerCase() === input.email.toLowerCase() && role !== 'super_admin') {
+      await registry().query("UPDATE public.platform_users SET role = 'super_admin', updated_at = now() WHERE id = $1", [user.id]);
+      role = 'super_admin';
+    }
     await createSession(user.id, reply);
-    return { authenticated: true };
+    return { authenticated: true, role };
   });
 
   app.get('/me', async (req) => {
@@ -322,6 +328,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/business', async (req, reply) => {
     const user = await currentUser(req);
     if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_cannot_own_business');
     if (user.business_id) throw new HttpError(409, 'business_already_exists');
     const input = OwnerBusinessInput.parse(req.body);
     const created = await provisionBusinessForOwner(
@@ -338,6 +345,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/management-link', async (req) => {
     const user = await currentUser(req);
     if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_has_no_business_management_link');
     if (!user.business_id) throw new HttpError(404, 'business_not_found');
     const access = await registry().query(
       'SELECT app.is_tenant_subscription_accessible($1) AS allowed',
