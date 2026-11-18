@@ -409,3 +409,11 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - Because `StorefrontCatalogItem` is shared, verify this affordance in all supported item layouts: cards, list, carousel and luxury_catalog, including the WhatsApp services flow.
 - Do not alter item data, default collapsed state, selection/cart/booking actions, search, API or database schema for this presentation-only change.
 
+## Clear product/service selection affordance
+
+- In the catalog/order flow, show a concise instruction under the section heading explaining that customers should choose a product or service to add it to the order.
+- In the services + WhatsApp flow, explain that tapping an item opens its details and lets the customer contact the business.
+- Add a small left-pointing arrow next to the item action label (choose product/service, book appointment, or WhatsApp details). Keep it subtle and consistent with the existing minimal visual language.
+- Implement the action cue in the shared `StorefrontCatalogItem` so it appears across cards, list, carousel and luxury_catalog layouts.
+- Do not change card behavior, cart, booking, WhatsApp destinations, search, data, API or DB schema.
+
