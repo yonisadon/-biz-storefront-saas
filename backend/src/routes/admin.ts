@@ -49,6 +49,11 @@ const DeletionReviewInput = z.object({
   note: z.string().trim().max(1000).optional(),
 }).strict();
 
+const ExecuteDeletionInput = z.object({
+  backupVerified: z.literal(true),
+  backupReference: z.string().trim().min(8).max(500),
+}).strict();
+
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
@@ -629,6 +634,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     const requestId = String((req.params as { id: string }).id);
     if (!/^[0-9a-f-]{36}$/i.test(requestId)) throw new HttpError(404, 'deletion_request_not_found');
     if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const backupInput = ExecuteDeletionInput.parse(req.body);
 
     const options = { ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined };
     let registry: pg.Client | undefined;
@@ -644,6 +650,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       const request = selected.rows[0];
       if (!request) throw new HttpError(404, 'deletion_request_not_found');
       if (request.status !== 'approved') throw new HttpError(409, 'deletion_request_not_approved');
+
+      // Destructive deletion is blocked unless an operator explicitly attests that
+      // a Railway backup was created and its restore/readability was verified.
+      await registry.query(
+        'UPDATE public.business_deletion_requests SET backup_verified_at = now(), backup_reference = $2, backup_verified_by = $3 WHERE id = $1 AND status = \'approved\'',
+        [requestId, backupInput.backupReference, 'super_admin'],
+      );
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'super_admin', 'business_deletion_backup_verified', $1::jsonb)",
+        [JSON.stringify({ deletion_request_id: requestId, backup_reference: backupInput.backupReference })],
+      );
 
       let databaseName = request.database_name as string | null;
       let storageKeys = Array.isArray(request.storage_keys) ? request.storage_keys as string[] : [];
