@@ -2668,3 +2668,13 @@
 - מפעילים מתוך תיקיית `backend` את `npm run bootstrap-superadmin -- <verified-owner-email> --confirm-first-superadmin` עם `SUPERADMIN_DATABASE_URL` המכוון ל-Registry המרכזי. הסקריפט מקדם רק חשבון owner מאומת, פעיל וללא עסק משויך; הוא נכשל אם כבר קיים סופר אדמין פעיל, מבטל סשנים קודמים ומתעד את הפעולה ביומן הביקורת.
 - הסקריפט אינו מקבל סיסמה ואינו חושף הרשאות בדפדפן. לאחר ההקמה מתחברים דרך `/login`; כל ההרשאות נבדקות שוב בשרת.
 - אין endpoint ציבורי ליצירת super_admin ואין אפשרות לבעל עסק להעלות לעצמו הרשאות. אין צורך במיגרציה.
+
+
+## 2026-11-18 — פריסת נעילת סופר אדמין לייצור
+
+- PR #94 מוזג ל-`main` ב-commit `00bc01230fd4a19b5d1a5c01887e6120bd394a36`.
+- בדיקות ה-CI של ה-PR הסתיימו בהצלחה: Backend build, Web build and lint, Validate, Platform registry migration smoke test ו-Platform account accessibility smoke test.
+- שירות ה-Backend ב-Railway פרס בהצלחה את אותו commit; בדיקת סביבת production הראתה Backend ו-PostgreSQL פעילים ללא קריסות או התראות. לא נדרשה מיגרציה חדשה.
+- פריסת Vercel נוצרה ידנית ליעד Production מאותו commit לאחר ניקוי הגדרת Ignored Build Step שחסמה את הפריסה. הפריסה הסתיימה ב-`READY`, וה-aliases של `biz-storefront-saas.vercel.app` ושל `yonibiztest.runs-at.dev` שויכו אליה.
+- קידום Vercel האוטומטי נשאר כבוי; הפריסה בוצעה באופן ידני וממוקד.
+- נותר לבצע בדיקת קבלה ידנית בדפדפן: כניסה ישירה ל-`/platform-admin` ללא session, כניסה כבעל עסק רגיל, כניסה כסופר אדמין, ובדיקת פעולות ניהול דומיינים. בדיקות ה-CI מאמתות חסימת API אך אינן תחליף לבדיקת זרימת משתמש מלאה ב-production.
