@@ -10,6 +10,8 @@ on:
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
       - 'backend/integration-tests/**'
       - 'backend/src/routes/auth.ts'
+      - 'backend/src/routes/admin.ts'
+      - 'backend/src/provisioning.ts'
       - 'backend/src/server.ts'
       - 'backend/package.json'
       - 'backend/tsconfig.json'
