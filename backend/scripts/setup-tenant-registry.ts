@@ -45,9 +45,16 @@ async function main() {
   // connection so a normal cold start does not prevent the API from starting.
   const db = await connectWithRetry();
   try {
-    const sql = readFileSync(join(process.cwd(), 'migrations/000_tenant_registry.sql'), 'utf8');
-    await db.query(sql);
-    console.log('Tenant database registry migration applied successfully.');
+    const migrations = [
+      'migrations/000_tenant_registry.sql',
+      'migrations/001_platform_accounts_subscriptions.sql',
+    ];
+    for (const migration of migrations) {
+      const sql = readFileSync(join(process.cwd(), migration), 'utf8');
+      await db.query(sql);
+      console.log(`Applied central registry migration: ${migration}`);
+    }
+    console.log('Central registry migrations applied successfully.');
   } finally {
     await db.end().catch(() => {});
   }
