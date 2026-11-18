@@ -35,6 +35,9 @@ export default function AccountDashboard() {
   const [slug,setSlug]=useState('');
   const [whatsapp,setWhatsapp]=useState('');
   const [reason,setReason]=useState('');
+  const [marketingEmail,setMarketingEmail]=useState(false);
+  const [marketingSms,setMarketingSms]=useState(false);
+  const [consentsLoaded,setConsentsLoaded]=useState(false);
 
   async function loadAccount() {
     const response=await fetch('/api/auth/me',{cache:'no-store'});
@@ -43,6 +46,9 @@ export default function AccountDashboard() {
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
     if (data.user.role === 'super_admin') { window.location.assign('/platform-admin'); return; }
     setUser(data.user as AccountUser);
+    const consentResponse=await fetch('/api/auth/consents',{cache:'no-store'});
+    const consentData=await consentResponse.json().catch(()=>null);
+    if(consentResponse.ok){setMarketingEmail(consentData.marketingEmail===true);setMarketingSms(consentData.marketingSms===true);setConsentsLoaded(true);}
   }
 
   useEffect(()=>{loadAccount().catch(err=>setError(err instanceof Error?err.message:'אירעה שגיאה.')).finally(()=>setLoading(false));},[]);
@@ -104,6 +110,18 @@ export default function AccountDashboard() {
     finally{setSaving(false);}
   }
 
+  async function saveConsents(){
+    setSaving(true);setError('');setMessage('');
+    try{
+      const response=await fetch('/api/auth/consents',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({marketingEmail,marketingSms}),cache:'no-store'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(data?.message??'לא ניתן לעדכן את העדפות הדיוור.');
+      setMarketingEmail(data.marketingEmail===true);setMarketingSms(data.marketingSms===true);
+      setMessage('העדפות הדיוור נשמרו. אפשר לשנות אותן בכל עת.');
+    }catch(err){setError(err instanceof Error?err.message:'עדכון ההעדפות נכשל.');}
+    finally{setSaving(false);}
+  }
+
   async function logout(){
     setSaving(true);
     await fetch('/api/auth/logout',{method:'POST',cache:'no-store'}).catch(()=>{});
@@ -143,6 +161,16 @@ export default function AccountDashboard() {
             <input id="owner-whatsapp" type="tel" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)} dir="ltr" placeholder="05X-XXXXXXX" className="w-full rounded-xl border border-slate-300 px-3 py-3" /></div>
           <button type="submit" disabled={saving} className="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{saving?'מקים את העסק…':'הקמת עסק והתחלת תקופת ניסיון'}</button>
         </form>
+      </section>}
+
+      {user&&consentsLoaded&&<section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <h2 className="font-bold">העדפות דיוור ועדכונים</h2>
+        <p className="mt-1 text-sm leading-6 text-slate-600">אפשר לבחור בנפרד אם לקבל הודעות שיווקיות בדוא״ל או ב-SMS. הודעות שירות הכרחיות לחשבון נשלחות בנפרד.</p>
+        <div className="mt-4 space-y-3 text-sm">
+          <label className="flex items-start gap-2"><input type="checkbox" checked={marketingEmail} onChange={e=>setMarketingEmail(e.target.checked)} className="mt-1 h-4 w-4" /><span>קבלת דיוור שיווקי ועדכונים בדוא״ל</span></label>
+          <label className="flex items-start gap-2"><input type="checkbox" checked={marketingSms} onChange={e=>setMarketingSms(e.target.checked)} className="mt-1 h-4 w-4" /><span>קבלת דיוור שיווקי ועדכונים ב-SMS</span></label>
+        </div>
+        <button type="button" onClick={saveConsents} disabled={saving} className="mt-4 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving?'שומר…':'שמירת העדפות'}</button>
       </section>}
 
       <section className="mt-5 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
