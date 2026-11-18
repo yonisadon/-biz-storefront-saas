@@ -60,7 +60,7 @@ export default function PlatformAdminPage() {
     const matchesSearch = !term || [business.name, business.slug, business.owner_email, business.owner_phone, business.email, business.phone].some((value) => value?.toLocaleLowerCase('he-IL').includes(term));
     const matchesStatus = businessStatusFilter === 'all' || business.status === businessStatusFilter;
     const matchesSubscription = subscriptionFilter === 'all' || (subscriptionFilter === 'none' ? !business.subscription_status : business.subscription_status === subscriptionFilter);
-    const matchesVerification = emailVerificationFilter === 'all' || (emailVerificationFilter === 'verified' ? business.owner_email_verified === true : business.owner_email_verified !== true);
+    const matchesVerification = emailVerificationFilter === 'all' || (emailVerificationFilter === 'verified' ? Boolean(business.owner_email) && business.owner_email_verified === true : emailVerificationFilter === 'unverified' ? Boolean(business.owner_email) && business.owner_email_verified !== true : emailVerificationFilter === 'no_owner' ? !business.owner_email : false);
     return matchesSearch && matchesStatus && matchesSubscription && matchesVerification;
   });
 
@@ -298,7 +298,7 @@ export default function PlatformAdminPage() {
             <input aria-label="חיפוש עסקים" value={businessSearch} onChange={e=>setBusinessSearch(e.target.value)} placeholder="חיפוש לפי עסק, כתובת, מייל או טלפון" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm sm:col-span-4" />
             <select aria-label="סינון לפי סטטוס עסק" value={businessStatusFilter} onChange={e=>setBusinessStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי העסק</option><option value="active">פעיל</option><option value="suspended">חסום</option><option value="archived">בארכיון</option></select>
             <select aria-label="סינון לפי מנוי" value={subscriptionFilter} onChange={e=>setSubscriptionFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי המנוי</option><option value="trialing">תקופת ניסיון</option><option value="active">מנוי פעיל</option><option value="past_due">תשלום באיחור</option><option value="canceled">בוטל</option><option value="suspended">מושהה</option><option value="none">ללא מנוי</option></select>
-            <select aria-label="סינון לפי אימות מייל" value={emailVerificationFilter} onChange={e=>setEmailVerificationFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי אימות המייל</option><option value="verified">מייל מאומת</option><option value="unverified">מייל לא אומת</option></select>
+            <select aria-label="סינון לפי אימות מייל" value={emailVerificationFilter} onChange={e=>setEmailVerificationFilter(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"><option value="all">כל מצבי הבעלות</option><option value="verified">מייל בעלים מאומת</option><option value="unverified">מייל בעלים לא אומת</option><option value="no_owner">ללא חשבון בעלים</option></select>
             <button type="button" onClick={()=>{setBusinessSearch('');setBusinessStatusFilter('all');setSubscriptionFilter('all');setEmailVerificationFilter('all');}} className="rounded-xl border border-slate-300 px-3 py-2 text-sm">ניקוי סינון</button>
           </div>
           {filteredBusinesses.length===0 && <p className="rounded-xl bg-white p-4 text-sm text-slate-500">לא נמצאו עסקים התואמים לסינון.</p>}
@@ -306,7 +306,7 @@ export default function PlatformAdminPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><h3 className="font-bold">{business.name}</h3><p className="mt-1 text-xs text-slate-500" dir="ltr">/biz/{business.slug}</p>
                 <p className="mt-1 text-xs text-slate-500">{business.owner_email ?? business.email ?? 'ללא מייל בעלים'} · {business.owner_phone ?? business.phone ?? 'ללא טלפון'}</p>
-                <p className="mt-1 text-xs">אימות מייל: <span className={business.owner_email_verified?'text-emerald-700':'text-amber-700'}>{business.owner_email_verified?'מאומת':'לא אומת'}</span></p></div>
+                <p className="mt-1 text-xs">{business.owner_email ? <>אימות מייל בעלים: <span className={business.owner_email_verified?'text-emerald-700':'text-amber-700'}>{business.owner_email_verified?'מאומת':'לא אומת'}</span></> : <span className="text-slate-500">לעסק אין חשבון בעלים משויך</span>}</p></div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{business.status === 'active' ? 'פעיל' : business.status === 'suspended' ? 'חסום' : business.status}</span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
