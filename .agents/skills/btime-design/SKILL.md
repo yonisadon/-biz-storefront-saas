@@ -401,3 +401,11 @@ This accepted product decision supersedes the earlier business-profile/adaptive-
 - The mobile gap to fix is specifically between the contact link below the business description and the products/services heading. The oversized spacing comes from `.storefront-universal-hero { margin-bottom: 3.75rem }` plus catalog/services top padding of `1.35rem`. Reduce both to `.5rem`. Do not treat small margin changes on the link or catalog wrapper as a sufficient fix.
 - Preserve catalog search placement and behavior, including the search that appears after five products. No booking, API, tenant data, or DB changes.
 - Popup announcements remain future-only.
+
+## Accordion disclosure affordance
+
+- Product descriptions, service descriptions and additional-details disclosures in `StorefrontCatalogItem` must show a small visible chevron at the end of each summary row.
+- The chevron points down while closed and up while open. Keep native `details/summary` semantics and keyboard behavior; respect RTL, tenant primary color and reduced-motion preferences.
+- Because `StorefrontCatalogItem` is shared, verify this affordance in all supported item layouts: cards, list, carousel and luxury_catalog, including the WhatsApp services flow.
+- Do not alter item data, default collapsed state, selection/cart/booking actions, search, API or database schema for this presentation-only change.
+
