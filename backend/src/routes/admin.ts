@@ -653,10 +653,11 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
       // Destructive deletion is blocked unless an operator explicitly attests that
       // a Railway backup was created and its restore/readability was verified.
-      await registry.query(
-        'UPDATE public.business_deletion_requests SET backup_verified_at = now(), backup_reference = $2, backup_verified_by = $3 WHERE id = $1 AND status = \'approved\'',
+      const backupRecorded = await registry.query(
+        'UPDATE public.business_deletion_requests SET backup_verified_at = now(), backup_reference = $2, backup_verified_by = $3 WHERE id = $1 AND status = \'approved\' RETURNING id',
         [requestId, backupInput.backupReference, 'super_admin'],
       );
+      if (!backupRecorded.rowCount) throw new HttpError(409, 'deletion_request_not_approved');
       await registry.query(
         "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'super_admin', 'business_deletion_backup_verified', $1::jsonb)",
         [JSON.stringify({ deletion_request_id: requestId, backup_reference: backupInput.backupReference })],
