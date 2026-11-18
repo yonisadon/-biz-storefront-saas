@@ -19,7 +19,7 @@ type CreatedBusiness = {
 
 type BusinessOption = { id: string; name: string; slug: string; status: string; email?: string | null; phone?: string | null; owner_email?: string | null; owner_phone?: string | null; owner_email_verified?: boolean; created_at?: string; subscription_status?: string | null; trial_ends_at?: string | null; current_period_ends_at?: string | null; deletion_request_status?: string | null; domains: { domain: string; is_verified: boolean; is_primary: boolean }[] };
 type AdminOverview = { total_businesses: number; active_businesses: number; suspended_businesses: number; trialing_subscriptions: number; paid_subscriptions: number; pending_deletion_requests: number };
-type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email: string; owner_phone: string; database_name?: string | null };
+type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email?: string | null; owner_phone?: string | null; database_name?: string | null };
 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
 
