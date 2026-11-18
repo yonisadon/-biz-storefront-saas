@@ -12,7 +12,7 @@ const routes = [
 (async () => {
   const { chromium } = await import('playwright');
   const { AxeBuilder } = await import('@axe-core/playwright');
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   const failures = [];
   try {
     const context = await browser.newContext();
