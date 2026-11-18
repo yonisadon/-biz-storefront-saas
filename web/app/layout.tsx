@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AccessibilityToolbar from "@/components/AccessibilityToolbar";
 
 export const metadata: Metadata = {
   title: "אתרי מדף לעסקים",
@@ -13,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body>{children}</body>
+      <body>{children}<AccessibilityToolbar statementHref="/platform-legal#accessibility_statement" /></body>
     </html>
   );
 }
