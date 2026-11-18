@@ -15,7 +15,8 @@ const routes = [
   const browser = await chromium.launch({ headless: true });
   const failures = [];
   try {
-    const page = await browser.newPage();
+    const context = await browser.newContext();
+    const page = await context.newPage();
     for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 }]) {
       await page.setViewportSize(viewport);
       for (const route of routes) {
