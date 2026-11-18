@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 type AccountUser = {
   id: string;
+  role: string;
   email: string;
   phone: string;
   email_verified_at: string;
@@ -40,6 +41,7 @@ export default function AccountDashboard() {
     if(response.status===401){window.location.assign('/login');return;}
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
+    if (data.user.role === 'super_admin') { window.location.assign('/platform-admin'); return; }
     setUser(data.user as AccountUser);
   }
 
