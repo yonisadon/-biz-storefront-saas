@@ -191,7 +191,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (result.rows[0] && env.RESEND_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
       try {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
-        const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+        const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
         await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
           `<div dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>אימות כתובת המייל</h2><p>לחצו על הקישור כדי להשלים את ההרשמה:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות.</p></div>`);
       } catch (error) {
