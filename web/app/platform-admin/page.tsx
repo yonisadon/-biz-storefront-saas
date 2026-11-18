@@ -170,6 +170,21 @@ export default function PlatformAdminPage() {
     finally { setAdminLoading(false); }
   }
 
+  async function executeDeletion(id: string) {
+    if (!window.confirm('אזהרה: פעולה בלתי הפיכה. מסד הנתונים הייעודי וקובצי המדיה של העסק יימחקו. להמשיך?')) return;
+    setAdminLoading(true); setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/deletion-requests/${id}/execute`, {
+        method: 'POST', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'המחיקה נכשלה. הבקשה נשארה מאושרת וניתן לנסות שוב לאחר בדיקה.');
+      setAdminMessage(data?.message ?? 'העסק נמחק.');
+      await loadAdminData();
+    } catch (err) { setAdminMessage(err instanceof Error ? err.message : 'המחיקה נכשלה.'); }
+    finally { setAdminLoading(false); }
+  }
+
   async function reviewDeletion(id: string, decision: 'approve' | 'reject') {
     const prompt = decision === 'approve'
       ? 'לאשר את בקשת המחיקה? העסק ייחסם ויועבר לשלב מחיקה מבוקר.'
@@ -254,9 +269,14 @@ export default function PlatformAdminPage() {
             {deletionRequests.map(request => <div key={request.id} className="rounded-xl bg-amber-50 p-3">
               <p className="font-semibold">{request.business_name}</p><p className="mt-1 text-xs text-slate-600">{request.owner_email} · {request.owner_phone}</p>
               {request.reason && <p className="mt-2 text-sm">{request.reason}</p>}
-              <div className="mt-3 flex gap-2">
-                <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'approve')} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">אישור והקפאת העסק</button>
-                <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'reject')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">דחיית בקשה</button>
+              <p className="mt-2 text-xs font-semibold text-amber-900">{request.status === 'approved' ? 'אושרה — העסק חסום וממתין למחיקה מלאה' : 'ממתינה לאישור'}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {request.status === 'approved' ? <>
+                  <button type="button" disabled={adminLoading} onClick={()=>executeDeletion(request.id)} className="rounded-lg bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">ביצוע מחיקה מלאה</button>
+                </> : <>
+                  <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'approve')} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">אישור והקפאת העסק</button>
+                  <button type="button" disabled={adminLoading} onClick={()=>reviewDeletion(request.id,'reject')} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold disabled:opacity-50">דחיית בקשה</button>
+                </>}
               </div>
             </div>)}
           </div>
