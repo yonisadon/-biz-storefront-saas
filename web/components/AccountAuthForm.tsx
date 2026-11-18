@@ -5,20 +5,43 @@ import Link from 'next/link';
 
 type Mode = 'register' | 'login';
 
+function PasswordField({ id, label, value, onChange, autoComplete, minLength = 1 }: {
+  id: string; label: string; value: string; onChange: (value: string) => void;
+  autoComplete: string; minLength?: number;
+}) {
+  const [visible, setVisible] = useState(false);
+  return <div>
+    <label htmlFor={id} className="mb-1.5 block text-sm font-semibold">{label}</label>
+    <div className="relative">
+      <input id={id} type={visible ? 'text' : 'password'} required minLength={minLength} maxLength={128}
+        autoComplete={autoComplete} value={value} onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-slate-300 px-3 py-3 pl-12 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" dir="ltr" />
+      <button type="button" onClick={() => setVisible((current) => !current)}
+        aria-label={visible ? 'הסתרת סיסמה' : 'הצגת סיסמה'} aria-pressed={visible}
+        className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        {visible ? <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.9 5.2A10.8 10.8 0 0112 5c5 0 8.5 4.5 9.5 7-.4 1-1.3 2.3-2.6 3.5M6.2 6.2C3.8 7.7 2.5 10.1 2.5 12c1 2.5 4.5 7 9.5 7 1.3 0 2.5-.3 3.6-.8"/></svg>
+          : <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7z"/><circle cx="12" cy="12" r="3"/></svg>}
+      </button>
+    </div>
+  </div>;
+}
+
 export default function AccountAuthForm({ mode }: { mode: Mode }) {
   const isRegister = mode === 'register';
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setMessage('');
     setError('');
+    if (isRegister && password !== confirmPassword) { setError('הסיסמאות אינן תואמות.'); return; }
+    setLoading(true);
     try {
       const response = await fetch(`/api/auth/${isRegister ? 'register' : 'login'}`, {
         method: 'POST',
@@ -32,13 +55,15 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
           invalid_credentials: 'כתובת המייל או הסיסמה אינם נכונים.',
           email_not_verified: 'כתובת המייל עדיין לא אומתה. אפשר לשלוח קישור אימות חדש.',
           email_service_not_configured: 'שירות שליחת המיילים עדיין לא הוגדר. אפשר לפנות לתמיכה.',
-          invalid_il_phone: 'יש להזין מספר טלפון ישראלי תקין.',
+          invalid_phone: 'יש להזין מספר טלפון תקין בפורמט בינלאומי, כולל קידומת מדינה.',
           account_service_not_configured: 'שירות החשבונות עדיין לא הוגדר.',
         };
         throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן להשלים את הפעולה כרגע.');
       }
       if (isRegister) {
         setMessage(data?.message ?? 'אם פרטי ההרשמה תקינים, נשלח אליך מייל לאימות הכתובת.');
+        setPassword('');
+        setConfirmPassword('');
       } else {
         window.location.assign(data?.role === 'super_admin' ? '/platform-admin' : '/account');
       }
@@ -89,17 +114,16 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <label htmlFor="account-phone" className="mb-1.5 block text-sm font-semibold">מספר טלפון</label>
             <input id="account-phone" type="tel" required autoComplete="tel" value={phone}
               onChange={(event) => setPhone(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" dir="ltr" placeholder="05X-XXXXXXX" />
-            <p className="mt-1 text-xs text-slate-500">המספר נשמר בפרטי החשבון לשימושים עתידיים וליצירת קשר. אימות החשבון ושיוך עסק קיים מתבצעים לפי כתובת המייל בלבד.</p>
+              className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" dir="ltr" placeholder="+972501234567 או +14155552671" />
+            <p className="mt-1 text-xs text-slate-500">יש להזין קידומת מדינה. המספר נשמר לפרטי קשר בלבד; אימות החשבון ושיוך עסק קיים מתבצעים לפי כתובת המייל.</p>
           </div>}
-          <div>
-            <label htmlFor="account-password" className="mb-1.5 block text-sm font-semibold">סיסמה</label>
-            <input id="account-password" type="password" required minLength={isRegister ? 10 : 1} maxLength={128}
-              autoComplete={isRegister ? 'new-password' : 'current-password'} value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" />
-            {isRegister && <p className="mt-1 text-xs text-slate-500">לפחות 10 תווים.</p>}
-          </div>
+          <PasswordField id="account-password" label="סיסמה" value={password} onChange={setPassword}
+            autoComplete={isRegister ? 'new-password' : 'current-password'} minLength={isRegister ? 10 : 1} />
+          {isRegister && <>
+            <PasswordField id="account-confirm-password" label="אימות סיסמה" value={confirmPassword}
+              onChange={setConfirmPassword} autoComplete="new-password" minLength={10} />
+            <p className="mt-1 text-xs text-slate-500">הסיסמה צריכה להכיל לפחות 10 תווים. אין חובה לאות גדולה או לסימן מיוחד.</p>
+          </>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
           <button type="submit" disabled={loading} className="w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-60">
