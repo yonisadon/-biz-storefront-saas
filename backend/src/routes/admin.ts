@@ -521,6 +521,51 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  app.post('/businesses/:id/deletion-request', async (req, reply) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const business = await registry.query(
+        `SELECT b.id, b.name, b.slug, td.database_name
+           FROM public.businesses b
+           JOIN app.tenant_databases td ON td.tenant_id = b.id
+          WHERE b.id = $1
+          LIMIT 1`,
+        [tenantId],
+      );
+      if (!business.rows[0]) throw new HttpError(404, 'business_not_found');
+      const b = business.rows[0];
+      const inserted = await registry.query(
+        `INSERT INTO public.business_deletion_requests
+           (tenant_id, business_name, business_slug, database_name, requested_by_admin, reason)
+         VALUES ($1, $2, $3, $4, true, 'מחיקה ביוזמת סופר אדמין')
+         ON CONFLICT (tenant_id) WHERE status = 'pending' DO NOTHING
+         RETURNING id, status, requested_at`,
+        [tenantId, b.name, b.slug, b.database_name],
+      );
+      const request = inserted.rows[0] ?? (await registry.query(
+        "SELECT id, status, requested_at FROM public.business_deletion_requests WHERE tenant_id = $1 AND status = 'pending' LIMIT 1",
+        [tenantId],
+      )).rows[0];
+      if (inserted.rowCount) {
+        await registry.query(
+          "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id, metadata) VALUES ('super_admin', 'super_admin', 'business_deletion_requested_by_admin', $1, $2::jsonb)",
+          [tenantId, JSON.stringify({ request_id: request.id, business_name: b.name, business_slug: b.slug })],
+        );
+      }
+      return reply.code(inserted.rowCount ? 201 : 200).send({
+        request,
+        message: inserted.rowCount ? 'בקשת המחיקה נוצרה. יש לאשר ולהקפיא את העסק לפני מחיקה מלאה.' : 'כבר קיימת בקשת מחיקה פתוחה לעסק.',
+      });
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
   app.get('/deletion-requests', async () => {
     if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
     const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
@@ -531,10 +576,11 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         `SELECT dr.id, dr.tenant_id, dr.reason, dr.status, dr.requested_at,
                 COALESCE(dr.business_name, b.name) AS business_name,
                 COALESCE(dr.business_slug, b.slug) AS business_slug,
-                dr.database_name, u.email AS owner_email, u.phone AS owner_phone
+                dr.database_name, COALESCE(u.email, CASE WHEN dr.requested_by_admin THEN 'סופר אדמין' END) AS owner_email,
+                u.phone AS owner_phone
            FROM public.business_deletion_requests dr
            LEFT JOIN public.businesses b ON b.id = dr.tenant_id
-           JOIN public.platform_users u ON u.id = dr.requested_by_user_id
+           LEFT JOIN public.platform_users u ON u.id = dr.requested_by_user_id
           WHERE dr.status IN ('pending', 'approved')
           ORDER BY dr.requested_at ASC`,
       );
