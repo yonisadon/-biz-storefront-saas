@@ -131,7 +131,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
     throw new HttpError(503, 'email_service_not_configured');
   }
-  const match = env.EMAIL_FROM.match(/^(?:(.*?)\\s*)?<([^<>]+)>$/);
+  const match = env.EMAIL_FROM.match(/^(?:(.*?)\s*)?<([^<>]+)>$/);
   const senderEmail = match?.[2] ?? env.EMAIL_FROM;
   const senderName = match?.[1]?.trim() || 'BTime';
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
