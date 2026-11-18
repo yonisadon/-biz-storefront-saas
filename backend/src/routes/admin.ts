@@ -535,7 +535,9 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         );
       }
 
-      if (storageKeys.length) await storage.remove(storageKeys);
+      for (let offset = 0; offset < storageKeys.length; offset += 1000) {
+        await storage.remove(storageKeys.slice(offset, offset + 1000));
+      }
       if (databaseName) {
         databaseAdmin = await connectClientWithRetry(env.DATABASE_ADMIN_URL, options);
         await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
