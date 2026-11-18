@@ -156,14 +156,14 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         </label>
 
         <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">הודעה ללקוחות</legend>
+          <legend className="px-1 text-sm font-semibold">הודעה בולטת ללקוחות</legend>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={f.announcementEnabled} onChange={(e) => set('announcementEnabled', e.target.checked)} />
-            הצגת הודעה בראש האתר
+            הצגת הודעה בולטת בראש האתר
           </label>
           <label className="block text-sm font-medium">תוכן ההודעה
             <textarea className={input} rows={3} maxLength={500} placeholder="הודעה שהלקוחות יראו בראש האתר" value={f.announcementMessage} onChange={(e) => set('announcementMessage', e.target.value)} />
-            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">ההודעה תוצג לכל הלקוחות רק כשהאפשרות מופעלת ויש תוכן. היא אינה קשורה לשעות הפעילות או למצב פתוח/סגור.</span>
+            <span className="mt-1 block text-xs font-normal leading-5 text-gray-500">ההודעה תופיע כאזור מודגש בראש אתר הלקוחות, רק כשהאפשרות מופעלת ויש תוכן. אפשר להשתמש בה למבצעים, עדכונים, חופשות או הודעות חשובות. היא נפרדת לחלוטין משעות הפעילות וממצב פתוח/סגור.</span>
           </label>
         </fieldset>
 
