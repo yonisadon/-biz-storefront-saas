@@ -1,3 +1,4 @@
+BEGIN;
 -- Platform accounts, subscriptions and controlled business deletion.
 -- This migration runs only against the central registry database.
 -- Existing businesses without a subscription row remain unaffected.
@@ -194,3 +195,4 @@ GRANT EXECUTE ON FUNCTION app.is_tenant_subscription_accessible(uuid) TO app_run
 GRANT EXECUTE ON FUNCTION app.resolve_tenant_by_slug(text) TO app_runtime, app_superadmin;
 GRANT EXECUTE ON FUNCTION app.resolve_tenant_by_domain(text) TO app_runtime, app_superadmin;
 GRANT EXECUTE ON FUNCTION app.resolve_tenant_by_token(bytea) TO app_runtime, app_superadmin;
+COMMIT;
