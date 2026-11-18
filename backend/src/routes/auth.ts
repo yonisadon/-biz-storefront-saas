@@ -84,12 +84,12 @@ function cookieValue(req: FastifyRequest): string | null {
 
 function setSessionCookie(reply: FastifyReply, token: string): void {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  reply.header('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=${process.env.NODE_ENV === 'production' ? 'None' : 'Lax'}; Max-Age=${SESSION_DAYS * 24 * 60 * 60}${secure}`);
+  reply.header('Set-Cookie', `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 24 * 60 * 60}${secure}`);
 }
 
 function clearSessionCookie(reply: FastifyReply): void {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  reply.header('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=${process.env.NODE_ENV === 'production' ? 'None' : 'Lax'}; Max-Age=0${secure}`);
+  reply.header('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`);
 }
 
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
