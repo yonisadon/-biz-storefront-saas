@@ -66,8 +66,8 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
           )}
         </div>
         {product.details?.length > 0 && (
-          <details className="text-sm">
-            <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({product.details.length})</summary>
+          <details className="storefront-item-accordion text-sm">
+            <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">פרטים נוספים ({product.details.length})</summary>
             <dl className="mt-2">
               {product.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
                 <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
@@ -76,8 +76,8 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
           </details>
         )}
         {product.description && (
-          <details className="text-sm">
-            <summary className="cursor-pointer font-semibold text-primary underline underline-offset-2">{product.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
+          <details className="storefront-item-accordion text-sm">
+            <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">{product.kind === 'service' ? 'תיאור השירות' : 'תיאור המוצר'}</summary>
             <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{product.description}</p>
           </details>
         )}
