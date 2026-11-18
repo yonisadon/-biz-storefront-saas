@@ -225,11 +225,17 @@ export default function PlatformAdminPage() {
   }
 
   async function executeDeletion(id: string) {
-    if (!window.confirm('אזהרה: פעולה בלתי הפיכה. מסד הנתונים הייעודי וקובצי המדיה של העסק יימחקו. להמשיך?')) return;
+    const backupReference = window.prompt('לפני מחיקה יש ליצור גיבוי למסד הנתונים ב-Railway, לוודא שניתן לשחזר/לקרוא אותו, ולהזין כאן מזהה גיבוי או אסמכתה (לפחות 8 תווים):');
+    if (!backupReference || backupReference.trim().length < 8) {
+      setAdminMessage('המחיקה בוטלה. נדרשת אסמכתה לגיבוי מאומת.');
+      return;
+    }
+    if (!window.confirm('אני מאשר/ת שיצרתי גיבוי Railway למסד הנתונים הייעודי, בדקתי שהוא תקין ושניתן לשחזר ממנו, והאסמכתה שהזנתי נכונה. המחיקה בלתי הפיכה. להמשיך?')) return;
     setAdminLoading(true); setAdminMessage('');
     try {
       const response = await fetch(`/api/admin/deletion-requests/${id}/execute`, {
-        method: 'POST', headers: { authorization: `Bearer ${adminToken.trim()}` }, cache: 'no-store',
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${adminToken.trim()}` },
+        body: JSON.stringify({ backupVerified: true, backupReference: backupReference.trim() }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.message ?? 'המחיקה נכשלה. הבקשה נשארה מאושרת וניתן לנסות שוב לאחר בדיקה.');
