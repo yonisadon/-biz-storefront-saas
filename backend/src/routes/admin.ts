@@ -143,10 +143,39 @@ function authorized(req: FastifyRequest): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+async function authorizedBySession(req: FastifyRequest): Promise<boolean> {
+  if (!env.SUPERADMIN_EMAIL || !env.SUPERADMIN_DATABASE_URL) return false;
+  const raw = String(req.headers.cookie ?? '');
+  const sessionCookie = raw.split(';').map((part) => part.trim()).find((part) => part.startsWith('btime_session='));
+  const token = sessionCookie ? decodeURIComponent(sessionCookie.slice('btime_session='.length)) : '';
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
+  let registry: pg.Client | undefined;
+  try {
+    registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    const result = await registry.query(
+      `SELECT 1
+         FROM public.platform_sessions s
+         JOIN public.platform_users u ON u.id = s.user_id
+        WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now()
+          AND u.role = 'super_admin' AND lower(u.email) = lower($2)
+          AND u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL
+        LIMIT 1`,
+      [createHash('sha256').update(token, 'utf8').digest(), env.SUPERADMIN_EMAIL],
+    );
+    return Boolean(result.rowCount);
+  } catch {
+    return false;
+  } finally {
+    if (registry) await registry.end().catch(() => {});
+  }
+}
+
 export const adminRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', async (req) => {
-    if (!env.SUPERADMIN_API_TOKEN) throw new HttpError(503, 'admin_not_configured');
-    if (!authorized(req)) throw new HttpError(401, 'unauthorized');
+    if (!env.SUPERADMIN_API_TOKEN && !env.SUPERADMIN_EMAIL) throw new HttpError(503, 'admin_not_configured');
+    if (!authorized(req) && !(await authorizedBySession(req))) throw new HttpError(401, 'unauthorized');
   });
 
   app.post('/businesses', async (req, reply) => {
