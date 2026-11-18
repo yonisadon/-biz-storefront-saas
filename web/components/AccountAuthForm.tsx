@@ -31,6 +31,10 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingEmail, setMarketingEmail] = useState(false);
+  const [marketingSms, setMarketingSms] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -46,7 +50,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
       const response = await fetch(`/api/auth/${isRegister ? 'register' : 'login'}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ email, password, ...(isRegister ? { phone } : {}) }),
+        body: JSON.stringify({ email, password, ...(isRegister ? { phone, termsAccepted, privacyAccepted, marketingEmail, marketingSms } : {}) }),
         cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
@@ -123,6 +127,28 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <PasswordField id="account-confirm-password" label="אימות סיסמה" value={confirmPassword}
               onChange={setConfirmPassword} autoComplete="new-password" minLength={10} />
             <p className="mt-1 text-xs text-slate-500">הסיסמה צריכה להכיל לפחות 10 תווים. אין חובה לאות גדולה או לסימן מיוחד.</p>
+            <div className="space-y-3 rounded-xl border border-slate-200 p-3 text-sm">
+              <label className="flex items-start gap-2">
+                <input type="checkbox" required checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
+                <span>אני מאשר/ת את <Link href="/platform-legal#terms_of_use" target="_blank" className="font-semibold text-blue-700 underline">תנאי השימוש של BTime</Link>.</span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" required checked={privacyAccepted} onChange={e=>setPrivacyAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
+                <span>קראתי את <Link href="/platform-legal#privacy_policy" target="_blank" className="font-semibold text-blue-700 underline">מדיניות הפרטיות של BTime</Link>.</span>
+              </label>
+              <div className="border-t border-slate-200 pt-3">
+                <p className="mb-2 font-semibold">עדכונים והצעות שיווקיות (רשות)</p>
+                <label className="mb-2 flex items-start gap-2">
+                  <input type="checkbox" checked={marketingEmail} onChange={e=>setMarketingEmail(e.target.checked)} className="mt-1 h-4 w-4" />
+                  <span>אני מסכים/ה לקבלת דיוור שיווקי ועדכונים בדוא״ל.</span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input type="checkbox" checked={marketingSms} onChange={e=>setMarketingSms(e.target.checked)} className="mt-1 h-4 w-4" />
+                  <span>אני מסכים/ה לקבלת דיוור שיווקי ועדכונים ב-SMS.</span>
+                </label>
+                <p className="mt-2 text-xs text-slate-500">ההסכמות נפרדות, אינן מסומנות מראש ואינן תנאי לפתיחת חשבון.</p>
+              </div>
+            </div>
           </>}
           {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           {message && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
