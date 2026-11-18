@@ -87,7 +87,7 @@ END
 $;
 
 -- The registry stores separate, append-only decisions for each marketing channel.
-DO $
+DO $consent_fixture$
 DECLARE
   v_user uuid;
   v_email_latest boolean;
@@ -120,7 +120,7 @@ BEGIN
     RAISE EXCEPTION 'independent consent changes must preserve append-only history';
   END IF;
 END
-$;
+$consent_fixture$;
 
 
 -- Destructive deletion must retain an auditable backup verification reference.
