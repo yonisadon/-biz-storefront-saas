@@ -1,6 +1,3 @@
-const { chromium } = require('playwright');
-const AxeBuilder = require('@axe-core/playwright').default;
-
 const routes = [
   '/register',
   '/login',
@@ -13,6 +10,8 @@ const routes = [
 ];
 
 (async () => {
+  const { chromium } = await import('playwright');
+  const { AxeBuilder } = await import('@axe-core/playwright');
   const browser = await chromium.launch({ headless: true });
   const failures = [];
   try {
