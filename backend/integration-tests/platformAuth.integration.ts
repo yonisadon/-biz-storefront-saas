@@ -13,6 +13,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.EMAIL_FROM = 'BTime Tests <noreply@example.test>';
   process.env.DATABASE_SSL = 'false';
   process.env.NODE_ENV = 'test';
+  process.env.SUPERADMIN_API_TOKEN = 't'.repeat(48);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
@@ -181,7 +182,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     }
 
     // Exercise ownerless/manual business visibility and the two-step deletion flow.
-    const adminToken = 'integration-superadmin-token-that-is-long-enough';
+    const adminToken = 't'.repeat(48);
     process.env.SUPERADMIN_API_TOKEN = adminToken;
     const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const manualName = 'Manual Integration Business';
