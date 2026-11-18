@@ -168,7 +168,7 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const catalogSlot = (
     <>
-          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-5 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
+          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
     
     </>
   );
