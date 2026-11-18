@@ -49,7 +49,7 @@ async function get<T>(ctx: Ctx, sub: string, revalidate: number): Promise<T | nu
   const qs = ctx.host ? `?h=${encodeURIComponent(ctx.host)}` : '';
   let res: Response;
   try {
-    res = await fetch(`${API.replace(/\\/+$/, '')}${endpoint}${qs}`, {
+    res = await fetch(`${API.replace(/\/+$/, '')}${endpoint}${qs}`, {
       headers: ctx.host ? { 'x-original-host': ctx.host, 'x-forwarded-host': ctx.host } : {},
       next: { revalidate },
     });
