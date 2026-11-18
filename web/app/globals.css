@@ -604,6 +604,39 @@ html.a11y-contrast .brand-root :focus-visible {
 .brand-root .storefront-read-more-less { display: none; }
 .brand-root .storefront-read-more[open] .storefront-read-more-more { display: none; }
 .brand-root .storefront-read-more[open] .storefront-read-more-less { display: inline-block; }
+/* Clear disclosure affordance for product/service descriptions and additional details. */
+.brand-root .storefront-item-accordion > .storefront-item-accordion-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .65rem;
+  width: 100%;
+  list-style: none;
+  text-align: start;
+}
+.brand-root .storefront-item-accordion > .storefront-item-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+.brand-root .storefront-item-accordion > .storefront-item-accordion-summary::after {
+  content: "";
+  flex: 0 0 .42rem;
+  width: .42rem;
+  height: .42rem;
+  margin-inline-start: .25rem;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+}
+.brand-root .storefront-item-accordion[open] > .storefront-item-accordion-summary::after {
+  transform: rotate(225deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-root .storefront-item-accordion > .storefront-item-accordion-summary::after {
+    transition: none;
+  }
+}
+
 .brand-root .storefront-card-action,
 .brand-root .storefront-hero > a {
   max-width: 100%;
