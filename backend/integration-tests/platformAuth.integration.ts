@@ -206,6 +206,16 @@ test('platform account lifecycle and independent marketing consents', async () =
       }
     }
 
+    // Admin routes reject anonymous and ordinary-owner sessions.
+    const anonymousAdmin = await app.inject({ method: 'GET', url: '/api/admin/businesses' });
+    assert.equal(anonymousAdmin.statusCode, 401);
+    const ownerSessionAdmin = await app.inject({
+      method: 'GET',
+      url: '/api/admin/businesses',
+      headers: { cookie: sessionCookie },
+    });
+    assert.equal(ownerSessionAdmin.statusCode, 401);
+
     // Exercise ownerless/manual business visibility and the two-step deletion flow.
     const adminToken = 't'.repeat(48);
     process.env.SUPERADMIN_API_TOKEN = adminToken;
