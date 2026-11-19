@@ -63,6 +63,16 @@ const DomainInput = z.object({
 
 const PLATFORM_MEDIA_NAMESPACE = '00000000-0000-4000-8000-000000000001';
 
+const PlatformMediaUrl = z.string().url().max(2000).refine((value) => {
+  try {
+    const url = new URL(value);
+    const base = new URL(env.MEDIA_BASE_URL);
+    return url.origin === base.origin && url.pathname.startsWith(`/media/${PLATFORM_MEDIA_NAMESPACE}/`);
+  } catch {
+    return false;
+  }
+}, 'platform_media_url_required');
+
 const PlatformMarketingContentInput = z.object({
   heroEyebrow: z.string().trim().max(100),
   heroTitle: z.string().trim().min(5).max(180),
@@ -70,8 +80,8 @@ const PlatformMarketingContentInput = z.object({
   announcementEnabled: z.boolean(),
   announcementTitle: z.string().trim().max(100),
   announcementBody: z.string().trim().max(500),
-  heroImageUrl: z.string().url().max(2000).nullable(),
-  screenshotUrls: z.array(z.string().url().max(2000)).max(4),
+  heroImageUrl: PlatformMediaUrl.nullable(),
+  screenshotUrls: z.array(PlatformMediaUrl).max(4),
   demoBusinessEnabled: z.boolean(),
   demoBusinessSlug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).nullable(),
   demoBusinessTitle: z.string().trim().max(100),
