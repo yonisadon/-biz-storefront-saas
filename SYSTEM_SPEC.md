@@ -33,8 +33,8 @@
 - בשלב זה לא בוצעה פריסה ולא בוצע שינוי בנתוני production.
 
 ### בדיקות
-- נדרשים CI מלא ל-Web ול-Backend, בדיקת migration smoke, בדיקות הרשאות סופר אדמין/בעל עסק, העלאת מדיה, ניתוב דומיין עסקי, מניעת שליחה כפולה, הסכמות דיוור, סטטוסי Brevo וקריאת הודעות.
-- יש לבצע בדיקות חזותיות במובייל ובמחשב, RTL, מקלדת, ניגודיות ו-reduced-motion. אין לדווח על בדיקה חזותית שלא בוצעה בפועל.
+- CI ב-GitHub עבור ה-commit הנוכחי (894938414506123ef6bf85637f72e76518e40d68) עבר: Web build/lint, Backend build, Validate, Registry migration smoke test ו-Platform account accessibility smoke test (axe).
+- עדיין נדרשת בדיקת קבלה ידנית/חזותית במובייל ובמחשב, RTL, תהליכי הרשאות בפועל, העלאת מדיה מול אחסון production, שליחת Brevo אמיתית ואירועי webhook. אין לדווח על בדיקה שלא בוצעה בפועל.
 - סטטוס PR: `feat/btime-platform-marketing-experience`, PR #101 כטיוטה פתוחה; אין מיזוג.
 
 ---
