@@ -12,6 +12,7 @@ import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
+import { platformContentRoutes } from './routes/platformContent';
 
 // Management tokens are secrets: keep them out of logs
 const redactUrl = (url: string) => url.replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]');
@@ -78,6 +79,7 @@ export async function buildServer() {
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
+  await app.register(platformContentRoutes, { prefix: '/api/platform-content' });
 
 
 
