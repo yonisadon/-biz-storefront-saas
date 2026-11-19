@@ -62,6 +62,11 @@ export default function AccountDashboard() {
       setConsentsLoaded(false);
       setMarketingEmail(false);
       setMarketingSms(false);
+      setName('');
+      setSlug('');
+      setWhatsapp('');
+      setReason('');
+      setSaving(false);
       setError('');
       setMessage('');
       try{await loadAccount();}
