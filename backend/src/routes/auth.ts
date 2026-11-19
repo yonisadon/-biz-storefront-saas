@@ -205,12 +205,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const token = await issueEmailToken(userId, 'verify_email');
       const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
       await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
-        `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי לאמת את כתובת המייל ולהמשיך להקמת העסק, לחצו על הקישור:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
-        `ברוכים הבאים ל-BTime\n\nכדי לאמת את כתובת המייל ולהמשיך להקמת העסק, פתחו את הקישור הבא:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
-      return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.' });
+        `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
+        `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
+      return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
-        return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.' });
+        return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
       }
       throw error;
     }
@@ -227,13 +227,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
         const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
         await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
-          `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>אימות כתובת המייל</h2><p>לחצו על הקישור כדי להשלים את ההרשמה:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות.</p></body></html>`,
-          `אימות כתובת המייל\n\nלחצו על הקישור כדי להשלים את ההרשמה:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות.`);
+          `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>השלמת ההרשמה ל-BTime</h2><p>כדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות.</p></body></html>`,
+          `השלמת ההרשמה ל-BTime\n\nכדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות.`);
       } catch (error) {
         req.log.warn({ err: error }, 'verification email could not be resent');
       }
     }
-    return reply.code(202).send({ message: 'אם קיים חשבון שממתין לאימות, יישלח אליו קישור חדש.' });
+    return reply.code(202).send({ message: 'אם קיים חשבון שעדיין ממתין לאימות, נשלח אליו קישור חדש. כדאי לבדוק גם בתיקיית הספאם.' });
   });
 
   app.post('/verify-email', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
