@@ -263,7 +263,7 @@ export default function PlatformAdminContent() {
           <div className="bac-media-field">
             <div><b>דוגמה חיה לעסק</b><p>אפשר לפרסם קישור לעסק קיים רק לאחר שבדקת שהאתר והתוכן שלו מתאימים להצגה פומבית. לא נבחר עסק אוטומטית.</p></div>
             <label className="bac-check"><input type="checkbox" checked={marketing.demoBusinessEnabled} onChange={e=>updateMarketing('demoBusinessEnabled',e.target.checked)} /> הצגת עסק לדוגמה בעמוד השיווקי</label>
-            <label>כתובת העסק באנגלית<input value={marketing.demoBusinessSlug??''} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={63} dir="ltr" placeholder="business-slug" onChange={e=>updateMarketing('demoBusinessSlug',e.target.value.trim()?e.target.value.toLowerCase():null)} /></label>
+            <label>כתובת העסק באנגלית<input value={marketing.demoBusinessSlug??''} required={marketing.demoBusinessEnabled} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={63} dir="ltr" placeholder="business-slug" onChange={e=>updateMarketing('demoBusinessSlug',e.target.value.trim()?e.target.value.toLowerCase():null)} /></label>
             <label>כותרת לדוגמה<input value={marketing.demoBusinessTitle} maxLength={100} onChange={e=>updateMarketing('demoBusinessTitle',e.target.value)} /></label>
             <label>תיאור קצר<textarea rows={2} maxLength={300} value={marketing.demoBusinessDescription} onChange={e=>updateMarketing('demoBusinessDescription',e.target.value)} /></label>
           </div>
