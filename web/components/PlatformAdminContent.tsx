@@ -18,7 +18,7 @@ type Business = { id: string; name: string; slug: string; owner_email?: string |
 type Message = {
   id: string; title: string; body: string; channel: string; category: string; status: string;
   created_at: string; recipient_count: number; email_accepted_count: number; email_failed_count: number;
-  email_skipped_count: number; in_app_read_count: number;
+  email_skipped_count: number; email_delivered_count: number; email_opened_count: number; in_app_read_count: number;
 };
 
 const DEFAULT_MARKETING: MarketingContent = {
@@ -245,9 +245,9 @@ export default function PlatformAdminContent() {
       <section className="bac-section">
         <div className="bac-section-heading"><div><span>04 / HISTORY</span><h2>היסטוריית הודעות ושליחות</h2><p>אישור ספק אינו מעיד על מסירה או פתיחה. פתיחה בתוך המערכת נספרת רק לאחר שבעל העסק סימן את ההודעה כנקראה.</p></div></div>
         {history.length===0?<p className="bac-empty">עדיין לא נשלחו הודעות.</p>:<div className="bac-history">{history.map(item=><article key={item.id}>
-          <div className="bac-history-top"><div><b>{item.title}</b><p>{new Date(item.created_at).toLocaleString('he-IL')}</p></div><span>{item.status==='accepted'?'התקבל אצל הספק':item.status==='partial'?'נשלח חלקית':item.status==='failed'?'נכשל':'בתהליך'}</span></div>
+          <div className="bac-history-top"><div><b>{item.title}</b><p>{new Date(item.created_at).toLocaleString('he-IL')}</p></div><span>{item.status==='sent'?'נשלח במערכת':item.status==='accepted'?'התקבל אצל ספק הדוא״ל':item.status==='partial'?'נשלח חלקית':item.status==='failed'?'נכשל':item.status==='skipped'?'לא נשלח — הוחרג':'בתהליך'}</span></div>
           <p className="bac-history-body">{item.body}</p>
-          <div className="bac-history-stats"><span>נמענים: {item.recipient_count}</span><span>דוא״ל התקבל אצל הספק: {item.email_accepted_count}</span><span>כשלונות: {item.email_failed_count}</span><span>הוחרגו: {item.email_skipped_count}</span><span>נקראו במערכת: {item.in_app_read_count}</span></div>
+          <div className="bac-history-stats"><span>נמענים: {item.recipient_count}</span><span>דוא״ל התקבל אצל הספק: {item.email_accepted_count}</span><span>מסירה שאושרה: {item.email_delivered_count}</span><span>נפתחו: {item.email_opened_count}</span><span>כשלונות: {item.email_failed_count}</span><span>הוחרגו: {item.email_skipped_count}</span><span>נקראו במערכת: {item.in_app_read_count}</span></div>
         </article>)}</div>}
       </section>
     </div>
