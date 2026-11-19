@@ -253,9 +253,9 @@ export default function AccountDashboard() {
       </section>}
       <p className="mt-6 text-center text-xs text-slate-500">הנתונים נשמרים כל עוד העסק לא אושר למחיקה מלאה.</p>
       <nav aria-label="מסמכי BTime" className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-slate-500">
-        <Link href="/platform-legal#terms_of_use" className="underline">תנאי שימוש</Link>
-        <Link href="/platform-legal#privacy_policy" className="underline">מדיניות פרטיות</Link>
-        <Link href="/platform-legal#accessibility_statement" className="underline">הצהרת נגישות</Link>
+        <Link href="/platform-legal?returnTo=%2Faccount#terms_of_use" className="underline">תנאי שימוש</Link>
+        <Link href="/platform-legal?returnTo=%2Faccount#privacy_policy" className="underline">מדיניות פרטיות</Link>
+        <Link href="/platform-legal?returnTo=%2Faccount#accessibility_statement" className="underline">הצהרת נגישות</Link>
         <Link href="/login" className="underline">התחברות לחשבון אחר</Link>
       </nav>
     </div>
