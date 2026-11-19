@@ -271,6 +271,13 @@ async function main() {
             !retentionPolicy.tenant_policy || !retentionPolicy.can_select) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention policy tenant isolation or app_runtime SELECT permission is incomplete.`);
         }
+        const retentionPolicyRow = await db.query(
+          'SELECT 1 FROM public.crm_retention_policy WHERE tenant_id = $1',
+          [tenant.tenant_id],
+        );
+        if (!retentionPolicyRow.rowCount) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention policy row is missing for the mapped business.`);
+        }
         const retentionTrigger = await db.query(
           `SELECT 1 FROM pg_trigger
             WHERE tgrelid = 'public.leads'::regclass
