@@ -45,6 +45,8 @@ jobs:
       - run: echo "::warning::Known dev-only picomatch advisory GHSA-fc5q-39xc-vjpf; production dependency audit remains blocking."
       - run: npm audit --omit=dev --audit-level=moderate
         working-directory: web
+      - run: node --test tests/*.test.mjs
+        working-directory: web
       - run: npm run lint
         working-directory: web
       - run: npm run build
