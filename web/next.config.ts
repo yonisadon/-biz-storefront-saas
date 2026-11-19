@@ -33,6 +33,14 @@ const config: NextConfig = {
         { key: 'X-Frame-Options', value: 'DENY' },
       ],
     }, {
+      source: '/account/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'no-store, max-age=0' },
+        { key: 'Referrer-Policy', value: 'no-referrer' },
+        { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        { key: 'X-Frame-Options', value: 'DENY' },
+      ],
+    }, {
       source: '/manage/:path*',
       headers: [
         { key: 'Cache-Control', value: 'no-store, max-age=0' },
