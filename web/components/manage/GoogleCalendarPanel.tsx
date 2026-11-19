@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { mcall } from '@/lib/manageApi';
 
 type Status = {
@@ -25,9 +26,11 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
     try {
       const current = await mcall<Status>(token, 'google-calendar/status');
       setStatus(current);
-      if (current.configured && current.connected && current.pending > 0) {
+      if (current.configured && current.connected && (current.pending > 0 || current.failed > 0)) {
         try {
-          await mcall(token, 'google-calendar/sync', { method: 'POST' });
+          // Process only jobs whose retry time has arrived. Manual retry remains
+          // available below and can intentionally bypass the backoff.
+          await mcall(token, 'google-calendar/process-due', { method: 'POST' });
           setStatus(await mcall<Status>(token, 'google-calendar/status'));
         } catch {
           setError('חלק מהאירועים ממתינים לסנכרון. אפשר לנסות שוב באופן ידני.');
@@ -79,7 +82,8 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-bold">סנכרון ל-Google Calendar</h2>
-          <p className="mt-1 text-sm text-gray-600">סנכרון חד-כיווני: תורים ב-BTime יוצרים, מעדכנים ומוחקים אירועים ביומן Google. ההרשאה ש-Google מבקשת מאפשרת צפייה ועריכה באירועים ביומנים שבבעלות החשבון; BTime עצמה משתמשת בה רק לאירועים המקושרים לתורים שלה ואינה מייבאת אירועים או משנה זמינות.</p>
+          <p className="mt-1 text-sm text-gray-600">סנכרון חד-כיווני: תורים ב-BTime יוצרים, מעדכנים ומוחקים אירועים ביומן Google. ההרשאה ש-Google מבקשת מאפשרת צפייה ועריכה באירועים ביומנים שבבעלות החשבון; BTime משתמשת בה רק לאירועים של התורים שלה, ואינה מייבאת אירועים או משנה זמינות. לאירוע נשלחים רק שם השירות ושעת ההתחלה והסיום — לא שם הלקוח או מספר הטלפון.</p>
+          <p className="mt-1 text-xs text-gray-500">מידע נוסף על השימוש בנתוני Google מופיע ב<Link href="/platform-legal#privacy_policy" className="underline underline-offset-2">מדיניות הפרטיות של BTime</Link>.</p>
         </div>
         {status?.connected && <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-800">מחובר</span>}
       </div>
