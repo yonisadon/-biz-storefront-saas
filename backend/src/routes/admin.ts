@@ -81,6 +81,7 @@ const PlatformMarketingContentInput = z.object({
   announcementEnabled: z.boolean(),
   announcementTitle: z.string().trim().max(100),
   announcementBody: z.string().trim().max(500),
+  announcements: z.array(z.object({ title: z.string().trim().max(100), body: z.string().trim().max(500) }).strict()).max(5),
   heroImageUrl: PlatformMediaUrl.nullable(),
   screenshotUrls: z.array(PlatformMediaUrl).max(4),
   demoBusinessEnabled: z.boolean(),
