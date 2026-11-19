@@ -32,6 +32,7 @@ type MarketingContent = {
   announcementEnabled: boolean;
   announcementTitle: string;
   announcementBody: string;
+  announcements: Array<{ title: string; body: string }>;
   heroImageUrl: string | null;
   screenshotUrls: string[];
   demoBusinessEnabled: boolean;
@@ -47,6 +48,7 @@ const DEFAULT_MARKETING_CONTENT: MarketingContent = {
   announcementEnabled: false,
   announcementTitle: '',
   announcementBody: '',
+  announcements: [],
   heroImageUrl: null,
   screenshotUrls: [],
   demoBusinessEnabled: false,
@@ -57,6 +59,27 @@ const DEFAULT_MARKETING_CONTENT: MarketingContent = {
 
 export default function PlatformMarketingPage() {
   const [content, setContent] = useState<MarketingContent>(DEFAULT_MARKETING_CONTENT);
+  const [activeAnnouncementIndex, setActiveAnnouncementIndex] = useState(0);
+  const [announcementPaused, setAnnouncementPaused] = useState(false);
+  const announcementItems = content.announcementEnabled
+    ? (content.announcements?.length
+      ? content.announcements
+      : content.announcementBody
+        ? [{ title: content.announcementTitle, body: content.announcementBody }]
+        : [])
+    : [];
+  
+  useEffect(() => {
+    setActiveAnnouncementIndex(current => Math.min(current, Math.max(0, announcementItems.length - 1)));
+  }, [announcementItems.length]);
+
+  useEffect(() => {
+    if (announcementItems.length < 2 || announcementPaused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setInterval(() => {
+      setActiveAnnouncementIndex(current => (current + 1) % announcementItems.length);
+    }, 7000);
+    return () => window.clearInterval(timer);
+  }, [announcementItems.length, announcementPaused]);
 
   useEffect(() => {
     let active = true;
@@ -89,9 +112,22 @@ export default function PlatformMarketingPage() {
           </div>
         </div>
       </header>
-      {content.announcementEnabled && content.announcementBody && <aside className="bm-announcement" role="status">
-        <strong>{content.announcementTitle || 'עדכון מ-BTime'}</strong>
-        <span>{content.announcementBody}</span>
+      {announcementItems.length > 0 && <aside
+        className="bm-announcement"
+        role="region"
+        aria-label="עדכונים מ-BTime"
+        onMouseEnter={() => setAnnouncementPaused(true)}
+        onMouseLeave={() => setAnnouncementPaused(false)}
+        onFocus={() => setAnnouncementPaused(true)}
+        onBlur={() => setAnnouncementPaused(false)}
+      >
+        <strong>{announcementItems[activeAnnouncementIndex]?.title || 'עדכון מ-BTime'}</strong>
+        <span className="bm-announcement-copy" aria-live="off">{announcementItems[activeAnnouncementIndex]?.body}</span>
+        {announcementItems.length > 1 && <div className="bm-announcement-controls">
+          <button type="button" aria-label="העדכון הקודם" onClick={() => setActiveAnnouncementIndex(current => (current - 1 + announcementItems.length) % announcementItems.length)}>‹</button>
+          <span aria-hidden="true">{activeAnnouncementIndex + 1} / {announcementItems.length}</span>
+          <button type="button" aria-label="העדכון הבא" onClick={() => setActiveAnnouncementIndex(current => (current + 1) % announcementItems.length)}>›</button>
+        </div>}
       </aside>}
 
       <section className="bm-hero">
