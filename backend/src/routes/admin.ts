@@ -1016,7 +1016,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post('/platform-media', { bodyLimit: 9 * 1024 * 1024 }, async (req, reply) => {
+  app.post('/platform-media', { bodyLimit: 9 * 1024 * 1024, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req, reply) => {
     const file = await req.file();
     if (!file) throw new HttpError(400, 'image_required');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
@@ -1085,7 +1085,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post('/messages', async (req, reply) => {
+  app.post('/messages', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = SendPlatformMessageInput.parse(req.body);
     if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
     if (input.channel !== 'in_app' && (!env.BREVO_API_KEY || !env.EMAIL_FROM)) {
