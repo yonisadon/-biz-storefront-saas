@@ -1,0 +1,49 @@
+/* Owner account home: a compact, welcoming workspace rather than a form stack. */
+main:has(nav[aria-label="מסמכי BTime"]) {
+  min-height: 100svh;
+  background: linear-gradient(145deg, #f4f6fc 0%, #fafbfd 55%, #eef6f4 100%) !important;
+  color: #17233a !important;
+  padding: 38px 20px 54px !important;
+}
+main:has(nav[aria-label="מסמכי BTime"]) > div { max-width: 900px !important; }
+main:has(nav[aria-label="מסמכי BTime"]) header { align-items: center; margin-bottom: 26px !important; }
+main:has(nav[aria-label="מסמכי BTime"]) header p { color: #3456d1 !important; font-family: "Rubik", "Heebo", sans-serif; font-size: 18px !important; font-weight: 800 !important; }
+main:has(nav[aria-label="מסמכי BTime"]) header h1 { color: #17233a; font-size: clamp(27px, 4vw, 34px); letter-spacing: -.7px; }
+main:has(nav[aria-label="מסמכי BTime"]) header button {
+  min-height: 42px;
+  border-color: #dce2ed !important;
+  border-radius: 9px !important;
+  background: #fff;
+  color: #46536a;
+}
+main:has(nav[aria-label="מסמכי BTime"]) section {
+  border-color: #e6eaf1 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 8px 25px rgb(29 43 77 / 4%) !important;
+}
+main:has(nav[aria-label="מסמכי BTime"]) section h2 { color: #202e48; font-size: 19px; letter-spacing: -.2px; }
+main:has(nav[aria-label="מסמכי BTime"]) section p { line-height: 1.75; }
+main:has(nav[aria-label="מסמכי BTime"]) section input:not([type="checkbox"]),
+main:has(nav[aria-label="מסמכי BTime"]) section textarea {
+  min-height: 46px;
+  border-color: #dce2ed !important;
+  border-radius: 9px !important;
+  background: #fcfdff;
+}
+main:has(nav[aria-label="מסמכי BTime"]) section button {
+  min-height: 44px;
+  border-radius: 9px !important;
+}
+main:has(nav[aria-label="מסמכי BTime"]) section button.bg-slate-900,
+main:has(nav[aria-label="מסמכי BTime"]) section button.bg-blue-700 {
+  background: #3456d1 !important;
+  border-color: #3456d1 !important;
+  box-shadow: 0 7px 16px rgb(52 86 209 / 12%);
+}
+main:has(nav[aria-label="מסמכי BTime"]) nav { color: #718097 !important; }
+main:has(nav[aria-label="מסמכי BTime"]) nav a { text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  main:has(nav[aria-label="מסמכי BTime"]) { padding: 25px 14px 40px !important; }
+  main:has(nav[aria-label="מסמכי BTime"]) header { align-items: flex-start; }
+  main:has(nav[aria-label="מסמכי BTime"]) section { padding: 19px !important; }
+}
