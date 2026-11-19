@@ -12,6 +12,10 @@ type MarketingContent = {
   announcementBody: string;
   heroImageUrl: string | null;
   screenshotUrls: string[];
+  demoBusinessEnabled: boolean;
+  demoBusinessSlug: string | null;
+  demoBusinessTitle: string;
+  demoBusinessDescription: string;
 };
 type OwnerContent = { welcomeTitle: string; welcomeMessage: string };
 type Business = { id: string; name: string; slug: string; owner_email?: string | null };
@@ -26,6 +30,7 @@ const DEFAULT_MARKETING: MarketingContent = {
   heroTitle: 'כל מה שהעסק שלך צריך כדי להיות נוכח ולהתנהל.',
   heroDescription: 'אתר עסקי שאפשר לשתף עם לקוחות, יחד עם כלים נוחים להצגת מוצרים ושירותים, לקבלת פניות ולניהול תורים — בלי להסתבך עם בניית אתר.',
   announcementEnabled: false, announcementTitle: '', announcementBody: '', heroImageUrl: null, screenshotUrls: [],
+  demoBusinessEnabled: false, demoBusinessSlug: null, demoBusinessTitle: '', demoBusinessDescription: '',
 };
 const DEFAULT_OWNER: OwnerContent = {
   welcomeTitle: 'ברוכים הבאים לאזור האישי של BTime',
@@ -238,6 +243,13 @@ export default function PlatformAdminContent() {
             <div><b>צילומי מסך להצגת המערכת</b><p>עד 4 תמונות. אפשר להעלות צילומי מסך אמיתיים של BTime.</p></div>
             <div className="bac-screenshot-previews">{marketing.screenshotUrls.map((url,index)=><figure key={url}><img src={url} alt={'צילום מסך '+(index+1)} /><button type="button" onClick={()=>updateMarketing('screenshotUrls',marketing.screenshotUrls.filter(item=>item!==url))}>הסרה</button></figure>)}</div>
             {marketing.screenshotUrls.length<4&&<label className="bac-upload">הוספת צילום מסך<input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={e=>void uploadImage(e,'screenshot')} /></label>}
+          </div>
+          <div className="bac-media-field">
+            <div><b>דוגמה חיה לעסק</b><p>אפשר לפרסם קישור לעסק קיים רק לאחר שבדקת שהאתר והתוכן שלו מתאימים להצגה פומבית. לא נבחר עסק אוטומטית.</p></div>
+            <label className="bac-check"><input type="checkbox" checked={marketing.demoBusinessEnabled} onChange={e=>updateMarketing('demoBusinessEnabled',e.target.checked)} /> הצגת עסק לדוגמה בעמוד השיווקי</label>
+            <label>כתובת העסק באנגלית<input value={marketing.demoBusinessSlug??''} pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={63} dir="ltr" placeholder="business-slug" onChange={e=>updateMarketing('demoBusinessSlug',e.target.value.trim()?e.target.value.toLowerCase():null)} /></label>
+            <label>כותרת לדוגמה<input value={marketing.demoBusinessTitle} maxLength={100} onChange={e=>updateMarketing('demoBusinessTitle',e.target.value)} /></label>
+            <label>תיאור קצר<textarea rows={2} maxLength={300} value={marketing.demoBusinessDescription} onChange={e=>updateMarketing('demoBusinessDescription',e.target.value)} /></label>
           </div>
           <div className="bac-announcement-fields">
             <label className="bac-check"><input type="checkbox" checked={marketing.announcementEnabled} onChange={e=>updateMarketing('announcementEnabled',e.target.checked)} /> הצגת הודעה מתחלפת/עדכון בעמוד</label>
