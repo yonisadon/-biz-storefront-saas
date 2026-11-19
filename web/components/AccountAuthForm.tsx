@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 type Mode = 'register' | 'login';
@@ -28,6 +29,8 @@ function PasswordField({ id, label, value, onChange, autoComplete, minLength = 1
 
 export default function AccountAuthForm({ mode }: { mode: Mode }) {
   const isRegister = mode === 'register';
+  const pathname = usePathname();
+  const legalReturnTo = encodeURIComponent(pathname || (isRegister ? '/register' : '/login'));
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -129,7 +132,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
             <div className="space-y-3 rounded-xl border border-slate-200 p-3 text-sm">
               <label className="flex items-start gap-2">
                 <input type="checkbox" required checked={legalAccepted} onChange={e=>setLegalAccepted(e.target.checked)} className="mt-1 h-4 w-4" />
-                <span>קראתי ואני מאשר/ת את <Link href="/platform-legal#terms_of_use" target="_blank" className="font-semibold text-blue-700 underline">תנאי השימוש</Link> ואת <Link href="/platform-legal#privacy_policy" target="_blank" className="font-semibold text-blue-700 underline">מדיניות הפרטיות</Link> של BTime.</span>
+                <span>קראתי ואני מאשר/ת את <Link href={`/platform-legal?returnTo=${legalReturnTo}#terms_of_use`} target="_blank" className="font-semibold text-blue-700 underline">תנאי השימוש</Link> ואת <Link href={`/platform-legal?returnTo=${legalReturnTo}#privacy_policy`} target="_blank" className="font-semibold text-blue-700 underline">מדיניות הפרטיות</Link> של BTime.</span>
               </label>
               <div className="border-t border-slate-200 pt-3">
                 <p className="mb-2 font-semibold">עדכונים והצעות שיווקיות (רשות)</p>
