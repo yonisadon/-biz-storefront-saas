@@ -105,7 +105,7 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
   // replaces the need for a frequent polling Cron while keeping the outbox durable.
   app.post('/google-calendar/process-due', async (req) => {
     if (!isGoogleCalendarConfigured()) throw new HttpError(503, 'google_calendar_not_configured');
-    return processGoogleCalendarJobs(req.tenantId, 20);
+    return processGoogleCalendarJobs(req.tenantId, 5);
   });
 
   app.post('/google-calendar/sync', async (req) => {
@@ -251,18 +251,15 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
         );
       });
 
-      // Backfill future appointments immediately after the account is connected.
-      // A transient Google failure is retained in the outbox and must not undo OAuth.
-      try {
-        const syncResult = await processGoogleCalendarJobs(tenantId!, 20);
-        req.log.info({
+      // Start the initial backfill after OAuth is persisted without keeping the
+      // browser callback open while Google API requests run. The outbox is durable.
+      void processGoogleCalendarJobs(tenantId!, 5)
+        .then((syncResult) => req.log.info({
           processed: syncResult.processed,
           failed: syncResult.failed,
           pending: syncResult.pending,
-        }, 'Google Calendar initial sync completed');
-      } catch (syncError) {
-        req.log.warn({ err: syncError }, 'Google Calendar initial sync deferred');
-      }
+        }, 'Google Calendar initial sync completed'))
+        .catch((syncError) => req.log.warn({ err: syncError }, 'Google Calendar initial sync deferred'));
 
       return reply.type('text/html; charset=utf-8')
         .send(callbackPage(true, 'חשבון Google חובר בהצלחה ל-BTime.'));
