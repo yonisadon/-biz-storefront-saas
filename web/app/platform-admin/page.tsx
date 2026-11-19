@@ -6,6 +6,7 @@ import type { FormEvent } from 'react';
 import PalettePicker from '@/components/PalettePicker';
 import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
 import { BRAND_PALETTES, type PaletteId } from '@/lib/palettes';
+import './admin.css';
 
 type CreatedBusiness = {
   id: string;
@@ -344,7 +345,7 @@ export default function PlatformAdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
+    <main className="btime-admin-home min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6">
       <div className="mx-auto max-w-2xl">
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <p className="mb-2 text-sm font-semibold text-blue-700">ניהול פלטפורמה</p>
@@ -368,6 +369,7 @@ export default function PlatformAdminPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><h2 className="text-lg font-bold">לוח בקרה</h2><p className="mt-1 text-sm text-slate-600">ניהול עסקים, מנויים ובקשות מחיקה.</p></div>
             <div className="flex flex-wrap gap-2">
+              <Link href="/platform-admin/content" className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-800">תוכן ותקשורת</Link>
               <Link href="/register" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">הרשמת בעל עסק</Link>
               <button type="button" onClick={loadAdminData} disabled={adminLoading} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{adminLoading ? 'טוען…' : 'טעינת נתוני מערכת'}</button>
             </div>
