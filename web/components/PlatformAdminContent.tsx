@@ -11,6 +11,7 @@ type MarketingContent = {
   announcementEnabled: boolean;
   announcementTitle: string;
   announcementBody: string;
+  announcements: Array<{ title: string; body: string }>;
   heroImageUrl: string | null;
   screenshotUrls: string[];
   demoBusinessEnabled: boolean;
@@ -35,13 +36,23 @@ const DEFAULT_MARKETING: MarketingContent = {
   heroEyebrow: 'העסק שלך. פשוט יותר.',
   heroTitle: 'כל מה שהעסק שלך צריך כדי להיות נוכח ולהתנהל.',
   heroDescription: 'אתר עסקי שאפשר לשתף עם לקוחות, יחד עם כלים נוחים להצגת מוצרים ושירותים, לקבלת פניות ולניהול תורים — בלי להסתבך עם בניית אתר.',
-  announcementEnabled: false, announcementTitle: '', announcementBody: '', heroImageUrl: null, screenshotUrls: [],
+  announcementEnabled: false, announcementTitle: '', announcementBody: '', announcements: [], heroImageUrl: null, screenshotUrls: [],
   demoBusinessEnabled: false, demoBusinessSlug: null, demoBusinessTitle: '', demoBusinessDescription: '',
 };
 const DEFAULT_OWNER: OwnerContent = {
   welcomeTitle: 'ברוכים הבאים לאזור האישי של BTime',
   welcomeMessage: 'מכאן אפשר להיכנס לניהול העסק, לעדכן פרטים ולעקוב אחר מצב החשבון והמנוי.',
 };
+
+function normalizeMarketingContent(value: Partial<MarketingContent> | null | undefined): MarketingContent {
+  const merged = { ...DEFAULT_MARKETING, ...(value ?? {}) };
+  if (!Array.isArray(value?.announcements)) {
+    merged.announcements = merged.announcementEnabled && merged.announcementBody
+      ? [{ title: merged.announcementTitle, body: merged.announcementBody }]
+      : [];
+  }
+  return merged;
+}
 
 function dateTimeLabel(value: string | null) {
   if (!value) return '—';
@@ -106,7 +117,7 @@ export default function PlatformAdminContent() {
       if (!marketingResponse.ok || !ownerResponse.ok || !businessResponse.ok || !historyResponse.ok) {
         throw new Error(errorMessage(marketingData ?? ownerData ?? historyData, 'לא ניתן לטעון את נתוני התוכן והתקשורת.'));
       }
-      setMarketing({ ...DEFAULT_MARKETING, ...(marketingData?.content ?? {}) });
+      setMarketing(normalizeMarketingContent(marketingData?.content));
       setOwner({ ...DEFAULT_OWNER, ...(ownerData?.content ?? {}) });
       setBusinesses((businessData?.businesses ?? []) as Business[]);
       setHistory((historyData?.messages ?? []) as Message[]);
@@ -180,11 +191,11 @@ export default function PlatformAdminContent() {
     try {
       const response = await fetch('/api/admin/platform-content/marketing_page', {
         method: 'PUT', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(marketing), cache: 'no-store',
+        body: JSON.stringify({ ...marketing, announcementTitle: marketing.announcements[0]?.title ?? '', announcementBody: marketing.announcements[0]?.body ?? '', announcementEnabled: marketing.announcementEnabled && marketing.announcements.length > 0 }), cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(errorMessage(data, 'שמירת העמוד השיווקי נכשלה.'));
-      setMarketing({ ...DEFAULT_MARKETING, ...data.content });
+      setMarketing(normalizeMarketingContent(data.content));
       setMessage('תוכן העמוד השיווקי נשמר.');
     } catch (err) { setError(err instanceof Error ? err.message : 'השמירה נכשלה.'); }
     finally { setSaving(false); }
@@ -268,9 +279,14 @@ export default function PlatformAdminContent() {
             <label>תיאור קצר<textarea rows={2} maxLength={300} value={marketing.demoBusinessDescription} onChange={e=>updateMarketing('demoBusinessDescription',e.target.value)} /></label>
           </div>
           <div className="bac-announcement-fields">
-            <label className="bac-check"><input type="checkbox" checked={marketing.announcementEnabled} onChange={e=>updateMarketing('announcementEnabled',e.target.checked)} /> הצגת הודעה מתחלפת/עדכון בעמוד</label>
-            <label>כותרת ההודעה<input value={marketing.announcementTitle} maxLength={100} onChange={e=>updateMarketing('announcementTitle',e.target.value)} /></label>
-            <label>תוכן ההודעה<textarea rows={2} maxLength={500} value={marketing.announcementBody} onChange={e=>updateMarketing('announcementBody',e.target.value)} /></label>
+            <label className="bac-check"><input type="checkbox" checked={marketing.announcementEnabled} onChange={e=>updateMarketing('announcementEnabled',e.target.checked)} /> הצגת עדכונים בעמוד השיווקי</label>
+            <p className="bac-announcement-help">אפשר להגדיר עד 5 הודעות. כשההצגה מופעלת, הן מתחלפות אוטומטית כל כמה שניות. המבקר יכול לעבור ביניהן גם ידנית.</p>
+            {marketing.announcements.map((item,index)=><div className="bac-announcement-item" key={index}>
+              <label>כותרת עדכון {index+1}<input value={item.title} maxLength={100} onChange={e=>updateMarketing('announcements',marketing.announcements.map((current,i)=>i===index?{...current,title:e.target.value}:current))} /></label>
+              <label>תוכן עדכון {index+1}<textarea rows={2} maxLength={500} value={item.body} onChange={e=>updateMarketing('announcements',marketing.announcements.map((current,i)=>i===index?{...current,body:e.target.value}:current))} /></label>
+              <button type="button" className="bac-remove-announcement" onClick={()=>updateMarketing('announcements',marketing.announcements.filter((_,i)=>i!==index))}>הסרת העדכון</button>
+            </div>)}
+            {marketing.announcements.length<5&&<button type="button" className="bac-add-announcement" onClick={()=>updateMarketing('announcements',[...marketing.announcements,{title:'',body:''}])}>+ הוספת עדכון ({marketing.announcements.length}/5)</button>}
           </div>
           <button type="submit" disabled={saving} className="bac-primary">{saving?'שומר…':'שמירת העמוד השיווקי'}</button>
         </form>
