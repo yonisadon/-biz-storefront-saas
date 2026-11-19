@@ -11,6 +11,7 @@ const ledgerTable = 'public.platform_registry_schema_migrations';
 const migrations = [
   'migrations/000_tenant_registry.sql',
   'migrations/001_platform_accounts_subscriptions.sql',
+  'migrations/002_platform_content_and_messages.sql',
 ];
 
 if (!adminConnectionString || !registryConnectionString) {

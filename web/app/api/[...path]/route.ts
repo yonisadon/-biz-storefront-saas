@@ -42,7 +42,7 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   } catch (error) {
     console.error('BTime API proxy upstream request failed', {
       method: req.method,
-      path: path.join('/'),
+      path: path[0] === 'webhooks' && path[1] === 'brevo' ? 'webhooks/brevo/[redacted]' : path.join('/'),
       error: error instanceof Error ? error.message : 'unknown_error',
     });
     return Response.json({ error: 'upstream_unavailable', message: 'השירות אינו זמין כרגע. אפשר לנסות שוב בעוד רגע.' }, { status: 503 });

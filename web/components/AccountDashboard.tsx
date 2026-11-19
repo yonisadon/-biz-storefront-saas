@@ -3,12 +3,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 
+type PlatformNotification = { id: string; title: string; body: string; created_at: string; in_app_read_at: string | null };
+type OwnerDashboardContent = { welcomeTitle?: string; welcomeMessage?: string };
+
 type AccountUser = {
   id: string;
   role: string;
   email: string;
   phone: string;
   email_verified_at: string;
+  created_at: string;
   business_id: string | null;
   business_name: string | null;
   business_slug: string | null;
@@ -25,8 +29,17 @@ function dateLabel(value: string | null): string {
   return Number.isNaN(date.getTime()) ? 'לא ידוע' : date.toLocaleDateString('he-IL');
 }
 
+function remainingDays(value: string | null): number | null {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / 86_400_000));
+}
+
 export default function AccountDashboard() {
   const [user,setUser]=useState<AccountUser|null>(null);
+  const [notifications,setNotifications]=useState<PlatformNotification[]>([]);
+  const [dashboardContent,setDashboardContent]=useState<OwnerDashboardContent|null>(null);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
@@ -41,6 +54,8 @@ export default function AccountDashboard() {
 
   function clearAccountState() {
     setUser(null);
+    setNotifications([]);
+    setDashboardContent(null);
     setConsentsLoaded(false);
     setMarketingEmail(false);
     setMarketingSms(false);
@@ -58,6 +73,16 @@ export default function AccountDashboard() {
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
     if (data.user.role === 'super_admin') { clearAccountState();window.location.replace('/platform-admin'); return; }
     setUser(data.user as AccountUser);
+    const notificationResponse=await fetch('/api/auth/notifications',{cache:'no-store',credentials:'same-origin'}).catch(()=>null);
+    if(notificationResponse?.ok){
+      const notificationData=await notificationResponse.json().catch(()=>null);
+      setNotifications((notificationData?.notifications??[]) as PlatformNotification[]);
+    }
+    const dashboardResponse=await fetch('/api/auth/platform-content',{cache:'no-store',credentials:'same-origin'}).catch(()=>null);
+    if(dashboardResponse?.ok){
+      const dashboardData=await dashboardResponse.json().catch(()=>null);
+      setDashboardContent(dashboardData?.content??null);
+    }
     const consentResponse=await fetch('/api/auth/consents',{cache:'no-store',credentials:'same-origin'});
     const consentData=await consentResponse.json().catch(()=>null);
     if(consentResponse.ok){setMarketingEmail(consentData.marketingEmail===true);setMarketingSms(consentData.marketingSms===true);setConsentsLoaded(true);}
@@ -155,6 +180,14 @@ export default function AccountDashboard() {
     finally{setSaving(false);}
   }
 
+  async function markNotificationRead(id:string){
+    try{
+      const response=await fetch('/api/auth/notifications/'+id+'/read',{method:'POST',cache:'no-store',credentials:'same-origin'});
+      if(!response.ok)return;
+      setNotifications(current=>current.map(item=>item.id===id?{...item,in_app_read_at:new Date().toISOString()}:item));
+    }catch{}
+  }
+
   async function saveConsents(){
     setSaving(true);setError('');setMessage('');
     try{
@@ -180,6 +213,8 @@ export default function AccountDashboard() {
 
   const trialExpired=Boolean(user?.subscription_status==='trialing'&&user.trial_ends_at&&new Date(user.trial_ends_at).getTime()<=Date.now());
   const canManage=Boolean(user?.business_id&&!trialExpired&&user?.subscription_status!=='canceled'&&user?.subscription_status!=='suspended'&&user?.business_status==='active');
+  const subscriptionEnd = user?.subscription_status === 'trialing' ? user.trial_ends_at : user?.subscription_status === 'active' ? user.current_period_ends_at : null;
+  const subscriptionDaysRemaining = remainingDays(subscriptionEnd);
 
   return <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:py-12">
     <div className="mx-auto max-w-2xl">
@@ -189,6 +224,28 @@ export default function AccountDashboard() {
       </header>
       {error&&<p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {message&&<p role="status" className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
+      {dashboardContent&&(dashboardContent.welcomeTitle||dashboardContent.welcomeMessage)&&<section className="mb-5 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
+        {dashboardContent.welcomeTitle&&<h2 className="font-bold">{dashboardContent.welcomeTitle}</h2>}
+        {dashboardContent.welcomeMessage&&<p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">{dashboardContent.welcomeMessage}</p>}
+      </section>}
+      {notifications.length>0&&<section aria-labelledby="platform-notifications-title" className="mb-5 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="platform-notifications-title" className="font-bold">עדכונים מ-BTime</h2>
+          <span className="text-xs text-slate-500">{notifications.filter(item=>!item.in_app_read_at).length} הודעות שלא נקראו</span>
+        </div>
+        <div className="mt-3 divide-y divide-slate-100">
+          {notifications.map(item=><article key={item.id} className="py-3 first:pt-0 last:pb-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-slate-800">{item.title}</h3>
+                <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{item.body}</p>
+                <p className="mt-2 text-xs text-slate-400">{dateLabel(item.created_at)}</p>
+              </div>
+              {!item.in_app_read_at&&<button type="button" onClick={()=>markNotificationRead(item.id)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">סימון כנקרא</button>}
+            </div>
+          </article>)}
+        </div>
+      </section>}
       {user&&<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-lg font-bold">פרטי החשבון</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
@@ -237,6 +294,8 @@ export default function AccountDashboard() {
         </div>
         <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-slate-500">סטטוס מנוי</dt><dd className="mt-1 font-semibold">{user.subscription_status==='trialing'?'תקופת ניסיון':user.subscription_status==='active'?'מנוי פעיל':user.subscription_status==='canceled'?'בוטל':user.subscription_status??'לא הוגדר'}</dd></div>
+          <div><dt className="text-slate-500">תאריך הצטרפות</dt><dd className="mt-1 font-semibold">{dateLabel(user.created_at)}</dd></div>
+          <div><dt className="text-slate-500">{user.subscription_status==='trialing'?'ימים שנותרו בתקופת הניסיון':'ימים עד תום התקופה'}</dt><dd className="mt-1 font-semibold">{subscriptionDaysRemaining===null?(user.subscription_status==='active'?'ללא תאריך סיום מוגדר':'לא רלוונטי'):subscriptionDaysRemaining===0?'התקופה הסתיימה':String(subscriptionDaysRemaining)+' ימים'}</dd></div>
           <div><dt className="text-slate-500">סיום תקופת ניסיון</dt><dd className="mt-1 font-semibold">{dateLabel(user.trial_ends_at)}</dd></div>
           {user.current_period_ends_at&&<div><dt className="text-slate-500">תום תקופת המנוי</dt><dd className="mt-1 font-semibold">{dateLabel(user.current_period_ends_at)}</dd></div>}
           <div><dt className="text-slate-500">בקשת מחיקה</dt><dd className="mt-1 font-semibold">{user.deletion_request_status==='pending'?'ממתינה לאישור':user.deletion_request_status??'אין בקשה פתוחה'}</dd></div>

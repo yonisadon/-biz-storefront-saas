@@ -6,6 +6,7 @@ import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeInternationalPhone } from '../util';
 import { createManagementToken, provisionBusinessForOwner } from '../provisioning';
+import { sendBrevoEmail } from '../email';
 
 const SESSION_COOKIE = 'btime_session';
 const SESSION_DAYS = 14;
@@ -132,27 +133,8 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
 }
 
 async function sendEmail(to: string, subject: string, html: string, textContent: string): Promise<void> {
-  if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
-    throw new HttpError(503, 'email_service_not_configured');
-  }
-  const match = env.EMAIL_FROM.match(/^(?:(.*?)\s*)?<([^<>]+)>$/);
-  const senderEmail = match?.[2] ?? env.EMAIL_FROM;
-  const senderName = match?.[1]?.trim() || 'BTime';
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-      textContent,
-    }),
-  });
-  if (!response.ok) {
-    console.error('Transactional email delivery failed', { status: response.status });
-    throw new HttpError(503, 'email_delivery_failed');
-  }
+  if (!env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
+  await sendBrevoEmail({ to, subject, html, textContent });
 }
 
 async function issueEmailToken(userId: string, purpose: 'verify_email' | 'reset_password'): Promise<string> {
@@ -516,6 +498,50 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       request,
       message: 'בקשת המחיקה נשלחה וממתינה לאישור מנהל. העסק והנתונים לא יימחקו עד לאישור מפורש.',
     });
+  });
+
+
+  app.get('/notifications', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const result = await registry().query(
+      `SELECT r.id, m.title, m.body, m.created_at, r.in_app_read_at
+         FROM public.platform_message_recipients r
+         JOIN public.platform_messages m ON m.id = r.message_id
+        WHERE r.user_id = $1 AND m.channel IN ('in_app', 'both')
+        ORDER BY m.created_at DESC
+        LIMIT 30`,
+      [user.id],
+    );
+    return { notifications: result.rows };
+  });
+
+  app.post('/notifications/:id/read', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const id = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'notification_not_found');
+    const result = await registry().query(
+      `UPDATE public.platform_message_recipients r
+          SET in_app_read_at = COALESCE(in_app_read_at, now())
+         FROM public.platform_messages m
+        WHERE r.id = $1 AND r.user_id = $2 AND m.id = r.message_id
+          AND m.channel IN ('in_app', 'both')
+        RETURNING r.id, r.in_app_read_at`,
+      [id, user.id],
+    );
+    if (!result.rowCount) throw new HttpError(404, 'notification_not_found');
+    return { id: result.rows[0].id, read_at: result.rows[0].in_app_read_at };
+  });
+
+
+  app.get('/platform-content', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const result = await registry().query(
+      "SELECT content FROM public.platform_content WHERE content_key = 'owner_dashboard' LIMIT 1",
+    );
+    return { content: result.rows[0]?.content ?? null };
   });
 
 };

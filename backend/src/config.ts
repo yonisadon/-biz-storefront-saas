@@ -13,6 +13,7 @@ const Env = z.object({
   PUBLIC_BASE_URL: z.string().url().optional(),
   BREVO_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(3).optional(),
+  BREVO_WEBHOOK_TOKEN: z.string().min(32).optional(),
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),

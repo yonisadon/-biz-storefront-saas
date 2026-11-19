@@ -12,9 +12,13 @@ import { mediaRoutes } from './routes/media';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
+import { platformContentRoutes } from './routes/platformContent';
+import { brevoWebhookRoutes } from './routes/brevoWebhook';
 
 // Management tokens are secrets: keep them out of logs
-const redactUrl = (url: string) => url.replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]');
+const redactUrl = (url: string) => url
+  .replace(/(\/api\/manage\/)[^/?#]+/, '$1[redacted]')
+  .replace(/(\/api\/webhooks\/brevo\/)[^/?#]+/, '$1[redacted]');
 
 const CONSTRAINT_MESSAGES: Record<string, string> = {
   chk_whatsapp_route_needs_number: 'WhatsApp route cannot be enabled without a WhatsApp number',
@@ -78,6 +82,8 @@ export async function buildServer() {
   await app.register(adminRoutes, { prefix: '/api/admin' });
   await app.register(authRoutes, { prefix: '/api/auth' });
   await app.register(googleCalendarCallbackRoutes, { prefix: '/api/google-calendar' });
+  await app.register(platformContentRoutes, { prefix: '/api/platform-content' });
+  await app.register(brevoWebhookRoutes, { prefix: '/api/webhooks/brevo' });
 
 
 
