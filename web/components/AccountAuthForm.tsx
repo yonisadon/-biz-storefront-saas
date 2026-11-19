@@ -67,7 +67,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן להשלים את הפעולה כרגע.');
       }
       if (isRegister) {
-        setMessage('הבקשה התקבלה. אם ניתן לפתוח חשבון עם כתובת המייל הזו, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בספאם.');
+        setMessage('פרטי ההרשמה התקבלו. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.');
         setPassword('');
         setConfirmPassword('');
       } else {
@@ -93,7 +93,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error('לא ניתן לשלוח קישור חדש כרגע.');
-      setMessage(data?.message ?? 'אם קיים חשבון שממתין לאימות, יישלח אליו קישור חדש.');
+      setMessage(data?.message ?? 'אם קיים חשבון שעדיין ממתין לאימות, נשלח אליו קישור חדש. כדאי לבדוק גם בתיקיית הספאם.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה.');
     } finally {
