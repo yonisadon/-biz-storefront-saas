@@ -48,15 +48,15 @@ export const brevoWebhookRoutes: FastifyPluginAsync = async (app) => {
     if (eventName === 'delivered') {
       result = await pool().query(
         `UPDATE public.platform_message_recipients
-            SET email_delivered_at = COALESCE(email_delivered_at, now()), email_error = NULL
+            SET email_status = 'accepted', email_delivered_at = COALESCE(email_delivered_at, now()), email_error = NULL
           WHERE email_provider_message_id = $1`,
         [providerMessageId],
       );
     } else if (eventName === 'opened') {
       result = await pool().query(
         `UPDATE public.platform_message_recipients
-            SET email_delivered_at = COALESCE(email_delivered_at, now()),
-                email_opened_at = COALESCE(email_opened_at, now())
+            SET email_status = 'accepted', email_delivered_at = COALESCE(email_delivered_at, now()),
+                email_opened_at = COALESCE(email_opened_at, now()), email_error = NULL
           WHERE email_provider_message_id = $1`,
         [providerMessageId],
       );
