@@ -13,6 +13,7 @@ import { applyTenantMigrations } from '../tenantMigrations';
 import { ensureCrmRetentionPolicy } from '../crmRetention';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
+import { sendBrevoEmail } from '../email';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -109,29 +110,14 @@ const SendPlatformMessageInput = z.object({
 }).strict();
 
 async function sendPlatformEmail(to: string, subject: string, body: string): Promise<{ messageId: string | null }> {
-  if (!env.BREVO_API_KEY || !env.EMAIL_FROM) throw new HttpError(503, 'email_service_not_configured');
-  const match = env.EMAIL_FROM.match(/^(?:(.*?)\s*)?<([^<>]+)>$/);
-  const senderEmail = match?.[2] ?? env.EMAIL_FROM;
-  const senderName = match?.[1]?.trim() || 'BTime';
-  const safeBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  const html = `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8;white-space:pre-line"><h2>${subject.replace(/[&<>]/g, '')}</h2><p>${safeBody.replace(/\n/g, '<br>')}</p><p style="color:#777;font-size:12px">הודעה זו נשלחה ממערכת BTime.</p></body></html>`;
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-      textContent: body,
-    }),
-  });
-  if (!response.ok) {
-    console.error('BTime platform email was not accepted by provider', { status: response.status });
-    throw new Error(`brevo_http_${response.status}`);
-  }
-  const result = await response.json().catch(() => null) as { messageId?: string } | null;
-  return { messageId: result?.messageId ?? null };
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const html = `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8;white-space:pre-line"><h2>${escapeHtml(subject)}</h2><p>${escapeHtml(body).replace(/\n/g, '<br>')}</p><p style="color:#777;font-size:12px">הודעה זו נשלחה ממערכת BTime.</p></body></html>`;
+  return sendBrevoEmail({ to, subject, html, textContent: body });
 }
 
 function requireDomain(input: string): string {
