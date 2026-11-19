@@ -1085,7 +1085,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
           `SELECT u.id AS user_id, bo.tenant_id, u.email,
                   COALESCE(consent.granted, false) AS marketing_email
              FROM public.platform_users u
-             LEFT JOIN public.platform_business_owners bo ON bo.user_id = u.id
+             JOIN public.platform_business_owners bo ON bo.user_id = u.id
              LEFT JOIN LATERAL (
                SELECT granted FROM public.platform_user_consents
                 WHERE user_id = u.id AND consent_type = 'marketing_email'
