@@ -72,7 +72,14 @@ const PlatformMarketingContentInput = z.object({
   announcementBody: z.string().trim().max(500),
   heroImageUrl: z.string().url().max(2000).nullable(),
   screenshotUrls: z.array(z.string().url().max(2000)).max(4),
-}).strict();
+  demoBusinessEnabled: z.boolean(),
+  demoBusinessSlug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/).nullable(),
+  demoBusinessTitle: z.string().trim().max(100),
+  demoBusinessDescription: z.string().trim().max(300),
+}).strict().refine(value => !value.demoBusinessEnabled || Boolean(value.demoBusinessSlug), {
+  path: ['demoBusinessSlug'],
+  message: 'A published demo business requires a verified business slug.',
+});
 
 const OwnerDashboardContentInput = z.object({
   welcomeTitle: z.string().trim().max(120),
