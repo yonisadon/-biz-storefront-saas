@@ -107,7 +107,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         <Link href="/" className="text-sm font-semibold text-blue-700">BTime</Link>
         <h1 className="mt-3 text-2xl font-bold">{isRegister ? 'פתיחת חשבון לעסק' : 'התחברות לחשבון'}</h1>
         <p className="mt-1.5 text-sm leading-6 text-slate-600">
-          {isRegister ? 'אתר עסקי מקצועי עם קישור ללקוחות וממשק פשוט לניהול שירותים, מוצרים, פניות ותורים. מתחילים ב-30 ימי ניסיון ללא התחייבות.' : 'התחברו לממשק הניהול כדי לעדכן את האתר, לנהל פניות ותורים ולהמשיך להפעיל את העסק.'}
+          {isRegister ? 'פותחים חשבון ומקימים אתר לעסק, עם ניהול פשוט של שירותים, מוצרים ותורים.' : 'התחברו כדי לנהל ולעדכן את העסק שלכם.'}
         </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <div>
