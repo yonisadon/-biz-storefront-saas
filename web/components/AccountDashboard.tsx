@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 
 type PlatformNotification = { id: string; title: string; body: string; created_at: string; in_app_read_at: string | null };
+type OwnerDashboardContent = { welcomeTitle?: string; welcomeMessage?: string };
 
 type AccountUser = {
   id: string;
@@ -38,6 +39,7 @@ function remainingDays(value: string | null): number | null {
 export default function AccountDashboard() {
   const [user,setUser]=useState<AccountUser|null>(null);
   const [notifications,setNotifications]=useState<PlatformNotification[]>([]);
+  const [dashboardContent,setDashboardContent]=useState<OwnerDashboardContent|null>(null);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
@@ -53,6 +55,7 @@ export default function AccountDashboard() {
   function clearAccountState() {
     setUser(null);
     setNotifications([]);
+    setDashboardContent(null);
     setConsentsLoaded(false);
     setMarketingEmail(false);
     setMarketingSms(false);
@@ -74,6 +77,11 @@ export default function AccountDashboard() {
     if(notificationResponse?.ok){
       const notificationData=await notificationResponse.json().catch(()=>null);
       setNotifications((notificationData?.notifications??[]) as PlatformNotification[]);
+    }
+    const dashboardResponse=await fetch('/api/auth/platform-content',{cache:'no-store',credentials:'same-origin'}).catch(()=>null);
+    if(dashboardResponse?.ok){
+      const dashboardData=await dashboardResponse.json().catch(()=>null);
+      setDashboardContent(dashboardData?.content??null);
     }
     const consentResponse=await fetch('/api/auth/consents',{cache:'no-store',credentials:'same-origin'});
     const consentData=await consentResponse.json().catch(()=>null);
@@ -216,6 +224,10 @@ export default function AccountDashboard() {
       </header>
       {error&&<p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {message&&<p role="status" className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
+      {dashboardContent&&(dashboardContent.welcomeTitle||dashboardContent.welcomeMessage)&&<section className="mb-5 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
+        {dashboardContent.welcomeTitle&&<h2 className="font-bold">{dashboardContent.welcomeTitle}</h2>}
+        {dashboardContent.welcomeMessage&&<p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-600">{dashboardContent.welcomeMessage}</p>}
+      </section>}
       {notifications.length>0&&<section aria-labelledby="platform-notifications-title" className="mb-5 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="platform-notifications-title" className="font-bold">עדכונים מ-BTime</h2>
