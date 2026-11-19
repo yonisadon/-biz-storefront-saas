@@ -1006,7 +1006,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post('/platform-media', async (req, reply) => {
+  app.post('/platform-media', { bodyLimit: 9 * 1024 * 1024 }, async (req, reply) => {
     const file = await req.file();
     if (!file) throw new HttpError(400, 'image_required');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
