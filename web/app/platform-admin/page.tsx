@@ -57,10 +57,7 @@ export default function PlatformAdminPage() {
   useEffect(() => {
     let cancelled = false;
     let verifying = false;
-    async function verifyPlatformAdmin() {
-      if (verifying || cancelled) return;
-      verifying = true;
-      setAccessState('checking');
+    const clearProtectedState = () => {
       setBusinesses([]);
       setOverview(null);
       setDeletionRequests([]);
@@ -81,38 +78,48 @@ export default function PlatformAdminPage() {
       setError('');
       setAdminMessage('');
       setBusinessesMessage('');
+    };
+    async function verifyPlatformAdmin() {
+      if (verifying || cancelled) return;
+      verifying = true;
+      setAccessState('checking');
       try {
         const response = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin', headers: { 'Cache-Control': 'no-cache' } });
         if (!response.ok) {
+          clearProtectedState();
           if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
           return;
         }
         const data = await response.json().catch(() => null);
         if (data?.user?.role !== 'super_admin') {
+          clearProtectedState();
           if (!cancelled) window.location.replace('/account');
           return;
         }
         if (!cancelled) setAccessState('allowed');
       } catch {
+        clearProtectedState();
         if (!cancelled) window.location.replace('/login?next=%2Fplatform-admin');
       } finally {
         verifying = false;
       }
     }
+    const endSession = () => {
+      setAccessState('checking');
+      clearProtectedState();
+      window.location.replace('/login');
+    };
     const handlePageShow = () => { void verifyPlatformAdmin(); };
-    const handleVisibility = () => { if (document.visibilityState === 'visible') void verifyPlatformAdmin(); };
-    const handleStorage = (event: StorageEvent) => { if (event.key === 'btime-session-ended') window.location.replace('/login'); };
+    const handleStorage = (event: StorageEvent) => { if (event.key === 'btime-session-ended') endSession(); };
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('btime-auth') : null;
-    const handleBroadcast = (event: MessageEvent) => { if (event.data === 'session-ended') window.location.replace('/login'); };
+    const handleBroadcast = (event: MessageEvent) => { if (event.data === 'session-ended') endSession(); };
     window.addEventListener('pageshow', handlePageShow);
-    document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('storage', handleStorage);
     channel?.addEventListener('message', handleBroadcast);
     void verifyPlatformAdmin();
     return () => {
       cancelled = true;
       window.removeEventListener('pageshow', handlePageShow);
-      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('storage', handleStorage);
       channel?.removeEventListener('message', handleBroadcast);
       channel?.close();
