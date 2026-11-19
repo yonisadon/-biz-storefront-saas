@@ -9,6 +9,7 @@ type AccountUser = {
   email: string;
   phone: string;
   email_verified_at: string;
+  created_at: string;
   business_id: string | null;
   business_name: string | null;
   business_slug: string | null;
@@ -23,6 +24,13 @@ function dateLabel(value: string | null): string {
   if (!value) return 'לא הוגדר';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'לא ידוע' : date.toLocaleDateString('he-IL');
+}
+
+function remainingDays(value: string | null): number | null {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  return Math.max(0, Math.ceil((timestamp - Date.now()) / 86_400_000));
 }
 
 export default function AccountDashboard() {
@@ -180,6 +188,8 @@ export default function AccountDashboard() {
 
   const trialExpired=Boolean(user?.subscription_status==='trialing'&&user.trial_ends_at&&new Date(user.trial_ends_at).getTime()<=Date.now());
   const canManage=Boolean(user?.business_id&&!trialExpired&&user?.subscription_status!=='canceled'&&user?.subscription_status!=='suspended'&&user?.business_status==='active');
+  const subscriptionEnd = user?.subscription_status === 'trialing' ? user.trial_ends_at : user?.subscription_status === 'active' ? user.current_period_ends_at : null;
+  const subscriptionDaysRemaining = remainingDays(subscriptionEnd);
 
   return <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:py-12">
     <div className="mx-auto max-w-2xl">
@@ -237,6 +247,8 @@ export default function AccountDashboard() {
         </div>
         <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-slate-500">סטטוס מנוי</dt><dd className="mt-1 font-semibold">{user.subscription_status==='trialing'?'תקופת ניסיון':user.subscription_status==='active'?'מנוי פעיל':user.subscription_status==='canceled'?'בוטל':user.subscription_status??'לא הוגדר'}</dd></div>
+          <div><dt className="text-slate-500">תאריך הצטרפות</dt><dd className="mt-1 font-semibold">{dateLabel(user.created_at)}</dd></div>
+          <div><dt className="text-slate-500">{user.subscription_status==='trialing'?'ימים שנותרו בתקופת הניסיון':'ימים עד תום התקופה'}</dt><dd className="mt-1 font-semibold">{subscriptionDaysRemaining===null?(user.subscription_status==='active'?'ללא תאריך סיום מוגדר':'לא רלוונטי'):subscriptionDaysRemaining===0?'התקופה הסתיימה':String(subscriptionDaysRemaining)+' ימים'}</dd></div>
           <div><dt className="text-slate-500">סיום תקופת ניסיון</dt><dd className="mt-1 font-semibold">{dateLabel(user.trial_ends_at)}</dd></div>
           {user.current_period_ends_at&&<div><dt className="text-slate-500">תום תקופת המנוי</dt><dd className="mt-1 font-semibold">{dateLabel(user.current_period_ends_at)}</dd></div>}
           <div><dt className="text-slate-500">בקשת מחיקה</dt><dd className="mt-1 font-semibold">{user.deletion_request_status==='pending'?'ממתינה לאישור':user.deletion_request_status??'אין בקשה פתוחה'}</dd></div>
