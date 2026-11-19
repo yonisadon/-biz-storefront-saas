@@ -1043,6 +1043,8 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                 count(r.id) FILTER (WHERE r.email_status = 'accepted')::int AS email_accepted_count,
                 count(r.id) FILTER (WHERE r.email_status = 'failed')::int AS email_failed_count,
                 count(r.id) FILTER (WHERE r.email_status = 'skipped_consent')::int AS email_skipped_count,
+                count(r.id) FILTER (WHERE r.email_delivered_at IS NOT NULL)::int AS email_delivered_count,
+                count(r.id) FILTER (WHERE r.email_opened_at IS NOT NULL)::int AS email_opened_count,
                 count(r.id) FILTER (WHERE r.in_app_read_at IS NOT NULL)::int AS in_app_read_count
            FROM public.platform_messages m
            LEFT JOIN public.platform_message_recipients r ON r.message_id = m.id
@@ -1148,7 +1150,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         [messageId],
       );
       const summary = counts.rows[0];
-      const status = summary.failed > 0 ? (summary.accepted > 0 ? 'partial' : 'failed') : 'accepted';
+      const status = input.channel === 'in_app' ? 'sent' : summary.failed > 0 ? (summary.accepted > 0 ? 'partial' : 'failed') : summary.accepted > 0 ? 'accepted' : input.channel === 'both' ? 'partial' : 'skipped';
       await registry.query(
         'UPDATE public.platform_messages SET status = $2, completed_at = now() WHERE id = $1',
         [messageId, status],
