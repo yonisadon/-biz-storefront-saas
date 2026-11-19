@@ -253,7 +253,7 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
 
       // Start the initial backfill after OAuth is persisted without keeping the
       // browser callback open while Google API requests run. The outbox is durable.
-      void processGoogleCalendarJobs(tenantId!, 5)
+      void processGoogleCalendarJobs(tenantId!, 20)
         .then((syncResult) => req.log.info({
           processed: syncResult.processed,
           failed: syncResult.failed,
