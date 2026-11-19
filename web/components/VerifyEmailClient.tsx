@@ -33,8 +33,8 @@ export default function VerifyEmailClient({ token }: { token: string }) {
     <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-sm">
       <p className="text-sm font-semibold text-blue-700">BTime</p>
       <h1 className="mt-4 text-2xl font-bold">אימות כתובת המייל</h1>
-      {done ? <p className="mt-3 text-sm text-slate-600">האימות הושלם. מעבירים אותך לחשבון…</p> : <>
-        <p className="mt-3 text-sm leading-6 text-slate-600">לחצו על הכפתור כדי לאמת את כתובת המייל ולהמשיך להקמת העסק.</p>
+      {done ? <p className="mt-3 text-sm text-slate-600">כתובת הדוא״ל אומתה בהצלחה. מעבירים אותך לחשבון שלך…</p> : <>
+        <p className="mt-3 text-sm leading-6 text-slate-600">לחצו על הכפתור כדי לאמת את כתובת הדוא״ל. לאחר האימות תוכלו להמשיך לחשבון ולהקים את העסק.</p>
         {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         <button type="button" disabled={loading || !token} onClick={verify}
           className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
