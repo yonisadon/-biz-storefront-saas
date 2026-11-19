@@ -40,18 +40,58 @@ export default function AccountDashboard() {
   const [consentsLoaded,setConsentsLoaded]=useState(false);
 
   async function loadAccount() {
-    const response=await fetch('/api/auth/me',{cache:'no-store'});
-    if(response.status===401){window.location.assign('/login');return;}
+    const response=await fetch('/api/auth/me',{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache'}});
+    if(response.status===401){window.location.replace('/login');return;}
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
-    if (data.user.role === 'super_admin') { window.location.assign('/platform-admin'); return; }
+    if (data.user.role === 'super_admin') { window.location.replace('/platform-admin'); return; }
     setUser(data.user as AccountUser);
-    const consentResponse=await fetch('/api/auth/consents',{cache:'no-store'});
+    const consentResponse=await fetch('/api/auth/consents',{cache:'no-store',credentials:'same-origin'});
     const consentData=await consentResponse.json().catch(()=>null);
     if(consentResponse.ok){setMarketingEmail(consentData.marketingEmail===true);setMarketingSms(consentData.marketingSms===true);setConsentsLoaded(true);}
   }
 
-  useEffect(()=>{loadAccount().catch(err=>setError(err instanceof Error?err.message:'אירעה שגיאה.')).finally(()=>setLoading(false));},[]);
+  useEffect(()=>{
+    let cancelled=false;
+    let loadingRequest=false;
+    const refreshAccount=async()=>{
+      if(loadingRequest||cancelled)return;
+      loadingRequest=true;
+      setLoading(true);
+      setUser(null);
+      setConsentsLoaded(false);
+      setMarketingEmail(false);
+      setMarketingSms(false);
+      setName('');
+      setSlug('');
+      setWhatsapp('');
+      setReason('');
+      setSaving(false);
+      setError('');
+      setMessage('');
+      try{await loadAccount();}
+      catch(err){if(!cancelled)setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+      finally{loadingRequest=false;if(!cancelled)setLoading(false);}
+    };
+    const handlePageShow=()=>{void refreshAccount();};
+    const handleVisibility=()=>{if(document.visibilityState==='visible')void refreshAccount();};
+    const handleStorage=(event:StorageEvent)=>{if(event.key==='btime-session-ended')window.location.replace('/login');};
+    const channel=typeof BroadcastChannel!=='undefined'?new BroadcastChannel('btime-auth'):null;
+    const handleBroadcast=(event:MessageEvent)=>{if(event.data==='session-ended')window.location.replace('/login');};
+    window.addEventListener('pageshow',handlePageShow);
+    document.addEventListener('visibilitychange',handleVisibility);
+    window.addEventListener('storage',handleStorage);
+    channel?.addEventListener('message',handleBroadcast);
+    void refreshAccount();
+    return()=>{
+      cancelled=true;
+      window.removeEventListener('pageshow',handlePageShow);
+      document.removeEventListener('visibilitychange',handleVisibility);
+      window.removeEventListener('storage',handleStorage);
+      channel?.removeEventListener('message',handleBroadcast);
+      channel?.close();
+    };
+  },[]);
 
   async function createBusiness(event:FormEvent<HTMLFormElement>){
     event.preventDefault();setSaving(true);setError('');setMessage('');
@@ -124,8 +164,10 @@ export default function AccountDashboard() {
 
   async function logout(){
     setSaving(true);
-    await fetch('/api/auth/logout',{method:'POST',cache:'no-store'}).catch(()=>{});
-    window.location.assign('/login');
+    await fetch('/api/auth/logout',{method:'POST',cache:'no-store',credentials:'same-origin'}).catch(()=>{});
+    try{window.localStorage.setItem('btime-session-ended',String(Date.now()));}catch{}
+    try{const channel=new BroadcastChannel('btime-auth');channel.postMessage('session-ended');channel.close();}catch{}
+    window.location.replace('/login');
   }
 
   if(loading)return <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">טוען חשבון…</main>;
