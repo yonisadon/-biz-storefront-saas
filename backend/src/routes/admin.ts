@@ -1062,9 +1062,19 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
                 count(r.id) FILTER (WHERE r.email_status = 'skipped_consent')::int AS email_skipped_count,
                 count(r.id) FILTER (WHERE r.email_delivered_at IS NOT NULL)::int AS email_delivered_count,
                 count(r.id) FILTER (WHERE r.email_opened_at IS NOT NULL)::int AS email_opened_count,
-                count(r.id) FILTER (WHERE r.in_app_read_at IS NOT NULL)::int AS in_app_read_count
+                count(r.id) FILTER (WHERE r.in_app_read_at IS NOT NULL)::int AS in_app_read_count,
+                COALESCE(json_agg(json_build_object(
+                  'business_name', b.name,
+                  'email', r.email_address,
+                  'email_status', r.email_status,
+                  'email_error', r.email_error,
+                  'delivered_at', r.email_delivered_at,
+                  'opened_at', r.email_opened_at,
+                  'in_app_read_at', r.in_app_read_at
+                ) ORDER BY r.created_at) FILTER (WHERE r.id IS NOT NULL), '[]'::json) AS recipients
            FROM public.platform_messages m
            LEFT JOIN public.platform_message_recipients r ON r.message_id = m.id
+           LEFT JOIN public.businesses b ON b.id = r.tenant_id
           GROUP BY m.id
           ORDER BY m.created_at DESC
           LIMIT 50`,
