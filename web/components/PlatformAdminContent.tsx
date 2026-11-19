@@ -152,7 +152,7 @@ export default function PlatformAdminContent() {
 
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const recipients = audience === 'all' ? businesses.length : selectedIds.length;
+    const recipients = audience === 'all' ? businesses.filter(item => Boolean(item.owner_email)).length : selectedIds.length;
     if (!recipients) { setError('יש לבחור לפחות עסק אחד.'); return; }
     const channelLabel = channel === 'in_app' ? 'הודעה בתוך המערכת' : channel === 'email' ? 'דוא״ל' : 'הודעה ודוא״ל';
     if (!window.confirm('לשלוח ' + channelLabel + ' לכ-' + recipients + ' עסקים?\n\nהשליחה תירשם בהיסטוריה ולא ניתן לבטל אותה.')) return;
@@ -236,7 +236,7 @@ export default function PlatformAdminContent() {
           <fieldset className="bac-audience"><legend>קהל יעד</legend>
             <label className="bac-check"><input type="radio" name="audience" checked={audience==='all'} onChange={()=>setAudience('all')} /> כל בעלי העסקים ({businesses.length})</label>
             <label className="bac-check"><input type="radio" name="audience" checked={audience==='selected'} onChange={()=>setAudience('selected')} /> בחירת עסקים</label>
-            {audience==='selected'&&<div className="bac-business-picker">{businesses.map(item=><label key={item.id} className="bac-check"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={e=>setSelectedIds(current=>e.target.checked?[...current,item.id]:current.filter(id=>id!==item.id))} /><span>{item.name} <small>/biz/{item.slug}</small></span></label>)}</div>}
+            {audience==='selected'&&<div className="bac-business-picker">{businesses.map(item=><label key={item.id} className="bac-check"><input type="checkbox" disabled={!item.owner_email} checked={selectedIds.includes(item.id)} onChange={e=>setSelectedIds(current=>e.target.checked?[...current,item.id]:current.filter(id=>id!==item.id))} /><span>{item.name} <small>/biz/{item.slug}{item.owner_email ? "" : " · ללא חשבון בעלים משויך"}</small></span></label>)}</div>}
           </fieldset>
           <button type="submit" disabled={saving||!title.trim()||!body.trim()||(audience==='selected'&&!selectedIds.length)} className="bac-primary">{saving?'שולח…':'בדיקה ואישור שליחה'}</button>
         </form>
