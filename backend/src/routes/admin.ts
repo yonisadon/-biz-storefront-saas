@@ -1106,7 +1106,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
              LEFT JOIN LATERAL (
                SELECT granted FROM public.platform_user_consents
                 WHERE user_id = u.id AND consent_type = 'marketing_email'
-                ORDER BY recorded_at DESC LIMIT 1
+                ORDER BY recorded_at DESC, id DESC LIMIT 1
              ) consent ON true
             WHERE u.role = 'owner' AND u.disabled_at IS NULL
               AND ($1::boolean OR bo.tenant_id = ANY($2::uuid[]))
