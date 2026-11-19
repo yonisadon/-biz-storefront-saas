@@ -1,4 +1,4 @@
-import './auth.css';
+import '../auth.css';
 import AccountAuthForm from '@/components/AccountAuthForm';
 
 export default function LoginPage() {
