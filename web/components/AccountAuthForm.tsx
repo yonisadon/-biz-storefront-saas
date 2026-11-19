@@ -64,7 +64,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן להשלים את הפעולה כרגע.');
       }
       if (isRegister) {
-        setMessage(data?.message ?? 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.');
+        setMessage('הבקשה התקבלה. אם ניתן לפתוח חשבון עם כתובת המייל הזו, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בספאם.');
         setPassword('');
         setConfirmPassword('');
       } else {
