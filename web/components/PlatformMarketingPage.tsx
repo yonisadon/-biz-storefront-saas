@@ -33,6 +33,10 @@ type MarketingContent = {
   announcementBody: string;
   heroImageUrl: string | null;
   screenshotUrls: string[];
+  demoBusinessEnabled: boolean;
+  demoBusinessSlug: string | null;
+  demoBusinessTitle: string;
+  demoBusinessDescription: string;
 };
 
 const DEFAULT_MARKETING_CONTENT: MarketingContent = {
@@ -44,6 +48,10 @@ const DEFAULT_MARKETING_CONTENT: MarketingContent = {
   announcementBody: '',
   heroImageUrl: null,
   screenshotUrls: [],
+  demoBusinessEnabled: false,
+  demoBusinessSlug: null,
+  demoBusinessTitle: '',
+  demoBusinessDescription: '',
 };
 
 export default function PlatformMarketingPage() {
@@ -179,6 +187,11 @@ export default function PlatformMarketingPage() {
           ))}
         </div>
       </section>
+
+      {content.demoBusinessEnabled && content.demoBusinessSlug && <section className="bm-live-demo">
+        <div><p className="bm-eyebrow">דוגמה חיה</p><h2>{content.demoBusinessTitle || 'הכירו אתר עסקי שנבנה עם BTime'}</h2><p>{content.demoBusinessDescription}</p></div>
+        <Link href={'/biz/' + content.demoBusinessSlug} target="_blank" rel="noreferrer" className="bm-button">לצפייה באתר לדוגמה <span aria-hidden="true">↗</span></Link>
+      </section>}
 
       {content.screenshotUrls.length > 0 && <section className="bm-screenshots" aria-label="הצצה למערכת BTime">
         <div className="bm-section-heading"><p className="bm-eyebrow">מבט מקרוב</p><h2>כך נראית העבודה עם BTime.</h2></div>
