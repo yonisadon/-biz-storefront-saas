@@ -22,7 +22,7 @@ export default function ForgotPasswordForm() {
     <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
       <p className="text-sm font-semibold text-blue-700">BTime</p>
       <h1 className="mt-4 text-2xl font-bold">איפוס סיסמה</h1>
-      <p className="mt-2 text-sm leading-6 text-slate-600">נשלח קישור חד-פעמי לכתובת המייל המאומתת שלך. הקישור תקף ל-30 דקות.</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">לאחר שליחת הבקשה, יישלח קישור חד-פעמי לכתובת המייל המאומתת המשויכת לחשבון. הקישור יהיה בתוקף למשך 30 דקות.</p>
       <form onSubmit={submit} className="mt-6 space-y-4">
         <div><label htmlFor="reset-email" className="mb-1.5 block text-sm font-semibold">כתובת מייל</label>
           <input id="reset-email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)}

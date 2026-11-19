@@ -207,10 +207,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
         `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי לאמת את כתובת המייל ולהמשיך להקמת העסק, לחצו על הקישור:</p><p><a href="${verifyUrl}">אימות כתובת המייל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
         `ברוכים הבאים ל-BTime\n\nכדי לאמת את כתובת המייל ולהמשיך להקמת העסק, פתחו את הקישור הבא:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
-      return reply.code(202).send({ message: 'נשלח אליך מייל אם פרטי ההרשמה תקינים. יש לבדוק גם בתיקיית הספאם.' });
+      return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.' });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
-        return reply.code(202).send({ message: 'אם ניתן להשלים את ההרשמה, יישלח אליך מייל עם המשך התהליך.' });
+        return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם כתובת המייל זמינה לפתיחת חשבון, יישלח אליה קישור לאימות ולהמשך ההקמה. כדאי לבדוק גם בתיקיית הספאם.' });
       }
       throw error;
     }
@@ -395,7 +395,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         req.log.warn({ err: error }, 'password reset email could not be sent');
       }
     }
-    return reply.code(202).send({ message: 'אם קיימת כתובת מאומתת המתאימה לפרטים, יישלח אליה קישור לאיפוס סיסמה.' });
+    return reply.code(202).send({ message: 'בקשת איפוס הסיסמה התקבלה. אם קיימת כתובת מייל מאומתת המשויכת לחשבון, יישלח אליה קישור חד-פעמי. הקישור יהיה בתוקף למשך 30 דקות. כדאי לבדוק גם בתיקיית הספאם.' });
   });
 
   app.post('/reset-password', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req) => {
