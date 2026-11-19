@@ -96,7 +96,41 @@ export default function PlatformAdminContent() {
     }
   }
 
-  useEffect(() => { void loadData(); }, []);
+  useEffect(() => {
+    const clearProtectedState = () => {
+      setAllowed(false);
+      setMarketing(DEFAULT_MARKETING);
+      setOwner(DEFAULT_OWNER);
+      setBusinesses([]);
+      setHistory([]);
+      setSelectedIds([]);
+      setTitle('');
+      setBody('');
+      setRequestKey('');
+    };
+    const endSession = () => {
+      clearProtectedState();
+      window.location.replace('/login?next=%2Fplatform-admin%2Fcontent');
+    };
+    const handlePageShow = () => { void loadData(); };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'btime-session-ended') endSession();
+    };
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('btime-auth') : null;
+    const handleBroadcast = (event: MessageEvent) => {
+      if (event.data === 'session-ended') endSession();
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('storage', handleStorage);
+    channel?.addEventListener('message', handleBroadcast);
+    void loadData();
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('storage', handleStorage);
+      channel?.removeEventListener('message', handleBroadcast);
+      channel?.close();
+    };
+  }, []);
 
   function updateMarketing<K extends keyof MarketingContent>(key: K, value: MarketingContent[K]) {
     setMarketing(current => ({ ...current, [key]: value }));
