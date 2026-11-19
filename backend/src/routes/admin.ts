@@ -9,6 +9,7 @@ import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { applyTenantMigrations } from '../tenantMigrations';
+import { ensureCrmRetentionPolicy } from '../crmRetention';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 
@@ -272,6 +273,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         [b.id, b.slug, b.name, b.status, b.whatsapp_number, phoneNumber, input.email || null,
          b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
       );
+      await ensureCrmRetentionPolicy(tenantAdmin, tenantId);
 
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.

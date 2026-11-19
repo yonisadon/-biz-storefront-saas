@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import PlatformLegalBackLink from '@/components/PlatformLegalBackLink';
 
 export const metadata: Metadata = {
   title: 'תנאי שימוש, פרטיות ונגישות | BTime',
@@ -38,7 +38,7 @@ const sections = [
 export default function PlatformLegalPage() {
   return <main dir="rtl" className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
     <div className="mx-auto max-w-3xl">
-      <Link href="/login" className="text-sm font-semibold text-blue-700 underline">חזרה ל-BTime</Link>
+      <PlatformLegalBackLink />
       <header className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-blue-700">BTime</p>
         <h1 className="mt-2 text-3xl font-bold">תנאי שימוש, פרטיות ונגישות</h1>

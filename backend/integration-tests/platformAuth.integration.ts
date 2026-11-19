@@ -158,6 +158,19 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
       assert.match(provisioned.database, /^biz_[a-f0-9]{24}$/);
       assert.equal(provisioned.slug, businessSlug);
+      const tenantDatabaseUrl = new URL(databaseUrl);
+      tenantDatabaseUrl.pathname = `/${provisioned.database}`;
+      const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
+      await tenantDb.connect();
+      try {
+        const retentionPolicy = await tenantDb.query(
+          'SELECT tenant_id FROM public.crm_retention_policy WHERE tenant_id = $1',
+          [provisioned.id],
+        );
+        assert.equal(retentionPolicy.rowCount, 1, 'newly provisioned businesses must have a CRM retention policy');
+      } finally {
+        await tenantDb.end();
+      }
       const registryState = await pool.query(
         `SELECT b.status, s.status AS subscription_status, s.trial_ends_at, td.database_name
            FROM public.businesses b
