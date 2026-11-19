@@ -46,7 +46,7 @@ export default function PlatformLegalPage() {
       <header className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm font-semibold text-blue-700">BTime</p>
         <h1 className="mt-2 text-3xl font-bold">תנאי שימוש, פרטיות ונגישות</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">מסמכי הפלטפורמה מסבירים כיצד BTime מספקת את השירות, מעבדת מידע ומגנה עליו. המדיניות מתעדכנת בהתאם לתכונות הפעילות בפלטפורמה.</p>
+        <p className="mt-3 text-sm leading-6 text-slate-600">מסמכי הפלטפורמה מסבירים כיצד BTime מספקת את השירות, מעבדת מידע ומגנה עליו. לפני פרסום מחייב יש להשלים פרטי ספקי תשתית ומיקומי עיבוד, לקבע תקופות שמירה ולבצע סקירה משפטית.</p>
         <p className="mt-2 text-xs text-slate-500">עדכון: 19.11.2026</p>
         <nav aria-label="ניווט במסמכים" className="mt-4 flex flex-wrap gap-2">
           {sections.map((section) => <a key={section.id} href={`#${section.id}`} className="rounded-full border border-slate-300 px-3 py-2 text-sm font-semibold">{section.title}</a>)}
