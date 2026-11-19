@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 const capabilities = [
@@ -109,7 +110,7 @@ export default function PlatformMarketingPage() {
           <div className="bm-visual" aria-label="המחשה של אתר עסקי וממשק ניהול ב-BTime">
             <div className="bm-visual-orbit bm-orbit-one" aria-hidden="true" />
             <div className="bm-visual-orbit bm-orbit-two" aria-hidden="true" />
-            {content.heroImageUrl && <div className="bm-hero-uploaded-image"><img src={content.heroImageUrl} alt="תמונה מתוך מערכת BTime" /></div>}
+            {content.heroImageUrl && <div className="bm-hero-uploaded-image"><Image src={content.heroImageUrl} alt="תמונה מתוך מערכת BTime" width={720} height={480} sizes="(max-width: 700px) 35vw, 260px" unoptimized /></div>}
             <div className="bm-browser bm-store-preview">
               <div className="bm-browser-bar"><span /><span /><span /><b>האתר של העסק</b></div>
               <div className="bm-store-content">
@@ -195,7 +196,7 @@ export default function PlatformMarketingPage() {
 
       {content.screenshotUrls.length > 0 && <section className="bm-screenshots" aria-label="הצצה למערכת BTime">
         <div className="bm-section-heading"><p className="bm-eyebrow">מבט מקרוב</p><h2>כך נראית העבודה עם BTime.</h2></div>
-        <div className="bm-screenshots-grid">{content.screenshotUrls.map((url, index) => <figure key={url}><img src={url} alt={'צילום מסך ' + (index + 1) + ' של מערכת BTime'} /></figure>)}</div>
+        <div className="bm-screenshots-grid">{content.screenshotUrls.map((url, index) => <figure key={url}><Image src={url} alt={'צילום מסך ' + (index + 1) + ' של מערכת BTime'} width={1200} height={800} sizes="(max-width: 700px) 100vw, 50vw" unoptimized /></figure>)}</div>
       </section>}
 
       <section className="bm-final-cta">
