@@ -1,3 +1,4 @@
+import './account.css';
 import AccountDashboard from '@/components/AccountDashboard';
 
 export default function AccountPage() {
