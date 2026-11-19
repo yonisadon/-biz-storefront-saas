@@ -3,8 +3,8 @@ import "./globals.css";
 import GlobalAccessibilityToolbar from "@/components/GlobalAccessibilityToolbar";
 
 export const metadata: Metadata = {
-  title: "אתרי מדף לעסקים",
-  description: "אתרים עסקיים פשוטים לניהול, עם קישור ייעודי לכל עסק.",
+  title: "BTime — נוכחות דיגיטלית וניהול פשוט לעסק",
+  description: "אתר עסקי, הצגת מוצרים ושירותים, פניות וניהול תורים — במקום אחד.",
 };
 
 export default function RootLayout({
