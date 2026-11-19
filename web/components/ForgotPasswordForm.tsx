@@ -14,7 +14,7 @@ export default function ForgotPasswordForm() {
       const response=await fetch('/api/auth/forgot-password',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email}),cache:'no-store'});
       const data=await response.json().catch(()=>null);
       if(!response.ok)throw new Error('לא ניתן לשלוח קישור איפוס כרגע.');
-      setMessage(data?.message??'אם קיימת כתובת מאומתת, יישלח אליה קישור לאיפוס סיסמה.');
+      setMessage('אם קיימת כתובת מייל מאומתת המשויכת לחשבון, יישלח אליה קישור חד-פעמי לאיפוס הסיסמה. תוקפו 30 דקות; כדאי לבדוק גם בספאם.');
     }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
     finally{setLoading(false);}
   }
