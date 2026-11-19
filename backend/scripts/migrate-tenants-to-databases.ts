@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
 import { applyTenantMigrations } from '../src/tenantMigrations';
+import { ensureCrmRetentionPolicy } from '../src/crmRetention';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -92,6 +93,7 @@ async function main() {
           }
           console.log(`  copied ${rows.rowCount ?? rows.rows.length} rows from ${table}`);
         }
+        await ensureCrmRetentionPolicy(tenantAdmin, b.id);
 
         await registry.query(
           'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
