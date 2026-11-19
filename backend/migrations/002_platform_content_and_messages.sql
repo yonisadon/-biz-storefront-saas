@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.platform_messages (
   channel text NOT NULL CHECK (channel IN ('in_app', 'email', 'both')),
   category text NOT NULL CHECK (category IN ('service', 'marketing')),
   audience jsonb NOT NULL CHECK (jsonb_typeof(audience) = 'object'),
-  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sending', 'accepted', 'partial', 'failed')),
+  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sending', 'sent', 'accepted', 'partial', 'failed', 'skipped')),
   created_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
 );
