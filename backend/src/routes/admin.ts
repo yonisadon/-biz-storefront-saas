@@ -1,9 +1,10 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveTxt } from 'node:dns/promises';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import pg from 'pg';
+import sharp from 'sharp';
 import { z } from 'zod';
 import { env } from '../config';
 import { HttpError } from '../errors';
@@ -58,6 +59,63 @@ const ExecuteDeletionInput = z.object({
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
+
+
+const PLATFORM_MEDIA_NAMESPACE = '00000000-0000-4000-8000-000000000001';
+
+const PlatformMarketingContentInput = z.object({
+  heroEyebrow: z.string().trim().max(100),
+  heroTitle: z.string().trim().min(5).max(180),
+  heroDescription: z.string().trim().min(10).max(700),
+  announcementEnabled: z.boolean(),
+  announcementTitle: z.string().trim().max(100),
+  announcementBody: z.string().trim().max(500),
+  heroImageUrl: z.string().url().max(2000).nullable(),
+  screenshotUrls: z.array(z.string().url().max(2000)).max(4),
+}).strict();
+
+const OwnerDashboardContentInput = z.object({
+  welcomeTitle: z.string().trim().max(120),
+  welcomeMessage: z.string().trim().max(500),
+}).strict();
+
+const SendPlatformMessageInput = z.object({
+  requestKey: z.string().uuid(),
+  title: z.string().trim().min(1).max(160),
+  body: z.string().trim().min(1).max(5000),
+  channel: z.enum(['in_app', 'email', 'both']),
+  category: z.enum(['service', 'marketing']),
+  audience: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('all') }).strict(),
+    z.object({ type: z.literal('selected'), businessIds: z.array(z.string().uuid()).min(1).max(200) }).strict(),
+  ]),
+}).strict();
+
+async function sendPlatformEmail(to: string, subject: string, body: string): Promise<{ messageId: string | null }> {
+  if (!env.BREVO_API_KEY || !env.EMAIL_FROM) throw new HttpError(503, 'email_service_not_configured');
+  const match = env.EMAIL_FROM.match(/^(?:(.*?)\\s*)?<([^<>]+)>$/);
+  const senderEmail = match?.[2] ?? env.EMAIL_FROM;
+  const senderName = match?.[1]?.trim() || 'BTime';
+  const safeBody = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const html = `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.8;white-space:pre-line"><h2>${subject.replace(/[&<>]/g, '')}</h2><p>${safeBody.replace(/\\n/g, '<br>')}</p><p style="color:#777;font-size:12px">הודעה זו נשלחה ממערכת BTime.</p></body></html>`;
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: body,
+    }),
+  });
+  if (!response.ok) {
+    console.error('BTime platform email was not accepted by provider', { status: response.status });
+    throw new Error(`brevo_http_${response.status}`);
+  }
+  const result = await response.json().catch(() => null) as { messageId?: string } | null;
+  return { messageId: result?.messageId ?? null };
+}
 
 function requireDomain(input: string): string {
   const domain = normalizeDomain(input);
@@ -890,6 +948,221 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(204).send();
     } finally {
       if (tenant) await tenant.end().catch(() => {});
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+
+  // ---- Platform-owned marketing content and owner communications ----
+  app.get('/platform-content/:key', async (req) => {
+    const key = String((req.params as { key: string }).key);
+    if (!['marketing_page', 'owner_dashboard'].includes(key)) throw new HttpError(404, 'platform_content_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const result = await registry.query(
+        'SELECT content, updated_at FROM public.platform_content WHERE content_key = $1',
+        [key],
+      );
+      return { content: result.rows[0]?.content ?? null, updated_at: result.rows[0]?.updated_at ?? null };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.put('/platform-content/:key', async (req) => {
+    const key = String((req.params as { key: string }).key);
+    if (!['marketing_page', 'owner_dashboard'].includes(key)) throw new HttpError(404, 'platform_content_not_found');
+    const content = key === 'marketing_page'
+      ? PlatformMarketingContentInput.parse(req.body)
+      : OwnerDashboardContentInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const result = await registry.query(
+        `INSERT INTO public.platform_content (content_key, content, updated_at)
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (content_key) DO UPDATE
+           SET content = EXCLUDED.content, updated_at = now()
+         RETURNING content, updated_at`,
+        [key, JSON.stringify(content)],
+      );
+      return { content: result.rows[0].content, updated_at: result.rows[0].updated_at };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/platform-media', async (req, reply) => {
+    const file = await req.file();
+    if (!file) throw new HttpError(400, 'image_required');
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      throw new HttpError(415, 'unsupported_image_type');
+    }
+    const source = await file.toBuffer();
+    if (source.length > 8 * 1024 * 1024) throw new HttpError(413, 'image_too_large');
+    let output: Buffer;
+    try {
+      const metadata = await sharp(source, { limitInputPixels: 40_000_000 }).metadata();
+      if (!metadata.format || !['jpeg', 'png', 'webp'].includes(metadata.format)) throw new Error('unsupported');
+      output = await sharp(source, { limitInputPixels: 40_000_000 })
+        .rotate()
+        .resize({ width: 2200, height: 1600, fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 86, mozjpeg: true })
+        .toBuffer();
+    } catch {
+      throw new HttpError(400, 'invalid_image');
+    }
+    const assetId = randomUUID();
+    const key = `${PLATFORM_MEDIA_NAMESPACE}/${assetId}.jpg`;
+    await storage.put(key, output, 'image/jpeg');
+    const base = env.MEDIA_BASE_URL.replace(/\\/+$/, '');
+    return reply.code(201).send({
+      url: `${base}/media/${PLATFORM_MEDIA_NAMESPACE}/${assetId}.jpg`,
+      content_type: 'image/jpeg',
+      size_bytes: output.length,
+    });
+  });
+
+  app.get('/messages', async () => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
+    let registry: pg.Client | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      const result = await registry.query(
+        `SELECT m.id, m.title, m.body, m.channel, m.category, m.audience, m.status, m.created_at, m.completed_at,
+                count(r.id)::int AS recipient_count,
+                count(r.id) FILTER (WHERE r.email_status = 'accepted')::int AS email_accepted_count,
+                count(r.id) FILTER (WHERE r.email_status = 'failed')::int AS email_failed_count,
+                count(r.id) FILTER (WHERE r.email_status = 'skipped_consent')::int AS email_skipped_count,
+                count(r.id) FILTER (WHERE r.in_app_read_at IS NOT NULL)::int AS in_app_read_count
+           FROM public.platform_messages m
+           LEFT JOIN public.platform_message_recipients r ON r.message_id = m.id
+          GROUP BY m.id
+          ORDER BY m.created_at DESC
+          LIMIT 50`,
+      );
+      return { messages: result.rows };
+    } finally {
+      if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/messages', async (req, reply) => {
+    const input = SendPlatformMessageInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'admin_not_configured');
+    if (input.channel !== 'in_app' && (!env.BREVO_API_KEY || !env.EMAIL_FROM)) {
+      throw new HttpError(503, 'email_service_not_configured');
+    }
+    let registry: pg.Client | undefined;
+    let messageId: string | undefined;
+    try {
+      registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+        ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      await registry.query('BEGIN');
+      try {
+        const inserted = await registry.query(
+          `INSERT INTO public.platform_messages (request_key, title, body, channel, category, audience, status)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'queued')
+           ON CONFLICT (request_key) DO NOTHING
+           RETURNING id`,
+          [input.requestKey, input.title, input.body, input.channel, input.category, JSON.stringify(input.audience)],
+        );
+        messageId = inserted.rows[0]?.id as string | undefined;
+        if (!messageId) throw new HttpError(409, 'duplicate_message_submission');
+        const recipients = await registry.query(
+          `SELECT u.id AS user_id, bo.tenant_id, u.email,
+                  COALESCE(consent.granted, false) AS marketing_email
+             FROM public.platform_users u
+             LEFT JOIN public.platform_business_owners bo ON bo.user_id = u.id
+             LEFT JOIN LATERAL (
+               SELECT granted FROM public.platform_user_consents
+                WHERE user_id = u.id AND consent_type = 'marketing_email'
+                ORDER BY recorded_at DESC LIMIT 1
+             ) consent ON true
+            WHERE u.role = 'owner' AND u.disabled_at IS NULL
+              AND ($1::boolean OR bo.tenant_id = ANY($2::uuid[]))
+            ORDER BY u.created_at ASC`,
+          [input.audience.type === 'all', input.audience.type === 'selected' ? input.audience.businessIds : []],
+        );
+        if (!recipients.rowCount) throw new HttpError(404, 'no_message_recipients');
+        for (const recipient of recipients.rows) {
+          const wantsEmail = input.channel === 'email' || input.channel === 'both';
+          const consented = input.category === 'service' || recipient.marketing_email === true;
+          const emailStatus = !wantsEmail ? 'not_requested' : !recipient.email || !consented ? 'skipped_consent' : 'pending';
+          await registry.query(
+            `INSERT INTO public.platform_message_recipients
+              (message_id, user_id, tenant_id, email_address, email_status)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [messageId, recipient.user_id, recipient.tenant_id, recipient.email, emailStatus],
+          );
+        }
+        await registry.query('UPDATE public.platform_messages SET status = $2 WHERE id = $1', [messageId, 'sending']);
+        await registry.query('COMMIT');
+      } catch (error) {
+        await registry.query('ROLLBACK').catch(() => {});
+        throw error;
+      }
+
+      const pending = await registry.query(
+        `SELECT r.id, r.email_address
+           FROM public.platform_message_recipients r
+          WHERE r.message_id = $1 AND r.email_status = 'pending'
+          ORDER BY r.created_at ASC`,
+        [messageId],
+      );
+      for (const recipient of pending.rows) {
+        try {
+          const result = await sendPlatformEmail(recipient.email_address, input.title, input.body);
+          await registry.query(
+            `UPDATE public.platform_message_recipients
+                SET email_status = 'accepted', email_provider_message_id = $2, email_accepted_at = now(), email_error = NULL
+              WHERE id = $1`,
+            [recipient.id, result.messageId],
+          );
+        } catch (error) {
+          const reason = error instanceof Error ? error.message.slice(0, 500) : 'provider_error';
+          await registry.query(
+            `UPDATE public.platform_message_recipients
+                SET email_status = 'failed', email_error = $2
+              WHERE id = $1`,
+            [recipient.id, reason],
+          );
+        }
+      }
+      const counts = await registry.query(
+        `SELECT count(*)::int AS total,
+                count(*) FILTER (WHERE email_status = 'accepted')::int AS accepted,
+                count(*) FILTER (WHERE email_status = 'failed')::int AS failed,
+                count(*) FILTER (WHERE email_status = 'pending')::int AS pending
+           FROM public.platform_message_recipients WHERE message_id = $1`,
+        [messageId],
+      );
+      const summary = counts.rows[0];
+      const status = summary.failed > 0 ? (summary.accepted > 0 ? 'partial' : 'failed') : 'accepted';
+      await registry.query(
+        'UPDATE public.platform_messages SET status = $2, completed_at = now() WHERE id = $1',
+        [messageId, status],
+      );
+      return reply.code(201).send({
+        id: messageId,
+        status,
+        recipient_count: summary.total,
+        email_accepted_count: summary.accepted,
+        email_failed_count: summary.failed,
+        email_pending_count: summary.pending,
+        note: 'accepted means the provider accepted the email request; it does not confirm delivery or opening.',
+      });
+    } finally {
       if (registry) await registry.end().catch(() => {});
     }
   });
