@@ -1,0 +1,73 @@
+/* Platform account screens: shared BTime visual language. */
+main:has(> section > a[href="/"]) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100svh;
+  background: linear-gradient(135deg, #f3f6ff 0%, #f9fafc 56%, #edf7f5 100%) !important;
+  padding: 52px 20px !important;
+}
+main:has(> section > a[href="/"])::before,
+main:has(> section > a[href="/"])::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgb(66 91 185 / 10%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+main:has(> section > a[href="/"])::before { top: -190px; inset-inline-start: -120px; }
+main:has(> section > a[href="/"])::after { bottom: -230px; inset-inline-end: -110px; width: 440px; height: 440px; }
+main:has(> section > a[href="/"]) > section {
+  position: relative;
+  border: 1px solid #e7eaf2 !important;
+  border-radius: 18px !important;
+  background: rgb(255 255 255 / 96%) !important;
+  box-shadow: 0 24px 70px rgb(29 43 77 / 9%) !important;
+  padding: 32px !important;
+}
+main:has(> section > a[href="/"]) > section > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #3456d1 !important;
+  font-family: "Rubik", "Heebo", sans-serif;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  text-decoration: none;
+}
+main:has(> section > a[href="/"]) > section > h1 {
+  margin-top: 24px !important;
+  color: #17233a;
+  font-size: clamp(27px, 5vw, 34px) !important;
+  letter-spacing: -.8px;
+}
+main:has(> section > a[href="/"]) > section > p { color: #657187 !important; line-height: 1.8 !important; }
+main:has(> section > a[href="/"]) form { margin-top: 25px !important; }
+main:has(> section > a[href="/"]) form label { color: #35435b; }
+main:has(> section > a[href="/"]) form input:not([type="checkbox"]) {
+  min-height: 48px;
+  border-color: #dce2ed !important;
+  border-radius: 9px !important;
+  background: #fbfcfe;
+}
+main:has(> section > a[href="/"]) form input:not([type="checkbox"]):focus {
+  border-color: #526bd0 !important;
+  box-shadow: 0 0 0 3px rgb(82 107 208 / 12%) !important;
+}
+main:has(> section > a[href="/"]) form button[type="submit"] {
+  min-height: 50px;
+  border: 1px solid #3456d1 !important;
+  border-radius: 9px !important;
+  background: #3456d1 !important;
+  box-shadow: 0 8px 18px rgb(52 86 209 / 15%);
+}
+main:has(> section > a[href="/"]) form button[type="submit"]:hover { background: #2848bd !important; }
+main:has(> section > a[href="/"]) > section > div a { color: #3456d1 !important; }
+main:has(> section > a[href="/"]) > section > div:last-child { border-color: #e8ebf2 !important; }
+@media (max-width: 540px) {
+  main:has(> section > a[href="/"]) { padding: 24px 14px !important; }
+  main:has(> section > a[href="/"]) > section { padding: 23px 19px !important; border-radius: 15px !important; }
+}
