@@ -73,7 +73,7 @@ export default function PlatformMarketingPage() {
             <span className="bm-brand-mark" aria-hidden="true">B</span><span>BTime</span>
           </Link>
           <nav className="bm-nav" aria-label="ניווט ראשי">
-            <a href="#gallery">הצצה למערכת</a><a href="#how">איך זה עובד</a><a href="#contact">יצירת קשר</a>
+            <a href="#gallery">הצצה למערכת</a><a href="#quick-points">מה מקבלים</a><a href="#contact">יצירת קשר</a>
           </nav>
           <Link href="/login" className="bm-login">התחברות</Link>
         </div>
@@ -108,7 +108,7 @@ export default function PlatformMarketingPage() {
         </div>
       </section>
 
-      <section className="bm-quick-points" aria-label="מה מקבלים עם BTime">
+      <section className="bm-quick-points" id="quick-points" aria-label="מה מקבלים עם BTime">
         <span>אתר עסקי משלך</span><i /><span>מוצרים ושירותים</span><i /><span>פניות ותורים</span><i /><span>ניהול פשוט מהנייד</span>
       </section>
 
