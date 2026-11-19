@@ -552,4 +552,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     return { id: result.rows[0].id, read_at: result.rows[0].in_app_read_at };
   });
 
+
+  app.get('/platform-content', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const result = await registry().query(
+      "SELECT content FROM public.platform_content WHERE content_key = 'owner_dashboard' LIMIT 1",
+    );
+    return { content: result.rows[0]?.content ?? null };
+  });
+
 };
