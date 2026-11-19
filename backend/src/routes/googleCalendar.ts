@@ -100,6 +100,14 @@ export const googleCalendarManageRoutes: FastifyPluginAsync = async (app) => {
     return { authorization_url: url.toString() };
   });
 
+  // Process jobs that are already due without bypassing their retry backoff.
+  // This endpoint is called when the seller opens the Google Calendar panel; it
+  // replaces the need for a frequent polling Cron while keeping the outbox durable.
+  app.post('/google-calendar/process-due', async (req) => {
+    if (!isGoogleCalendarConfigured()) throw new HttpError(503, 'google_calendar_not_configured');
+    return processGoogleCalendarJobs(req.tenantId, 20);
+  });
+
   app.post('/google-calendar/sync', async (req) => {
     if (!isGoogleCalendarConfigured()) throw new HttpError(503, 'google_calendar_not_configured');
     await withTenant(req.tenantId, async (db) => {
@@ -242,6 +250,19 @@ export const googleCalendarCallbackRoutes: FastifyPluginAsync = async (app) => {
                  attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()`,
         );
       });
+
+      // Backfill future appointments immediately after the account is connected.
+      // A transient Google failure is retained in the outbox and must not undo OAuth.
+      try {
+        const syncResult = await processGoogleCalendarJobs(tenantId!, 20);
+        req.log.info({
+          processed: syncResult.processed,
+          failed: syncResult.failed,
+          pending: syncResult.pending,
+        }, 'Google Calendar initial sync completed');
+      } catch (syncError) {
+        req.log.warn({ err: syncError }, 'Google Calendar initial sync deferred');
+      }
 
       return reply.type('text/html; charset=utf-8')
         .send(callbackPage(true, 'חשבון Google חובר בהצלחה ל-BTime.'));
