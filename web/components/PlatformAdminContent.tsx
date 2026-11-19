@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type MarketingContent = {
   heroEyebrow: string;
@@ -240,12 +241,12 @@ export default function PlatformAdminContent() {
           <label>תיאור ראשי<textarea required rows={3} maxLength={700} value={marketing.heroDescription} onChange={e=>updateMarketing('heroDescription',e.target.value)} /></label>
           <div className="bac-media-field">
             <div><b>תמונה ראשית (אופציונלי)</b><p>JPEG, PNG או WebP עד 8MB. התמונה תעבור אופטימיזציה ותישמר כ-JPEG.</p></div>
-            {marketing.heroImageUrl&&<div className="bac-image-preview"><img src={marketing.heroImageUrl} alt="תמונה ראשית נוכחית" /><button type="button" onClick={()=>updateMarketing('heroImageUrl',null)}>הסרת תמונה</button></div>}
+            {marketing.heroImageUrl&&<div className="bac-image-preview"><Image src={marketing.heroImageUrl} alt="תמונה ראשית נוכחית" width={560} height={360} unoptimized /><button type="button" onClick={()=>updateMarketing('heroImageUrl',null)}>הסרת תמונה</button></div>}
             <label className="bac-upload">העלאת תמונה<input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={e=>void uploadImage(e,'hero')} /></label>
           </div>
           <div className="bac-media-field">
             <div><b>צילומי מסך להצגת המערכת</b><p>עד 4 תמונות. אפשר להעלות צילומי מסך אמיתיים של BTime.</p></div>
-            <div className="bac-screenshot-previews">{marketing.screenshotUrls.map((url,index)=><figure key={url}><img src={url} alt={'צילום מסך '+(index+1)} /><button type="button" onClick={()=>updateMarketing('screenshotUrls',marketing.screenshotUrls.filter(item=>item!==url))}>הסרה</button></figure>)}</div>
+            <div className="bac-screenshot-previews">{marketing.screenshotUrls.map((url,index)=><figure key={url}><Image src={url} alt={'צילום מסך '+(index+1)} width={900} height={500} unoptimized /><button type="button" onClick={()=>updateMarketing('screenshotUrls',marketing.screenshotUrls.filter(item=>item!==url))}>הסרה</button></figure>)}</div>
             {marketing.screenshotUrls.length<4&&<label className="bac-upload">הוספת צילום מסך<input type="file" accept="image/jpeg,image/png,image/webp" disabled={saving} onChange={e=>void uploadImage(e,'screenshot')} /></label>}
           </div>
           <div className="bac-media-field">
