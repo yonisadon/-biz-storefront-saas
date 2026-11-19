@@ -6,6 +6,7 @@ import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeInternationalPhone } from '../util';
 import { createManagementToken, provisionBusinessForOwner } from '../provisioning';
+import { sendBrevoEmail } from '../email';
 
 const SESSION_COOKIE = 'btime_session';
 const SESSION_DAYS = 14;
@@ -132,27 +133,8 @@ async function currentUser(req: FastifyRequest): Promise<any | null> {
 }
 
 async function sendEmail(to: string, subject: string, html: string, textContent: string): Promise<void> {
-  if (!env.BREVO_API_KEY || !env.EMAIL_FROM || !env.PUBLIC_BASE_URL) {
-    throw new HttpError(503, 'email_service_not_configured');
-  }
-  const match = env.EMAIL_FROM.match(/^(?:(.*?)\s*)?<([^<>]+)>$/);
-  const senderEmail = match?.[2] ?? env.EMAIL_FROM;
-  const senderName = match?.[1]?.trim() || 'BTime';
-  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: { 'api-key': env.BREVO_API_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: to }],
-      subject,
-      htmlContent: html,
-      textContent,
-    }),
-  });
-  if (!response.ok) {
-    console.error('Transactional email delivery failed', { status: response.status });
-    throw new HttpError(503, 'email_delivery_failed');
-  }
+  if (!env.PUBLIC_BASE_URL) throw new HttpError(503, 'email_service_not_configured');
+  await sendBrevoEmail({ to, subject, html, textContent });
 }
 
 async function issueEmailToken(userId: string, purpose: 'verify_email' | 'reset_password'): Promise<string> {
