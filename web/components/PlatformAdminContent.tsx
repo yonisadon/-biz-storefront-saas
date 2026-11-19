@@ -37,7 +37,7 @@ const DEFAULT_OWNER: OwnerContent = {
   welcomeMessage: 'מכאן אפשר להיכנס לניהול העסק, לעדכן פרטים ולעקוב אחר מצב החשבון והמנוי.',
 };
 
-function errorMessage(data: any, fallback: string) {
+function errorMessage(data: unknown, fallback: string) {
   const messages: Record<string, string> = {
     unauthorized: 'אין הרשאה לבצע פעולה זו. יש להתחבר מחדש לחשבון סופר אדמין.',
     platform_content_not_migrated: 'מסד הנתונים המרכזי עדיין לא עודכן. נדרשת מיגרציית Registry לפני ניהול התוכן.',
@@ -45,7 +45,11 @@ function errorMessage(data: any, fallback: string) {
     duplicate_message_submission: 'הבקשה הזו כבר נשלחה או נמצאת בתהליך. בדוק את היסטוריית השליחות.',
     no_message_recipients: 'לא נמצאו בעלי עסקים מתאימים לקהל שנבחר.',
   };
-  return messages[data?.error] ?? data?.message ?? fallback;
+  if (!data || typeof data !== 'object') return fallback;
+  const payload = data as { error?: unknown; message?: unknown };
+  const code = typeof payload.error === 'string' ? payload.error : '';
+  const serverMessage = typeof payload.message === 'string' ? payload.message : '';
+  return messages[code] ?? serverMessage ?? fallback;
 }
 
 export default function PlatformAdminContent() {
