@@ -3,6 +3,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 
+type PlatformNotification = { id: string; title: string; body: string; created_at: string; in_app_read_at: string | null };
+
 type AccountUser = {
   id: string;
   role: string;
@@ -35,6 +37,7 @@ function remainingDays(value: string | null): number | null {
 
 export default function AccountDashboard() {
   const [user,setUser]=useState<AccountUser|null>(null);
+  const [notifications,setNotifications]=useState<PlatformNotification[]>([]);
   const [loading,setLoading]=useState(true);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
@@ -49,6 +52,7 @@ export default function AccountDashboard() {
 
   function clearAccountState() {
     setUser(null);
+    setNotifications([]);
     setConsentsLoaded(false);
     setMarketingEmail(false);
     setMarketingSms(false);
@@ -66,6 +70,11 @@ export default function AccountDashboard() {
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
     if (data.user.role === 'super_admin') { clearAccountState();window.location.replace('/platform-admin'); return; }
     setUser(data.user as AccountUser);
+    const notificationResponse=await fetch('/api/auth/notifications',{cache:'no-store',credentials:'same-origin'}).catch(()=>null);
+    if(notificationResponse?.ok){
+      const notificationData=await notificationResponse.json().catch(()=>null);
+      setNotifications((notificationData?.notifications??[]) as PlatformNotification[]);
+    }
     const consentResponse=await fetch('/api/auth/consents',{cache:'no-store',credentials:'same-origin'});
     const consentData=await consentResponse.json().catch(()=>null);
     if(consentResponse.ok){setMarketingEmail(consentData.marketingEmail===true);setMarketingSms(consentData.marketingSms===true);setConsentsLoaded(true);}
@@ -163,6 +172,14 @@ export default function AccountDashboard() {
     finally{setSaving(false);}
   }
 
+  async function markNotificationRead(id:string){
+    try{
+      const response=await fetch('/api/auth/notifications/'+id+'/read',{method:'POST',cache:'no-store',credentials:'same-origin'});
+      if(!response.ok)return;
+      setNotifications(current=>current.map(item=>item.id===id?{...item,in_app_read_at:new Date().toISOString()}:item));
+    }catch{}
+  }
+
   async function saveConsents(){
     setSaving(true);setError('');setMessage('');
     try{
@@ -199,6 +216,24 @@ export default function AccountDashboard() {
       </header>
       {error&&<p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {message&&<p role="status" className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{message}</p>}
+      {notifications.length>0&&<section aria-labelledby="platform-notifications-title" className="mb-5 rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="platform-notifications-title" className="font-bold">עדכונים מ-BTime</h2>
+          <span className="text-xs text-slate-500">{notifications.filter(item=>!item.in_app_read_at).length} הודעות שלא נקראו</span>
+        </div>
+        <div className="mt-3 divide-y divide-slate-100">
+          {notifications.map(item=><article key={item.id} className="py-3 first:pt-0 last:pb-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-slate-800">{item.title}</h3>
+                <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{item.body}</p>
+                <p className="mt-2 text-xs text-slate-400">{dateLabel(item.created_at)}</p>
+              </div>
+              {!item.in_app_read_at&&<button type="button" onClick={()=>markNotificationRead(item.id)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">סימון כנקרא</button>}
+            </div>
+          </article>)}
+        </div>
+      </section>}
       {user&&<section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-lg font-bold">פרטי החשבון</h2>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
