@@ -105,11 +105,11 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
     <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
       <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <Link href="/" className="text-sm font-semibold text-blue-700">BTime</Link>
-        <h1 className="mt-5 text-2xl font-bold">{isRegister ? 'יוצרים אתר עסקי עם BTime' : 'התחברות ל-BTime'}</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
+        <h1 className="mt-3 text-2xl font-bold">{isRegister ? 'פתיחת חשבון לעסק' : 'התחברות לחשבון'}</h1>
+        <p className="mt-1.5 text-sm leading-6 text-slate-600">
           {isRegister ? 'אתר עסקי מקצועי עם קישור ללקוחות וממשק פשוט לניהול שירותים, מוצרים, פניות ותורים. מתחילים ב-30 ימי ניסיון ללא התחייבות.' : 'התחברו לממשק הניהול כדי לעדכן את האתר, לנהל פניות ותורים ולהמשיך להפעיל את העסק.'}
         </p>
-        <form onSubmit={submit} className="mt-6 space-y-4">
+        <form onSubmit={submit} className="mt-4 space-y-3">
           <div>
             <label htmlFor="account-email" className="mb-1.5 block text-sm font-semibold">כתובת מייל</label>
             <input id="account-email" type="email" required maxLength={254} autoComplete="email" value={email}
