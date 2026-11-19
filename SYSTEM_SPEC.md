@@ -36,7 +36,7 @@
 - בשלב זה לא בוצעה פריסה ולא בוצע שינוי בנתוני production.
 
 ### בדיקות
-- CI ב-GitHub עבור מצב הקוד ב-commit `f2816f0d8ba4bf5e2ce7a8377f3fc3f56405d48e` עבר: Web build/lint, Backend build, Validate, Registry migration smoke test ו-Platform account accessibility smoke test (axe).
+- CI ב-GitHub עבור מצב הקוד ב-commit `5eb452ef8dad72db4db1da16c883e3c5d68eb717` עבר: Web build/lint, Backend build, Validate, Registry migration smoke test ו-Platform account accessibility smoke test (axe).
 - עדיין נדרשת בדיקת קבלה ידנית/חזותית במובייל ובמחשב, RTL, תהליכי הרשאות בפועל, העלאת מדיה מול אחסון production, שליחת Brevo אמיתית ואירועי webhook. אין לדווח על בדיקה שלא בוצעה בפועל.
 - סטטוס PR: `feat/btime-platform-marketing-experience`, PR #101 כטיוטה פתוחה; אין מיזוג.
 
