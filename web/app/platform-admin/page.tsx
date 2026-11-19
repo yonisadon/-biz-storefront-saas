@@ -67,6 +67,17 @@ export default function PlatformAdminPage() {
       setCreated(null);
       setSelectedBusinessId('');
       setDomainSetup(null);
+      setName('');
+      setSlug('');
+      setPhone('');
+      setWhatsappNumber('');
+      setEmail('');
+      setDomain('');
+      setDomainMessage('');
+      setBusinessSearch('');
+      setBusinessStatusFilter('all');
+      setSubscriptionFilter('all');
+      setEmailVerificationFilter('all');
       setError('');
       setAdminMessage('');
       setBusinessesMessage('');
