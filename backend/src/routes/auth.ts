@@ -518,4 +518,38 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+
+  app.get('/notifications', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const result = await registry().query(
+      `SELECT r.id, m.title, m.body, m.created_at, r.in_app_read_at
+         FROM public.platform_message_recipients r
+         JOIN public.platform_messages m ON m.id = r.message_id
+        WHERE r.user_id = $1 AND m.channel IN ('in_app', 'both')
+        ORDER BY m.created_at DESC
+        LIMIT 30`,
+      [user.id],
+    );
+    return { notifications: result.rows };
+  });
+
+  app.post('/notifications/:id/read', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'unauthorized');
+    const id = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new HttpError(404, 'notification_not_found');
+    const result = await registry().query(
+      `UPDATE public.platform_message_recipients r
+          SET in_app_read_at = COALESCE(in_app_read_at, now())
+         FROM public.platform_messages m
+        WHERE r.id = $1 AND r.user_id = $2 AND m.id = r.message_id
+          AND m.channel IN ('in_app', 'both')
+        RETURNING r.id, r.in_app_read_at`,
+      [id, user.id],
+    );
+    if (!result.rowCount) throw new HttpError(404, 'notification_not_found');
+    return { id: result.rows[0].id, read_at: result.rows[0].in_app_read_at };
+  });
+
 };
