@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { fetchWithTransientRetry } from '../../../lib/transientFetch.mjs';
 
 const API = process.env.API_URL!;
 const MAX_BODY = 11 * 1024 * 1024; // 10MB image + multipart overhead
@@ -29,7 +30,23 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     if (body.byteLength > MAX_BODY) return Response.json({ error: 'file_too_large' }, { status: 413 });
   }
 
-  const res = await fetch(url, { method: req.method, headers, body, cache: 'no-store' });
+  let res: Response;
+  try {
+    res = await fetchWithTransientRetry(url, {
+      method: req.method,
+      headers,
+      body,
+      cache: 'no-store',
+      signal: req.signal,
+    });
+  } catch (error) {
+    console.error('BTime API proxy upstream request failed', {
+      method: req.method,
+      path: path.join('/'),
+      error: error instanceof Error ? error.message : 'unknown_error',
+    });
+    return Response.json({ error: 'upstream_unavailable', message: 'השירות אינו זמין כרגע. אפשר לנסות שוב בעוד רגע.' }, { status: 503 });
+  }
   const responseHeaders = new Headers({
     'content-type': res.headers.get('content-type') ?? 'application/json',
     'cache-control': 'no-store',
