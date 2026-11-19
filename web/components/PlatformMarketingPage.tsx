@@ -107,7 +107,7 @@ export default function PlatformMarketingPage() {
             <p className="bm-reassurance">פתיחת חשבון פשוטה · 30 ימי ניסיון לעסק חדש · בלי התחייבות</p>
           </div>
 
-          <div className="bm-visual" aria-label="המחשה של אתר עסקי וממשק ניהול ב-BTime">
+          <div className="bm-visual" role="img" aria-label="המחשה של אתר עסקי וממשק ניהול ב-BTime">
             <div className="bm-visual-orbit bm-orbit-one" aria-hidden="true" />
             <div className="bm-visual-orbit bm-orbit-two" aria-hidden="true" />
             {content.heroImageUrl && <div className="bm-hero-uploaded-image"><Image src={content.heroImageUrl} alt="תמונה מתוך מערכת BTime" width={720} height={480} sizes="(max-width: 700px) 35vw, 260px" unoptimized /></div>}
