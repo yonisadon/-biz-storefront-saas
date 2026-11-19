@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
 const capabilities = [
   {
@@ -23,7 +24,43 @@ const capabilities = [
   },
 ];
 
+type MarketingContent = {
+  heroEyebrow: string;
+  heroTitle: string;
+  heroDescription: string;
+  announcementEnabled: boolean;
+  announcementTitle: string;
+  announcementBody: string;
+  heroImageUrl: string | null;
+  screenshotUrls: string[];
+};
+
+const DEFAULT_MARKETING_CONTENT: MarketingContent = {
+  heroEyebrow: 'העסק שלך. פשוט יותר.',
+  heroTitle: 'כל מה שהעסק שלך צריך כדי להיות נוכח ולהתנהל.',
+  heroDescription: 'אתר עסקי שאפשר לשתף עם לקוחות, יחד עם כלים נוחים להצגת מוצרים ושירותים, לקבלת פניות ולניהול תורים — בלי להסתבך עם בניית אתר.',
+  announcementEnabled: false,
+  announcementTitle: '',
+  announcementBody: '',
+  heroImageUrl: null,
+  screenshotUrls: [],
+};
+
 export default function PlatformMarketingPage() {
+  const [content, setContent] = useState<MarketingContent>(DEFAULT_MARKETING_CONTENT);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/platform-content/marketing', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!active || !data?.content) return;
+        setContent({ ...DEFAULT_MARKETING_CONTENT, ...data.content });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
   return (
     <main className="btime-marketing" dir="rtl">
       <header className="bm-header">
@@ -43,16 +80,17 @@ export default function PlatformMarketingPage() {
           </div>
         </div>
       </header>
+      {content.announcementEnabled && content.announcementBody && <aside className="bm-announcement" role="status">
+        <strong>{content.announcementTitle || 'עדכון מ-BTime'}</strong>
+        <span>{content.announcementBody}</span>
+      </aside>}
 
       <section className="bm-hero">
         <div className="bm-hero-inner">
           <div className="bm-hero-copy">
-            <p className="bm-eyebrow"><span /> העסק שלך. פשוט יותר.</p>
-            <h1>כל מה שהעסק שלך צריך כדי <em>להיות נוכח</em> ולהתנהל.</h1>
-            <p className="bm-hero-lead">
-              אתר עסקי שאפשר לשתף עם לקוחות, יחד עם כלים נוחים להצגת מוצרים ושירותים,
-              לקבלת פניות ולניהול תורים — בלי להסתבך עם בניית אתר.
-            </p>
+            <p className="bm-eyebrow"><span /> {content.heroEyebrow}</p>
+            <h1>{content.heroTitle}</h1>
+            <p className="bm-hero-lead">{content.heroDescription}</p>
             <div className="bm-hero-actions">
               <Link href="/register" className="bm-button">מתחילים עם BTime <span aria-hidden="true">←</span></Link>
               <Link href="#how-it-works" className="bm-text-link">מגלים איך זה עובד <span aria-hidden="true">↓</span></Link>
@@ -63,6 +101,7 @@ export default function PlatformMarketingPage() {
           <div className="bm-visual" aria-label="המחשה של אתר עסקי וממשק ניהול ב-BTime">
             <div className="bm-visual-orbit bm-orbit-one" aria-hidden="true" />
             <div className="bm-visual-orbit bm-orbit-two" aria-hidden="true" />
+            {content.heroImageUrl && <div className="bm-hero-uploaded-image"><img src={content.heroImageUrl} alt="תמונה מתוך מערכת BTime" /></div>}
             <div className="bm-browser bm-store-preview">
               <div className="bm-browser-bar"><span /><span /><span /><b>האתר של העסק</b></div>
               <div className="bm-store-content">
@@ -140,6 +179,11 @@ export default function PlatformMarketingPage() {
           ))}
         </div>
       </section>
+
+      {content.screenshotUrls.length > 0 && <section className="bm-screenshots" aria-label="הצצה למערכת BTime">
+        <div className="bm-section-heading"><p className="bm-eyebrow">מבט מקרוב</p><h2>כך נראית העבודה עם BTime.</h2></div>
+        <div className="bm-screenshots-grid">{content.screenshotUrls.map((url, index) => <figure key={url}><img src={url} alt={'צילום מסך ' + (index + 1) + ' של מערכת BTime'} /></figure>)}</div>
+      </section>}
 
       <section className="bm-final-cta">
         <div><p className="bm-eyebrow">השלב הבא מתחיל כאן</p><h2>העסק שלך ראוי לנוכחות<br />דיגיטלית מסודרת.</h2></div>
