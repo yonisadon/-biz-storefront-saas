@@ -175,3 +175,24 @@ BEGIN
   END IF;
 END
 $$;
+
+
+-- Permanent management links keep a verifier hash while storing a recoverable,
+-- authenticated encrypted copy for authorized redisplay only.
+DO $management_access$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'access_tokens'
+       AND column_name = 'encrypted_token'
+  ) THEN
+    RAISE EXCEPTION 'access_tokens.encrypted_token column is missing';
+  END IF;
+  IF has_table_privilege('app_runtime', 'public.access_tokens', 'SELECT') THEN
+    RAISE EXCEPTION 'app_runtime must not read access_tokens directly';
+  END IF;
+  IF NOT has_function_privilege('app_runtime', 'app.authorize_tenant_management(bytea,bytea)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'app_runtime must execute the management authorization function';
+  END IF;
+END
+$management_access$;
