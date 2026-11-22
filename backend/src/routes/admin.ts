@@ -61,7 +61,6 @@ const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
 
-        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${managementToken.token}`,
 
 const RetentionPolicyRowInput = z.object({
   plan_code: z.enum(['standard', 'plus']),
@@ -441,7 +440,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         slug: b.slug,
         database: databaseName,
         public_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/biz/${b.slug}`,
-        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${token}`,
+        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${managementToken.token}`,
         status: 'active',
       });
     } catch (err) {
@@ -542,7 +541,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       }
       return {
         available: true,
-        management_url: `${env.PUBLIC_BASE_URL.replace(/\\/+$/, '')}/manage/${token}`,
+        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${token}`,
       };
     } finally {
       await registry.end().catch(() => {});
