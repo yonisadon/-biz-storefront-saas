@@ -23,7 +23,9 @@ CREATE TABLE public.access_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   token_hash bytea NOT NULL UNIQUE,
-  revoked_at timestamptz,
+  label text,
   expires_at timestamptz,
-  last_used_at timestamptz
+  revoked_at timestamptz,
+  last_used_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
