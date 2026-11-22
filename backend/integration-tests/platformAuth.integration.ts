@@ -34,6 +34,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   let app: Awaited<ReturnType<typeof buildServer>> | undefined;
   let sessionCookie = '';
   let ownerSessionCookie = '';
+  let claimSessionCookie = '';
 
   const extractToken = (html: string, route: 'verify-email' | 'reset-password') => {
     const match = html.match(new RegExp(`/${route}\\?token=([^"&]+)`));
