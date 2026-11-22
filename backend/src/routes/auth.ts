@@ -9,7 +9,7 @@ import { createManagementToken, provisionBusinessForOwner } from '../provisionin
 import { sendBrevoEmail } from '../email';
 
 const SESSION_COOKIE = 'btime_session';
-const SESSION_DAYS = 14;
+const SESSION_DAYS = 3;
 const VERIFY_HOURS = 24;
 const RESET_MINUTES = 30;
 
@@ -99,10 +99,27 @@ function clearSessionCookie(reply: FastifyReply): void {
 
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
   const token = randomToken();
-  await registry().query(
-    'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval \'14 days\')',
-    [userId, digest(token)],
-  );
+  const db = registry();
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    // Keep active sessions on other devices, but remove expired rows for this user
+    // when a new authenticated session is issued. No background cleanup is needed.
+    await client.query(
+      'DELETE FROM public.platform_sessions WHERE user_id = $1 AND expires_at <= now()',
+      [userId],
+    );
+    await client.query(
+      'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval \'3 days\')',
+      [userId, digest(token)],
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
   setSessionCookie(reply, token);
 }
 
@@ -354,7 +371,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/logout', async (req, reply) => {
     const token = cookieValue(req);
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
-      await registry().query('UPDATE public.platform_sessions SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL', [digest(token)]);
+      await registry().query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [digest(token)]);
     }
     clearSessionCookie(reply);
     return reply.code(204).send();
@@ -399,7 +416,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const userId = result.rows[0].user_id as string;
       await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [userId]);
       await client.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [userId, passwordHash(password)]);
-      await client.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [userId]);
+      await client.query('DELETE FROM public.platform_sessions WHERE user_id = $1', [userId]);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
