@@ -40,6 +40,9 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PwaInstallButton label="התקנת ניהול העסק" />
+            <a href="/account" className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/5">
+              הגדרות חשבון
+            </a>
             <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
               צפייה באתר ↗
