@@ -19,6 +19,8 @@ const Env = z.object({
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
   GOOGLE_OAUTH_STATE_SECRET: z.string().min(32).optional(),
   GOOGLE_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  // Dedicated AES-256-GCM key for recoverable permanent seller management links.
+  MANAGEMENT_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
 
   // שדות חדשים שהתווספו לניהול תמונות ואחסון:
   STORAGE_DRIVER: z.enum(['s3', 'local']).default('local'),
