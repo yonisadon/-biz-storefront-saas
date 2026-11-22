@@ -18,7 +18,7 @@ UPDATE public.leads
    SET retention_opened_at = COALESCE(
      retention_opened_at,
      retention_expires_at - interval '60 days',
-     created_at
+     now()
    )
  WHERE status NOT IN ('rejected', 'cancelled', 'completed');
 
