@@ -2823,3 +2823,11 @@
 - A seller opening an unclaimed admin-created business can choose **חיבור העסק לחשבון שלי** from the management screen. Claiming requires a logged-in, email-verified owner account whose email exactly matches the business contact email, an unclaimed business, and an account that does not already own another business. The same permanent token and URL remain unchanged.
 - The existing automatic claim during email verification is preserved. It still claims only a unique unowned business matching the verified email. The explicit claim action supports an already-verified account when the business was created later.
 - If the business contact email is missing or does not match, the claim is rejected with a clear message; no ownership is silently assigned. A business already linked to another account cannot be claimed by a second user.
+
+## Guided seller onboarding — November 2026
+
+- New businesses start with `businesses.onboarding_completed_at = NULL` in the central Registry. Existing businesses are marked as already onboarded only when migration 005 first introduces the column; rerunning the migration never marks new unfinished businesses as complete.
+- The first management visit shows a friendly, dismissible setup guide inside the business dashboard. It points the seller to business/contact details, products or services, opening hours, site design, customer preview, and copying the customer-facing link.
+- Each guide action opens the relevant existing management tab; it does not create a second setup system or duplicate business data.
+- Sellers can hide the guide temporarily and reopen it from the management header. They explicitly mark the setup complete when ready; completion is persisted centrally through the shared management API and remains complete across devices and Sessions.
+- Creating a business through self-registration still redirects immediately to its management URL, where this guide is shown. Admin-created businesses created after migration show the same guide when the seller opens the permanent link.
