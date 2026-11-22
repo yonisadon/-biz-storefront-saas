@@ -8,6 +8,7 @@ on:
       - 'backend/migrations/001_platform_accounts_subscriptions.sql'
       - 'backend/migrations/002_platform_content_and_messages.sql'
       - 'backend/migrations/003_platform_retention_policies.sql'
+      - 'backend/migrations/tenant-012-configurable-retention.sql'
       - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
       - 'backend/integration-tests/**'
