@@ -23,6 +23,7 @@ type AdminOverview = { total_businesses: number; active_businesses: number; susp
 type DeletionRequest = { id: string; tenant_id: string | null; reason: string | null; status: string; requested_at: string; business_name: string; business_slug: string; owner_email?: string | null; owner_phone?: string | null; database_name?: string | null };
 
 type DomainSetup = { domain: string; verified: boolean; verification: { type: string; name: string; value: string }; next_step: string };
+type ManagementLinkInfo = { available: boolean; requires_association: boolean; management_url?: string };
 
 export default function PlatformAdminPage() {
   const [accessState, setAccessState] = useState<'checking' | 'allowed'>('checking');
@@ -54,6 +55,9 @@ export default function PlatformAdminPage() {
   const [businessStatusFilter, setBusinessStatusFilter] = useState('all');
   const [subscriptionFilter, setSubscriptionFilter] = useState('all');
   const [emailVerificationFilter, setEmailVerificationFilter] = useState('all');
+  const [managementLinks, setManagementLinks] = useState<Record<string, ManagementLinkInfo>>({});
+  const [legacyLinkInputs, setLegacyLinkInputs] = useState<Record<string, string>>({});
+  const [managementLinkLoading, setManagementLinkLoading] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +80,9 @@ export default function PlatformAdminPage() {
       setBusinessStatusFilter('all');
       setSubscriptionFilter('all');
       setEmailVerificationFilter('all');
+      setManagementLinks({});
+      setLegacyLinkInputs({});
+      setManagementLinkLoading(null);
       setError('');
       setAdminMessage('');
       setBusinessesMessage('');
@@ -277,6 +284,59 @@ export default function PlatformAdminPage() {
     finally { setAdminLoading(false); }
   }
 
+  async function loadBusinessManagementLink(id: string) {
+    setManagementLinkLoading(id);
+    setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/management-link`, { cache: 'no-store' });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message ?? 'לא ניתן לטעון את קישור הניהול.');
+      setManagementLinks(current => ({ ...current, [id]: data as ManagementLinkInfo }));
+    } catch (err) {
+      setAdminMessage(err instanceof Error ? err.message : 'טעינת קישור הניהול נכשלה.');
+    } finally {
+      setManagementLinkLoading(null);
+    }
+  }
+
+  async function associateBusinessManagementLink(id: string) {
+    const management_url = legacyLinkInputs[id]?.trim();
+    if (!management_url) return;
+    setManagementLinkLoading(id);
+    setAdminMessage('');
+    try {
+      const response = await fetch(`/api/admin/businesses/${id}/management-link/associate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ management_url }),
+        cache: 'no-store',
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = data?.error === 'management_link_not_found'
+          ? 'הקישור אינו שייך לעסק הזה. יש לוודא שהודבק הקישור המקורי הנכון.'
+          : data?.message ?? 'לא ניתן לשייך את קישור הניהול.';
+        throw new Error(message);
+      }
+      setLegacyLinkInputs(current => ({ ...current, [id]: '' }));
+      setAdminMessage('הקישור הקיים שויך ונשמר בצורה מוצפנת. כתובת הקישור לא השתנתה.');
+      await loadBusinessManagementLink(id);
+    } catch (err) {
+      setAdminMessage(err instanceof Error ? err.message : 'שיוך הקישור נכשל.');
+    } finally {
+      setManagementLinkLoading(null);
+    }
+  }
+
+  async function copyBusinessManagementLink(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setAdminMessage('קישור הניהול הועתק ללוח.');
+    } catch {
+      setAdminMessage('לא ניתן להעתיק אוטומטית. אפשר לסמן ולהעתיק את הקישור שמופיע.');
+    }
+  }
+
   async function requestBusinessDeletion(id: string) {
     const business = businesses.find((item) => item.id === id);
     if (!business) return;
@@ -422,6 +482,24 @@ export default function PlatformAdminPage() {
             <button type="button" disabled={adminLoading || deletionRequests.some((request) => request.tenant_id === business.id)} onClick={()=>requestBusinessDeletion(business.id)} className="mt-3 mr-2 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-800 disabled:opacity-50">פתיחת בקשת מחיקה מלאה</button>
             {business.trial_ends_at && <p className="mt-2 text-xs text-slate-500">סיום ניסיון: {new Date(business.trial_ends_at).toLocaleDateString('he-IL')}</p>}
             {business.domains.length > 0 && <p className="mt-2 break-all text-xs text-slate-500">{business.domains.map(d=>d.domain).join(' · ')}</p>}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">קישור הניהול הקבוע</p>
+                <button type="button" disabled={managementLinkLoading===business.id} onClick={()=>loadBusinessManagementLink(business.id)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50">
+                  {managementLinkLoading===business.id?'טוען…':'הצגת קישור'}
+                </button>
+              </div>
+              {managementLinks[business.id]?.available && managementLinks[business.id]?.management_url && <div className="mt-3">
+                <input readOnly value={managementLinks[business.id].management_url} dir="ltr" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-xs" />
+                <button type="button" onClick={()=>copyBusinessManagementLink(managementLinks[business.id].management_url!)} className="mt-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">העתקת הקישור</button>
+              </div>}
+              {managementLinks[business.id]?.requires_association && <div className="mt-3 space-y-2">
+                <p className="text-xs leading-5 text-amber-900">זהו קישור ישן שנשמר בעבר רק כטביעת אבטחה. כדי להציג אותו מחדש, יש להדביק עותק קיים. לא ניצור קישור חלופי ולא נחליף את הכתובת.</p>
+                <input value={legacyLinkInputs[business.id]??''} onChange={e=>setLegacyLinkInputs(current=>({...current,[business.id]:e.target.value}))} dir="ltr" placeholder="https://.../manage/..." className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-xs" />
+                <button type="button" disabled={managementLinkLoading===business.id||!legacyLinkInputs[business.id]?.trim()} onClick={()=>associateBusinessManagementLink(business.id)} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">שיוך הקישור הקיים ושמירתו</button>
+              </div>}
+              {managementLinks[business.id]&&!managementLinks[business.id].available&&!managementLinks[business.id].requires_association&&<p className="mt-2 text-xs text-slate-600">לא נמצאה לעסק רשומת קישור ניהול קבועה.</p>}
+            </div>
           </article>)}
         </section>}
 
