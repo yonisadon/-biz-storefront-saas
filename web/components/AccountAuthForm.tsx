@@ -32,7 +32,7 @@ export default function AccountAuthForm({ mode, returnTo }: { mode: Mode; return
   const pathname = usePathname();
   const legalReturnTo = encodeURIComponent(pathname || (isRegister ? '/register' : '/login'));
   const safeReturnTo = returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
-    && !returnTo.includes('\\\\') && !/[\\r\\n]/.test(returnTo) ? returnTo : null;
+    && !returnTo.includes('\\') && !/[\r\n]/.test(returnTo) ? returnTo : null;
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
