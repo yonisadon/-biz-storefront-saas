@@ -100,4 +100,5 @@ jobs:
           EMAIL_FROM: BTime Tests <noreply@example.test>
           DATABASE_SSL: 'false'
           NODE_ENV: test
+          MANAGEMENT_TOKEN_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         run: npm run test:platform-integration
