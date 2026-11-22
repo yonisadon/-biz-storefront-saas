@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   config           jsonb NOT NULL DEFAULT '{}'::jsonb
                    CHECK (jsonb_typeof(config) = 'object'),
   created_at       timestamptz NOT NULL DEFAULT now(),
+  onboarding_completed_at timestamptz,
   updated_at       timestamptz NOT NULL DEFAULT now(),
   -- Spec 3.2: seller may show both order routes or only one (never zero)
   CONSTRAINT chk_whatsapp_route_needs_number
