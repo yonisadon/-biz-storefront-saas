@@ -366,8 +366,8 @@ test('platform account lifecycle and independent marketing consents', async () =
     let manualDatabase = '';
     try {
       const manualCreated = await pool.query(
-        'SELECT app.create_business($1, $2, NULL, $3::jsonb) AS id',
-        [manualSlug, manualName, JSON.stringify({})],
+        'SELECT app.create_business($1, $2, $3, $4::jsonb) AS id',
+        [manualSlug, manualName, claimEmail, JSON.stringify({})],
       );
       manualBusinessId = manualCreated.rows[0].id as string;
       const legacyManagementToken = randomBytes(32).toString('base64url');
