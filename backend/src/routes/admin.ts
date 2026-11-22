@@ -13,6 +13,7 @@ import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 import { sendBrevoEmail } from '../email';
+import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -59,6 +60,8 @@ const ExecuteDeletionInput = z.object({
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
+
+const ManagementLinkAssociationInput = z.object({ management_url: z.string().url().max(2000) }).strict();
 
 const RetentionPolicyRowInput = z.object({
   plan_code: z.enum(['standard', 'plus']),
@@ -418,11 +421,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.
-      const token = randomBytes(32).toString('base64url');
-      const tokenHash = createHash('sha256').update(token, 'utf8').digest();
+      const managementToken = createManagementToken();
       await registry.query(
-        'INSERT INTO public.access_tokens (tenant_id, token_hash, label) VALUES ($1, $2, $3)',
-        [tenantId, tokenHash, 'initial seller link'],
+        "INSERT INTO public.access_tokens (tenant_id, token_hash, encrypted_token, label) VALUES ($1, $2, $3, 'permanent seller link')",
+        [tenantId, managementToken.tokenHash, managementToken.encryptedToken],
       );
       await registry.query(
         'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
