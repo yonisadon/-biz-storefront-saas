@@ -27,10 +27,12 @@ function PasswordField({ id, label, value, onChange, autoComplete, minLength = 1
   </div>;
 }
 
-export default function AccountAuthForm({ mode }: { mode: Mode }) {
+export default function AccountAuthForm({ mode, returnTo }: { mode: Mode; returnTo?: string }) {
   const isRegister = mode === 'register';
   const pathname = usePathname();
   const legalReturnTo = encodeURIComponent(pathname || (isRegister ? '/register' : '/login'));
+  const safeReturnTo = returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+    && !returnTo.includes('\\\\') && !/[\\r\\n]/.test(returnTo) ? returnTo : null;
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +73,37 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         setPassword('');
         setConfirmPassword('');
       } else {
-        window.location.assign(data?.role === 'super_admin' ? '/platform-admin' : '/account');
+        if (data?.role === 'super_admin') {
+          window.location.assign('/platform-admin');
+          return;
+        }
+        if (safeReturnTo) {
+          window.location.assign(safeReturnTo);
+          return;
+        }
+        const meResponse = await fetch('/api/auth/me', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        const meData = await meResponse.json().catch(() => null);
+        if (meResponse.ok && meData?.user?.business_id) {
+          const linkResponse = await fetch('/api/auth/management-link', {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+          });
+          const linkData = await linkResponse.json().catch(() => null);
+          if (linkResponse.ok && linkData?.management_url) {
+            window.location.assign(linkData.management_url);
+            return;
+          }
+          if (linkData?.error === 'management_link_association_required') {
+            window.location.assign('/account?managementLinkRecovery=1');
+            return;
+          }
+        }
+        window.location.assign('/account');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה.');
@@ -158,7 +190,7 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         </form>
         <div className="mt-5 flex flex-wrap justify-between gap-3 text-sm">
           {isRegister ? <Link href="/login" className="font-semibold text-blue-700">כבר יש לך חשבון? התחברות</Link> : <>
-            <Link href="/register" className="font-semibold text-blue-700">פתיחת חשבון חדש</Link>
+            {!safeReturnTo && <Link href="/register" className="font-semibold text-blue-700">פתיחת חשבון חדש</Link>}
             <Link href="/forgot-password" className="text-slate-600 underline">שכחתי סיסמה</Link>
           </>}
         </div>
