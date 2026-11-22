@@ -339,6 +339,29 @@ test('platform account lifecycle and independent marketing consents', async () =
     process.env.SUPERADMIN_API_TOKEN = adminToken;
     const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const manualName = 'Manual Integration Business';
+    const claimEmail = `claim-${randomUUID()}@example.test`;
+    const claimRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        email: claimEmail,
+        phone: '+972501234568',
+        password: 'new-correct-horse-battery',
+        termsAccepted: true,
+        privacyAccepted: true,
+        marketingEmail: false,
+        marketingSms: false,
+      },
+    });
+    assert.equal(claimRegistration.statusCode, 201);
+    const claimVerificationEmail = sentEmails.filter(message => message.to[0]?.email === claimEmail).at(-1);
+    assert.ok(claimVerificationEmail);
+    const claimVerificationToken = extractToken(claimVerificationEmail.htmlContent, 'verify-email');
+    const claimVerification = await app.inject({
+      method: 'POST', url: '/api/auth/verify-email', payload: { token: claimVerificationToken },
+    });
+    assert.equal(claimVerification.statusCode, 200);
+    claimSessionCookie = String(claimVerification.headers['set-cookie']).split(';')[0];
     let manualBusinessId = '';
     let manualDatabase = '';
     try {
