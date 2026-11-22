@@ -63,7 +63,11 @@ export default function RetentionAdminPage() {
       const response = await fetch('/api/admin/retention-policies', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ policies }),
+        body: JSON.stringify({
+          policies: policies.map(({ plan_code, record_type, record_status, delete_enabled, retention_days }) => ({
+            plan_code, record_type, record_status, delete_enabled, retention_days,
+          })),
+        }),
         cache: 'no-store',
       });
       const data = await response.json().catch(() => null);
