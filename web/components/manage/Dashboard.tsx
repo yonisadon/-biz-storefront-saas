@@ -161,27 +161,18 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           <div className="flex flex-wrap items-center gap-2">
             <PwaInstallButton label="התקנת ניהול העסק" />
             {!onboardingCompleted && !onboardingVisible && <button type="button" onClick={() => setOnboardingVisible(true)} className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary">המשך הקמת העסק</button>}
+            <a href="/account" className="min-h-10 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10">
+              החשבון שלי
+            </a>
+            <button type="button" onClick={logout} disabled={loggingOut} className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
+              {loggingOut ? 'מתנתק…' : 'התנתקות'}
+            </button>
             <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
               צפייה באתר ↗
             </a>
           </div>
         </header>
-
-        <nav aria-label="החשבון שלי" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/15 bg-white px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-sm font-bold text-ink">ניהול חשבון BTime</p>
-            <p className="mt-0.5 text-xs text-ink/60">הגדרות החשבון וההתנתקות נמצאות כאן</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href="/account" className="min-h-10 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10">
-              מעבר לחשבון שלי
-            </a>
-            <button type="button" onClick={logout} disabled={loggingOut} className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
-              {loggingOut ? 'מתנתק…' : 'התנתקות'}
-            </button>
-          </div>
-        </nav>
 
         {claimState === 'claimable' && <section className="mt-4 rounded-2xl border border-ink/15 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
