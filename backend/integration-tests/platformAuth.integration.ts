@@ -417,6 +417,32 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(legacyLinkAfterAssociation.json().available, true);
       assert.equal(legacyLinkAfterAssociation.json().management_url, legacyManagementUrl,
         'associating a legacy link must preserve its exact URL');
+      const claimResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/claim-business',
+        headers: { cookie: claimSessionCookie },
+        payload: { token: legacyManagementToken },
+      });
+      assert.equal(claimResponse.statusCode, 200);
+      assert.equal(claimResponse.json().claimed, true);
+      const claimedOwner = await pool.query(
+        'SELECT user_id FROM public.platform_business_owners WHERE tenant_id = $1',
+        [manualBusinessId],
+      );
+      assert.equal(claimedOwner.rowCount, 1);
+      const claimSessionToken = decodeURIComponent(claimSessionCookie.split('=')[1]);
+      const claimSessionHash = createHash('sha256').update(claimSessionToken, 'utf8').digest();
+      const authorizedAfterClaim = await pool.query(
+        'SELECT app.authorize_tenant_management($1, $2) AS tenant_id',
+        [legacyManagementHash, claimSessionHash],
+      );
+      assert.equal(authorizedAfterClaim.rows[0].tenant_id, manualBusinessId);
+      const bearerOnlyAfterClaim = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(bearerOnlyAfterClaim.rows[0].tenant_id, null,
+        'claiming a business must stop bearer-only access without changing the link');
       const ownerlessAuthorization = await pool.query(
         'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
         [legacyManagementHash],
