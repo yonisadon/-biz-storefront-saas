@@ -6,6 +6,8 @@ on:
     paths:
       - 'backend/migrations/000_tenant_registry.sql'
       - 'backend/migrations/001_platform_accounts_subscriptions.sql'
+      - 'backend/migrations/002_platform_content_and_messages.sql'
+      - 'backend/migrations/003_platform_retention_policies.sql'
       - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
       - 'backend/integration-tests/**'
@@ -54,10 +56,18 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/001_platform_accounts_subscriptions.sql
-      - name: Re-run platform migration to verify idempotence
+      - name: Apply platform content and messages migration
         env:
           PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/001_platform_accounts_subscriptions.sql
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/002_platform_content_and_messages.sql
+      - name: Apply configurable retention policies migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/003_platform_retention_policies.sql
+      - name: Re-run platform retention migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/003_platform_retention_policies.sql
       - name: Verify access rules and admin-originated deletion requests
         env:
           PGPASSWORD: postgres

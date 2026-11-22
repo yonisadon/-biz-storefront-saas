@@ -260,13 +260,13 @@ async function main() {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve calendar appointments.`);
         }
         const retentionTrigger = await db.query(
-          \`SELECT 1 FROM pg_trigger
+          `SELECT 1 FROM pg_trigger
             WHERE tgrelid = 'public.leads'::regclass
               AND tgname = 'trg_leads_retention_closed_at'
-              AND NOT tgisinternal\`,
+              AND NOT tgisinternal`,
         );
         if (!retentionTrigger.rowCount) {
-          throw new Error(\`Postflight failed for \${tenant.database_name}: lead closure timestamp trigger is missing.\`);
+          throw new Error(`Postflight failed for \${tenant.database_name}: lead closure timestamp trigger is missing.`);
         }
 
         const waitlistSecurity = await db.query(
