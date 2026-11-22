@@ -61,6 +61,8 @@ const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
 
+const ManagementLinkAssociationInput = z.object({ management_url: z.string().url().max(2000) }).strict();
+
 
 const RetentionPolicyRowInput = z.object({
   plan_code: z.enum(['standard', 'plus']),
