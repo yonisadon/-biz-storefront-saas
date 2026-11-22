@@ -490,8 +490,8 @@ export default function PlatformAdminPage() {
                 </button>
               </div>
               {managementLinks[business.id]?.available && managementLinks[business.id]?.management_url && <div className="mt-3">
-                <input readOnly value={managementLinks[business.id].management_url} dir="ltr" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-xs" />
-                <button type="button" onClick={()=>copyBusinessManagementLink(managementLinks[business.id].management_url!)} className="mt-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">העתקת הקישור</button>
+                <input readOnly value={managementLinks[business.id]?.management_url ?? ''} dir="ltr" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-xs" />
+                <button type="button" onClick={()=>copyBusinessManagementLink(managementLinks[business.id]?.management_url ?? '')} className="mt-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">העתקת הקישור</button>
               </div>}
               {managementLinks[business.id]?.requires_association && <div className="mt-3 space-y-2">
                 <p className="text-xs leading-5 text-amber-900">זהו קישור ישן שנשמר בעבר רק כטביעת אבטחה. כדי להציג אותו מחדש, יש להדביק עותק קיים. לא ניצור קישור חלופי ולא נחליף את הכתובת.</p>
@@ -586,6 +586,7 @@ export default function PlatformAdminPage() {
             <div>
               <p className="mb-1 text-sm font-semibold">קישור ניהול למוכר — יש לשמור ולמסור לבעל העסק</p>
               <a className="break-all text-blue-700 underline" href={created.management_url} target="_blank" rel="noreferrer">{created.management_url}</a>
+              <button type="button" onClick={()=>copyBusinessManagementLink(created.management_url)} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">העתקת קישור הניהול</button>
               <p className="mt-2 text-xs leading-5 text-amber-800">הקישור מכיל הרשאת גישה פרטית. העבר אותו לבעל העסק בערוץ מאובטח ואל תפרסם אותו.</p>
             </div>
           </section>
