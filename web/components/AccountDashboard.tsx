@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 import Link from 'next/link';
 
 type PlatformNotification = { id: string; title: string; body: string; created_at: string; in_app_read_at: string | null };
@@ -144,7 +145,7 @@ export default function AccountDashboard() {
         business_provisioning_failed:'הקמת העסק נכשלה. לא נוצר עסק פעיל; אפשר לנסות שוב לאחר בדיקה.',
       };
       if(!response.ok)throw new Error(messages[data?.error]??data?.message??'לא ניתן להקים את העסק כרגע.');
-      if(data?.management_url){window.location.assign(data.management_url);return;}
+      if(data?.management_url){const path=sameOriginManagementPath(data.management_url);if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');window.location.assign(path);return;}
       await loadAccount();
       setMessage('העסק הוקם בהצלחה. תקופת הניסיון שלך היא 30 יום.');
       setName('');setSlug('');setWhatsapp('');
@@ -170,7 +171,7 @@ export default function AccountDashboard() {
   }
 
   async function openManagement(){
-    if(managementUrl){window.location.assign(managementUrl);return;}
+    if(managementUrl){const path=sameOriginManagementPath(managementUrl);if(!path){setError('קישור הניהול השמור אינו תקין.');return;}window.location.assign(path);return;}
     setSaving(true);setError('');
     try{
       const response=await fetch('/api/auth/management-link',{method:'POST',cache:'no-store',credentials:'same-origin'});
@@ -181,8 +182,10 @@ export default function AccountDashboard() {
         return;
       }
       if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל. יש לפנות לבעל הפלטפורמה.':'לא ניתן לטעון את קישור הניהול.');
+      const path=sameOriginManagementPath(data.management_url);
+      if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');
       setManagementUrl(data.management_url);
-      window.location.assign(data.management_url);
+      window.location.assign(path);
     }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
     finally{setSaving(false);}
   }
