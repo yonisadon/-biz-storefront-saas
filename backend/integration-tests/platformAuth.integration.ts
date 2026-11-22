@@ -371,6 +371,7 @@ test('platform account lifecycle and independent marketing consents', async () =
         [manualSlug, manualName, JSON.stringify({})],
       );
       manualBusinessId = manualCreated.rows[0].id as string;
+      await pool.query('UPDATE public.businesses SET email = $2 WHERE id = $1', [manualBusinessId, claimEmail]);
       const legacyManagementToken = randomBytes(32).toString('base64url');
       const legacyManagementHash = createHash('sha256').update(legacyManagementToken, 'utf8').digest();
       await pool.query(
