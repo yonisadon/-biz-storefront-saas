@@ -34,6 +34,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState('');
   const [onboardingMessage, setOnboardingMessage] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +53,26 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
       .catch(() => { if (!cancelled) setClaimState('claimable'); });
     return () => { cancelled = true; };
   }, [biz.slug]);
+
+  async function logout() {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+    } catch {
+      // Continue to the login screen even if the network response is unavailable.
+    }
+    try { window.localStorage.setItem('btime-session-ended', String(Date.now())); } catch {}
+    try {
+      const channel = new BroadcastChannel('btime-auth');
+      channel.postMessage('session-ended');
+      channel.close();
+    } catch {}
+    window.location.replace('/login');
+  }
 
   async function completeOnboarding() {
     setOnboardingSaving(true);
@@ -139,9 +160,6 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PwaInstallButton label="התקנת ניהול העסק" />
-            <a href="/account" className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/5">
-              הגדרות חשבון
-            </a>
             {!onboardingCompleted && !onboardingVisible && <button type="button" onClick={() => setOnboardingVisible(true)} className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary">המשך הקמת העסק</button>}
             <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer"
               className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg hover:opacity-90">
@@ -149,6 +167,21 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
             </a>
           </div>
         </header>
+
+        <nav aria-label="החשבון שלי" className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/15 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-sm font-bold text-ink">ניהול חשבון BTime</p>
+            <p className="mt-0.5 text-xs text-ink/60">הגדרות החשבון וההתנתקות נמצאות כאן</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href="/account" className="min-h-10 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10">
+              מעבר לחשבון שלי
+            </a>
+            <button type="button" onClick={logout} disabled={loggingOut} className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
+              {loggingOut ? 'מתנתק…' : 'התנתקות'}
+            </button>
+          </div>
+        </nav>
 
         {claimState === 'claimable' && <section className="mt-4 rounded-2xl border border-ink/15 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
