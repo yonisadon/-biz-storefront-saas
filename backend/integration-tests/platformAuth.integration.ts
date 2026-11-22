@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 
 test('platform account lifecycle and independent marketing consents', async () => {
@@ -135,17 +135,48 @@ test('platform account lifecycle and independent marketing consents', async () =
     const oldSession = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: sessionCookie } });
     assert.equal(oldSession.statusCode, 401, 'password reset must revoke previous sessions');
 
+    const expiredSessionToken = `expired-${randomUUID()}`;
+    const expiredSessionHash = createHash('sha256').update(expiredSessionToken).digest();
+    const activeSessionToken = `active-${randomUUID()}`;
+    const activeSessionHash = createHash('sha256').update(activeSessionToken).digest();
+    await pool.query(
+      `INSERT INTO public.platform_sessions (user_id, token_hash, expires_at)
+       VALUES ($1, $2, now() - interval '1 day'), ($1, $3, now() + interval '2 days')`,
+      [userId, expiredSessionHash, activeSessionHash],
+    );
+
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
       payload: { email, password: 'new-correct-horse-battery' },
     });
     assert.equal(login.statusCode, 200);
-    const newCookie = String(login.headers['set-cookie']).split(';')[0];
+    const setCookie = String(login.headers['set-cookie']);
+    assert.match(setCookie, /Max-Age=259200/);
+    const newCookie = setCookie.split(';')[0];
+    const newSessionToken = decodeURIComponent(newCookie.slice('btime_session='.length));
+    const newSessionHash = createHash('sha256').update(newSessionToken).digest();
+    const sessionRows = await pool.query(
+      `SELECT token_hash, expires_at FROM public.platform_sessions WHERE user_id = $1`,
+      [userId],
+    );
+    assert.equal(sessionRows.rowCount, 2, 'login must remove expired sessions but preserve active sessions');
+    assert.ok(sessionRows.rows.some((row) => Buffer.from(row.token_hash).equals(activeSessionHash)));
+    assert.ok(!sessionRows.rows.some((row) => Buffer.from(row.token_hash).equals(expiredSessionHash)));
+    const createdSession = sessionRows.rows.find((row) => Buffer.from(row.token_hash).equals(newSessionHash));
+    assert.ok(createdSession, 'login must create a fresh session');
+    const remainingMs = new Date(createdSession.expires_at).getTime() - Date.now();
+    assert.ok(remainingMs > 2.99 * 24 * 60 * 60 * 1000 && remainingMs <= 3 * 24 * 60 * 60 * 1000 + 5000,
+      'database session expiry must be three days from creation');
+
     const logout = await app.inject({ method: 'POST', url: '/api/auth/logout', headers: { cookie: newCookie } });
     assert.equal(logout.statusCode, 204);
     const afterLogout = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: newCookie } });
     assert.equal(afterLogout.statusCode, 401);
+    const loggedOutRow = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [newSessionHash]);
+    assert.equal(loggedOutRow.rowCount, 0, 'logout must delete the session row immediately');
+    const preservedSession = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
+    assert.equal(preservedSession.rowCount, 1, 'logout must not delete another active session');
 
     // Exercise the real dedicated-database provisioning path against the disposable CI registry.
     const { provisionBusinessForOwner } = await import('../src/provisioning');
