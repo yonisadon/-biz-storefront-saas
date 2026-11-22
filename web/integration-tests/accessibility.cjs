@@ -7,6 +7,7 @@ const routes = [
   '/verify-email?token=integration-test-token',
   '/platform-legal',
   '/platform-admin',
+  '/platform-admin/retention',
 ];
 
 (async () => {
