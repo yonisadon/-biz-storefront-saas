@@ -17,6 +17,14 @@ export default function PwaInstallButton({ label }: { label: string }) {
       || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setInstalled(standalone);
 
+    // Register a real service worker for PWA capability. It does not cache
+    // private management pages or API responses.
+    if ('serviceWorker' in window.navigator && window.isSecureContext) {
+      window.navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
+        setHelp('לא הצלחנו להפעיל את רכיב ההתקנה. כדאי לרענן את הדף ולנסות שוב.');
+      });
+    }
+
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
@@ -39,15 +47,16 @@ export default function PwaInstallButton({ label }: { label: string }) {
     if (installPrompt) {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
-      if (choice.outcome === 'accepted') setHelp('האפליקציה נוספה למכשיר.');
+      if (choice.outcome === 'accepted') setHelp('אפליקציית הניהול נוספה למכשיר.');
+      else setHelp('ההתקנה לא הושלמה. אפשר לנסות שוב מאותו מסך ניהול.');
       setInstallPrompt(null);
       return;
     }
 
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
     setHelp(isIos
-      ? 'ב-iPhone/iPad: פתחו את תפריט השיתוף ב-Safari ובחרו „הוספה למסך הבית”.'
-      : 'פתחו את תפריט הדפדפן ובחרו „התקנת האפליקציה” או „הוספה למסך הבית”. אם האפשרות לא מופיעה, ודאו שהאתר פתוח בכתובת HTTPS ובדפדפן תומך.');
+      ? 'ב-iPhone/iPad ההתקנה נעשית דרך Safari: פתחו שיתוף ובחרו „הוספה למסך הבית”. כך האתר נפתח כאפליקציה נפרדת.'
+      : 'הדפדפן עדיין לא הציע התקנה כאפליקציה. פתחו את קישור הניהול ב-Chrome ועדכנו את הדף. אם מופיעה רק אפשרות „יצירת קיצור דרך” — אל תבחרו בה; נבדוק מדוע הדפדפן לא מזהה את אפשרות ההתקנה.');
   }
 
   if (installed) return null;
