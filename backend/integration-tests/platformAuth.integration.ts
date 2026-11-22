@@ -179,6 +179,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     assert.equal(loggedOutRow.rowCount, 0, 'logout must delete the session row immediately');
     const preservedSession = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
     assert.equal(preservedSession.rowCount, 1, 'logout must not delete another active session');
+    await pool.query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
 
     // Exercise the real dedicated-database provisioning path against the disposable CI registry.
     const { provisionBusinessForOwner } = await import('../src/provisioning');
@@ -507,6 +508,7 @@ test('platform account lifecycle and independent marketing consents', async () =
       if (manualBusinessId) {
         await pool.query('DELETE FROM public.business_deletion_requests WHERE business_slug = $1', [manualSlug]).catch(() => {});
         await pool.query('DELETE FROM public.businesses WHERE id = $1', [manualBusinessId]).catch(() => {});
+        await pool.query('DELETE FROM public.platform_users WHERE email = $1', [claimEmail]).catch(() => {});
       }
     }
 
