@@ -190,7 +190,7 @@ export default function AccountAuthForm({ mode, returnTo }: { mode: Mode; return
         </form>
         <div className="mt-5 flex flex-wrap justify-between gap-3 text-sm">
           {isRegister ? <Link href="/login" className="font-semibold text-blue-700">כבר יש לך חשבון? התחברות</Link> : <>
-            {!safeReturnTo && <Link href="/register" className="font-semibold text-blue-700">פתיחת חשבון חדש</Link>}
+            <Link href="/register" className="font-semibold text-blue-700">פתיחת חשבון חדש</Link>
             <Link href="/forgot-password" className="text-slate-600 underline">שכחתי סיסמה</Link>
           </>}
         </div>
