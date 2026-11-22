@@ -10,7 +10,7 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/;
 export function sameOriginManagementPath(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   const raw = value.trim();
-  if (raw.startsWith('//') || raw.includes('\\\\') || /[\\r\\n]/.test(raw)) return null;
+  if (raw.startsWith('//') || raw.includes('\\') || /[\r\n]/.test(raw)) return null;
 
   let parsed: URL;
   try {
@@ -21,6 +21,6 @@ export function sameOriginManagementPath(value: unknown): string | null {
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
   if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
 
-  const match = parsed.pathname.match(/^\\/manage\\/([A-Za-z0-9_-]{43,128})\\/?$/);
-  return match && TOKEN_RE.test(match[1]) ? `/manage/${match[1]}` : null;
+  const match = parsed.pathname.match(/^\/manage\/([A-Za-z0-9_-]{43,128})\/?$/);
+  return match && TOKEN_RE.test(match[1]) ? '/manage/' + match[1] : null;
 }
