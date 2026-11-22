@@ -393,6 +393,12 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(legacyLinkAfterAssociation.json().available, true);
       assert.equal(legacyLinkAfterAssociation.json().management_url, legacyManagementUrl,
         'associating a legacy link must preserve its exact URL');
+      const ownerlessAuthorization = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(ownerlessAuthorization.rows[0].tenant_id, manualBusinessId,
+        'ownerless businesses must continue to accept their fixed bearer link');
 
       const visibleBusinesses = await app.inject({ method: 'GET', url: '/api/admin/businesses', headers: adminHeaders });
       assert.equal(visibleBusinesses.statusCode, 200);
