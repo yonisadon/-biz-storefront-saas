@@ -430,7 +430,12 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(visibleBusinesses.statusCode, 200);
       const visibleManual = visibleBusinesses.json().businesses.find((business: { id: string }) => business.id === manualBusinessId);
       assert.ok(visibleManual, 'ownerless manually created businesses must appear in Super Admin');
-      assert.equal(visibleManual.owner_email, null);
+      assert.equal(visibleManual.owner_email, claimEmail);
+      const unclaimedOwnerMapping = await pool.query(
+        'SELECT 1 FROM public.platform_business_owners WHERE tenant_id = $1',
+        [manualBusinessId],
+      );
+      assert.equal(unclaimedOwnerMapping.rowCount, 0, 'business contact email must not imply an account owner');
       const claimResponse = await app.inject({
         method: 'POST',
         url: '/api/auth/claim-business',
