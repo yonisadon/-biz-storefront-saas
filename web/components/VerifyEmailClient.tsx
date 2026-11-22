@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 
 export default function VerifyEmailClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,9 @@ export default function VerifyEmailClient({ token }: { token: string }) {
         });
         const linkData = await linkResponse.json().catch(() => null);
         if (linkResponse.ok && linkData?.management_url) {
-          window.location.assign(linkData.management_url);
+          const managementPath = sameOriginManagementPath(linkData.management_url);
+          if (!managementPath) throw new Error('קישור הניהול שהתקבל אינו תקין.');
+          window.location.assign(managementPath);
           return;
         }
         if (linkData?.error === 'management_link_association_required') {
