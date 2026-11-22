@@ -2837,3 +2837,10 @@
 - On supported Android/desktop browsers, the install button uses the native `beforeinstallprompt` flow. If the browser does not offer an app-install prompt, the UI must not describe a home-screen shortcut as an app installation. On iOS, use Safari's Share → Add to Home Screen flow, which is the supported web-app installation path there.
 - PWA is not considered verified until a real Android/Chrome install is tested from a business management URL, the installed app opens that same business route, login-after-Session-expiry returns to management, and the iOS Safari flow is checked separately.
 - Creating a business through self-registration still redirects immediately to its management URL, where this guide is shown. Admin-created businesses created after migration show the same guide when the seller opens the permanent link.
+
+## Same-origin management redirects — November 2026
+
+- Browser navigation to a seller management page always uses a validated relative path of the form `/manage/{token}`, never an absolute hostname returned by the backend. This keeps Vercel Preview login and email-verification flows on the Preview host instead of redirecting to Production.
+- The helper accepts only a valid management-token path and rejects external redirect schemes, protocol-relative URLs, query strings, fragments, and malformed tokens. The current browser origin is therefore retained while the backend continues to return the canonical production URL for copying/sharing.
+- Apply this normalization after login, after email verification, after self-service business creation, and when opening management from account settings. The displayed/copied canonical link is not rewritten.
+- No database schema, stored data, migration, Railway setting, or production deployment is changed by this fix. **No migration required.**
