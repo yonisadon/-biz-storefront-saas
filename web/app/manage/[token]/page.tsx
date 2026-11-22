@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   let appIcon: string | undefined;
   const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
   const cookie = (await headers()).get('cookie') ?? '';
-  const forwardedHeaders = cookie ? { cookie } : {};
+  const forwardedHeaders: Record<string, string> = cookie ? { cookie } : {};
 
   // Fetch business metadata independently: a gallery error must not discard a valid business name.
   try {
@@ -83,10 +83,9 @@ export default async function ManagePage({ params }: { params: Promise<{ token: 
   const incomingHeaders = await headers();
   const xff = incomingHeaders.get('x-forwarded-for');
   const cookie = incomingHeaders.get('cookie');
-  const forwardedHeaders = {
-    ...(xff ? { 'x-forwarded-for': xff } : {}),
-    ...(cookie ? { cookie } : {}),
-  };
+  const forwardedHeaders: Record<string, string> = {};
+  if (xff) forwardedHeaders['x-forwarded-for'] = xff;
+  if (cookie) forwardedHeaders.cookie = cookie;
   const get = async <T,>(sub: string): Promise<T | null> => {
     const res = await fetch(`${process.env.API_URL}/api/manage/${token}/${sub}`, {
       cache: 'no-store',
