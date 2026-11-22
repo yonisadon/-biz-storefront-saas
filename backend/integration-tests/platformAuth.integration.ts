@@ -354,7 +354,7 @@ test('platform account lifecycle and independent marketing consents', async () =
         marketingSms: false,
       },
     });
-    assert.equal(claimRegistration.statusCode, 201);
+    assert.equal(claimRegistration.statusCode, 202);
     const claimVerificationEmail = sentEmails.filter(message => message.to[0]?.email === claimEmail).at(-1);
     assert.ok(claimVerificationEmail);
     const claimVerificationToken = extractToken(claimVerificationEmail.htmlContent, 'verify-email');
