@@ -19,7 +19,7 @@ export async function GET(
 
   const baseUrl = String(process.env.API_URL) + '/api/manage/' + token;
   const cookie = request.headers.get('cookie') ?? '';
-  const forwardedHeaders = cookie ? { cookie } : {};
+  const forwardedHeaders: Record<string, string> = { cookie };
   const [businessResponse, galleryResponse] = await Promise.all([
     fetch(baseUrl + '/business', { cache: 'no-store', headers: forwardedHeaders }),
     fetch(baseUrl + '/gallery', { cache: 'no-store', headers: forwardedHeaders }),
