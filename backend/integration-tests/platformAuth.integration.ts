@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 
 test('platform account lifecycle and independent marketing consents', async () => {
@@ -14,6 +14,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.DATABASE_SSL = 'false';
   process.env.NODE_ENV = 'test';
   process.env.SUPERADMIN_API_TOKEN = 't'.repeat(48);
+  process.env.MANAGEMENT_TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
@@ -33,6 +34,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   let app: Awaited<ReturnType<typeof buildServer>> | undefined;
   let sessionCookie = '';
   let ownerSessionCookie = '';
+  let claimSessionCookie = '';
 
   const extractToken = (html: string, route: 'verify-email' | 'reset-password') => {
     const match = html.match(new RegExp(`/${route}\\?token=([^"&]+)`));
@@ -135,17 +137,49 @@ test('platform account lifecycle and independent marketing consents', async () =
     const oldSession = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: sessionCookie } });
     assert.equal(oldSession.statusCode, 401, 'password reset must revoke previous sessions');
 
+    const expiredSessionToken = `expired-${randomUUID()}`;
+    const expiredSessionHash = createHash('sha256').update(expiredSessionToken).digest();
+    const activeSessionToken = `active-${randomUUID()}`;
+    const activeSessionHash = createHash('sha256').update(activeSessionToken).digest();
+    await pool.query(
+      `INSERT INTO public.platform_sessions (user_id, token_hash, expires_at)
+       VALUES ($1, $2, now() - interval '1 day'), ($1, $3, now() + interval '2 days')`,
+      [userId, expiredSessionHash, activeSessionHash],
+    );
+
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
       payload: { email, password: 'new-correct-horse-battery' },
     });
     assert.equal(login.statusCode, 200);
-    const newCookie = String(login.headers['set-cookie']).split(';')[0];
+    const setCookie = String(login.headers['set-cookie']);
+    assert.match(setCookie, /Max-Age=259200/);
+    const newCookie = setCookie.split(';')[0];
+    const newSessionToken = decodeURIComponent(newCookie.slice('btime_session='.length));
+    const newSessionHash = createHash('sha256').update(newSessionToken).digest();
+    const sessionRows = await pool.query(
+      `SELECT token_hash, expires_at FROM public.platform_sessions WHERE user_id = $1`,
+      [userId],
+    );
+    assert.equal(sessionRows.rowCount, 2, 'login must remove expired sessions but preserve active sessions');
+    assert.ok(sessionRows.rows.some((row) => Buffer.from(row.token_hash).equals(activeSessionHash)));
+    assert.ok(!sessionRows.rows.some((row) => Buffer.from(row.token_hash).equals(expiredSessionHash)));
+    const createdSession = sessionRows.rows.find((row) => Buffer.from(row.token_hash).equals(newSessionHash));
+    assert.ok(createdSession, 'login must create a fresh session');
+    const remainingMs = new Date(createdSession.expires_at).getTime() - Date.now();
+    assert.ok(remainingMs > 2.99 * 24 * 60 * 60 * 1000 && remainingMs <= 3 * 24 * 60 * 60 * 1000 + 5000,
+      'database session expiry must be three days from creation');
+
     const logout = await app.inject({ method: 'POST', url: '/api/auth/logout', headers: { cookie: newCookie } });
     assert.equal(logout.statusCode, 204);
     const afterLogout = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: newCookie } });
     assert.equal(afterLogout.statusCode, 401);
+    const loggedOutRow = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [newSessionHash]);
+    assert.equal(loggedOutRow.rowCount, 0, 'logout must delete the session row immediately');
+    const preservedSession = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
+    assert.equal(preservedSession.rowCount, 1, 'logout must not delete another active session');
+    await pool.query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
 
     // Exercise the real dedicated-database provisioning path against the disposable CI registry.
     const { provisionBusinessForOwner } = await import('../src/provisioning');
@@ -158,6 +192,23 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
       assert.match(provisioned.database, /^biz_[a-f0-9]{24}$/);
       assert.equal(provisioned.slug, businessSlug);
+      assert.match(provisioned.management_url, /^http:\/\/localhost:3000\/manage\/[A-Za-z0-9_-]{43}$/);
+      const permanentToken = new URL(provisioned.management_url).pathname.split('/').pop()!;
+      const permanentTokenRow = await pool.query(
+        'SELECT token_hash, encrypted_token, expires_at, label FROM public.access_tokens WHERE tenant_id = $1',
+        [provisioned.id],
+      );
+      assert.equal(permanentTokenRow.rowCount, 1);
+      assert.ok(permanentTokenRow.rows[0].encrypted_token);
+      assert.equal(permanentTokenRow.rows[0].expires_at, null);
+      assert.equal(permanentTokenRow.rows[0].label, 'permanent seller link');
+      assert.ok(!String(permanentTokenRow.rows[0].encrypted_token).includes(permanentToken));
+
+      const anonymousManagement = await app.inject({
+        method: 'GET', url: `/api/manage/${permanentToken}/business`,
+      });
+      assert.equal(anonymousManagement.statusCode, 401, 'claimed businesses must require an owner session');
+
       const tenantDatabaseUrl = new URL(databaseUrl);
       tenantDatabaseUrl.pathname = `/${provisioned.database}`;
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
@@ -202,6 +253,31 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(ownerLogin.statusCode, 200);
       const ownerCookie = String(ownerLogin.headers['set-cookie']).split(';')[0];
       ownerSessionCookie = ownerCookie;
+      const permanentManagementLink = await app.inject({
+        method: 'POST', url: '/api/auth/management-link', headers: { cookie: ownerCookie },
+      });
+      assert.equal(permanentManagementLink.statusCode, 200);
+      assert.equal(permanentManagementLink.json().management_url, provisioned.management_url,
+        'account access must return the same permanent management URL');
+      const ownerManagement = await app.inject({
+        method: 'GET', url: `/api/manage/${permanentToken}/business`, headers: { cookie: ownerCookie },
+      });
+      assert.equal(ownerManagement.statusCode, 200, 'the matching owner session must open management APIs');
+      assert.equal(ownerManagement.json().onboarding_completed_at, null,
+        'newly provisioned businesses must start with guided onboarding incomplete');
+      const completeOnboarding = await app.inject({
+        method: 'POST',
+        url: `/api/manage/${permanentToken}/onboarding/complete`,
+        headers: { cookie: ownerCookie },
+      });
+      assert.equal(completeOnboarding.statusCode, 200);
+      assert.ok(completeOnboarding.json().completed_at);
+      const onboardingState = await pool.query(
+        'SELECT app.get_tenant_onboarding_completed_at($1) AS completed_at',
+        [provisioned.id],
+      );
+      assert.ok(onboardingState.rows[0].completed_at,
+        'onboarding completion must persist in the central Registry');
       const cancellation = await app.inject({
         method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
       });
@@ -279,6 +355,29 @@ test('platform account lifecycle and independent marketing consents', async () =
     process.env.SUPERADMIN_API_TOKEN = adminToken;
     const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const manualName = 'Manual Integration Business';
+    const claimEmail = `claim-${randomUUID()}@example.test`;
+    const claimRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        email: claimEmail,
+        phone: '+972501234568',
+        password: 'new-correct-horse-battery',
+        termsAccepted: true,
+        privacyAccepted: true,
+        marketingEmail: false,
+        marketingSms: false,
+      },
+    });
+    assert.equal(claimRegistration.statusCode, 202);
+    const claimVerificationEmail = sentEmails.filter(message => message.to[0]?.email === claimEmail).at(-1);
+    assert.ok(claimVerificationEmail);
+    const claimVerificationToken = extractToken(claimVerificationEmail.htmlContent, 'verify-email');
+    const claimVerification = await app.inject({
+      method: 'POST', url: '/api/auth/verify-email', payload: { token: claimVerificationToken },
+    });
+    assert.equal(claimVerification.statusCode, 200);
+    claimSessionCookie = String(claimVerification.headers['set-cookie']).split(';')[0];
     let manualBusinessId = '';
     let manualDatabase = '';
     try {
@@ -287,6 +386,13 @@ test('platform account lifecycle and independent marketing consents', async () =
         [manualSlug, manualName, JSON.stringify({})],
       );
       manualBusinessId = manualCreated.rows[0].id as string;
+      await pool.query('UPDATE public.businesses SET email = $2 WHERE id = $1', [manualBusinessId, claimEmail]);
+      const legacyManagementToken = randomBytes(32).toString('base64url');
+      const legacyManagementHash = createHash('sha256').update(legacyManagementToken, 'utf8').digest();
+      await pool.query(
+        "INSERT INTO public.access_tokens (tenant_id, token_hash, label) VALUES ($1, $2, 'initial seller link')",
+        [manualBusinessId, legacyManagementHash],
+      );
       manualDatabase = `biz_${manualBusinessId.replace(/-/g, '').slice(0, 24)}`;
       await pool.query(`CREATE DATABASE "${manualDatabase}"`);
       await pool.query(`GRANT CONNECT ON DATABASE "${manualDatabase}" TO app_runtime, app_superadmin`);
@@ -307,11 +413,70 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
 
       const adminHeaders = { authorization: `Bearer ${adminToken}` };
+      const legacyLinkBeforeAssociation = await app.inject({
+        method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
+      });
+      assert.equal(legacyLinkBeforeAssociation.statusCode, 200);
+      assert.equal(legacyLinkBeforeAssociation.json().available, false);
+      assert.equal(legacyLinkBeforeAssociation.json().requires_association, true);
+      const legacyManagementUrl = `http://localhost:3000/manage/${legacyManagementToken}`;
+      const associateLegacyLink = await app.inject({
+        method: 'POST',
+        url: `/api/admin/businesses/${manualBusinessId}/management-link/associate`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { management_url: legacyManagementUrl },
+      });
+      assert.equal(associateLegacyLink.statusCode, 200);
+      const legacyLinkAfterAssociation = await app.inject({
+        method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
+      });
+      assert.equal(legacyLinkAfterAssociation.statusCode, 200);
+      assert.equal(legacyLinkAfterAssociation.json().available, true);
+      assert.equal(legacyLinkAfterAssociation.json().management_url, legacyManagementUrl,
+        'associating a legacy link must preserve its exact URL');
+
+      const ownerlessAuthorization = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(ownerlessAuthorization.rows[0].tenant_id, manualBusinessId,
+        'ownerless businesses must continue to accept their fixed bearer link');
       const visibleBusinesses = await app.inject({ method: 'GET', url: '/api/admin/businesses', headers: adminHeaders });
       assert.equal(visibleBusinesses.statusCode, 200);
       const visibleManual = visibleBusinesses.json().businesses.find((business: { id: string }) => business.id === manualBusinessId);
       assert.ok(visibleManual, 'ownerless manually created businesses must appear in Super Admin');
-      assert.equal(visibleManual.owner_email, null);
+      assert.equal(visibleManual.owner_email, claimEmail);
+      const unclaimedOwnerMapping = await pool.query(
+        'SELECT 1 FROM public.platform_business_owners WHERE tenant_id = $1',
+        [manualBusinessId],
+      );
+      assert.equal(unclaimedOwnerMapping.rowCount, 0, 'business contact email must not imply an account owner');
+      const claimResponse = await app.inject({
+        method: 'POST',
+        url: '/api/auth/claim-business',
+        headers: { cookie: claimSessionCookie },
+        payload: { token: legacyManagementToken },
+      });
+      assert.equal(claimResponse.statusCode, 200);
+      assert.equal(claimResponse.json().claimed, true);
+      const claimedOwner = await pool.query(
+        'SELECT user_id FROM public.platform_business_owners WHERE tenant_id = $1',
+        [manualBusinessId],
+      );
+      assert.equal(claimedOwner.rowCount, 1);
+      const claimSessionToken = decodeURIComponent(claimSessionCookie.split('=')[1]);
+      const claimSessionHash = createHash('sha256').update(claimSessionToken, 'utf8').digest();
+      const authorizedAfterClaim = await pool.query(
+        'SELECT app.authorize_tenant_management($1, $2) AS tenant_id',
+        [legacyManagementHash, claimSessionHash],
+      );
+      assert.equal(authorizedAfterClaim.rows[0].tenant_id, manualBusinessId);
+      const bearerOnlyAfterClaim = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(bearerOnlyAfterClaim.rows[0].tenant_id, null,
+        'claiming a business must stop bearer-only access without changing the link');
 
       const requestResponse = await app.inject({
         method: 'POST',
@@ -364,6 +529,7 @@ test('platform account lifecycle and independent marketing consents', async () =
       if (manualBusinessId) {
         await pool.query('DELETE FROM public.business_deletion_requests WHERE business_slug = $1', [manualSlug]).catch(() => {});
         await pool.query('DELETE FROM public.businesses WHERE id = $1', [manualBusinessId]).catch(() => {});
+        await pool.query('DELETE FROM public.platform_users WHERE email = $1', [claimEmail]).catch(() => {});
       }
     }
 

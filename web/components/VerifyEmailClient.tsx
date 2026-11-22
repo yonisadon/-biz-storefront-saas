@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 
 export default function VerifyEmailClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,34 @@ export default function VerifyEmailClient({ token }: { token: string }) {
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error('קישור האימות אינו תקף או שפג תוקפו. אפשר לבקש קישור חדש.');
       setDone(true);
+      const meResponse = await fetch('/api/auth/me', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'Cache-Control': 'no-cache' },
+      });
+      const meData = await meResponse.json().catch(() => null);
+      if (meResponse.ok && meData?.user?.role === 'super_admin') {
+        window.location.assign('/platform-admin');
+        return;
+      }
+      if (meResponse.ok && meData?.user?.business_id) {
+        const linkResponse = await fetch('/api/auth/management-link', {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        const linkData = await linkResponse.json().catch(() => null);
+        if (linkResponse.ok && linkData?.management_url) {
+          const managementPath = sameOriginManagementPath(linkData.management_url);
+          if (!managementPath) throw new Error('קישור הניהול שהתקבל אינו תקין.');
+          window.location.assign(managementPath);
+          return;
+        }
+        if (linkData?.error === 'management_link_association_required') {
+          window.location.assign('/account?managementLinkRecovery=1');
+          return;
+        }
+      }
       window.location.assign('/account');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'לא ניתן לאמת את כתובת המייל.');

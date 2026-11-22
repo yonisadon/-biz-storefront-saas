@@ -5,11 +5,12 @@ import { z } from 'zod';
 import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeInternationalPhone } from '../util';
-import { createManagementToken, provisionBusinessForOwner } from '../provisioning';
+import { provisionBusinessForOwner } from '../provisioning';
+import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 import { sendBrevoEmail } from '../email';
 
 const SESSION_COOKIE = 'btime_session';
-const SESSION_DAYS = 14;
+const SESSION_DAYS = 3;
 const VERIFY_HOURS = 24;
 const RESET_MINUTES = 30;
 
@@ -35,6 +36,8 @@ const OwnerBusinessInput = z.object({
   slug: z.string().trim().toLowerCase().min(2).max(63).regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
   whatsapp_number: z.string().trim().max(40).optional(),
 }).strict();
+const ManagementLinkAssociationInput = z.object({ management_url: z.string().url().max(2000) }).strict();
+const ClaimBusinessInput = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/) }).strict();
 const DeletionRequestInput = z.object({ reason: z.string().trim().max(1000).optional() }).strict();
 
 let registryPool: pg.Pool | undefined;
@@ -99,10 +102,27 @@ function clearSessionCookie(reply: FastifyReply): void {
 
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
   const token = randomToken();
-  await registry().query(
-    'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval \'14 days\')',
-    [userId, digest(token)],
-  );
+  const db = registry();
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    // Keep active sessions on other devices, but remove expired rows for this user
+    // when a new authenticated session is issued. No background cleanup is needed.
+    await client.query(
+      'DELETE FROM public.platform_sessions WHERE user_id = $1 AND expires_at <= now()',
+      [userId],
+    );
+    await client.query(
+      'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + ($3::int * interval \'1 day\'))',
+      [userId, digest(token), SESSION_DAYS],
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
   setSessionCookie(reply, token);
 }
 
@@ -354,7 +374,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/logout', async (req, reply) => {
     const token = cookieValue(req);
     if (token && /^[A-Za-z0-9_-]{43}$/.test(token)) {
-      await registry().query('UPDATE public.platform_sessions SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL', [digest(token)]);
+      await registry().query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [digest(token)]);
     }
     clearSessionCookie(reply);
     return reply.code(204).send();
@@ -399,7 +419,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const userId = result.rows[0].user_id as string;
       await client.query('UPDATE public.platform_email_tokens SET consumed_at = now() WHERE user_id = $1 AND purpose = \'reset_password\' AND consumed_at IS NULL', [userId]);
       await client.query('UPDATE public.platform_users SET password_hash = $2, updated_at = now() WHERE id = $1', [userId, passwordHash(password)]);
-      await client.query('UPDATE public.platform_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [userId]);
+      await client.query('DELETE FROM public.platform_sessions WHERE user_id = $1', [userId]);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
@@ -421,6 +441,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     );
     return reply.code(201).send({
       business: created,
+      management_url: created.management_url,
       public_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/biz/${created.slug}`,
       trial_days: 30,
     });
@@ -431,17 +452,175 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (!user) throw new HttpError(401, 'not_authenticated');
     if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_has_no_business_management_link');
     if (!user.business_id) throw new HttpError(404, 'business_not_found');
+    if (!env.PUBLIC_BASE_URL) throw new HttpError(503, 'management_link_not_configured');
     const access = await registry().query(
       'SELECT app.is_tenant_subscription_accessible($1) AS allowed',
       [user.business_id],
     );
     if (access.rows[0]?.allowed !== true) throw new HttpError(403, 'subscription_inactive');
-    const { token, tokenHash } = createManagementToken();
-    await registry().query(
-      "INSERT INTO public.access_tokens (tenant_id, token_hash, label, expires_at) VALUES ($1, $2, 'owner account session', now() + interval '8 hours')",
-      [user.business_id, tokenHash],
-    );
-    return { management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${token}`, expires_in_hours: 8 };
+
+    const client = await registry().connect();
+    let managementToken = '';
+    try {
+      await client.query('BEGIN');
+      const business = await client.query(
+        'SELECT id FROM public.businesses WHERE id = $1 FOR UPDATE',
+        [user.business_id],
+      );
+      if (!business.rowCount) throw new HttpError(404, 'business_not_found');
+      const existing = await client.query(
+        `SELECT id, token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+          ORDER BY created_at
+          FOR UPDATE`,
+        [user.business_id],
+      );
+      if (existing.rows.length > 1) throw new HttpError(409, 'management_link_ambiguous');
+      if (existing.rows.length === 0) {
+        // Older owner-created businesses had only short-lived links. Since no
+        // permanent link existed, create their first fixed link now.
+        const generated = createManagementToken();
+        await client.query(
+          "INSERT INTO public.access_tokens (tenant_id, token_hash, encrypted_token, label) VALUES ($1, $2, $3, 'permanent seller link')",
+          [user.business_id, generated.tokenHash, generated.encryptedToken],
+        );
+        managementToken = generated.token;
+      } else {
+        const row = existing.rows[0];
+        if (!row.encrypted_token) throw new HttpError(409, 'management_link_association_required');
+        managementToken = decryptManagementToken(row.encrypted_token);
+        if (!managementTokenMatches(managementToken, Buffer.from(row.token_hash))) {
+          throw new HttpError(503, 'management_link_unavailable');
+        }
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+    return { management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${managementToken}` };
+  });
+
+  app.post('/management-link/associate', async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_has_no_business_management_link');
+    if (!user.business_id) throw new HttpError(404, 'business_not_found');
+    if (!env.PUBLIC_BASE_URL) throw new HttpError(503, 'management_link_not_configured');
+    const input = ManagementLinkAssociationInput.parse(req.body);
+    const token = extractManagementTokenFromUrl(input.management_url, env.PUBLIC_BASE_URL);
+    const tokenHash = digest(token);
+    const encryptedToken = encryptManagementToken(token);
+    const client = await registry().connect();
+    try {
+      await client.query('BEGIN');
+      const existing = await client.query(
+        `SELECT id, token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND token_hash = $2
+            AND expires_at IS NULL AND revoked_at IS NULL
+          FOR UPDATE`,
+        [user.business_id, tokenHash],
+      );
+      if (!existing.rowCount) throw new HttpError(404, 'management_link_not_found');
+      if (existing.rows[0].encrypted_token) {
+        if (!managementTokenMatches(token, Buffer.from(existing.rows[0].token_hash))) {
+          throw new HttpError(409, 'management_link_already_associated');
+        }
+      } else {
+        const other = await client.query(
+          `SELECT 1 FROM public.access_tokens
+            WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+              AND encrypted_token IS NOT NULL AND id <> $2
+            LIMIT 1`,
+          [user.business_id, existing.rows[0].id],
+        );
+        if (other.rowCount) throw new HttpError(409, 'management_link_already_associated');
+        await client.query(
+          'UPDATE public.access_tokens SET encrypted_token = $2 WHERE id = $1',
+          [existing.rows[0].id, encryptedToken],
+        );
+      }
+      await client.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id) VALUES ('owner', $1, $2, 'management_link_associated', $3)",
+        [user.id, user.email, user.business_id],
+      );
+      await client.query('COMMIT');
+      return { associated: true };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+
+  app.post('/claim-business', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_cannot_claim_business');
+    const input = ClaimBusinessInput.parse(req.body);
+    const tokenHash = digest(input.token);
+    const client = await registry().connect();
+    try {
+      await client.query('BEGIN');
+      const businessResult = await client.query(
+        `SELECT b.id, b.email, app.is_tenant_subscription_accessible(b.id) AS accessible
+           FROM public.access_tokens t
+           JOIN public.businesses b ON b.id = t.tenant_id
+          WHERE t.token_hash = $1
+            AND t.revoked_at IS NULL
+            AND (t.expires_at IS NULL OR t.expires_at > now())
+          FOR UPDATE OF t, b`,
+        [tokenHash],
+      );
+      if (!businessResult.rowCount) throw new HttpError(404, 'management_link_not_found');
+      const business = businessResult.rows[0];
+      if (business.accessible !== true) throw new HttpError(403, 'subscription_inactive');
+      if (!business.email) throw new HttpError(409, 'business_claim_email_required');
+      if (String(business.email).trim().toLowerCase() !== String(user.email).trim().toLowerCase()) {
+        throw new HttpError(403, 'business_claim_email_mismatch');
+      }
+
+      const existingOwner = await client.query(
+        'SELECT user_id FROM public.platform_business_owners WHERE tenant_id = $1 FOR UPDATE',
+        [business.id],
+      );
+      if (existingOwner.rowCount) {
+        if (existingOwner.rows[0].user_id === user.id) {
+          await client.query('COMMIT');
+          return { claimed: true, already_claimed: true };
+        }
+        throw new HttpError(409, 'business_already_claimed');
+      }
+      const existingBusiness = await client.query(
+        'SELECT tenant_id FROM public.platform_business_owners WHERE user_id = $1 FOR UPDATE',
+        [user.id],
+      );
+      if (existingBusiness.rowCount) throw new HttpError(409, 'business_already_exists');
+
+      await client.query(
+        'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2)',
+        [user.id, business.id],
+      );
+      await client.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id, metadata) VALUES ('owner', $1, $2, 'business_claimed', $3, $4::jsonb)",
+        [user.id, user.email, business.id, JSON.stringify({ source: 'management_link' })],
+      );
+      await client.query('COMMIT');
+      return { claimed: true, already_claimed: false };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if ((error as { code?: string }).code === '23505') {
+        throw new HttpError(409, 'business_already_exists');
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
   });
 
   app.post('/subscription/cancel', async (req) => {

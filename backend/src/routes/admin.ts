@@ -13,6 +13,7 @@ import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 import { sendBrevoEmail } from '../email';
+import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 
 const CreateBusiness = z.object({
   name: z.string().trim().min(2).max(120),
@@ -59,6 +60,9 @@ const ExecuteDeletionInput = z.object({
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
+
+const ManagementLinkAssociationInput = z.object({ management_url: z.string().url().max(2000) }).strict();
+
 
 const RetentionPolicyRowInput = z.object({
   plan_code: z.enum(['standard', 'plus']),
@@ -418,11 +422,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
 
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.
-      const token = randomBytes(32).toString('base64url');
-      const tokenHash = createHash('sha256').update(token, 'utf8').digest();
+      const managementToken = createManagementToken();
       await registry.query(
-        'INSERT INTO public.access_tokens (tenant_id, token_hash, label) VALUES ($1, $2, $3)',
-        [tenantId, tokenHash, 'initial seller link'],
+        "INSERT INTO public.access_tokens (tenant_id, token_hash, encrypted_token, label) VALUES ($1, $2, $3, 'permanent seller link')",
+        [tenantId, managementToken.tokenHash, managementToken.encryptedToken],
       );
       await registry.query(
         'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
@@ -439,7 +442,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         slug: b.slug,
         database: databaseName,
         public_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/biz/${b.slug}`,
-        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${token}`,
+        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${managementToken.token}`,
         status: 'active',
       });
     } catch (err) {
@@ -512,6 +515,92 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       return { businesses: result.rows };
     } finally {
       if (registry) await registry.end().catch(() => {});
+    }
+  });
+
+  app.get('/businesses/:id/management-link', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const rows = await registry.query(
+        `SELECT token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+          ORDER BY created_at`,
+        [tenantId],
+      );
+      if (!rows.rowCount) return { available: false, requires_association: false };
+      if (rows.rowCount > 1) throw new HttpError(409, 'management_link_ambiguous');
+      const row = rows.rows[0];
+      if (!row.encrypted_token) return { available: false, requires_association: true };
+      const token = decryptManagementToken(row.encrypted_token);
+      if (!managementTokenMatches(token, Buffer.from(row.token_hash))) {
+        throw new HttpError(503, 'management_link_unavailable');
+      }
+      return {
+        available: true,
+        management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${token}`,
+      };
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/businesses/:id/management-link/associate', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const input = ManagementLinkAssociationInput.parse(req.body);
+    const token = extractManagementTokenFromUrl(input.management_url, env.PUBLIC_BASE_URL);
+    const tokenHash = createHash('sha256').update(token, 'utf8').digest();
+    const encryptedToken = encryptManagementToken(token);
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      await registry.query('BEGIN');
+      const existing = await registry.query(
+        `SELECT id, token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND token_hash = $2
+            AND expires_at IS NULL AND revoked_at IS NULL
+          FOR UPDATE`,
+        [tenantId, tokenHash],
+      );
+      if (!existing.rowCount) throw new HttpError(404, 'management_link_not_found');
+      if (existing.rows[0].encrypted_token) {
+        if (!managementTokenMatches(token, Buffer.from(existing.rows[0].token_hash))) {
+          throw new HttpError(409, 'management_link_already_associated');
+        }
+      } else {
+        const other = await registry.query(
+          `SELECT 1 FROM public.access_tokens
+            WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+              AND encrypted_token IS NOT NULL AND id <> $2
+            LIMIT 1`,
+          [tenantId, existing.rows[0].id],
+        );
+        if (other.rowCount) throw new HttpError(409, 'management_link_already_associated');
+        await registry.query(
+          'UPDATE public.access_tokens SET encrypted_token = $2 WHERE id = $1',
+          [existing.rows[0].id, encryptedToken],
+        );
+      }
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id) VALUES ('super_admin', 'super_admin', 'management_link_associated', $1)",
+        [tenantId],
+      );
+      await registry.query('COMMIT');
+      return { associated: true };
+    } catch (error) {
+      await registry.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      await registry.end().catch(() => {});
     }
   });
 

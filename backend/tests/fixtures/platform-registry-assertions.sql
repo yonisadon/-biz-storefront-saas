@@ -175,3 +175,59 @@ BEGIN
   END IF;
 END
 $$;
+
+
+-- Permanent management links keep a verifier hash while storing a recoverable,
+-- authenticated encrypted copy for authorized redisplay only.
+DO $management_access$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'access_tokens'
+       AND column_name = 'encrypted_token'
+  ) THEN
+    RAISE EXCEPTION 'access_tokens.encrypted_token column is missing';
+  END IF;
+  IF has_table_privilege('app_runtime', 'public.access_tokens', 'SELECT') THEN
+    RAISE EXCEPTION 'app_runtime must not read access_tokens directly';
+  END IF;
+  IF NOT has_function_privilege('app_runtime', 'app.authorize_tenant_management(bytea,bytea)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'app_runtime must execute the management authorization function';
+  END IF;
+END
+$management_access$;
+
+DO $seller_onboarding$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'businesses'
+       AND column_name = 'onboarding_completed_at'
+  ) THEN
+    RAISE EXCEPTION 'businesses.onboarding_completed_at column is missing';
+  END IF;
+  IF NOT has_function_privilege('app_runtime', 'app.get_tenant_onboarding_completed_at(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('app_runtime', 'app.complete_tenant_onboarding(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'app_runtime must execute seller onboarding state functions';
+  END IF;
+END
+$seller_onboarding$;
+
+DO $seller_onboarding_backfill$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.businesses
+     WHERE slug = 'migration-smoke-old' AND onboarding_completed_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'preexisting business was not backfilled as onboarded';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.businesses
+     WHERE slug = 'migration-smoke-new' AND onboarding_completed_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'rerunning onboarding migration must preserve new businesses as unfinished';
+  END IF;
+END
+$seller_onboarding_backfill$;
+
+

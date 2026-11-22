@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 
 type Mode = 'register' | 'login';
 
@@ -27,10 +28,12 @@ function PasswordField({ id, label, value, onChange, autoComplete, minLength = 1
   </div>;
 }
 
-export default function AccountAuthForm({ mode }: { mode: Mode }) {
+export default function AccountAuthForm({ mode, returnTo }: { mode: Mode; returnTo?: string }) {
   const isRegister = mode === 'register';
   const pathname = usePathname();
   const legalReturnTo = encodeURIComponent(pathname || (isRegister ? '/register' : '/login'));
+  const safeReturnTo = returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+    && !returnTo.includes('\\') && !/[\r\n]/.test(returnTo) ? returnTo : null;
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +74,39 @@ export default function AccountAuthForm({ mode }: { mode: Mode }) {
         setPassword('');
         setConfirmPassword('');
       } else {
-        window.location.assign(data?.role === 'super_admin' ? '/platform-admin' : '/account');
+        if (data?.role === 'super_admin') {
+          window.location.assign('/platform-admin');
+          return;
+        }
+        if (safeReturnTo) {
+          window.location.assign(safeReturnTo);
+          return;
+        }
+        const meResponse = await fetch('/api/auth/me', {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        const meData = await meResponse.json().catch(() => null);
+        if (meResponse.ok && meData?.user?.business_id) {
+          const linkResponse = await fetch('/api/auth/management-link', {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'same-origin',
+          });
+          const linkData = await linkResponse.json().catch(() => null);
+          if (linkResponse.ok && linkData?.management_url) {
+            const managementPath = sameOriginManagementPath(linkData.management_url);
+            if (!managementPath) throw new Error('קישור הניהול שהתקבל אינו תקין.');
+            window.location.assign(managementPath);
+            return;
+          }
+          if (linkData?.error === 'management_link_association_required') {
+            window.location.assign('/account?managementLinkRecovery=1');
+            return;
+          }
+        }
+        window.location.assign('/account');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'אירעה שגיאה.');

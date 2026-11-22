@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 import Link from 'next/link';
 
 type PlatformNotification = { id: string; title: string; body: string; created_at: string; in_app_read_at: string | null };
@@ -51,12 +52,18 @@ export default function AccountDashboard() {
   const [marketingEmail,setMarketingEmail]=useState(false);
   const [marketingSms,setMarketingSms]=useState(false);
   const [consentsLoaded,setConsentsLoaded]=useState(false);
+  const [managementUrl,setManagementUrl]=useState('');
+  const [legacyManagementUrl,setLegacyManagementUrl]=useState('');
+  const [managementLinkNeedsAssociation,setManagementLinkNeedsAssociation]=useState(false);
 
   function clearAccountState() {
     setUser(null);
     setNotifications([]);
     setDashboardContent(null);
     setConsentsLoaded(false);
+    setManagementUrl('');
+    setLegacyManagementUrl('');
+    setManagementLinkNeedsAssociation(false);
     setMarketingEmail(false);
     setMarketingSms(false);
     setName('');
@@ -68,7 +75,7 @@ export default function AccountDashboard() {
 
   async function loadAccount() {
     const response=await fetch('/api/auth/me',{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache'}});
-    if(response.status===401){clearAccountState();window.location.replace('/login');return;}
+    if(response.status===401){clearAccountState();window.location.replace('/login?next=%2Faccount');return;}
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
     if (data.user.role === 'super_admin') { clearAccountState();window.location.replace('/platform-admin'); return; }
@@ -89,6 +96,7 @@ export default function AccountDashboard() {
   }
 
   useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get('managementLinkRecovery')==='1')setManagementLinkNeedsAssociation(true);
     let cancelled=false;
     let loadingRequest=false;
     const refreshAccount=async()=>{
@@ -137,6 +145,7 @@ export default function AccountDashboard() {
         business_provisioning_failed:'הקמת העסק נכשלה. לא נוצר עסק פעיל; אפשר לנסות שוב לאחר בדיקה.',
       };
       if(!response.ok)throw new Error(messages[data?.error]??data?.message??'לא ניתן להקים את העסק כרגע.');
+      if(data?.management_url){const path=sameOriginManagementPath(data.management_url);if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');window.location.assign(path);return;}
       await loadAccount();
       setMessage('העסק הוקם בהצלחה. תקופת הניסיון שלך היא 30 יום.');
       setName('');setSlug('');setWhatsapp('');
@@ -144,14 +153,64 @@ export default function AccountDashboard() {
     finally{setSaving(false);}
   }
 
+  async function loadManagementLink(){
+    setSaving(true);setError('');setMessage('');
+    try{
+      const response=await fetch('/api/auth/management-link',{method:'POST',cache:'no-store',credentials:'same-origin'});
+      const data=await response.json().catch(()=>null);
+      if(response.status===409&&data?.error==='management_link_association_required'){
+        setManagementLinkNeedsAssociation(true);
+        setError('הקישור הקבוע של העסק נוצר בעבר ונשמר רק כטביעת אבטחה. כדי לשמור אותו מחדש, יש להדביק כאן את הקישור הקיים או לבקש מהסופר־אדמין לאתר עותק.');
+        return;
+      }
+      if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל.':'לא ניתן לטעון את קישור הניהול.');
+      setManagementUrl(data.management_url);
+      setManagementLinkNeedsAssociation(false);
+    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    finally{setSaving(false);}
+  }
+
   async function openManagement(){
+    if(managementUrl){const path=sameOriginManagementPath(managementUrl);if(!path){setError('קישור הניהול השמור אינו תקין.');return;}window.location.assign(path);return;}
     setSaving(true);setError('');
     try{
-      const response=await fetch('/api/auth/management-link',{method:'POST',cache:'no-store'});
+      const response=await fetch('/api/auth/management-link',{method:'POST',cache:'no-store',credentials:'same-origin'});
       const data=await response.json().catch(()=>null);
-      if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל. יש לפנות לבעל הפלטפורמה.':'לא ניתן ליצור קישור ניהול.');
-      window.location.assign(data.management_url);
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');setSaving(false);}
+      if(response.status===409&&data?.error==='management_link_association_required'){
+        setManagementLinkNeedsAssociation(true);
+        setError('נדרש לשייך את קישור הניהול הקיים לחשבון לפני הכניסה.');
+        return;
+      }
+      if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל. יש לפנות לבעל הפלטפורמה.':'לא ניתן לטעון את קישור הניהול.');
+      const path=sameOriginManagementPath(data.management_url);
+      if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');
+      setManagementUrl(data.management_url);
+      window.location.assign(path);
+    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    finally{setSaving(false);}
+  }
+
+  async function associateManagementLink(){
+    setSaving(true);setError('');setMessage('');
+    try{
+      const response=await fetch('/api/auth/management-link/associate',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({management_url:legacyManagementUrl.trim()}),cache:'no-store',credentials:'same-origin',
+      });
+      const data=await response.json().catch(()=>null);
+      if(!response.ok)throw new Error(data?.error==='management_link_not_found'?'הקישור אינו שייך לעסק שמחובר לחשבון הזה. בדוק שהדבקת את הקישור הנכון.':data?.message??'לא ניתן לשייך את הקישור.');
+      setLegacyManagementUrl('');
+      setManagementLinkNeedsAssociation(false);
+      setMessage('קישור הניהול הקבוע שויך לחשבון בהצלחה.');
+      await loadManagementLink();
+    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    finally{setSaving(false);}
+  }
+
+  async function copyManagementLink(){
+    if(!managementUrl)return;
+    try{await navigator.clipboard.writeText(managementUrl);setMessage('קישור הניהול הועתק.');}
+    catch{setError('לא ניתן להעתיק אוטומטית. אפשר לסמן ולהעתיק את הקישור שמופיע.');}
   }
 
   async function cancelSubscription(){
@@ -300,7 +359,21 @@ export default function AccountDashboard() {
           {user.current_period_ends_at&&<div><dt className="text-slate-500">תום תקופת המנוי</dt><dd className="mt-1 font-semibold">{dateLabel(user.current_period_ends_at)}</dd></div>}
           <div><dt className="text-slate-500">בקשת מחיקה</dt><dd className="mt-1 font-semibold">{user.deletion_request_status==='pending'?'ממתינה לאישור':user.deletion_request_status??'אין בקשה פתוחה'}</dd></div>
         </dl>
-        {canManage?<button type="button" onClick={openManagement} disabled={saving} className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{saving?'פותח את סביבת הניהול…':'כניסה לניהול העסק'}</button>:<p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">הגישה לאתר העסק ולממשק הניהול חסומה כרגע. הנתונים נשמרים. לפנייה לגבי חידוש המנוי יש ליצור קשר עם בעל הפלטפורמה.</p>}
+        {canManage?<>
+          <button type="button" onClick={openManagement} disabled={saving} className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">{saving?'פותח את סביבת הניהול…':'כניסה לניהול העסק'}</button>
+          <button type="button" onClick={loadManagementLink} disabled={saving} className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold disabled:opacity-50">הצגת קישור הניהול הקבוע</button>
+          {managementUrl&&<div className="mt-3 rounded-xl bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-semibold text-slate-600">קישור הניהול הקבוע של העסק</p>
+            <input readOnly value={managementUrl} dir="ltr" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-xs" />
+            <button type="button" onClick={copyManagementLink} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold">העתקת הקישור</button>
+          </div>}
+          {managementLinkNeedsAssociation&&<div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm font-semibold text-amber-900">שיוך קישור הניהול הקיים</p>
+            <p className="mt-1 text-xs leading-5 text-amber-900">הקישור המקורי אינו ניתן לשחזור מתוך טביעת האבטחה בלבד. אם שמרת עותק של הקישור, הדבק אותו כאן פעם אחת. אם אין לך עותק, פנה לסופר־אדמין לבדיקה.</p>
+            <input value={legacyManagementUrl} onChange={e=>setLegacyManagementUrl(e.target.value)} dir="ltr" placeholder="https://.../manage/..." className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs" />
+            <button type="button" onClick={associateManagementLink} disabled={saving||!legacyManagementUrl.trim()} className="mt-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">שיוך הקישור לחשבון</button>
+          </div>}
+        </>:<p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">הגישה לאתר העסק ולממשק הניהול חסומה כרגע. הנתונים נשמרים. לפנייה לגבי חידוש המנוי יש ליצור קשר עם בעל הפלטפורמה.</p>}
         {user.subscription_status==='trialing'||user.subscription_status==='active'?<button type="button" onClick={cancelSubscription} disabled={saving} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold disabled:opacity-50">ביטול מנוי וחסימת העסק</button>:null}
         {user.deletion_request_status!=='pending'&&<form onSubmit={requestDeletion} className="mt-6 border-t border-slate-200 pt-5">
           <h3 className="font-bold">בקשת מחיקה מלאה</h3>

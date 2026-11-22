@@ -2795,3 +2795,52 @@
 - קישורים למסמכים מתוך מסכי החשבון, הרשמה/התחברות וסרגל הנגישות מעבירים את מסלול המקור, כך שכפתור „חזרה ל-BTime” אינו שולח משתמש מחובר למסך ההתחברות.
 - נדרשת הרצת workflow מיגרציות tenant לאחר גיבוי מאומת כדי לתקן את ה-DB הקיים. אין להריץ מיגרציה אוטומטית בזמן Deploy; ה-workflow הידני נשאר מנגנון ההרצה היחיד.
 - לא בוצעה מיגרציה, לא בוצע שינוי נתונים ב-Railway ולא בוצעה פריסה במסגרת שינוי הקוד הזה.
+
+## Platform account sessions — November 2026
+
+- Authenticated platform sessions have a fixed lifetime of **3 days**. The HttpOnly `btime_session` cookie and `platform_sessions.expires_at` use the same lifetime; production cookies remain `Secure` and `SameSite=Lax`.
+- Session expiry is fixed at creation. Normal account activity and `last_used_at` updates do not extend the expiry.
+- When a new authenticated session is issued (login or successful email verification), delete only that user's already-expired session rows before inserting the new session. Preserve other still-active sessions, including sessions on other devices. No background cleanup job is used.
+- Logout immediately deletes the current session row and clears the cookie. Password reset deletes all sessions for the affected user so that every existing login is invalidated.
+- Expired sessions are not removed by a timer or scheduled job; they remain until the user successfully authenticates again.
+- Email verification tokens remain valid for 24 hours and password-reset tokens remain valid for 30 minutes; the 3-day session policy does not change those lifetimes.
+
+## Permanent seller management links and account access — November 2026
+
+- Each business has one permanent seller management URL. The 32-byte random token in that URL is never rotated because of login, logout, account linking, or Session expiry.
+- The Registry stores the SHA-256 verifier in `public.access_tokens.token_hash` and an authenticated AES-256-GCM encrypted copy in `public.access_tokens.encrypted_token`. The raw token is never stored as plaintext. Retrieval decrypts the token and verifies that its SHA-256 matches the stored verifier before returning the URL.
+- Encryption uses the dedicated `MANAGEMENT_TOKEN_ENCRYPTION_KEY` environment variable: exactly 32 random bytes represented as 64 hexadecimal characters. Do not reuse `GOOGLE_TOKEN_ENCRYPTION_KEY`, `SUPERADMIN_API_TOKEN`, or any other secret. Keep this key stable and backed up; rotating or losing it makes stored encrypted URLs unrecoverable.
+- If the key is missing, issuing a new permanent token fails safely before business provisioning begins. Existing management links continue to authenticate by their hash; no plaintext fallback is allowed. Configure the key in the backend environment before deploying this feature.
+- Admin-created and self-registered businesses both receive a permanent token stored in the same Registry table. Older self-registered businesses that had only temporary eight-hour links receive their first permanent link when the authenticated owner next requests it.
+- Older admin-created businesses already have a permanent token, but the original plaintext was never stored. Their URL cannot be reconstructed from the hash. Do not rotate or replace it automatically. If an authorized owner or super-admin still has the exact old URL, they can associate it once; the backend verifies the token hash belongs to that business and encrypts the same token.
+- Super-admin business records provide an authenticated display/copy flow. Owners can display/copy the same permanent URL from account settings. Both association flows are audited and reject links belonging to another business.
+- Before a business is linked to a platform account, its permanent URL remains a bearer credential. After an owner mapping exists, every management API requires a valid, unexpired `btime_session` belonging to that exact owner. The management token alone is no longer sufficient. Business status and subscription access checks remain in force.
+- All management API routes use the shared token resolver and owner-session authorization function. Server-rendered management pages and the seller manifest forward the HttpOnly session cookie to the backend.
+- If an owner session expires, the login form is rendered at the same `/manage/{token}` route and returns to that exact URL after login. The PWA manifest keeps the same `start_url` and `scope` during this state; it does not redirect the installed app outside its management route.
+- Successful login and email verification send an owner with an accessible business directly to that business's management URL. Creating a business through self-registration also returns its permanent URL so the seller is taken straight into the new business. Account settings remain reachable from the management header.
+- No production Registry migration, Railway environment change, merge, or deployment is performed as part of code review. Migration 004 must be run only through the existing manual, backup-controlled Registry migration workflow after review.
+
+- A seller opening an unclaimed admin-created business can choose **חיבור העסק לחשבון שלי** from the management screen. Claiming requires a logged-in, email-verified owner account whose email exactly matches the business contact email, an unclaimed business, and an account that does not already own another business. The same permanent token and URL remain unchanged.
+- The existing automatic claim during email verification is preserved. It still claims only a unique unowned business matching the verified email. The explicit claim action supports an already-verified account when the business was created later.
+- If the business contact email is missing or does not match, the claim is rejected with a clear message; no ownership is silently assigned. A business already linked to another account cannot be claimed by a second user.
+
+## Guided seller onboarding — November 2026
+
+- New businesses start with `businesses.onboarding_completed_at = NULL` in the central Registry. Existing businesses are marked as already onboarded only when migration 005 first introduces the column; rerunning the migration never marks new unfinished businesses as complete.
+- The first management visit shows a friendly, dismissible setup guide inside the business dashboard. It points the seller to business/contact details, products or services, opening hours, site design, customer preview, and copying the customer-facing link.
+- Each guide action opens the relevant existing management tab; it does not create a second setup system or duplicate business data.
+- Sellers can hide the guide temporarily and reopen it from the management header. They explicitly mark the setup complete when ready; completion is persisted centrally through the shared management API and remains complete across devices and Sessions.
+- The seller management screen always shows a dedicated account-navigation area with a direct link to **החשבון שלי** and a visible **התנתקות** action. Logout invalidates the current server Session through `/api/auth/logout`, notifies other tabs in the same browser, and redirects to `/login`; the permanent management URL is unchanged and can be reopened after the owner signs in again.
+- Account navigation and logout are placed directly in the main management header alongside the install and customer-preview actions, so they remain visible without scrolling to a separate account panel.
+- Seller PWA installation is initiated from the specific business management URL, not from the platform homepage. The business-specific manifest keeps `/manage/{token}` as its `start_url` and `scope`; if the Session expires, the installed app opens that same route, requests login there, and returns to management after successful login. Do not install a generic platform app and then select a business.
+- The management install component registers `/sw.js` at origin scope. The service worker is network-only for navigation and caches only the generic `/offline.html` fallback; it must never cache private management pages, account pages, API responses, or business data.
+- On supported Android/desktop browsers, the install button uses the native `beforeinstallprompt` flow. If the browser does not offer an app-install prompt, the UI must not describe a home-screen shortcut as an app installation. On iOS, use Safari's Share → Add to Home Screen flow, which is the supported web-app installation path there.
+- PWA is not considered verified until a real Android/Chrome install is tested from a business management URL, the installed app opens that same business route, login-after-Session-expiry returns to management, and the iOS Safari flow is checked separately.
+- Creating a business through self-registration still redirects immediately to its management URL, where this guide is shown. Admin-created businesses created after migration show the same guide when the seller opens the permanent link.
+
+## Same-origin management redirects — November 2026
+
+- Browser navigation to a seller management page always uses a validated relative path of the form `/manage/{token}`, never an absolute hostname returned by the backend. This keeps Vercel Preview login and email-verification flows on the Preview host instead of redirecting to Production.
+- The helper accepts only a valid management-token path and rejects external redirect schemes, protocol-relative URLs, query strings, fragments, and malformed tokens. The current browser origin is therefore retained while the backend continues to return the canonical production URL for copying/sharing.
+- Apply this normalization after login, after email verification, after self-service business creation, and when opening management from account settings. The displayed/copied canonical link is not rewritten.
+- No database schema, stored data, migration, Railway setting, or production deployment is changed by this fix. **No migration required.**

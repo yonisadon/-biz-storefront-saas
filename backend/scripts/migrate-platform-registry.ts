@@ -13,6 +13,8 @@ const migrations = [
   'migrations/001_platform_accounts_subscriptions.sql',
   'migrations/002_platform_content_and_messages.sql',
   'migrations/003_platform_retention_policies.sql',
+  'migrations/004_management_access_and_encrypted_tokens.sql',
+  'migrations/005_seller_onboarding_state.sql',
 ];
 
 if (!adminConnectionString || !registryConnectionString) {

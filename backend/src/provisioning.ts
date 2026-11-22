@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from 'node:crypto';
+import { createManagementToken } from './managementTokenCrypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pg from 'pg';
@@ -55,10 +55,12 @@ function quoteIdentifier(identifier: string): string {
 export async function provisionBusinessForOwner(
   owner: OwnerIdentity,
   input: OwnerBusinessInput,
-): Promise<{ id: string; name: string; slug: string; database: string; trial_ends_at: string }> {
+): Promise<{ id: string; name: string; slug: string; database: string; trial_ends_at: string; management_url: string }> {
   if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL || !env.PUBLIC_BASE_URL) {
     throw new HttpError(503, 'provisioning_not_configured');
   }
+  // Fail before provisioning any database resources if the dedicated encryption key is missing.
+  const managementToken = createManagementToken();
   const whatsapp = input.whatsapp_number?.trim()
     ? normalizeILPhone(input.whatsapp_number)
     : null;
@@ -156,6 +158,10 @@ export async function provisionBusinessForOwner(
         'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2)',
         [owner.id, tenantId],
       );
+      await client.query(
+        "INSERT INTO public.access_tokens (tenant_id, token_hash, encrypted_token, label) VALUES ($1, $2, $3, 'permanent seller link')",
+        [tenantId, managementToken.tokenHash, managementToken.encryptedToken],
+      );
       const subscription = await client.query(
         `INSERT INTO public.platform_subscriptions
            (tenant_id, status, plan_code, trial_started_at, trial_ends_at)
@@ -175,7 +181,14 @@ export async function provisionBusinessForOwner(
       throw error;
     }
 
-    return { id: tenantId, name: b.name, slug: b.slug, database: databaseName, trial_ends_at: trialEndsAt };
+    return {
+      id: tenantId,
+      name: b.name,
+      slug: b.slug,
+      database: databaseName,
+      trial_ends_at: trialEndsAt,
+      management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${managementToken.token}`,
+    };
   } catch (error) {
     if (tenantAdmin) await tenantAdmin.end().catch(() => {});
     if (databaseCreated && databaseName && databaseAdmin) {
@@ -196,7 +209,3 @@ export async function provisionBusinessForOwner(
   }
 }
 
-export function createManagementToken(): { token: string; tokenHash: Buffer } {
-  const token = randomBytes(32).toString('base64url');
-  return { token, tokenHash: createHash('sha256').update(token, 'utf8').digest() };
-}

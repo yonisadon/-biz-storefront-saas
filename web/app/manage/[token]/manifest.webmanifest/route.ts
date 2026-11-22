@@ -11,17 +11,42 @@ function pwaIconUrl(url: string, size: number): string {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> },
 ): Promise<Response> {
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
   const baseUrl = String(process.env.API_URL) + '/api/manage/' + token;
+  const cookie = request.headers.get('cookie') ?? '';
+  const forwardedHeaders: Record<string, string> = { cookie };
   const [businessResponse, galleryResponse] = await Promise.all([
-    fetch(baseUrl + '/business', { cache: 'no-store' }),
-    fetch(baseUrl + '/gallery', { cache: 'no-store' }),
+    fetch(baseUrl + '/business', { cache: 'no-store', headers: forwardedHeaders }),
+    fetch(baseUrl + '/gallery', { cache: 'no-store', headers: forwardedHeaders }),
   ]);
+  if (businessResponse.status === 401 || galleryResponse.status === 401) {
+    const startUrl = '/manage/' + token;
+    const fallbackManifest: MetadataRoute.Manifest = {
+      id: startUrl,
+      name: 'ניהול העסק',
+      short_name: 'ניהול העסק',
+      description: 'כניסה מאובטחת לניהול העסק',
+      lang: 'he',
+      dir: 'rtl',
+      start_url: startUrl,
+      scope: startUrl,
+      display: 'standalone',
+      background_color: '#ffffff',
+      theme_color: '#17324d',
+      icons: [
+        { src: '/pwa-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+        { src: '/pwa-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+      ],
+    };
+    return Response.json(fallbackManifest, {
+      headers: { 'Cache-Control': 'private, no-store' },
+    });
+  }
   if (businessResponse.status === 404 || galleryResponse.status === 404) notFound();
   if (!businessResponse.ok) throw new Error('business backend ' + businessResponse.status);
   if (!galleryResponse.ok) throw new Error('gallery backend ' + galleryResponse.status);

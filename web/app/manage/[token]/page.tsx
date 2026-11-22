@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Dashboard from '@/components/manage/Dashboard';
+import AccountAuthForm from '@/components/AccountAuthForm';
 import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -19,15 +20,17 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   let businessName = 'העסק';
   let appIcon: string | undefined;
   const baseUrl = `${process.env.API_URL}/api/manage/${token}`;
+  const cookie = (await headers()).get('cookie') ?? '';
+  const forwardedHeaders: Record<string, string> = cookie ? { cookie } : {};
 
   // Fetch business metadata independently: a gallery error must not discard a valid business name.
   try {
-    const businessResponse = await fetch(`${baseUrl}/business`, { cache: 'no-store' });
+    const businessResponse = await fetch(`${baseUrl}/business`, { cache: 'no-store', headers: forwardedHeaders });
     if (businessResponse.ok) {
       const biz = await businessResponse.json() as ManageBusiness;
       businessName = biz.name || businessName;
       try {
-        const galleryResponse = await fetch(`${baseUrl}/gallery`, { cache: 'no-store' });
+        const galleryResponse = await fetch(`${baseUrl}/gallery`, { cache: 'no-store', headers: forwardedHeaders });
         if (galleryResponse.ok) {
           const gallery = await galleryResponse.json() as { id: string; url: string }[];
           const branding = biz.config?.branding;
@@ -77,23 +80,48 @@ export default async function ManagePage({ params }: { params: Promise<{ token: 
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
-  const xff = (await headers()).get('x-forwarded-for');
+  const incomingHeaders = await headers();
+  const xff = incomingHeaders.get('x-forwarded-for');
+  const cookie = incomingHeaders.get('cookie');
+  const forwardedHeaders: Record<string, string> = {};
+  if (xff) forwardedHeaders['x-forwarded-for'] = xff;
+  if (cookie) forwardedHeaders.cookie = cookie;
   const get = async <T,>(sub: string): Promise<T | null> => {
     const res = await fetch(`${process.env.API_URL}/api/manage/${token}/${sub}`, {
       cache: 'no-store',
-      headers: xff ? { 'x-forwarded-for': xff } : {},
+      headers: forwardedHeaders,
     });
     if (res.status === 404) return null;
+    if (res.status === 401) throw new Error('management_login_required');
     if (!res.ok) throw new Error(`backend ${res.status}`);
     return res.json() as Promise<T>;
   };
 
-  const [biz, leads, retention] = await Promise.all([
-    get<ManageBusiness>('business'),
-    get<LeadsResponse>('leads?limit=25'),
-    get<CrmRetentionSummary>('crm-retention'),
-  ]);
-  if (!biz || !leads || !retention) notFound(); // invalid token or incomplete CRM retention migration
+  let biz: ManageBusiness | null;
+  try {
+    biz = await get<ManageBusiness>('business');
+  } catch (error) {
+    if (error instanceof Error && error.message === 'management_login_required') {
+      return <AccountAuthForm mode="login" returnTo={`/manage/${token}`} />;
+    }
+    throw error;
+  }
+  if (!biz) notFound();
+
+  let leads: LeadsResponse | null;
+  let retention: CrmRetentionSummary | null;
+  try {
+    [leads, retention] = await Promise.all([
+      get<LeadsResponse>('leads?limit=25'),
+      get<CrmRetentionSummary>('crm-retention'),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && error.message === 'management_login_required') {
+      return <AccountAuthForm mode="login" returnTo={`/manage/${token}`} />;
+    }
+    throw error;
+  }
+  if (!leads || !retention) notFound(); // invalid token or incomplete CRM retention migration
 
   return <Dashboard token={token} initialBusiness={biz} initialLeads={leads} initialRetention={retention} />;
 }

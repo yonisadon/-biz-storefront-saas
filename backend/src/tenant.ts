@@ -12,6 +12,23 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43,128}$/; // 32 random bytes as base64url = 43
 
 export const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest();
 
+const SESSION_COOKIE = 'btime_session';
+
+function platformSessionHash(req: import('fastify').FastifyRequest): Buffer | null {
+  const raw = String(req.headers.cookie ?? '');
+  for (const item of raw.split(';')) {
+    const [name, ...parts] = item.trim().split('=');
+    if (name !== SESSION_COOKIE) continue;
+    try {
+      const token = decodeURIComponent(parts.join('='));
+      return /^[A-Za-z0-9_-]{43}$/.test(token) ? sha256(token) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 const TRANSIENT_DB_CODES = new Set([
   'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH',
   '57P03', '08001', '08006',
@@ -65,7 +82,16 @@ export const resolveByHost: preHandlerAsyncHookHandler = async (req) => {
 export const resolveByToken: preHandlerAsyncHookHandler = async (req) => {
   const token = String((req.params as { token?: string }).token ?? '');
   if (!TOKEN_RE.test(token)) throw new HttpError(404, 'not_found');
-  const id = await scalar('SELECT app.resolve_tenant_by_token($1) AS t', [sha256(token)]);
+  const tokenHash = sha256(token);
+  const id = await scalar('SELECT app.resolve_tenant_by_token($1) AS t', [tokenHash]);
   if (!id) throw new HttpError(404, 'not_found'); // same answer for invalid/expired/revoked
-  req.tenantId = id;
+
+  // A permanent link remains sufficient only until the business is claimed.
+  // After that, every management API requires the matching owner's live session.
+  const authorizedId = await scalar(
+    'SELECT app.authorize_tenant_management($1, $2) AS t',
+    [tokenHash, platformSessionHash(req)],
+  );
+  if (!authorizedId) throw new HttpError(401, 'management_login_required');
+  req.tenantId = authorizedId;
 };
