@@ -37,6 +37,7 @@ const OwnerBusinessInput = z.object({
   whatsapp_number: z.string().trim().max(40).optional(),
 }).strict();
 const ManagementLinkAssociationInput = z.object({ management_url: z.string().url().max(2000) }).strict();
+const ClaimBusinessInput = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43,128}$/) }).strict();
 const DeletionRequestInput = z.object({ reason: z.string().trim().max(1000).optional() }).strict();
 
 let registryPool: pg.Pool | undefined;
@@ -551,6 +552,71 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return { associated: true };
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  });
+
+  app.post('/claim-business', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req) => {
+    const user = await currentUser(req);
+    if (!user) throw new HttpError(401, 'not_authenticated');
+    if (user.role === 'super_admin') throw new HttpError(403, 'super_admin_cannot_claim_business');
+    const input = ClaimBusinessInput.parse(req.body);
+    const tokenHash = digest(input.token);
+    const client = await registry().connect();
+    try {
+      await client.query('BEGIN');
+      const businessResult = await client.query(
+        `SELECT b.id, b.email, app.is_tenant_subscription_accessible(b.id) AS accessible
+           FROM public.access_tokens t
+           JOIN public.businesses b ON b.id = t.tenant_id
+          WHERE t.token_hash = $1
+            AND t.revoked_at IS NULL
+            AND (t.expires_at IS NULL OR t.expires_at > now())
+          FOR UPDATE OF t, b`,
+        [tokenHash],
+      );
+      if (!businessResult.rowCount) throw new HttpError(404, 'management_link_not_found');
+      const business = businessResult.rows[0];
+      if (business.accessible !== true) throw new HttpError(403, 'subscription_inactive');
+      if (!business.email) throw new HttpError(409, 'business_claim_email_required');
+      if (String(business.email).trim().toLowerCase() !== String(user.email).trim().toLowerCase()) {
+        throw new HttpError(403, 'business_claim_email_mismatch');
+      }
+
+      const existingOwner = await client.query(
+        'SELECT user_id FROM public.platform_business_owners WHERE tenant_id = $1 FOR UPDATE',
+        [business.id],
+      );
+      if (existingOwner.rowCount) {
+        if (existingOwner.rows[0].user_id === user.id) {
+          await client.query('COMMIT');
+          return { claimed: true, already_claimed: true };
+        }
+        throw new HttpError(409, 'business_already_claimed');
+      }
+      const existingBusiness = await client.query(
+        'SELECT tenant_id FROM public.platform_business_owners WHERE user_id = $1 FOR UPDATE',
+        [user.id],
+      );
+      if (existingBusiness.rowCount) throw new HttpError(409, 'business_already_exists');
+
+      await client.query(
+        'INSERT INTO public.platform_business_owners (user_id, tenant_id) VALUES ($1, $2)',
+        [user.id, business.id],
+      );
+      await client.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_user_id, actor_email, action, tenant_id, metadata) VALUES ('owner', $1, $2, 'business_claimed', $3, $4::jsonb)",
+        [user.id, user.email, business.id, JSON.stringify({ source: 'management_link' })],
+      );
+      await client.query('COMMIT');
+      return { claimed: true, already_claimed: false };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if ((error as { code?: string }).code === '23505') {
+        throw new HttpError(409, 'business_already_exists');
+      }
       throw error;
     } finally {
       client.release();
