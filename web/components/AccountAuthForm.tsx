@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { sameOriginManagementPath } from '@/lib/managementUrl';
 
 type Mode = 'register' | 'login';
 
@@ -95,7 +96,9 @@ export default function AccountAuthForm({ mode, returnTo }: { mode: Mode; return
           });
           const linkData = await linkResponse.json().catch(() => null);
           if (linkResponse.ok && linkData?.management_url) {
-            window.location.assign(linkData.management_url);
+            const managementPath = sameOriginManagementPath(linkData.management_url);
+            if (!managementPath) throw new Error('קישור הניהול שהתקבל אינו תקין.');
+            window.location.assign(managementPath);
             return;
           }
           if (linkData?.error === 'management_link_association_required') {
