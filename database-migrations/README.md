@@ -22,3 +22,6 @@ The `migrate-tenant-schemas` command preflights all mapped tenant databases firs
 - If changes are pending, each workflow run requires one explicit choice: confirm a restorable Registry backup was created and verified, or explicitly approve proceeding without a backup. The no-backup approval is scoped to that single manual run; automatic pushes/deployments cannot authorize it.
 - The workflow uses the privileged `DATABASE_ADMIN_URL` connection but forces its database name to match `SUPERADMIN_DATABASE_URL`, preventing an accidental migration of the default `postgres` database.
 - Do not run these SQL files manually or reintroduce them into `prestart`. New Registry schema changes must be added to the controlled migration list and the migration ledger.
+
+- Migration 004, `backend/migrations/004_management_access_and_encrypted_tokens.sql`, adds encrypted permanent seller-link storage and the shared owner-session authorization function. It is registered in the controlled migration script and smoke-tested for idempotence. It is not applied during startup or deployment.
+- Before deploying code that creates or redisplays permanent seller links, configure the dedicated `MANAGEMENT_TOKEN_ENCRYPTION_KEY` backend environment variable (64 hexadecimal characters representing 32 random bytes). Keep it stable and do not reuse other encryption or API secrets.
