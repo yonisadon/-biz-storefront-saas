@@ -517,6 +517,92 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
+  app.get('/businesses/:id/management-link', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const rows = await registry.query(
+        `SELECT token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+          ORDER BY created_at`,
+        [tenantId],
+      );
+      if (!rows.rowCount) return { available: false, requires_association: false };
+      if (rows.rowCount > 1) throw new HttpError(409, 'management_link_ambiguous');
+      const row = rows.rows[0];
+      if (!row.encrypted_token) return { available: false, requires_association: true };
+      const token = decryptManagementToken(row.encrypted_token);
+      if (!managementTokenMatches(token, Buffer.from(row.token_hash))) {
+        throw new HttpError(503, 'management_link_unavailable');
+      }
+      return {
+        available: true,
+        management_url: `${env.PUBLIC_BASE_URL.replace(/\\/+$/, '')}/manage/${token}`,
+      };
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.post('/businesses/:id/management-link/associate', async (req) => {
+    const tenantId = String((req.params as { id: string }).id);
+    if (!/^[0-9a-f-]{36}$/i.test(tenantId)) throw new HttpError(404, 'business_not_found');
+    if (!env.SUPERADMIN_DATABASE_URL || !env.PUBLIC_BASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const input = ManagementLinkAssociationInput.parse(req.body);
+    const token = extractManagementTokenFromUrl(input.management_url, env.PUBLIC_BASE_URL);
+    const tokenHash = createHash('sha256').update(token, 'utf8').digest();
+    const encryptedToken = encryptManagementToken(token);
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      await registry.query('BEGIN');
+      const existing = await registry.query(
+        `SELECT id, token_hash, encrypted_token
+           FROM public.access_tokens
+          WHERE tenant_id = $1 AND token_hash = $2
+            AND expires_at IS NULL AND revoked_at IS NULL
+          FOR UPDATE`,
+        [tenantId, tokenHash],
+      );
+      if (!existing.rowCount) throw new HttpError(404, 'management_link_not_found');
+      if (existing.rows[0].encrypted_token) {
+        if (!managementTokenMatches(token, Buffer.from(existing.rows[0].token_hash))) {
+          throw new HttpError(409, 'management_link_already_associated');
+        }
+      } else {
+        const other = await registry.query(
+          `SELECT 1 FROM public.access_tokens
+            WHERE tenant_id = $1 AND expires_at IS NULL AND revoked_at IS NULL
+              AND encrypted_token IS NOT NULL AND id <> $2
+            LIMIT 1`,
+          [tenantId, existing.rows[0].id],
+        );
+        if (other.rowCount) throw new HttpError(409, 'management_link_already_associated');
+        await registry.query(
+          'UPDATE public.access_tokens SET encrypted_token = $2 WHERE id = $1',
+          [existing.rows[0].id, encryptedToken],
+        );
+      }
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, tenant_id) VALUES ('super_admin', 'super_admin', 'management_link_associated', $1)",
+        [tenantId],
+      );
+      await registry.query('COMMIT');
+      return { associated: true };
+    } catch (error) {
+      await registry.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
   app.get('/overview', async () => {
     if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
     const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
