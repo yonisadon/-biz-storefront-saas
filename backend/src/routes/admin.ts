@@ -10,7 +10,6 @@ import { env } from '../config';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { applyTenantMigrations } from '../tenantMigrations';
-import { ensureCrmRetentionPolicy } from '../crmRetention';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 import { sendBrevoEmail } from '../email';
@@ -60,6 +59,38 @@ const ExecuteDeletionInput = z.object({
 const DomainInput = z.object({
   domain: z.string().trim().min(4).max(253),
 }).strict();
+
+const RetentionPolicyRowInput = z.object({
+  plan_code: z.enum(['standard', 'plus']),
+  record_type: z.enum(['lead', 'appointment', 'waitlist']),
+  record_status: z.enum(['open', 'closed', 'reserved', 'cancelled', 'waiting', 'rejected', 'scheduled_without_booking']),
+  delete_enabled: z.boolean(),
+  retention_days: z.number().int().min(1).max(3650).nullable(),
+}).strict().refine(
+  (value) => value.delete_enabled ? value.retention_days !== null : value.retention_days === null,
+  { message: 'retention_days_must_match_delete_enabled' },
+);
+
+const RetentionPoliciesInput = z.object({
+  policies: z.array(RetentionPolicyRowInput).length(16),
+}).strict().superRefine(({ policies }, ctx) => {
+  const expected = ['lead:open', 'lead:closed', 'appointment:reserved', 'appointment:cancelled',
+    'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking'];
+  const seen = new Set<string>();
+  for (const policy of policies) {
+    const key = policy.plan_code + ':' + policy.record_type + ':' + policy.record_status;
+    if (seen.has(key)) ctx.addIssue({ code: 'custom', message: 'duplicate_retention_policy', path: ['policies'] });
+    seen.add(key);
+    if (!expected.includes(policy.record_type + ':' + policy.record_status)) {
+      ctx.addIssue({ code: 'custom', message: 'invalid_record_status_for_type', path: ['policies'] });
+    }
+  }
+  for (const plan of ['standard', 'plus']) {
+    for (const item of expected) {
+      if (!seen.has(plan + ':' + item)) ctx.addIssue({ code: 'custom', message: 'missing_retention_policy_' + plan + '_' + item, path: ['policies'] });
+    }
+  }
+});
 
 
 const PLATFORM_MEDIA_NAMESPACE = '00000000-0000-4000-8000-000000000001';
@@ -251,6 +282,55 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     if (!authorized(req) && !(await authorizedBySession(req))) throw new HttpError(401, 'unauthorized');
   });
 
+  app.get('/retention-policies', async () => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const result = await registry.query(
+        'SELECT plan_code, record_type, record_status, delete_enabled, retention_days, updated_at FROM public.platform_retention_policies ORDER BY plan_code, record_type, record_status',
+      );
+      return { policies: result.rows };
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.put('/retention-policies', async (req) => {
+    const input = RetentionPoliciesInput.parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      await registry.query('BEGIN');
+      for (const policy of input.policies) {
+        await registry.query(
+          \`INSERT INTO public.platform_retention_policies
+             (plan_code, record_type, record_status, delete_enabled, retention_days, updated_at)
+           VALUES ($1, $2, $3, $4, $5, now())
+           ON CONFLICT (plan_code, record_type, record_status) DO UPDATE SET
+             delete_enabled = EXCLUDED.delete_enabled,
+             retention_days = EXCLUDED.retention_days,
+             updated_at = now()\`,
+          [policy.plan_code, policy.record_type, policy.record_status, policy.delete_enabled, policy.retention_days],
+        );
+      }
+      await registry.query(
+        "INSERT INTO public.platform_audit_log (actor_type, actor_email, action, metadata) VALUES ('super_admin', 'super_admin', 'retention_policies_updated', $1::jsonb)",
+        [JSON.stringify({ policies: input.policies })],
+      );
+      await registry.query('COMMIT');
+      return { saved: true, policies: input.policies };
+    } catch (error) {
+      await registry.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
   app.post('/businesses', async (req, reply) => {
     const input = CreateBusiness.parse(req.body);
     if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL || !env.PUBLIC_BASE_URL) {
@@ -335,7 +415,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         [b.id, b.slug, b.name, b.status, b.whatsapp_number, phoneNumber, input.email || null,
          b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
       );
-      await ensureCrmRetentionPolicy(tenantAdmin, tenantId);
 
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.

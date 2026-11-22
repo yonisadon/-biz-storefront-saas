@@ -198,14 +198,13 @@ async function main() {
                   to_regclass('public.product_images') AS product_images,
                   to_regclass('public.leads') AS leads,
                   to_regclass('public.business_domains') AS business_domains,
-                  to_regclass('public.crm_retention_policy') AS crm_retention_policy,
                   to_regclass('public.waitlist_entries') AS waitlist_entries,
                   to_regclass('public.google_calendar_connections') AS google_calendar_connections,
                   to_regclass('public.google_calendar_oauth_states') AS google_calendar_oauth_states,
                   to_regclass('public.google_calendar_sync_jobs') AS google_calendar_sync_jobs`,
         );
         const post = postflight.rows[0];
-        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.crm_retention_policy || !post.waitlist_entries || !post.google_calendar_connections || !post.google_calendar_oauth_states || !post.google_calendar_sync_jobs) {
+        if (!post.appointments || !post.appointment_blocks || !post.products || !post.product_images || !post.leads || !post.business_domains || !post.waitlist_entries || !post.google_calendar_connections || !post.google_calendar_oauth_states || !post.google_calendar_sync_jobs) {
           throw new Error(`Postflight failed for ${tenant.database_name}: expected booking/custom-domain/product-image tables are missing.`);
         }
         const productDetailsColumn = await db.query(
@@ -235,14 +234,14 @@ async function main() {
              FROM information_schema.columns
             WHERE table_schema = 'public'
               AND ((table_name = 'products' AND column_name = 'booking_mode')
-                OR (table_name = 'leads' AND column_name IN ('idempotency_key', 'retention_closed_at', 'retention_expires_at'))
+                OR (table_name = 'leads' AND column_name IN ('idempotency_key', 'retention_closed_at'))
                 OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source', 'status_changed_at'))
                 OR (table_name = 'waitlist_entries' AND column_name IN ('preferred_time', 'appointment_id'))
                 OR (table_name = 'appointment_blocks' AND column_name IN ('start_at', 'end_at')))`,
         );
         const present = new Set(requiredColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
         for (const required of [
-          'products.booking_mode', 'leads.idempotency_key', 'leads.retention_closed_at', 'leads.retention_expires_at',
+          'products.booking_mode', 'leads.idempotency_key', 'leads.retention_closed_at',
           'appointments.lead_id', 'appointments.start_at', 'appointments.end_at',
           'appointments.status', 'appointments.source', 'appointments.status_changed_at',
           'waitlist_entries.preferred_time', 'waitlist_entries.appointment_id',
@@ -260,32 +259,14 @@ async function main() {
             !String(retentionAppointmentFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve calendar appointments.`);
         }
-        const retentionPolicySecurity = await db.query(
-          `SELECT c.relrowsecurity, c.relforcerowsecurity,
-                  EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = 'crm_retention_policy' AND p.policyname = 'tenant_isolation') AS tenant_policy,
-                  has_table_privilege('app_runtime', 'public.crm_retention_policy', 'SELECT') AS can_select
-             FROM pg_class c WHERE c.oid = 'public.crm_retention_policy'::regclass`,
-        );
-        const retentionPolicy = retentionPolicySecurity.rows[0];
-        if (!retentionPolicy?.relrowsecurity || !retentionPolicy.relforcerowsecurity ||
-            !retentionPolicy.tenant_policy || !retentionPolicy.can_select) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention policy tenant isolation or app_runtime SELECT permission is incomplete.`);
-        }
-        const retentionPolicyRow = await db.query(
-          'SELECT 1 FROM public.crm_retention_policy WHERE tenant_id = $1',
-          [tenant.tenant_id],
-        );
-        if (!retentionPolicyRow.rowCount) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention policy row is missing for the mapped business.`);
-        }
         const retentionTrigger = await db.query(
-          `SELECT 1 FROM pg_trigger
+          \`SELECT 1 FROM pg_trigger
             WHERE tgrelid = 'public.leads'::regclass
-              AND tgname = 'trg_leads_retention_deadline'
-              AND NOT tgisinternal`,
+              AND tgname = 'trg_leads_retention_closed_at'
+              AND NOT tgisinternal\`,
         );
         if (!retentionTrigger.rowCount) {
-          throw new Error(`Postflight failed for ${tenant.database_name}: CRM retention deadline trigger is missing.`);
+          throw new Error(\`Postflight failed for \${tenant.database_name}: lead closure timestamp trigger is missing.\`);
         }
 
         const waitlistSecurity = await db.query(

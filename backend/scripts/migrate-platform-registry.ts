@@ -12,6 +12,7 @@ const migrations = [
   'migrations/000_tenant_registry.sql',
   'migrations/001_platform_accounts_subscriptions.sql',
   'migrations/002_platform_content_and_messages.sql',
+  'migrations/003_platform_retention_policies.sql',
 ];
 
 if (!adminConnectionString || !registryConnectionString) {

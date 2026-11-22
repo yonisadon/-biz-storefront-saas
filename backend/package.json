@@ -9,7 +9,6 @@
     "migrate-tenants": "tsx --env-file=.env scripts/migrate-tenants-to-databases.ts",
     "grant-lead-delete": "tsx --env-file=.env scripts/grant-lead-delete.ts",
     "migrate-tenant-schemas": "tsx --env-file=.env scripts/migrate-tenant-schemas.ts",
-    "cleanup-expired-appointments": "tsx --env-file=.env scripts/cleanup-expired-appointments.ts",
     "test": "tsx --test tests/*.test.ts",
     "migrate-tenant-schemas:deploy": "tsx scripts/migrate-tenant-schemas.ts --apply",
     "cleanup-expired-crm": "tsx scripts/cleanup-expired-crm.ts",
