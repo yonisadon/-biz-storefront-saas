@@ -46,6 +46,21 @@ export function createManagementToken(): { token: string; tokenHash: Buffer; enc
   };
 }
 
+export function extractManagementTokenFromUrl(value: string, publicBaseUrl: string): string {
+  try {
+    const candidate = new URL(value);
+    const expected = new URL(publicBaseUrl);
+    const match = candidate.pathname.match(/^\\/manage\\/([A-Za-z0-9_-]{43,128})\\/?$/);
+    if (candidate.origin !== expected.origin || candidate.username || candidate.password
+      || candidate.search || candidate.hash || !match) {
+      throw new Error('management_url_must_be_a_platform_management_link');
+    }
+    return match[1];
+  } catch {
+    throw new HttpError(400, 'invalid_management_url');
+  }
+}
+
 export function managementTokenMatches(token: string, expectedHash: Buffer): boolean {
   const actualHash = createHash('sha256').update(token, 'utf8').digest();
   return expectedHash.length === actualHash.length && timingSafeEqual(actualHash, expectedHash);
