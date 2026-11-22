@@ -24,15 +24,31 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
   await app.register(googleCalendarManageRoutes);
 
   // ---- Business profile ----
-  app.get('/business', async (req) =>
-   withTenant(req.tenantId, async (db) => {
-      const biz = (await db.query(
+  app.get('/business', async (req) => {
+    const biz = await withTenant(req.tenantId, async (db) => {
+      const result = await db.query(
         `SELECT name, slug, status, phone, whatsapp_number, email, about_text,
                 locale, timezone, config
            FROM businesses WHERE id = app.current_tenant_id()`,
-      )).rows[0];
-      return biz;
-    }));
+      );
+      return result.rows[0];
+    });
+    if (!biz) throw new HttpError(404, 'not_found');
+    const onboarding = await pool.query(
+      'SELECT app.get_tenant_onboarding_completed_at($1) AS completed_at',
+      [req.tenantId],
+    );
+    return { ...biz, onboarding_completed_at: onboarding.rows[0]?.completed_at ?? null };
+  });
+
+  app.post('/onboarding/complete', async (req) => {
+    const result = await pool.query(
+      'SELECT app.complete_tenant_onboarding($1) AS completed_at',
+      [req.tenantId],
+    );
+    if (!result.rows[0]?.completed_at) throw new HttpError(404, 'not_found');
+    return { completed_at: result.rows[0].completed_at };
+  });
 
   app.patch('/business', async (req) => {
     const patch = BusinessPatch.parse(req.body);
