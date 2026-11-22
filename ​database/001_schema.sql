@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS public.lead_notes (
 );
 
 -- 3.8 Seller management links: /manage/<secure-access-token>
---     Only the SHA-256 of the token is stored; plaintext is shown once at issue time.
+--     SHA-256 remains the verifier; an AES-256-GCM encrypted copy allows authorized redisplay without plaintext storage.
 CREATE TABLE IF NOT EXISTS public.access_tokens (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id     uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
