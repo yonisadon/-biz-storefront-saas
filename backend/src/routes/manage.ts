@@ -121,8 +121,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
              WHEN status IN ('rejected', 'cancelled', 'completed')
                THEN CASE WHEN $1::int IS NULL OR retention_closed_at IS NULL THEN NULL
                          ELSE retention_closed_at + ($1::int * interval '1 day') END
-             ELSE CASE WHEN $2::int IS NULL THEN NULL
-                       ELSE created_at + ($2::int * interval '1 day') END
+             ELSE CASE WHEN $2::int IS NULL OR retention_opened_at IS NULL THEN NULL
+                       ELSE retention_opened_at + ($2::int * interval '1 day') END
            END AS expires_at
            FROM leads
          ) deadlines`,

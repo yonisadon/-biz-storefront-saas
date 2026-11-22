@@ -167,6 +167,10 @@ test('platform account lifecycle and independent marketing consents', async () =
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_closed_at'",
         );
         assert.equal(retentionClosedAt.rowCount, 1, 'newly provisioned businesses must track lead closure timestamps');
+        const retentionOpenedAt = await tenantDb.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_opened_at'",
+        );
+        assert.equal(retentionOpenedAt.rowCount, 1, 'newly provisioned businesses must track the current open retention period');
         const oldDeadlineColumn = await tenantDb.query(
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_expires_at'",
         );

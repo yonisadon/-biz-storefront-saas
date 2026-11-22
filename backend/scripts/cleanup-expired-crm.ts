@@ -82,7 +82,7 @@ async function main() {
       const db = await connect(databaseUrl(tenant.database_name));
       try {
         const check = await db.query(
-          "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, " +
+          "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
           "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
           "to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist, " +
           "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_link, " +
@@ -91,7 +91,7 @@ async function main() {
           "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_fk",
         );
         const c = check.rows[0];
-        if (!c?.has_closed_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
+        if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
             !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
           throw new Error('Required configurable-retention migrations are incomplete for ' + tenant.database_name + '; no tenant rows were deleted.');
         }
@@ -108,7 +108,7 @@ async function main() {
         await db.query("SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)", [tenant.tenant_id]);
 
         const leadWhere = "(status IN ('rejected','cancelled','completed') AND $1::int IS NOT NULL AND retention_closed_at IS NOT NULL AND retention_closed_at + ($1::int * interval '1 day') <= now()) " +
-          "OR (status NOT IN ('rejected','cancelled','completed') AND $2::int IS NOT NULL AND created_at + ($2::int * interval '1 day') <= now())";
+          "OR (status NOT IN ('rejected','cancelled','completed') AND $2::int IS NOT NULL AND retention_opened_at IS NOT NULL AND retention_opened_at + ($2::int * interval '1 day') <= now())";
         const leadParams = [p.leadClosed, p.leadOpen];
         const leadCount = await db.query('SELECT count(*)::int AS n FROM public.leads WHERE ' + leadWhere, leadParams);
 
@@ -128,7 +128,7 @@ async function main() {
         const unlinkCount = await db.query(
           "SELECT count(*)::int AS n FROM public.appointments a JOIN public.leads l ON l.id = a.lead_id " +
           "WHERE a.status = 'reserved' AND ((l.status IN ('rejected','cancelled','completed') AND $1::int IS NOT NULL AND l.retention_closed_at IS NOT NULL AND l.retention_closed_at + ($1::int * interval '1 day') <= now()) " +
-          "OR (l.status NOT IN ('rejected','cancelled','completed') AND $2::int IS NOT NULL AND l.created_at + ($2::int * interval '1 day') <= now()))",
+          "OR (l.status NOT IN ('rejected','cancelled','completed') AND $2::int IS NOT NULL AND l.retention_opened_at IS NOT NULL AND l.retention_opened_at + ($2::int * interval '1 day') <= now()))",
           leadParams,
         );
 
