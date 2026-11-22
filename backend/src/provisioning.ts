@@ -55,7 +55,7 @@ function quoteIdentifier(identifier: string): string {
 export async function provisionBusinessForOwner(
   owner: OwnerIdentity,
   input: OwnerBusinessInput,
-      management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${managementToken.token}`,
+): Promise<{ id: string; name: string; slug: string; database: string; trial_ends_at: string; management_url: string }> {
   if (!env.SUPERADMIN_DATABASE_URL || !env.DATABASE_ADMIN_URL || !env.PUBLIC_BASE_URL) {
     throw new HttpError(503, 'provisioning_not_configured');
   }
@@ -187,7 +187,7 @@ export async function provisionBusinessForOwner(
       slug: b.slug,
       database: databaseName,
       trial_ends_at: trialEndsAt,
-      management_url: `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/manage/${managementToken.token}`,
+      management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${managementToken.token}`,
     };
   } catch (error) {
     if (tenantAdmin) await tenantAdmin.end().catch(() => {});
