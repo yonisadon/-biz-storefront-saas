@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS public.access_tokens (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id     uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   token_hash    bytea NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+  encrypted_token text,
   label         text,
   expires_at    timestamptz,
   revoked_at    timestamptz,
@@ -242,6 +243,9 @@ CREATE INDEX IF NOT EXISTS idx_media_assets_tenant
   ON public.media_assets (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_access_tokens_tenant
   ON public.access_tokens (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_access_tokens_one_permanent_link
+  ON public.access_tokens (tenant_id)
+  WHERE expires_at IS NULL AND revoked_at IS NULL AND label = 'permanent seller link';
 CREATE INDEX IF NOT EXISTS idx_domains_tenant
   ON public.business_domains (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_domains_one_primary
