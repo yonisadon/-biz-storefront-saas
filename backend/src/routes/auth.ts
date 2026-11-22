@@ -113,8 +113,8 @@ async function createSession(userId: string, reply: FastifyReply): Promise<void>
       [userId],
     );
     await client.query(
-      'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval \'3 days\')',
-      [userId, digest(token)],
+      'INSERT INTO public.platform_sessions (user_id, token_hash, expires_at) VALUES ($1, $2, now() + ($3::int * interval \'1 day\'))',
+      [userId, digest(token), SESSION_DAYS],
     );
     await client.query('COMMIT');
   } catch (error) {
