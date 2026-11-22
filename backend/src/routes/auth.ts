@@ -500,7 +500,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     } finally {
       client.release();
     }
-    return { management_url: `${env.PUBLIC_BASE_URL.replace(/\\/+$/, '')}/manage/${managementToken}` };
+    return { management_url: `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/manage/${managementToken}` };
   });
 
   app.post('/management-link/associate', async (req) => {
