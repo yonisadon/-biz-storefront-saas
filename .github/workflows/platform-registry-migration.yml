@@ -9,6 +9,7 @@ on:
       - 'backend/migrations/002_platform_content_and_messages.sql'
       - 'backend/migrations/003_platform_retention_policies.sql'
       - 'backend/migrations/004_management_access_and_encrypted_tokens.sql'
+      - 'backend/migrations/005_seller_onboarding_state.sql'
       - 'backend/migrations/tenant-012-configurable-retention.sql'
       - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
@@ -78,6 +79,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/004_management_access_and_encrypted_tokens.sql
+      - name: Apply seller onboarding state migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/005_seller_onboarding_state.sql
+      - name: Re-run seller onboarding state migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/005_seller_onboarding_state.sql
       - name: Verify access rules and admin-originated deletion requests
         env:
           PGPASSWORD: postgres
