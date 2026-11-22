@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { themeVars } from '@/lib/theme';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
@@ -25,6 +25,66 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
 }) {
   const [tab, setTab] = useState<Tab>('leads');
   const [biz, setBiz] = useState(initialBusiness);
+  const [claimState, setClaimState] = useState<'checking' | 'claimable' | 'connected'>('checking');
+  const [claiming, setClaiming] = useState(false);
+  const [claimMessage, setClaimMessage] = useState('');
+  const [claimError, setClaimError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (cancelled) return;
+        if (response.ok && data?.user?.role === 'super_admin') {
+          setClaimState('connected');
+        } else if (response.ok && data?.user?.business_slug === biz.slug) {
+          setClaimState('connected');
+        } else {
+          setClaimState('claimable');
+        }
+      })
+      .catch(() => { if (!cancelled) setClaimState('claimable'); });
+    return () => { cancelled = true; };
+  }, [biz.slug]);
+
+  async function claimBusiness() {
+    setClaiming(true);
+    setClaimMessage('');
+    setClaimError('');
+    try {
+      const response = await fetch('/api/auth/claim-business', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token }),
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      const data = await response.json().catch(() => null);
+      if (response.status === 401) {
+        window.location.assign('/login?next=' + encodeURIComponent('/manage/' + token));
+        return;
+      }
+      if (!response.ok) {
+        const messages: Record<string, string> = {
+          business_claim_email_mismatch: 'כתובת המייל בחשבון אינה תואמת לכתובת המייל שמוגדרת בעסק. יש להתחבר עם כתובת המייל של בעל העסק או לפנות לסופר־אדמין לעדכון.',
+          business_claim_email_required: 'לא הוגדרה כתובת מייל לעסק. יש לפנות לסופר־אדמין כדי לאמת את בעלות העסק.',
+          business_already_claimed: 'העסק כבר מחובר לחשבון אחר. אם זו טעות, יש לפנות לסופר־אדמין.',
+          business_already_exists: 'החשבון שלך כבר מחובר לעסק אחר. חשבון אחד יכול לנהל עסק אחד.',
+          subscription_inactive: 'לא ניתן לחבר עסק שהגישה אליו חסומה כרגע. יש לפנות לסופר־אדמין.',
+        };
+        throw new Error(messages[data?.error] ?? data?.message ?? 'לא ניתן לחבר את העסק לחשבון.');
+      }
+      setClaimState('connected');
+      setClaimMessage(data?.already_claimed ? 'העסק כבר מחובר לחשבון שלך.' : 'העסק חובר לחשבון שלך. הקישור הקבוע נשאר ללא שינוי.');
+      window.location.reload();
+    } catch (error) {
+      setClaimError(error instanceof Error ? error.message : 'חיבור העסק נכשל.');
+    } finally {
+      setClaiming(false);
+    }
+  }
+
 
   return (
     <div
@@ -49,6 +109,20 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
             </a>
           </div>
         </header>
+
+        {claimState === 'claimable' && <section className="mt-4 rounded-2xl border border-ink/15 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold">חיבור העסק לחשבון BTime</h2>
+              <p className="mt-1 text-sm leading-6 text-ink/65">אפשר לחבר את העסק לחשבון שלך כדי להיכנס אליו גם דרך מסך ההתחברות הראשי, בלי להסתמך על הקישור בלבד. יש להתחבר עם כתובת המייל שמוגדרת בעסק.</p>
+            </div>
+            <button type="button" onClick={claimBusiness} disabled={claiming} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
+              {claiming ? 'מחבר את העסק…' : 'חיבור העסק לחשבון שלי'}
+            </button>
+          </div>
+          {claimMessage && <p role="status" className="mt-2 text-sm text-emerald-800">{claimMessage}</p>}
+          {claimError && <p role="alert" className="mt-2 text-sm text-red-700">{claimError}</p>}
+        </section>}
 
         {(initialRetention.due_within_7_days > 0 || initialRetention.overdue > 0) && (
           <section role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
