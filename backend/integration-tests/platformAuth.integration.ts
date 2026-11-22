@@ -263,6 +263,21 @@ test('platform account lifecycle and independent marketing consents', async () =
         method: 'GET', url: `/api/manage/${permanentToken}/business`, headers: { cookie: ownerCookie },
       });
       assert.equal(ownerManagement.statusCode, 200, 'the matching owner session must open management APIs');
+      assert.equal(ownerManagement.json().onboarding_completed_at, null,
+        'newly provisioned businesses must start with guided onboarding incomplete');
+      const completeOnboarding = await app.inject({
+        method: 'POST',
+        url: `/api/manage/${permanentToken}/onboarding/complete`,
+        headers: { cookie: ownerCookie },
+      });
+      assert.equal(completeOnboarding.statusCode, 200);
+      assert.ok(completeOnboarding.json().completed_at);
+      const onboardingState = await pool.query(
+        'SELECT app.get_tenant_onboarding_completed_at($1) AS completed_at',
+        [provisioned.id],
+      );
+      assert.ok(onboardingState.rows[0].completed_at,
+        'onboarding completion must persist in the central Registry');
       const cancellation = await app.inject({
         method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
       });
