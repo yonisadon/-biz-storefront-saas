@@ -50,7 +50,7 @@ export function extractManagementTokenFromUrl(value: string, publicBaseUrl: stri
   try {
     const candidate = new URL(value);
     const expected = new URL(publicBaseUrl);
-    const match = candidate.pathname.match(/^\\/manage\\/([A-Za-z0-9_-]{43,128})\\/?$/);
+    const match = candidate.pathname.match(/^\/manage\/([A-Za-z0-9_-]{43,128})\/?$/);
     if (candidate.origin !== expected.origin || candidate.username || candidate.password
       || candidate.search || candidate.hash || !match) {
       throw new Error('management_url_must_be_a_platform_management_link');
