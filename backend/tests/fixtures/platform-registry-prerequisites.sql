@@ -19,6 +19,9 @@ CREATE TABLE public.businesses (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+INSERT INTO public.businesses (id, slug, name, created_at)
+VALUES ('00000000-0000-0000-0000-000000000001', 'migration-smoke-old', 'Migration Smoke Old', now() - interval '1 day');
+
 CREATE TABLE public.access_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
