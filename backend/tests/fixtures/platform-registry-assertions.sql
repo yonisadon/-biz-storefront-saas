@@ -196,3 +196,20 @@ BEGIN
   END IF;
 END
 $management_access$;
+
+DO $seller_onboarding$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'businesses'
+       AND column_name = 'onboarding_completed_at'
+  ) THEN
+    RAISE EXCEPTION 'businesses.onboarding_completed_at column is missing';
+  END IF;
+  IF NOT has_function_privilege('app_runtime', 'app.get_tenant_onboarding_completed_at(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('app_runtime', 'app.complete_tenant_onboarding(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'app_runtime must execute seller onboarding state functions';
+  END IF;
+END
+$seller_onboarding$;
+
