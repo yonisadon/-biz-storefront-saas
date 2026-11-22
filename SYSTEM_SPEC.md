@@ -2795,3 +2795,13 @@
 - קישורים למסמכים מתוך מסכי החשבון, הרשמה/התחברות וסרגל הנגישות מעבירים את מסלול המקור, כך שכפתור „חזרה ל-BTime” אינו שולח משתמש מחובר למסך ההתחברות.
 - נדרשת הרצת workflow מיגרציות tenant לאחר גיבוי מאומת כדי לתקן את ה-DB הקיים. אין להריץ מיגרציה אוטומטית בזמן Deploy; ה-workflow הידני נשאר מנגנון ההרצה היחיד.
 - לא בוצעה מיגרציה, לא בוצע שינוי נתונים ב-Railway ולא בוצעה פריסה במסגרת שינוי הקוד הזה.
+
+## Platform account sessions — November 2026
+
+- Authenticated platform sessions have a fixed lifetime of **3 days**. The HttpOnly `btime_session` cookie and `platform_sessions.expires_at` use the same lifetime; production cookies remain `Secure` and `SameSite=Lax`.
+- Session expiry is fixed at creation. Normal account activity and `last_used_at` updates do not extend the expiry.
+- When a new authenticated session is issued (login or successful email verification), delete only that user's already-expired session rows before inserting the new session. Preserve other still-active sessions, including sessions on other devices. No background cleanup job is used.
+- Logout immediately deletes the current session row and clears the cookie. Password reset deletes all sessions for the affected user so that every existing login is invalidated.
+- Expired sessions are not removed by a timer or scheduled job; they remain until the user successfully authenticates again.
+- Email verification tokens remain valid for 24 hours and password-reset tokens remain valid for 30 minutes; the 3-day session policy does not change those lifetimes.
+
