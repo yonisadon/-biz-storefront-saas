@@ -7,13 +7,19 @@ DROP INDEX IF EXISTS public.idx_leads_retention_expires;
 
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS retention_opened_at timestamptz;
 
+-- Preserve the previous effective open deadline (including any legacy grace
+-- period or a prior reopen) before dropping the old deadline column.
 UPDATE public.leads
-   SET retention_closed_at = COALESCE(retention_closed_at, created_at),
+   SET retention_closed_at = COALESCE(retention_closed_at, now()),
        retention_opened_at = NULL
  WHERE status IN ('rejected', 'cancelled', 'completed');
 
 UPDATE public.leads
-   SET retention_opened_at = COALESCE(retention_opened_at, created_at)
+   SET retention_opened_at = COALESCE(
+     retention_opened_at,
+     retention_expires_at - interval '60 days',
+     created_at
+   )
  WHERE status NOT IN ('rejected', 'cancelled', 'completed');
 
 CREATE INDEX IF NOT EXISTS idx_leads_retention_opened_at
