@@ -74,7 +74,7 @@ export default function AccountDashboard() {
 
   async function loadAccount() {
     const response=await fetch('/api/auth/me',{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache'}});
-    if(response.status===401){clearAccountState();window.location.replace('/login');return;}
+    if(response.status===401){clearAccountState();window.location.replace('/login?next=%2Faccount');return;}
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.user)throw new Error('לא ניתן לטעון את פרטי החשבון.');
     if (data.user.role === 'super_admin') { clearAccountState();window.location.replace('/platform-admin'); return; }
