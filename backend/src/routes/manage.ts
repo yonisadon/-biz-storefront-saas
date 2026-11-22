@@ -111,7 +111,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
 
     return withTenant(req.tenantId, async (db) => {
       const result = await db.query(
-        \`SELECT
+        `SELECT
            count(*) FILTER (WHERE expires_at <= now())::int AS overdue,
            count(*) FILTER (WHERE expires_at > now() AND expires_at <= now() + interval '24 hours')::int AS due_within_24_hours,
            count(*) FILTER (WHERE expires_at > now() AND expires_at <= now() + interval '7 days')::int AS due_within_7_days,
@@ -125,7 +125,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                        ELSE created_at + ($2::int * interval '1 day') END
            END AS expires_at
            FROM leads
-         ) deadlines\`,
+         ) deadlines`,
         [closedDays, openDays],
       );
       return {

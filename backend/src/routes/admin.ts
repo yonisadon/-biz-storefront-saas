@@ -307,13 +307,13 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       await registry.query('BEGIN');
       for (const policy of input.policies) {
         await registry.query(
-          \`INSERT INTO public.platform_retention_policies
+          `INSERT INTO public.platform_retention_policies
              (plan_code, record_type, record_status, delete_enabled, retention_days, updated_at)
            VALUES ($1, $2, $3, $4, $5, now())
            ON CONFLICT (plan_code, record_type, record_status) DO UPDATE SET
              delete_enabled = EXCLUDED.delete_enabled,
              retention_days = EXCLUDED.retention_days,
-             updated_at = now()\`,
+             updated_at = now()`,
           [policy.plan_code, policy.record_type, policy.record_status, policy.delete_enabled, policy.retention_days],
         );
       }
