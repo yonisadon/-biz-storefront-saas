@@ -163,11 +163,18 @@ test('platform account lifecycle and independent marketing consents', async () =
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
       await tenantDb.connect();
       try {
-        const retentionPolicy = await tenantDb.query(
-          'SELECT tenant_id FROM public.crm_retention_policy WHERE tenant_id = $1',
-          [provisioned.id],
+        const retentionClosedAt = await tenantDb.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_closed_at'",
         );
-        assert.equal(retentionPolicy.rowCount, 1, 'newly provisioned businesses must have a CRM retention policy');
+        assert.equal(retentionClosedAt.rowCount, 1, 'newly provisioned businesses must track lead closure timestamps');
+        const retentionOpenedAt = await tenantDb.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_opened_at'",
+        );
+        assert.equal(retentionOpenedAt.rowCount, 1, 'newly provisioned businesses must track the current open retention period');
+        const oldDeadlineColumn = await tenantDb.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_expires_at'",
+        );
+        assert.equal(oldDeadlineColumn.rowCount, 0, 'legacy hard-coded retention deadline must be removed');
       } finally {
         await tenantDb.end();
       }

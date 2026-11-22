@@ -47,17 +47,10 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
         </header>
 
-        {(initialRetention.legacy_records_remaining > 0 || initialRetention.due_within_7_days > 0 || initialRetention.overdue > 0) && (
+        {(initialRetention.due_within_7_days > 0 || initialRetention.overdue > 0) && (
           <section role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-bold">תזכורת: מדיניות שמירת המידע של פניות CRM</p>
-            {initialRetention.legacy_records_remaining > 0 && (
-              <p className="mt-1">
-                {initialRetention.overdue > 0
-                  ? `תקופת המעבר הסתיימה. ${initialRetention.legacy_records_remaining} פניות ותיקות עדיין ממתינות לניקוי.`
-                  : `קיימות ${initialRetention.legacy_records_remaining} פניות ותיקות בתקופת מעבר עד ${new Date(initialRetention.legacy_grace_until).toLocaleDateString('he-IL')}.`}
-              </p>
-            )}
-            {initialRetention.overdue > 0 && <p className="mt-1">{initialRetention.overdue} פניות עברו את מועד השמירה וממתינות לניקוי המתוזמן.</p>}
+            {initialRetention.overdue > 0 && <p className="mt-1">{initialRetention.overdue} פניות עברו את תקופת השמירה וממתינות לניקוי המתוזמן.</p>}
             {initialRetention.overdue === 0 && initialRetention.due_within_24_hours > 0 && <p className="mt-1">{initialRetention.due_within_24_hours} פניות צפויות להימחק בתוך 24 שעות.</p>}
             {initialRetention.overdue === 0 && initialRetention.due_within_24_hours === 0 && initialRetention.due_within_7_days > 0 && <p className="mt-1">{initialRetention.due_within_7_days} פניות צפויות להימחק בתוך 7 ימים.</p>}
             <p className="mt-1">מומלץ לייצא את הפניות והערות המוכר לפני המחיקה.</p>

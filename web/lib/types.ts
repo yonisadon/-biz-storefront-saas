@@ -57,10 +57,9 @@ export type Lead = {
   notes: { body: string; created_at: string }[];
 };
 export type CrmRetentionSummary = {
-  policy: 'crm-retention-v1';
-  policy_started_at: string;
-  legacy_grace_until: string;
-  legacy_records_remaining: number;
+  policy: 'platform-retention-v1';
+  plan_code: 'standard' | 'plus';
+  automatic_deletion_enabled: boolean;
   due_within_7_days: number;
   due_within_24_hours: number;
   overdue: number;

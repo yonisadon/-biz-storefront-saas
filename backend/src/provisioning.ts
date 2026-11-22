@@ -6,7 +6,6 @@ import { env } from './config';
 import { HttpError } from './errors';
 import { normalizeILPhone } from './util';
 import { applyTenantMigrations } from './tenantMigrations';
-import { ensureCrmRetentionPolicy } from './crmRetention';
 
 export type OwnerBusinessInput = {
   name: string;
@@ -143,7 +142,6 @@ export async function provisionBusinessForOwner(
       [b.id, b.slug, b.name, 'active', b.whatsapp_number, b.phone, b.email,
        b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
     );
-    await ensureCrmRetentionPolicy(tenantAdmin, tenantId);
 
     const client = registry;
     if (!client) throw new Error('registry_connection_unavailable');

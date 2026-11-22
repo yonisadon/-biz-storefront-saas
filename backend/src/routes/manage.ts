@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { withTenant } from '../db';
+import { pool, withTenant } from '../db';
 import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
 import { BusinessPatch, LeadListQuery, LeadNoteInput, LeadStatusPatch } from '../schemas';
@@ -91,30 +91,51 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get('/crm-retention', async (req) =>
-    withTenant(req.tenantId, async (db) => {
+  app.get('/crm-retention', async (req) => {
+    const planResult = await pool.query(
+      'SELECT app.get_tenant_plan_code($1) AS plan_code',
+      [req.tenantId],
+    );
+    const planCode = planResult.rows[0]?.plan_code as string | undefined;
+    if (!planCode) throw new HttpError(503, 'retention_policy_unavailable');
+    const policies = await pool.query(
+      'SELECT record_status, delete_enabled, retention_days FROM public.platform_retention_policies WHERE plan_code = $1 AND record_type = $2',
+      [planCode, 'lead'],
+    );
+    const byStatus = new Map(policies.rows.map((row) => [row.record_status, row]));
+    const open = byStatus.get('open');
+    const closed = byStatus.get('closed');
+    if (!open || !closed) throw new HttpError(503, 'retention_policy_unavailable');
+    const openDays = open.delete_enabled ? Number(open.retention_days) : null;
+    const closedDays = closed.delete_enabled ? Number(closed.retention_days) : null;
+
+    return withTenant(req.tenantId, async (db) => {
       const result = await db.query(
         `SELECT
-           p.policy_started_at,
-           p.legacy_grace_until,
-           (SELECT count(*)::int FROM leads l
-             WHERE l.created_at < p.policy_started_at
-               AND l.retention_expires_at > now()) AS legacy_records_remaining,
-           (SELECT count(*)::int FROM leads l
-             WHERE l.retention_expires_at > now()
-               AND l.retention_expires_at <= now() + interval '7 days') AS due_within_7_days,
-           (SELECT count(*)::int FROM leads l
-             WHERE l.retention_expires_at > now()
-               AND l.retention_expires_at <= now() + interval '24 hours') AS due_within_24_hours,
-           (SELECT count(*)::int FROM leads l
-             WHERE l.retention_expires_at <= now()) AS overdue,
-           (SELECT min(retention_expires_at) FROM leads) AS next_expiry_at
-         FROM crm_retention_policy p
-         WHERE p.tenant_id = app.current_tenant_id()`,
+           count(*) FILTER (WHERE expires_at <= now())::int AS overdue,
+           count(*) FILTER (WHERE expires_at > now() AND expires_at <= now() + interval '24 hours')::int AS due_within_24_hours,
+           count(*) FILTER (WHERE expires_at > now() AND expires_at <= now() + interval '7 days')::int AS due_within_7_days,
+           min(expires_at) AS next_expiry_at
+         FROM (
+           SELECT CASE
+             WHEN status IN ('rejected', 'cancelled', 'completed')
+               THEN CASE WHEN $1::int IS NULL OR retention_closed_at IS NULL THEN NULL
+                         ELSE retention_closed_at + ($1::int * interval '1 day') END
+             ELSE CASE WHEN $2::int IS NULL OR retention_opened_at IS NULL THEN NULL
+                       ELSE retention_opened_at + ($2::int * interval '1 day') END
+           END AS expires_at
+           FROM leads
+         ) deadlines`,
+        [closedDays, openDays],
       );
-      if (!result.rows[0]) throw new HttpError(503, 'crm_retention_policy_unavailable');
-      return { policy: 'crm-retention-v1', ...result.rows[0] };
-    }));
+      return {
+        policy: 'platform-retention-v1',
+        plan_code: planCode,
+        automatic_deletion_enabled: openDays !== null || closedDays !== null,
+        ...result.rows[0],
+      };
+    });
+  });
 
   // ---- Leads ----
   app.get('/leads', async (req) => {

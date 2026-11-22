@@ -14,7 +14,8 @@ The `migrate-tenant-schemas` command preflights all mapped tenant databases firs
 
 ## Central Platform Registry migrations
 
-- Central Registry migrations live in `backend/migrations/000_tenant_registry.sql` and `backend/migrations/001_platform_accounts_subscriptions.sql`.
+- Central Registry migrations live in `backend/migrations/000_tenant_registry.sql`, `backend/migrations/001_platform_accounts_subscriptions.sql`, `backend/migrations/002_platform_content_and_messages.sql`, and `backend/migrations/003_platform_retention_policies.sql`.
+- Migration 003 creates the super-admin-controlled retention matrix by plan/type/status. `standard` (Basic) defaults to 60 days for open CRM leads, 30 days for closed CRM leads, and one day for ended/cancelled appointments and expired/closed waitlist entries. `plus` defaults to no automatic deletion. These values are editable in `/platform-admin/retention`; runtime reads the central policy table.
 - They are **not run during API startup or Railway restarts**. The API's `prestart` migration hook has been removed.
 - Run them only through the manual GitHub Actions workflow **Platform registry migrations**. The workflow takes a database preflight, serializes concurrent runs with a PostgreSQL advisory lock, and records completed files in `public.platform_registry_schema_migrations`.
 - If there are no pending Registry migrations, the workflow exits without changing the database and without requiring backup approval.

@@ -55,7 +55,7 @@ function slotConflict(error: unknown): never | void {
 }
 
 export const appointmentRoutes: FastifyPluginAsync = async (app) => {
-  // Calendar query. Expired rows are removed lazily here; website leads remain untouched.
+  // Calendar reads are read-only; retention cleanup runs only through the central scheduled worker.
   app.get('/appointments', async (req) => {
     const query = z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -70,13 +70,6 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
-      await db.query(`DELETE FROM waitlist_entries w USING appointments a
-        WHERE a.id = w.appointment_id AND a.tenant_id = w.tenant_id
-          AND ((a.status = 'reserved' AND a.end_at <= now() - interval '24 hours')
-            OR (a.status = 'cancelled' AND a.status_changed_at <= now() - interval '24 hours'))`);
-      await db.query(`DELETE FROM appointments
-        WHERE (status = 'reserved' AND end_at <= now() - interval '24 hours')
-           OR (status = 'cancelled' AND status_changed_at <= now() - interval '24 hours')`);
       const appointments = (await db.query(
         `SELECT a.id, a.lead_id, a.service_id, a.service_name, a.customer_phone,
                 to_char(a.start_at AT TIME ZONE $3, 'YYYY-MM-DD"T"HH24:MI') AS start_at,

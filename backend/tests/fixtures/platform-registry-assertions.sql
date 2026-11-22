@@ -14,6 +14,26 @@ BEGIN
     RAISE EXCEPTION 'app_runtime must execute tenant resolver';
   END IF;
 
+  IF (SELECT count(*) FROM public.platform_retention_policies) <> 16 THEN
+    RAISE EXCEPTION 'expected 16 default retention policy rows';
+  END IF;
+  IF NOT has_table_privilege('app_runtime', 'public.platform_retention_policies', 'SELECT') THEN
+    RAISE EXCEPTION 'app_runtime must read retention policies';
+  END IF;
+  IF has_table_privilege('app_runtime', 'public.platform_retention_policies', 'UPDATE') THEN
+    RAISE EXCEPTION 'app_runtime must not change retention policies';
+  END IF;
+  IF NOT has_function_privilege('app_runtime', 'app.get_tenant_plan_code(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'app_runtime must read a tenant plan code through the restricted function';
+  END IF;
+  IF app.get_tenant_plan_code(v_legacy) <> 'standard' THEN
+    RAISE EXCEPTION 'legacy businesses without a subscription must use standard retention policy';
+  END IF;
+  IF (SELECT count(*) FROM public.platform_retention_policies
+       WHERE plan_code = 'plus' AND delete_enabled) <> 0 THEN
+    RAISE EXCEPTION 'Plus defaults must not automatically delete records';
+  END IF;
+
   INSERT INTO public.businesses (id, slug, name, status)
   VALUES (v_legacy, 'legacy-test', 'Legacy test', 'active');
   IF app.is_tenant_subscription_accessible(v_legacy) IS DISTINCT FROM true THEN
