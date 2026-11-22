@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 
 test('platform account lifecycle and independent marketing consents', async () => {
@@ -14,6 +14,7 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.DATABASE_SSL = 'false';
   process.env.NODE_ENV = 'test';
   process.env.SUPERADMIN_API_TOKEN = 't'.repeat(48);
+  process.env.MANAGEMENT_TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
@@ -189,6 +190,23 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
       assert.match(provisioned.database, /^biz_[a-f0-9]{24}$/);
       assert.equal(provisioned.slug, businessSlug);
+      assert.match(provisioned.management_url, /^http:\/\/localhost:3000\/manage\/[A-Za-z0-9_-]{43}$/);
+      const permanentToken = new URL(provisioned.management_url).pathname.split('/').pop()!;
+      const permanentTokenRow = await pool.query(
+        'SELECT token_hash, encrypted_token, expires_at, label FROM public.access_tokens WHERE tenant_id = $1',
+        [provisioned.id],
+      );
+      assert.equal(permanentTokenRow.rowCount, 1);
+      assert.ok(permanentTokenRow.rows[0].encrypted_token);
+      assert.equal(permanentTokenRow.rows[0].expires_at, null);
+      assert.equal(permanentTokenRow.rows[0].label, 'permanent seller link');
+      assert.ok(!String(permanentTokenRow.rows[0].encrypted_token).includes(permanentToken));
+
+      const anonymousManagement = await app.inject({
+        method: 'GET', url: `/api/manage/${permanentToken}/business`,
+      });
+      assert.equal(anonymousManagement.statusCode, 401, 'claimed businesses must require an owner session');
+
       const tenantDatabaseUrl = new URL(databaseUrl);
       tenantDatabaseUrl.pathname = `/${provisioned.database}`;
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
@@ -233,6 +251,16 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(ownerLogin.statusCode, 200);
       const ownerCookie = String(ownerLogin.headers['set-cookie']).split(';')[0];
       ownerSessionCookie = ownerCookie;
+      const permanentManagementLink = await app.inject({
+        method: 'POST', url: '/api/auth/management-link', headers: { cookie: ownerCookie },
+      });
+      assert.equal(permanentManagementLink.statusCode, 200);
+      assert.equal(permanentManagementLink.json().management_url, provisioned.management_url,
+        'account access must return the same permanent management URL');
+      const ownerManagement = await app.inject({
+        method: 'GET', url: `/api/manage/${permanentToken}/business`, headers: { cookie: ownerCookie },
+      });
+      assert.equal(ownerManagement.statusCode, 200, 'the matching owner session must open management APIs');
       const cancellation = await app.inject({
         method: 'POST', url: '/api/auth/subscription/cancel', headers: { cookie: ownerCookie },
       });
@@ -318,6 +346,12 @@ test('platform account lifecycle and independent marketing consents', async () =
         [manualSlug, manualName, JSON.stringify({})],
       );
       manualBusinessId = manualCreated.rows[0].id as string;
+      const legacyManagementToken = randomBytes(32).toString('base64url');
+      const legacyManagementHash = createHash('sha256').update(legacyManagementToken, 'utf8').digest();
+      await pool.query(
+        "INSERT INTO public.access_tokens (tenant_id, token_hash, label) VALUES ($1, $2, 'initial seller link')",
+        [manualBusinessId, legacyManagementHash],
+      );
       manualDatabase = `biz_${manualBusinessId.replace(/-/g, '').slice(0, 24)}`;
       await pool.query(`CREATE DATABASE "${manualDatabase}"`);
       await pool.query(`GRANT CONNECT ON DATABASE "${manualDatabase}" TO app_runtime, app_superadmin`);
@@ -338,6 +372,28 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
 
       const adminHeaders = { authorization: `Bearer ${adminToken}` };
+      const legacyLinkBeforeAssociation = await app.inject({
+        method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
+      });
+      assert.equal(legacyLinkBeforeAssociation.statusCode, 200);
+      assert.equal(legacyLinkBeforeAssociation.json().available, false);
+      assert.equal(legacyLinkBeforeAssociation.json().requires_association, true);
+      const legacyManagementUrl = `http://localhost:3000/manage/${legacyManagementToken}`;
+      const associateLegacyLink = await app.inject({
+        method: 'POST',
+        url: `/api/admin/businesses/${manualBusinessId}/management-link/associate`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { management_url: legacyManagementUrl },
+      });
+      assert.equal(associateLegacyLink.statusCode, 200);
+      const legacyLinkAfterAssociation = await app.inject({
+        method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
+      });
+      assert.equal(legacyLinkAfterAssociation.statusCode, 200);
+      assert.equal(legacyLinkAfterAssociation.json().available, true);
+      assert.equal(legacyLinkAfterAssociation.json().management_url, legacyManagementUrl,
+        'associating a legacy link must preserve its exact URL');
+
       const visibleBusinesses = await app.inject({ method: 'GET', url: '/api/admin/businesses', headers: adminHeaders });
       assert.equal(visibleBusinesses.statusCode, 200);
       const visibleManual = visibleBusinesses.json().businesses.find((business: { id: string }) => business.id === manualBusinessId);
