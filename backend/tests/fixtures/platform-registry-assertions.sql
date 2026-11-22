@@ -213,3 +213,21 @@ BEGIN
 END
 $seller_onboarding$;
 
+DO $seller_onboarding_backfill$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.businesses
+     WHERE slug = 'migration-smoke-old' AND onboarding_completed_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'preexisting business was not backfilled as onboarded';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.businesses
+     WHERE slug = 'migration-smoke-new' AND onboarding_completed_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'rerunning onboarding migration must preserve new businesses as unfinished';
+  END IF;
+END
+$seller_onboarding_backfill$;
+
+
