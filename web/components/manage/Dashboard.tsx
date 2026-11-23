@@ -192,7 +192,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PwaInstallButton label="התקנת ניהול העסק" />
-            {!onboardingCompleted && !onboardingVisible && <button type="button" onClick={() => setOnboardingVisible(true)} className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary">המשך הקמת העסק</button>}
+            {!onboardingCompleted && !onboardingVisible && <button type="button" onClick={() => setOnboardingVisible(true)} className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary">{onboardingCompleted ? 'פתיחת מדריך ההקמה' : 'המשך הקמת העסק'}</button>}
             <a href="/account" className="min-h-10 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10">
               החשבון שלי
             </a>
