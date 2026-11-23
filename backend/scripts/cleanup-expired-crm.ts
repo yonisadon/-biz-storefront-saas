@@ -49,6 +49,28 @@ async function connectWithRetry(url: string, label: string): Promise<pg.Client> 
   }
   throw new Error('PostgreSQL connection did not become available for ' + label + '.');
 }
+
+// A successful TCP/PostgreSQL handshake is not enough on a waking Railway
+// database: the first SQL statement can still fail while the service starts.
+// Probe before acquiring the advisory lock so cleanup never begins half-ready.
+async function connectReadyWithRetry(url: string, label: string): Promise<pg.Client> {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const client = await connectWithRetry(url, label);
+    try {
+      await client.query('SELECT 1');
+      return client;
+    } catch (error) {
+      await client.end().catch(() => {});
+      const code = (error as { code?: string }).code;
+      if (!code || !TRANSIENT_DB_CODES.has(code) || attempt === maxAttempts) throw error;
+      const delayMs = Math.min(1000 * attempt, 3000);
+      console.warn('Database accepted a connection but is not ready for ' + label + ' (attempt ' + attempt + '/' + maxAttempts + '; code ' + code + '); retrying in ' + delayMs + 'ms.');
+      await sleep(delayMs);
+    }
+  }
+  throw new Error('PostgreSQL did not become ready for ' + label + '.');
+}
 function getDays(row: PolicyRow | undefined): number | null {
   if (!row) throw new Error('Retention policy is incomplete; refusing cleanup.');
   if (!row.delete_enabled) return null;
@@ -83,7 +105,7 @@ async function main() {
   }
 
   const apply = process.argv.includes('--apply');
-  const registry = await connectWithRetry(registryUrl!, 'tenant registry');
+  const registry = await connectReadyWithRetry(registryUrl!, 'tenant registry');
   const tenantConnections = new Map<string, pg.Client>();
   let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
