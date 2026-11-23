@@ -157,74 +157,92 @@
 - קבלת תשובה מספק Push אינה הוכחה שהמכשיר הציג התראה.
 - הסכמת Push תפעולית אינה הסכמה שיווקית לדוא"ל/SMS.
 
-## 6. Web Push — תכנון טכני ומבנה נתונים מוצע
-
-הטבלאות והשמות להלן הם תכנון, לא מיגרציות שכבר קיימות. יש לאמת את הסכימה הסופית לפני יצירת SQL.
+## 6. Web Push — סכימה ומימוש בענף PR #105
 
 ### Registry
-- טבלת entitlement לערוצים לפי tenant, עם `channel`, `enabled`, timestamps וגורם מעדכן. Push יופעל כברירת מחדל לכל עסק קיים וחדש במיגרציה/ברירת מחדל בטוחה.
-- ה-Registry אינו שומר subscription של לקוח או payload עסקי; הוא שומר רק הרשאת שימוש בערוץ לעסק.
+- Registry migration 006_platform_channel_entitlements.sql מוסיפה את הטבלה platform_channel_entitlements עם מפתח (tenant_id, channel), enabled, updated_at ו-updated_by.
+- המיגרציה מבצעת backfill לעסקים קיימים: Push=true, WhatsApp=false, SMS=false.
+- trigger על public.businesses מייצר אותן ברירות מחדל לכל עסק חדש. כך גם הקמה עצמית וגם הקמה על ידי סופר אדמין מקבלות אותה הרשאה בלי לוגיקה כפולה במסלולי provisioning.
+- app_runtime מקבל SELECT בלבד; app_superadmin מקבל SELECT/INSERT/UPDATE. מסך סופר אדמין מאפשר להפעיל/לחסום Push לעסק בנפרד.
+- ה-Registry אינו שומר subscriptions, consent או payload עסקי.
 
-### Tenant
-- טבלת הגדרות ערוץ לעסק: העדפת Push למוכר והעדפת Push ללקוחות, ברירת מחדל פעילה.
-- טבלת subscriptions למכשירים: מזהה, endpoint מוצפן, p256dh/auth מוצפנים, תאריך יצירה/עדכון/ביטול, מצב תקף.
-- טבלת capability/consent להזמנה או בקשת המתנה: hash token, סוג יעד, מזהה יעד, תוקף, opt-in timestamp וביטול.
-- טבלת outbox: event id, סוג אירוע, מזהה יעד, payload מינימלי, created_at, מצב, attempts, next_attempt_at, lease ו-last_error.
-- טבלת deliveries: event + subscription + channel עם UNIQUE למניעת כפילויות, מצב, attempts, timestamps ותוצאת ספק.
-- קשרי waitlist-to-appointment נשמרים לפי ה-FK הקיים; בעת שיבוץ יש להעביר את הרשאת הלקוח לבקשת/תור שנוצרו.
+### Tenant — migration 013 ו-tenant-schema.sql
+- push_settings: שורה לכל tenant; seller_enabled ו-customer_enabled ברירת מחדל true.
+- push_subscriptions: audience seller/customer, endpoint_hash ייחודי, ו-endpoint/p256dh/auth מוצפנים במנוחה. subscriptions מנותקים מסומנים disabled_at.
+- push_booking_capabilities: target_type/target_id, token_hash, expires_at, opted_in_at, revoked_at ו-subscription_id. capability תקף 7 ימים ומאפשר subscription יחיד עבור אותה הזמנה/בקשת המתנה.
+- push_consents: קשר בין subscription לבין target_type/target_id. אין FK לרשומת appointment/waitlist בכוונה, כדי שה-consent יישאר זמין למסירת אירוע ביטול גם לאחר DELETE פיזי של appointment.
+- push_outbox: audience, event_type, target_type/target_id, payload מינימלי, status, attempts, next_attempt_at, locked_until ו-last_error.
+- push_deliveries: קשר ייחודי בין outbox event ל-subscription, status, attempts, lease, next_attempt_at, provider_status_code ו-sent_at.
+- כל הטבלאות כוללות tenant_id, RLS ו-FORCE RLS. app_runtime מקבל הרשאות CRUD רק בתוך tenant context.
+- tenant-schema.sql כולל את אותן טבלאות עבור DB חדש; tenant-013-web-push.sql מחיל אותן על DB קיים. tenantMigrations.ts מגלה את הקובץ לפי מספור, וה-runner מנהל את transaction ואת ledger. אין BEGIN/COMMIT פנימיים בקובץ migration tenant.
 
-### Transactional outbox
-1. בתוך transaction של יצירה/שינוי/ביטול, לאחר אימות שהתרחש שינוי אמיתי, נרשם אירוע outbox.
-2. COMMIT של הפעולה העסקית ושל אירוע outbox מתבצע יחד.
-3. רק לאחר COMMIT מנסים שליחה מיידית, עם timeout מוגבל. כשל Push אינו מבטל הזמנה/שינוי שכבר נשמרו.
-4. אין fire-and-forget לא ממתין מתוך בקשת Serverless.
-5. Cron recovery כל 30 דקות סורק אירועים pending/failed, עם lease, נעילות, backoff, attempts ו-idempotency.
-6. אם התהליך נופל אחרי COMMIT ולפני השליחה, ה-Cron משחזר את האירוע.
-7. אם DB אינו זמין ולא ניתן לבצע COMMIT, אין להחזיר הצלחה לפעולה העסקית.
+### Capability ו-consent
+- לאחר יצירת הזמנה באתר או בקשת המתנה, נוצר token אקראי של 32 bytes; ב-DB נשמר SHA-256 בלבד. token מוחזר למסך ההצלחה, לא ללוגים.
+- opt-in מתבצע רק בלחיצה מפורשת: Notification permission, רישום Service Worker, PushManager subscription, ואז POST עם token להזמנה הספציפית.
+- token לא תקף להזמנה אחרת. כל הזמנה וכל בקשת המתנה דורשת opt-in נפרד. אותו subscription בדפדפן יכול להיות מקושר בנפרד למספר הזמנות אם בוצעה הסכמה נפרדת לכל אחת.
+- עבור capability יחיד נשמר subscription אחד. רישום מכשירים נוספים לאותה הזמנה נדחה לשלב עתידי.
+- בעת שיבוץ waitlist ל-appointment, גם capability וגם consent מועברים ל-target של appointment. בעת מחיקה פיזית של תור capability לא מנוצל מבוטל, אך consent קיים נשמר למסירת אירוע הביטול.
 
-### מיקום האירועים בקוד הקיים
-- הזמנה ציבורית: `backend/src/routes/public.ts`, מסלול `POST /leads`; יש להוסיף אירוע רק לאחר insert אמיתי של appointment, לא ב-idempotent duplicate.
-- בקשת המתנה: `backend/src/routes/waitlist.ts`, `POST /waitlist`.
-- שיבוץ המתנה: `POST /waitlist/:id/schedule`; ליצור אירוע לקוח ולהעביר consent.
-- שינוי/ביטול: `backend/src/routes/appointments.ts` וכן `PATCH /waitlist/:id` כאשר היא מבטלת תור משויך.
-- מחיקה פיזית: `DELETE /appointments/:id`; יש לרשום אירוע ביטול לפני מחיקה ולשמר פרטי יעד/consent הנדרשים למסירה.
-- יצירת תור ידני ב-`POST /appointments` אינה שולחת Push ללקוח בשלב הראשון.
+### אירועים
+- seller.appointment_created: רק כאשר נוצר appointment חדש במסלול הציבורי; לא נוצר באידמפוטנט duplicate.
+- seller.waitlist_created: בקשת המתנה חדשה.
+- customer.waitlist_scheduled: שיבוץ בקשת המתנה לתור.
+- customer.appointment_updated: שינוי אמיתי בפרטי תור שהלקוח קבע באתר או תור שנוצר משיבוץ waitlist, ורק אם קיימת consent להזמנה.
+- customer.appointment_cancelled: ביטול או מחיקה פיזית של תור מזכה, ורק אם קיימת consent להזמנה.
+- אין Push ללקוח בעת יצירת תור רגיל, לתור ידני ללא קשר waitlist, לבקשת המתנה שעדיין ממתינה, או על no-op update.
+- זיהוי תור waitlist מבוסס על waitlist_entries.appointment_id, ולא על appointments.source, משום שתור משובץ מקבל source='manual'.
+
+### Transactional outbox ושליחה
+1. אירוע outbox נרשם באותה transaction של יצירת/שינוי/ביטול הפעולה העסקית.
+2. רק לאחר COMMIT מבוצע ניסיון שליחה מיידי ומוגבל; כשל Push אינו מבטל את הפעולה העסקית.
+3. אין fire-and-forget לא ממתין מתוך בקשת Serverless.
+4. pushService.ts טוען entitlement והעדפות, יוצר deliveries ייחודיים, נועל event/delivery באמצעות leases, ושולח עד 10 deliveries בכל מעבר.
+5. sendWebPush משתמש ב-timeout של 8 שניות. כשלי ספק זמניים (network/408/429/5xx) מקבלים עד 8 ניסיונות עם backoff עד 6 שעות; 404/410 מנטרלים subscription.
+6. recovery command: npm run process-push-outbox. הוא עובר על tenants, מחזיק Registry advisory lock כדי למנוע ריצות Cron מקבילות, ומעבד pending/expired leases. התכנון הוא Cron חיצוני כל 30 דקות.
+7. אם אין recipients, האירוע נסגר ללא שליחה. אם אין הגדרת VAPID אך קיימים recipients, האירוע נשאר pending עד ניסיון recovery נוסף.
+8. אם DB אינו זמין ולא ניתן לבצע COMMIT, אין להחזיר הצלחה לפעולה העסקית.
+
+### Delivery guarantee — מגבלה ידועה
+מפתח UNIQUE (tenant_id, outbox_id, subscription_id) ו-leases מונעים יצירת delivery כפולה ומצמצמים כפילויות בזמן concurrency. עם זאת, אם ספק Push קיבל את ההודעה והתהליך נפל לפני עדכון status='sent' ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי; לכן ההבטחה היא at-least-once עם חלון קטן לכפילות, ולא exactly-once.
+
+### אבטחה והגדרות
+- pushCrypto.ts משתמש ב-node:crypto: VAPID ES256, RFC 8291 aes128gcm, AES-256-GCM להצפנת secrets, ו-SHA-256 ל-capability/endpoint hash.
+- endpoint מוגבל לספקי Push מוכרים ב-HTTPS כדי לצמצם SSRF. payloads כלליים ואינם כוללים שם/טלפון/פרטי תור.
+- Environment נדרש ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY.
+- יצירת מפתחות מקומית: npm run generate-web-push-keys. אין לשמור מפתחות ב-repository.
+- ה-Service Worker ב-web/public/sw.js מציג notification ומגביל notificationclick לכתובת באותו origin; מדיניות cache/offline הקיימת לא שונתה.
+- אין עדיין הגדרת VAPID secrets ב-Railway, אין בדיקת ספק/מכשיר אמיתית, וה-Cron החיצוני לא אומת. אין לטעון שהערוץ פעיל ב-production.
 
 ## 7. Cold start — Push API ו-Recovery
 
-- מאגר החיבורים הקיים ב-`backend/src/db.ts` משתמש ב-`connectionTimeoutMillis: 5000`; pool Registry max 10 ו-tenant max 2.
-- יש להוסיף retry/backoff מוגבל לנתיבי Push שנדרשים ל-DB שמתעורר, בלי ליצור retry בלתי מוגבל או להאריך בקשת HTTP ללא גבול.
-- פעולת ההזמנה/השינוי העסקית נשארת המקור האטומי: outbox נשמר באותה transaction. לא שולחים Push לפני commit.
-- Recovery job יתחבר מחדש עם retry, יבדוק נעילה/lease, יטפל באירועים ישנים ויכבד מגבלת זמן ריצה.
-- אין Worker קבוע; recovery מתוכנן ל-Cron כל 30 דקות. הגדרת Cron ב-Railway חיצונית ל-repository ולא אומתה דרך ההרשאות הזמינות. אין לטעון שהיא קיימת או לשנות אותה ללא אישור.
-- אם cold start לא מסתיים במסגרת retry/timeouts, יש להחזיר שגיאה ברורה ולשמור על מצב נתונים עקבי; לא להציג הצלחה כאשר הפעולה העסקית לא נשמרה.
+- backend/src/db.ts כולל connectionTimeoutMillis של 5000ms ב-Registry pool ו-retry של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. ההשהיה מדורגת מ-250ms עד 3000ms.
+- retry אינו מריץ מחדש callback עסקי או transaction שכבר התחיל. כך נמנעת סכנת ביצוע כפול כאשר לא ידוע אם COMMIT הצליח.
+- process-push-outbox.ts משתמש ב-connectRegistryWithRetry, advisory lock גלובלי, עיבוד לפי tenant, exit code 1 כאשר tenant נכשל, וסגירת pools בסיום.
+- Recovery מתוכנן ל-Cron חיצוני כל 30 דקות. הגדרת Cron ב-Railway אינה ב-repository ולא אומתה דרך ההרשאות הזמינות; אין לטעון שהיא קיימת או לשנות אותה ללא אישור.
+- אם cold start לא מסתיים במסגרת retry/timeouts, הפעולה העסקית לא מדווחת כהצלחה אם לא בוצע COMMIT; אירוע outbox שכבר נשמר נשאר זמין ל-recovery.
 
-## 8. Onboarding — מצב קיים ומטרה
+## 8. Onboarding — מצב קיים ושדרוג שבוצע
 
 ### מצב קיים שאומת
-- קיימת מיגרציית Registry `005_seller_onboarding_state.sql` עם `businesses.onboarding_completed_at`.
-- ב-`backend/src/routes/manage.ts` יש GET של פרטי העסק עם מצב onboarding ו-POST `/onboarding/complete`.
-- ב-`web/components/manage/Dashboard.tsx` קיים באנר ברוכים הבאים עם ארבעה קישורים: פרטי העסק, מוצרים/שירותים, שעות פעילות ועיצוב האתר; יש קישור לתצוגת לקוחות, העתקת קישור לקוחות וכפתור השלמת הקמה.
-- זהו checklist בסיסי בלבד: אין כרגע מדידת התקדמות אמיתית לפי מצב העסק, ואין הסבר מספיק ברור להבדל בין קישור ציבורי ללקוחות לבין קישור ניהול פרטי.
-- מיגרציית onboarding מסמנת עסקים קיימים שהיו לפני הוספת העמודה כהושלמו לפי `created_at`; יש לבדוק כיצד רוצים להציג onboarding משופר לעסקים קיימים מבלי לאפס להם סטטוס בשקט.
+- Registry migration 005_seller_onboarding_state.sql מוסיפה businesses.onboarding_completed_at.
+- manage.ts כולל GET לפרטי העסק ו-POST /onboarding/complete.
+- ב-Dashboard היה checklist בסיסי ללא חישוב התקדמות לפי הנתונים.
 
-### חוויית היעד
-- מסך הצלחה ברור אחרי יצירת העסק, עם הסבר שהעסק נוצר אך כדאי להשלים פרטים לפני פרסום.
-- מסלול הדרכה קצר, בעברית וב-RTL, עם שלבים קטנים ופעולות ישירות: פרטי עסק, שירותים/מוצרים, שעות פעילות, תמונות/עיצוב, תצוגה מקדימה ופרסום.
-- התקדמות אמיתית שמחושבת מנתוני העסק (לא רק סימון ידני), ככל שהנתונים זמינים ב-API.
-- הצגה מובחנת של שני קישורים: אתר ציבורי ללקוחות וקישור ניהול פרטי. אין לחשוף או להעתיק קישור ניהול למקום ציבורי.
-- אפשרות לדלג ולחזור להדרכה מאזור הניהול; אין לחסום שימוש במערכת.
-- שימור הקישור הקבוע, session של 3 ימים, login/logout, redirect לחשבון/ניהול והזרימות הקיימות.
-- אין לסמן עסק כ"מוכן לפרסום" אם חסרים נתונים חיוניים למסלול ההזמנה הפעיל שלו. יש להציג מה חסר, בלי לשנות אוטומטית הגדרות עסק.
+### מה שודרג בענף
+- checklist מציג ארבעה שלבים: פרטי עסק, מוצרים/שירותים, שעות פעילות, תמונות/גלריה.
+- מצב ההתקדמות מחושב מנתוני העסק, מספר מוצרים פעילים, שעות פעילות וגלריה — ולא רק מסימון ידני.
+- נוסף הסבר בולט שמבדיל בין קישור ציבורי ללקוחות לבין אזור הניהול הפרטי, יחד עם פתיחת האתר והעתקת קישור הלקוחות.
+- אפשר להסתיר את ההדרכה, להמשיך מאוחר יותר, ולהציג אותה שוב גם לאחר סימון השלמה.
+- נשמרים הקישור הקבוע, session של 3 ימים, login/logout, redirect והזרימות הקיימות.
+- לא נוספה מיגרציה ולא אופס onboarding_completed_at לעסקים קיימים.
+- מסך הצלחה נפרד מיד לאחר יצירת העסק עדיין לא שונה; השיפור ממוקד בחוויית הכניסה הראשונה ל-Dashboard ובהדרכה שבתוכו.
 
-### בדיקות קבלה
-- עסק חדש אחרי הרשמה עצמית מגיע למסך הדרכה ברור.
-- עסק שהוקם על ידי סופר אדמין ומחובר לחשבון מקבל התנהגות עקבית.
-- עסק קיים לא מאבד נתונים/קישור/הגדרות ולא מקבל סטטוס onboarding שגוי.
-- התקדמות מתעדכנת אחרי שמירת כל שלב ורענון.
-- קישור לקוחות פותח `/biz/<slug>`; קישור ניהול נשאר פרטי ויציב.
-- דילוג וחזרה להדרכה עובדים; השלמת onboarding נשמרת.
-- מובייל, RTL, נגישות מקלדת ו-focus נבדקים.
+### בדיקות קבלה שנותרו
+- לוודא שהתקדמות מתעדכנת לאחר שמירת מוצרים/גלריה ושעות, ולא רק לאחר ניווט/רענון.
+- עסק חדש אחרי הרשמה עצמית ועסק שהוקם על ידי סופר אדמין ומחובר לחשבון.
+- עסק קיים לא מאבד נתונים/קישור/הגדרות; אפשר לפתוח שוב את המדריך.
+- קישור לקוחות פותח /biz/<slug>; קישור ניהול נשאר פרטי ויציב.
+- מובייל, RTL, נגישות מקלדת ו-focus.
 
 ## 9. שלבי ביצוע ו-gates
 
