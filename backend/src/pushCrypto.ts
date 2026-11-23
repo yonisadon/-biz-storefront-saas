@@ -88,6 +88,23 @@ export type BrowserPushSubscription = {
   keys: { p256dh: string; auth: string };
 };
 
+export function isSupportedPushEndpoint(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) return false;
+    const host = url.hostname.toLowerCase();
+    return host === 'fcm.googleapis.com'
+      || host === 'web.push.apple.com'
+      || host === 'updates.push.services.mozilla.com'
+      || host.endsWith('.push.services.mozilla.com')
+      || host === 'push.services.mozilla.com'
+      || host === 'notify.windows.com'
+      || host.endsWith('.notify.windows.com');
+  } catch {
+    return false;
+  }
+}
+
 export function encryptPushPayload(
   subscription: Pick<BrowserPushSubscription, 'keys'>,
   payload: Record<string, unknown>,
@@ -184,7 +201,7 @@ export async function sendWebPush(
   } catch {
     throw new PushDeliveryError('Invalid Push endpoint.', null);
   }
-  if (endpoint.protocol !== 'https:') throw new PushDeliveryError('Push endpoint must use HTTPS.', null);
+  if (!isSupportedPushEndpoint(subscription.endpoint)) throw new PushDeliveryError('Unsupported Push service endpoint.', 400);
 
   const authorization = createVapidJwt(
     subscription.endpoint,
