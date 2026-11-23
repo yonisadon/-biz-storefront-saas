@@ -248,6 +248,11 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         });
       }
       await db.query(
+        "UPDATE public.push_booking_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
+        "WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = $1",
+        [id],
+      );
+      await db.query(
         "UPDATE waitlist_entries SET status = 'rejected', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
         [id],
       );
