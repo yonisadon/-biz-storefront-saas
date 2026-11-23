@@ -431,6 +431,7 @@ export default function PlatformAdminPage() {
             <div className="flex flex-wrap gap-2">
               <Link href="/platform-admin/content" className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-800">תוכן ותקשורת</Link>
               <Link href="/platform-admin/retention" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">מדיניות שמירה</Link>
+              <Link href="/platform-admin/channels" className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">הרשאות ערוצים</Link>
               <Link href="/register" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold">הרשמת בעל עסק</Link>
               <button type="button" onClick={loadAdminData} disabled={adminLoading} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{adminLoading ? 'טוען…' : 'טעינת נתוני מערכת'}</button>
             </div>
