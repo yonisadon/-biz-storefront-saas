@@ -12,7 +12,7 @@
 - backend/scripts/cleanup-expired-crm.ts עודכן עם retry לחיבורי Registry/Tenant, retry ל-preflight, advisory lock, ושימוש חוזר בחיבורי tenant שעברו preflight.
 - backend/src/db.ts כולל כעת retry מוגבל של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. Transaction עסקי עצמו אינו מורץ מחדש אוטומטית לאחר שהתחיל, כדי לא להסתכן בביצוע כפול.
 - לא שונו בחירת הרשומות, תקופות השמירה או public.platform_retention_policies.
-- Backend build/tests עברו עבור שינויי CRM. בדיקות התרחישים המלאות של cold start וניתוק בזמן מחיקה עדיין דורשות סביבת DB ייעודית/הרצה מבוקרת.
+- Backend build/tests עברו. בדיקות התרחישים המלאות של cold start וניתוק בזמן מחיקה עדיין דורשות סביבת DB ייעודית/הרצה מבוקרת.
 
 ### Web Push — מה כבר קיים בקוד
 - Registry migration 006_platform_channel_entitlements.sql יוצרת platform_channel_entitlements, ממלאת Push=true לעסקים קיימים, ומוסיפה trigger שמייצר Push=true ו-WhatsApp/SMS=false לכל עסק חדש.
@@ -30,7 +30,7 @@
 - OrderSection מציע opt-in נפרד לאחר הזמנה או בקשת המתנה. הרשאת דפדפן פעילה אינה יוצרת consent בפני עצמה.
 - אירועי outbox נרשמים בתוך transaction של הפעולה העסקית. לאחר COMMIT נעשה ניסיון שליחה מוגבל; כשל אינו מבטל את ההזמנה. recovery command נוסף: npm run process-push-outbox, עם advisory lock ו-processing לפי tenant.
 - נוספה פקודה ליצירת VAPID/encryption keys: npm run generate-web-push-keys. המפתחות עדיין אינם מוגדרים ב-Railway, ולא בוצעה שליחה אמיתית לספק Push או למכשיר.
-- בדיקות smoke למיגרציות Registry ו-Tenant נוספו; בדיקת Tenant migration עברה, וגם Backend build/tests עברו. Web build ויתר בדיקות CI נמצאים בבדיקה לפי ה-commit האחרון.
+- בדיקות smoke למיגרציות Registry ו-Tenant נוספו ועברו. כל בדיקות CI עברו ב-commit 3546f2d: Backend build/tests, Web build/lint, Validate, Registry migration smoke, Tenant migration smoke ו-Platform account accessibility smoke.
 - מגבלת exactly-once: unique delivery key ו-leases מונעים כפילות רגילה. אם ספק Push קיבל הודעה והתהליך נפל לפני עדכון sent ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי שמאפשר הבטחת exactly-once; לכן ההתנהגות היא at-least-once עם חלון קטן לכפילות, ולא הבטחה מוחלטת לאפס כפילויות.
 
 ### Onboarding למוכר
@@ -38,7 +38,7 @@
 - הובהר ההבדל בין קישור ציבורי ללקוחות לבין אזור הניהול הפרטי.
 - אפשר לדלג, להמשיך מאוחר יותר ולהציג שוב את מדריך ההקמה גם אחרי סימון ההשלמה.
 - לא שונו קישור הניהול הקבוע, session של 3 ימים, login/logout או מסלולי יצירת העסק.
-- שדרוג ה-UI הוכנס; בדיקת Web build/lint האחרונה עדיין רצה/נבדקת.
+- שדרוג ה-UI הוכנס; Web build/lint ו-Platform account accessibility smoke עברו.
 
 ### מה עדיין לא אומת בסביבת Production
 - לא הורצו migrations 006/tenant-013 ב-Production.
@@ -272,7 +272,7 @@
 - [x] נוספו אירועי seller booking/waitlist ולקוח update/cancel, כולל העברת waitlist consent לתור וזיהוי תור waitlist לפי הקשר ולא לפי appointments.source.
 - [x] Service Worker ו-UI opt-in ללקוח/מוכר נוספו.
 - [x] Onboarding Dashboard שודרג עם progress, הבחנה בין קישורים, דילוג, חזרה והצגה מחדש.
-- [x] Backend build/tests ו-Tenant migration smoke עברו ב-commit 8559b77; בדיקות Registry smoke עברו ב-commit קודם. Web build/Validate האחרון עדיין בבדיקה.
+- [x] Backend build/tests ו-Tenant migration smoke עברו ב-commit 8559b77; בדיקות Registry smoke עברו ב-commit קודם. Web build, Validate, Registry migration smoke ו-Platform account accessibility smoke עברו ב-commit 3546f2d.
 - [ ] נדרשות בדיקות קבלה ידניות של Push בדפדפנים/מכשירים ושל תרחישי cold start/CRM cleanup.
 - [ ] נדרשת הגדרת VAPID/encryption secrets ו-Cron חיצוני ב-Railway לאחר אישור נפרד; לא בוצעו שינויים כאלה.
 - [ ] לא בוצעו מיגרציות Production, Deploy או שינויי Railway במסגרת העבודה הזאת.
