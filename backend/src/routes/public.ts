@@ -189,15 +189,21 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           [hashPushCapability(input.token)],
         )).rows[0];
         if (!capability) throw new HttpError(404, 'push_consent_expired');
-        const subscriptionId = await savePushSubscription(
-          db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription,
-        );
         if (capability.opted_in_at) {
-          if (capability.subscription_id === subscriptionId) {
+          const existingSubscription = (await db.query(
+            "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() " +
+            "AND audience = 'customer' AND endpoint_hash = $1",
+            [hashPushCapability(input.subscription.endpoint)],
+          )).rows[0];
+          if (existingSubscription?.id === capability.subscription_id) {
+            await savePushSubscription(db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription);
             return { ok: true, already_enabled: true, target_type: capability.target_type, target_id: capability.target_id };
           }
           throw new HttpError(409, 'push_consent_already_used');
         }
+        const subscriptionId = await savePushSubscription(
+          db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription,
+        );
         await db.query(
           "INSERT INTO public.push_consents (tenant_id, target_type, target_id, subscription_id) " +
           "VALUES (app.current_tenant_id(), $1, $2, $3) ON CONFLICT (tenant_id, target_type, target_id, subscription_id) DO NOTHING",
