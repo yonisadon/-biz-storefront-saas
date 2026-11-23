@@ -15,10 +15,11 @@ import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
 import WaitlistPanel from './WaitlistPanel';
 import GoogleCalendarPanel from './GoogleCalendarPanel';
+import PushSettingsPanel from './PushSettingsPanel';
 
-type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal';
+type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal' | 'push';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'],
+  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'], ['push', 'התראות'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads, initialRetention }: {
@@ -301,6 +302,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           <div hidden={tab !== 'business'}><BusinessPanel token={token} biz={biz} onSaved={setBiz} /></div>
           <div hidden={tab !== 'design'}><DesignPanel token={token} biz={biz} onSaved={setBiz} /></div>
           {tab === 'legal' && <LegalPanel token={token} biz={biz} onSaved={setBiz} />}
+          {tab === 'push' && <PushSettingsPanel token={token} />}
         </div>
       </div>
     </div>
