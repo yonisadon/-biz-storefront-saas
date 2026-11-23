@@ -11,7 +11,6 @@ type Settings = {
   customer_enabled: boolean;
   seller_effective: boolean;
   customer_effective: boolean;
-  seller_devices: number;
 };
 
 function applicationServerKey(value: string): ArrayBuffer {
@@ -26,11 +25,16 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [deviceSubscribed, setDeviceSubscribed] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const value = await mcall<Settings>(token, 'push/settings');
       setSettings(value);
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration('/');
+        setDeviceSubscribed(Boolean(await registration?.pushManager.getSubscription()));
+      }
     } catch {
       setMessage('לא הצלחנו לטעון את הגדרות ההתראות.');
     } finally {
@@ -85,6 +89,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         method: 'POST',
         body: JSON.stringify({ subscription: { endpoint: json.endpoint, keys: json.keys } }),
       });
+      setDeviceSubscribed(true);
       await load();
       setMessage('המכשיר הזה נרשם לקבלת התראות מהמוכר.');
     } catch (error) {
@@ -112,9 +117,11 @@ export default function PushSettingsPanel({ token }: { token: string }) {
           method: 'DELETE',
           body: JSON.stringify({ endpoint }),
         });
+        await subscription.unsubscribe();
       }
+      setDeviceSubscribed(false);
       await load();
-      setMessage('המכשיר הוסר מהתראות למוכר. הרשאת הדפדפן נשארת זמינה להתראות לקוחות שאושרו בנפרד.');
+      setMessage('ההתראות למוכר כובו במכשיר הזה. הרשאת הדפדפן נשארת זמינה להתראות לקוחות שאושרו בנפרד.');
     } catch {
       setMessage('לא הצלחנו להסיר את המכשיר. אפשר לנסות שוב.');
     } finally {
@@ -130,7 +137,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       <div>
         <p className="text-xs font-bold tracking-wide text-primary">התראות Push</p>
         <h2 className="mt-1 text-xl font-bold text-ink">שליטה בהתראות העסק</h2>
-        <p className="mt-2 text-sm leading-6 text-ink/65">ההגדרות כאן נפרדות מהרשאת ההתראות של הדפדפן. אפשר להפעיל או לכבות התראות למוכר וללקוחות בנפרד.</p>
+        <p className="mt-2 text-sm leading-6 text-ink/65">אפשר להפעיל או לכבות בנפרד את ההתראות למוכר ואת ההתראות שנשלחות ללקוחות. סוגי ההתראות עצמם מוגדרים במערכת.</p>
       </div>
 
       {!settings.entitled && (
@@ -146,7 +153,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('seller_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות למוכר</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">הזמנה חדשה באתר ובקשת הצטרפות לרשימת המתנה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">הזמנה חדשה באתר ובקשת הצטרפות לרשימת המתנה. אפשר לבחור אם לקבל את ההתראות האלה.</span>
           </span>
         </label>
         <label className="flex items-start gap-3 rounded-xl border border-ink/10 p-3">
@@ -154,25 +161,23 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('customer_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות ללקוחות</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">עדכון או ביטול תור, רק ללקוח שהסכים לקבל התראות עבור אותה הזמנה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">שיבוץ תור מרשימת המתנה, עדכון או ביטול תור — רק ללקוחות שנתנו הסכמה.</span>
           </span>
         </label>
       </div>
 
-      <div className="rounded-xl border border-ink/10 p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-bold">המכשיר הנוכחי</p>
-            <p className="mt-1 text-xs text-ink/60">{settings.seller_devices} מכשירים רשומים להתראות למוכר.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => void enableThisDevice()} disabled={saving || !settings.seller_effective}
-              className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">רישום מכשיר זה</button>
-            <button type="button" onClick={() => void disableThisDevice()} disabled={saving}
-              className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">הסרת מכשיר זה</button>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/10 p-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold">התראות למוכר במכשיר הזה</p>
+          <p className="mt-1 text-xs leading-5 text-ink/60">{deviceSubscribed ? 'המכשיר הזה מוגדר לקבלת התראות.' : 'כדי לקבל התראות כאן, יש לאשר את ההתראות בדפדפן.'}</p>
         </div>
-        <p className="mt-2 text-xs leading-5 text-ink/55">כדי לקבל התראות, יש לאשר גם את הרשאת הדפדפן. כיבוי התראות למוכר אינו מבטל הרשאות דפדפן ואינו פוגע בהסכמות לקוח נפרדות.</p>
+        {deviceSubscribed ? (
+          <button type="button" onClick={() => void disableThisDevice()} disabled={saving}
+            className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">כיבוי במכשיר הזה</button>
+        ) : (
+          <button type="button" onClick={() => void enableThisDevice()} disabled={saving || !settings.seller_effective}
+            className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">הפעלת התראות במכשיר הזה</button>
+        )}
       </div>
       {message && <p role="status" className="text-sm text-ink/70">{message}</p>}
     </section>
