@@ -1,6 +1,6 @@
 # PR #105 — תוכנית מימוש, אמינות והדרכת מוכר
 
-עודכן: 2026-11-23  
+עודכן: 2026-11-23 (אימות CI ותיקוני review אחרונים)  
 ענף עבודה: `docs/audit-auth-pwa-push-2026-11-22`  
 מקור: בדיקת קוד `main` הנוכחי והקוד בענף PR #105. מסמך זה מפריד בין ממצאים שאומתו בקוד, החלטות מוצר שאושרו, ותכנון שעדיין דורש אימות/מימוש.
 
@@ -9,8 +9,8 @@
 הסעיפים ההיסטוריים בהמשך נשארים לצורכי הקשר. כאשר יש סתירה, סעיף הסטטוס הזה מתאר את הקוד הנוכחי בענף PR #105.
 
 ### CRM cleanup ו-cold start
-- backend/scripts/cleanup-expired-crm.ts עודכן עם retry לחיבורי Registry/Tenant, retry ל-preflight, advisory lock, ושימוש חוזר בחיבורי tenant שעברו preflight.
-- backend/src/db.ts כולל כעת retry מוגבל של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. Transaction עסקי עצמו אינו מורץ מחדש אוטומטית לאחר שהתחיל, כדי לא להסתכן בביצוע כפול.
+- backend/scripts/cleanup-expired-crm.ts עודכן עם retry לחיבורי Registry/Tenant, בדיקת readiness באמצעות SELECT 1 לפני רכישת advisory lock, retry ל-preflight, advisory lock, ושימוש חוזר בחיבורי tenant שעברו preflight.
+- backend/src/db.ts כולל retry מוגבל של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. בנוסף, אתחול טרנזקציית tenant (BEGIN והגדרת tenant context) מתבצע בתוך retry; חיבור שכשל באתחול מושמד ואינו מוחזר ל-pool. Callback עסקי אינו מורץ מחדש אוטומטית לאחר שהתחיל, כדי לא להסתכן בביצוע כפול.
 - לא שונו בחירת הרשומות, תקופות השמירה או public.platform_retention_policies.
 - כדי לא לאבד את תוצאת ה-preflight בגלל sleep/reconnect, הסקריפט מחזיק חיבור פתוח לכל tenant עד סיום שלב המחיקות. מספר החיבורים המקביליים גדל ביחס ישר למספר ה-tenants; יש לעקוב אחרי מגבלת connections של PostgreSQL ולבחון תכנון אחר אם מספר העסקים יגדל משמעותית.
 - Backend build/tests עברו. בדיקות התרחישים המלאות של cold start וניתוק בזמן מחיקה עדיין דורשות סביבת DB ייעודית/הרצה מבוקרת.
@@ -31,7 +31,7 @@
 - OrderSection מציע opt-in נפרד לאחר הזמנה או בקשת המתנה. הרשאת דפדפן פעילה אינה יוצרת consent בפני עצמה.
 - אירועי outbox נרשמים בתוך transaction של הפעולה העסקית. לאחר COMMIT נעשה ניסיון שליחה מוגבל; כשל אינו מבטל את ההזמנה. recovery command נוסף: npm run process-push-outbox, עם advisory lock ו-processing לפי tenant.
 - נוספה פקודה ליצירת VAPID/encryption keys: npm run generate-web-push-keys. המפתחות עדיין אינם מוגדרים ב-Railway, ולא בוצעה שליחה אמיתית לספק Push או למכשיר.
-- בדיקות smoke למיגרציות Registry ו-Tenant נוספו ועברו. כל בדיקות CI עברו ב-commit b290d8c: Backend build/tests, Web build/lint, Validate, Registry migration smoke, Tenant migration smoke ו-Platform account accessibility smoke.
+- בדיקות smoke למיגרציות Registry ו-Tenant נוספו ועברו. כל שש בדיקות ה-CI עברו על commit `6f66a99bdd25fb16c7a89eb36203df40360cac24`: Backend build/tests, Web build/lint, Validate, Registry migration smoke, Tenant migration smoke ו-Platform account accessibility smoke.
 - מגבלת exactly-once: unique delivery key ו-leases מונעים כפילות רגילה. אם ספק Push קיבל הודעה והתהליך נפל לפני עדכון sent ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי שמאפשר הבטחת exactly-once; לכן ההתנהגות היא at-least-once עם חלון קטן לכפילות, ולא הבטחה מוחלטת לאפס כפילויות.
 
 ### Onboarding למוכר
