@@ -150,9 +150,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
         [req.tenantId],
       );
+      const settings = await withTenant(req.tenantId, async (db) => (await db.query(
+        "SELECT customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
+      )).rows[0]);
       const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
         env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
-      const enabled = entitlement.rows[0]?.enabled === true && configured;
+      const enabled = entitlement.rows[0]?.enabled === true && settings?.customer_enabled === true && configured;
       return { enabled, public_key: enabled ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null };
     });
 
@@ -176,6 +179,10 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       }
 
       return withTenant(req.tenantId, async (db) => {
+        const customerSettings = (await db.query(
+          "SELECT customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
+        )).rows[0];
+        if (customerSettings?.customer_enabled !== true) throw new HttpError(403, 'customer_push_disabled');
         const capability = (await db.query(
           "SELECT id, target_type, target_id, opted_in_at, subscription_id FROM public.push_booking_capabilities " +
           "WHERE tenant_id = app.current_tenant_id() AND token_hash = $1 AND expires_at > now() AND revoked_at IS NULL FOR UPDATE",
