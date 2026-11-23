@@ -31,7 +31,7 @@
 - OrderSection מציע opt-in נפרד לאחר הזמנה או בקשת המתנה. הרשאת דפדפן פעילה אינה יוצרת consent בפני עצמה.
 - אירועי outbox נרשמים בתוך transaction של הפעולה העסקית. לאחר COMMIT נעשה ניסיון שליחה מוגבל; כשל אינו מבטל את ההזמנה. recovery command נוסף: npm run process-push-outbox, עם advisory lock ו-processing לפי tenant.
 - נוספה פקודה ליצירת VAPID/encryption keys: npm run generate-web-push-keys. המפתחות עדיין אינם מוגדרים ב-Railway, ולא בוצעה שליחה אמיתית לספק Push או למכשיר.
-- בדיקות smoke למיגרציות Registry ו-Tenant נוספו ועברו. כל בדיקות CI עברו ב-commit 3546f2d: Backend build/tests, Web build/lint, Validate, Registry migration smoke, Tenant migration smoke ו-Platform account accessibility smoke.
+- בדיקות smoke למיגרציות Registry ו-Tenant נוספו ועברו. כל בדיקות CI עברו ב-commit b290d8c: Backend build/tests, Web build/lint, Validate, Registry migration smoke, Tenant migration smoke ו-Platform account accessibility smoke.
 - מגבלת exactly-once: unique delivery key ו-leases מונעים כפילות רגילה. אם ספק Push קיבל הודעה והתהליך נפל לפני עדכון sent ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי שמאפשר הבטחת exactly-once; לכן ההתנהגות היא at-least-once עם חלון קטן לכפילות, ולא הבטחה מוחלטת לאפס כפילויות.
 
 ### Onboarding למוכר
