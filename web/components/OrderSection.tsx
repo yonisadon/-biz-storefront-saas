@@ -9,7 +9,7 @@ import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/type
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
 type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site';
-type Done = { route: 'site'; message: string; pushCapabilityToken?: string } | { route: 'whatsapp'; url: string; message: string };
+type Done = { route: 'site'; message: string; pushCapabilityToken?: string } | { route: 'whatsapp'; url: string; message: string; pushCapabilityToken?: string };
 type Step = 'choose' | 'site';
 
 type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?: string; whatsapp_url?: string; success_message?: string; push_capability_token?: string };
@@ -351,7 +351,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setAppointmentTime('');
       setServerAppointmentSlots([]);
       if (data?.route === 'whatsapp' && data.whatsapp_url) {
-        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.' });
+        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.', pushCapabilityToken: data.push_capability_token });
       } else {
         setDone({ route: 'site', message: data?.success_message ?? 'הפנייה נשלחה בהצלחה.', pushCapabilityToken: data?.push_capability_token });
       }
@@ -618,7 +618,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {done.message}
             </p>
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
-            {done.route === 'site' && done.pushCapabilityToken && pushPublicKey && (
+            {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
                 <p className="font-semibold">רוצים לקבל עדכונים על התור?</p>
                 <p className="mt-1 text-sm text-ink/65">אפשר לקבל התראה אם העסק יעדכן או יבטל את התור. נדרשת הסכמה נפרדת עבור התור הזה.</p>
