@@ -182,6 +182,7 @@
 - token לא תקף להזמנה אחרת. כל הזמנה וכל בקשת המתנה דורשת opt-in נפרד. אותו subscription בדפדפן יכול להיות מקושר בנפרד למספר הזמנות אם בוצעה הסכמה נפרדת לכל אחת.
 - עבור capability יחיד נשמר subscription אחד. רישום מכשירים נוספים לאותה הזמנה נדחה לשלב עתידי.
 - בעת שיבוץ waitlist ל-appointment, גם capability וגם consent מועברים ל-target של appointment. בעת מחיקה פיזית של תור capability לא מנוצל מבוטל, אך consent קיים נשמר למסירת אירוע הביטול.
+- אם בקשת המתנה שובצה לפני שהלקוח הספיק לבצע opt-in, אירוע השיבוץ נשאר pending כל עוד capability בתוקף; לאחר opt-in מאוחר מתבצע ניסיון שליחה מיידי. לאחר פקיעת capability ללא consent האירוע נסגר ללא שליחה.
 
 ### אירועים
 - seller.appointment_created: רק כאשר נוצר appointment חדש במסלול הציבורי; לא נוצר באידמפוטנט duplicate.
