@@ -5,6 +5,7 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { validateAppointmentSelection } from '../appointmentRules';
 import { processGoogleCalendarJobs } from '../googleCalendarService';
+import { dispatchPushEventAfterCommit, enqueuePushEvent } from '../pushService';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const localDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/);
@@ -134,7 +135,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     const patch = AppointmentPatchInput.parse(req.body);
     try {
-      const updatedAppointment = await withTenant(req.tenantId, async (db) => {
+      const updateResult = await withTenant(req.tenantId, async (db) => {
         const current = (await db.query('SELECT * FROM appointments WHERE id = $1 FOR UPDATE', [id])).rows[0];
         if (!current) throw new HttpError(404, 'not_found');
         const biz = (await db.query(
@@ -148,11 +149,24 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         )).rows[0] : null;
         if ((!service || service.kind !== 'service') && patch.status === 'cancelled' && !patch.service_id && !patch.start_at) {
           const cancelled = await db.query(
-            "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
+            "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status IS DISTINCT FROM 'cancelled' RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
           await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
-          return cancelled.rows[0];
+          let pushEventId: string | null = null;
+          if (cancelled.rows[0]) {
+            const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
+            const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
+            if (eligible) {
+              const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
+              pushEventId = await enqueuePushEvent(db, req.tenantId, {
+                audience: 'customer', eventType: 'customer.appointment_cancelled',
+                targetType: 'appointment', targetId: id,
+                payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+              });
+            }
+          }
+          return { appointment: cancelled.rows[0] ?? current, push_event_id: pushEventId };
         }
         const isMultiServiceAppointment = !service && current.service_id === null && !patch.service_id;
         if ((!service || service.kind !== 'service') && !isMultiServiceAppointment) throw new HttpError(400, 'invalid_service');
@@ -167,38 +181,81 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         if (status === 'reserved') validateSlot({
           startAt, duration, openingHours: biz.config?.opening_hours?.days, timezone: biz.timezone,
         });
+        const oldStartAt = (await db.query(
+          'SELECT to_char($1::timestamptz AT TIME ZONE $2, \'YYYY-MM-DD"T"HH24:MI\') AS value',
+          [current.start_at, biz.timezone],
+        )).rows[0].value as string;
+        const nextPhone = patch.customer_phone ?? current.customer_phone;
+        const nextServiceId = service?.id ?? null;
+        const changed = nextServiceId !== current.service_id || serviceName !== current.service_name ||
+          nextPhone !== current.customer_phone || startAt !== oldStartAt || status !== current.status;
         const updated = await db.query(
           'UPDATE appointments SET service_id = $1, service_name = $2, customer_phone = $3, status_changed_at = CASE WHEN status IS DISTINCT FROM $7 THEN now() ELSE status_changed_at END, ' +
           'start_at = ($4::timestamp AT TIME ZONE $5), ' +
           'end_at = (($4::timestamp AT TIME ZONE $5) + ($6::int * interval \'1 minute\')), ' +
           'status = $7 WHERE id = $8 ' +
           'RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status',
-          [service?.id ?? null, serviceName, patch.customer_phone ?? current.customer_phone, startAt, biz.timezone, duration, status, id],
+          [nextServiceId, serviceName, nextPhone, startAt, biz.timezone, duration, status, id],
         );
         if (status === 'cancelled') {
           await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
         } else if (status === 'reserved') {
           await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
         }
-        return updated.rows[0];
+        let pushEventId: string | null = null;
+        if (changed) {
+          const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
+          const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
+          if (eligible) {
+            const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
+            pushEventId = await enqueuePushEvent(db, req.tenantId, {
+              audience: 'customer',
+              eventType: status === 'cancelled' ? 'customer.appointment_cancelled' : 'customer.appointment_updated',
+              targetType: 'appointment',
+              targetId: id,
+              payload: {
+                title: status === 'cancelled' ? 'עדכון לגבי התור' : 'התור שלך עודכן',
+                body: status === 'cancelled' ? 'העסק עדכן את מצב התור שלך' : 'העסק עדכן את פרטי התור שלך',
+                url: '/biz/' + business.slug,
+              },
+            });
+          }
+        }
+        return { appointment: updated.rows[0], push_event_id: pushEventId };
       });
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment update failed'));
-      return updatedAppointment;
+      const response = updateResult as { appointment: Record<string, unknown>; push_event_id: string | null };
+      if (response.push_event_id) await dispatchPushEventAfterCommit(req.tenantId, response.push_event_id, req.log);
+      return response.appointment;
     } catch (error) { slotConflict(error); throw error; }
   });
 
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
     const result = await withTenant(req.tenantId, async (db) => {
+      const current = (await db.query('SELECT id, source FROM appointments WHERE id = $1 FOR UPDATE', [id])).rows[0];
+      if (!current) throw new HttpError(404, 'not_found');
+      const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
+      const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
+      let pushEventId: string | null = null;
+      if (eligible) {
+        const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
+        pushEventId = await enqueuePushEvent(db, req.tenantId, {
+          audience: 'customer', eventType: 'customer.appointment_cancelled',
+          targetType: 'appointment', targetId: id,
+          payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+        });
+      }
       await db.query(
         "UPDATE waitlist_entries SET status = 'rejected', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
         [id],
       );
       const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
       if (!deleted.rowCount) throw new HttpError(404, 'not_found');
-      return deleted.rows[0];
+      return { ...deleted.rows[0], push_event_id: pushEventId };
     });
     void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after appointment delete failed'));
+    if (result.push_event_id) await dispatchPushEventAfterCommit(req.tenantId, result.push_event_id, req.log);
     return reply.code(204).send();
   });
 
