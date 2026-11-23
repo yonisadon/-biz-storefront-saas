@@ -111,26 +111,40 @@ async function main() {
     for (const tenant of tenants) {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) throw new Error('Unexpected tenant database mapping; refusing cleanup.');
       if (tenant.plan_code !== 'standard' && tenant.plan_code !== 'plus') throw new Error('Unsupported tenant plan; refusing cleanup.');
-      const db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
-      tenantConnections.set(tenant.database_name, db);
-      try {
-        const check = await db.query(
-          "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
-          "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
-          "to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist, " +
-          "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_link, " +
-          "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_preferred_time, " +
-          "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_status_changed_at, " +
-          "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_fk",
-        );
-        const c = check.rows[0];
-        if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
-            !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
-          throw new Error('Required configurable-retention migrations are incomplete.');
+      let preflightPassed = false;
+      for (let preflightAttempt = 1; preflightAttempt <= 3; preflightAttempt++) {
+        const db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
+        tenantConnections.set(tenant.database_name, db);
+        try {
+  const check = await db.query(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
+            "to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_link, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_preferred_time, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_status_changed_at, " +
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_fk",
+          );
+          const c = check.rows[0];
+          if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
+              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
+            throw new Error('Required configurable-retention migrations are incomplete.');
+          }
+          preflightPassed = true;
+          break;
+        } catch (error) {
+          await db.end().catch(() => {});
+          tenantConnections.delete(tenant.database_name);
+          const code = (error as { code?: string }).code;
+          if (!code || !TRANSIENT_DB_CODES.has(code) || preflightAttempt === 3) {
+            throw new Error('CRM cleanup preflight failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+          }
+          const delayMs = Math.min(1000 * preflightAttempt, 3000);
+          console.warn('Transient preflight failure for ' + tenant.database_name + ' (attempt ' + preflightAttempt + '/3; code ' + code + '); reconnecting in ' + delayMs + 'ms.');
+          await sleep(delayMs);
         }
-      } catch (error) {
-        throw new Error('CRM cleanup preflight failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
       }
+      if (!preflightPassed) throw new Error('CRM cleanup preflight did not complete for ' + tenant.database_name + '.');
     }
     console.log('Retention cleanup preflight passed for ' + tenants.length + ' tenant database(s).');
 
