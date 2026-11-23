@@ -133,12 +133,6 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now(), last_error = 'audience_disabled' WHERE id = $1", [eventId]);
       return null;
     }
-    if (!runtimeConfigured()) {
-      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '30 minutes', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
-      return null;
-    }
-
-    await db.query("UPDATE public.push_outbox SET status = 'processing', attempts = attempts + 1, locked_until = now() + interval '1 minute' WHERE id = $1", [eventId]);
     const subscriptions = event.audience === 'seller'
       ? (await db.query(
           "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
@@ -155,6 +149,11 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now() WHERE id = $1", [eventId]);
       return null;
     }
+    if (!runtimeConfigured()) {
+      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '30 minutes', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
+      return null;
+    }
+    await db.query("UPDATE public.push_outbox SET status = 'processing', attempts = attempts + 1, locked_until = now() + interval '1 minute' WHERE id = $1", [eventId]);
     for (const sub of subscriptions) {
       await db.query(
         "INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id) " +
