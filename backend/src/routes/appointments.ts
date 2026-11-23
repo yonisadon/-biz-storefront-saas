@@ -203,19 +203,20 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
         }
         let pushEventId: string | null = null;
-        if (changed) {
+        const shouldNotifyCustomer = changed && (current.status !== 'cancelled' || status !== 'cancelled');
+        if (shouldNotifyCustomer) {
           const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
           const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
           if (eligible) {
             const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
             pushEventId = await enqueuePushEvent(db, req.tenantId, {
               audience: 'customer',
-              eventType: status === 'cancelled' ? 'customer.appointment_cancelled' : 'customer.appointment_updated',
+              eventType: status === 'cancelled' && current.status !== 'cancelled' ? 'customer.appointment_cancelled' : 'customer.appointment_updated',
               targetType: 'appointment',
               targetId: id,
               payload: {
-                title: status === 'cancelled' ? 'עדכון לגבי התור' : 'התור שלך עודכן',
-                body: status === 'cancelled' ? 'העסק עדכן את מצב התור שלך' : 'העסק עדכן את פרטי התור שלך',
+                title: status === 'cancelled' && current.status !== 'cancelled' ? 'עדכון לגבי התור' : 'התור שלך עודכן',
+                body: status === 'cancelled' && current.status !== 'cancelled' ? 'העסק עדכן את מצב התור שלך' : 'העסק עדכן את פרטי התור שלך',
                 url: '/biz/' + business.slug,
               },
             });
@@ -233,12 +234,12 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/appointments/:id', async (req, reply) => {
     const id = idFrom(req);
     const result = await withTenant(req.tenantId, async (db) => {
-      const current = (await db.query('SELECT id, source FROM appointments WHERE id = $1 FOR UPDATE', [id])).rows[0];
+      const current = (await db.query('SELECT id, source, status FROM appointments WHERE id = $1 FOR UPDATE', [id])).rows[0];
       if (!current) throw new HttpError(404, 'not_found');
       const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
       const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
       let pushEventId: string | null = null;
-      if (eligible) {
+      if (eligible && current.status === 'reserved') {
         const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
         pushEventId = await enqueuePushEvent(db, req.tenantId, {
           audience: 'customer', eventType: 'customer.appointment_cancelled',
