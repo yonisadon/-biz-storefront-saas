@@ -116,7 +116,9 @@ test('subscription secrets are encrypted at rest and reject tampering', () => {
   const encrypted = encryptPushSecret(original, key);
   assert.notEqual(encrypted, original);
   assert.equal(decryptPushSecret(encrypted, key), original);
-  assert.throws(() => decryptPushSecret(encrypted + 'x', key));
+  const parts = encrypted.split('.');
+  parts[2] = (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1);
+  assert.throws(() => decryptPushSecret(parts.join('.'), key));
 });
 
 test('booking capability token is random and only its SHA-256 hash is stored', () => {
