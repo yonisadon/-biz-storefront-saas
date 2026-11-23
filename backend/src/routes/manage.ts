@@ -42,7 +42,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     });
     const entitled = entitlement.rows[0]?.enabled === true;
     const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
-      env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY);
+      env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
     const devices = await withTenant(req.tenantId, async (db) => Number((await db.query(
       "SELECT count(*)::int AS count FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
     )).rows[0].count));
@@ -99,7 +99,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     );
     if (entitlement.rows[0]?.enabled !== true) throw new HttpError(403, 'push_not_available');
     if (!env.WEB_PUSH_VAPID_PUBLIC_KEY || !env.WEB_PUSH_VAPID_PRIVATE_KEY ||
-        !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY) {
+        !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY || !env.PUSH_CAPABILITY_HMAC_KEY) {
       throw new HttpError(503, 'push_not_configured');
     }
     return withTenant(req.tenantId, async (db) => {
