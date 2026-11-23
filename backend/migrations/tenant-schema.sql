@@ -407,11 +407,14 @@ CREATE TABLE IF NOT EXISTS public.push_booking_capabilities (
   target_type text NOT NULL CHECK (target_type IN ('appointment', 'waitlist')),
   target_id uuid NOT NULL,
   token_hash bytea NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
+  subscription_id uuid,
   expires_at timestamptz NOT NULL,
   opted_in_at timestamptz,
   revoked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, target_type, target_id)
+  UNIQUE (tenant_id, target_type, target_id),
+  FOREIGN KEY (tenant_id, subscription_id)
+    REFERENCES public.push_subscriptions (tenant_id, id) ON DELETE SET NULL (subscription_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.push_consents (
@@ -483,24 +486,6 @@ CREATE INDEX IF NOT EXISTS idx_push_outbox_pending
 CREATE INDEX IF NOT EXISTS idx_push_deliveries_pending
   ON public.push_deliveries (next_attempt_at, created_at)
   WHERE status IN ('pending', 'processing');
-
-DO $
-DECLARE t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY[
-    'push_settings', 'push_subscriptions', 'push_booking_capabilities',
-    'push_consents', 'push_outbox', 'push_deliveries'
-  ]
-  LOOP
-    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
-    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON public.%I', t);
-    EXECUTE format(
-      'CREATE POLICY tenant_isolation ON public.%I FOR ALL TO app_runtime
-         USING (tenant_id = app.current_tenant_id())
-         WITH CHECK (tenant_id = app.current_tenant_id())', t);
-  END LOOP;
-END $;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.push_settings,
