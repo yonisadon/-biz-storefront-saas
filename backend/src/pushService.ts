@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type pg from 'pg';
 import { env } from './config';
-import { pool, withTenant } from './db';
+import { queryRegistryWithRetry, withTenant } from './db';
 import {
   createPushCapability, decryptPushSecret, encryptPushSecret, hashPushCapability,
   isSupportedPushEndpoint, PushDeliveryError, sendWebPush, type BrowserPushSubscription,
@@ -106,7 +106,7 @@ async function finishEvent(tenantId: string, eventId: string): Promise<void> {
 }
 
 export async function processPushOutboxEvent(tenantId: string, eventId: string): Promise<void> {
-  const entitlement = await pool.query(
+  const entitlement = await queryRegistryWithRetry(
     "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
     [tenantId],
   );
