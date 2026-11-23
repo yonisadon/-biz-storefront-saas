@@ -80,7 +80,8 @@
 
 ## 7. Cold start ו-CRM cleanup
 
-- [ ] DB במצב sleep: החיבור הראשון נכשל זמנית, retry מצליח אחרי wake-up, וה-cleanup ממשיך.
+- [ ] DB במצב sleep: גם אם חיבור PostgreSQL נפתח אך שאילתת `SELECT 1` ראשונה נכשלת זמנית, בדיקת readiness מתחברת מחדש; רק לאחר הצלחת probe נרכש advisory lock וה-cleanup ממשיך.
+- [ ] כשל transient בשאילתת preflight של Tenant לאחר פתיחת החיבור גורם לחיבור מחדש ולניסיון חוזר; לא מתחילות מחיקות עד שכל ה-tenants עברו preflight.
 - [ ] Preflight נכשל: אין מחיקות כלל.
 - [ ] חיבור tenant נופל במהלך preflight: אין מחיקות כלל.
 - [ ] שתי ריצות cleanup במקביל: השנייה אינה מבצעת cleanup במקביל.
