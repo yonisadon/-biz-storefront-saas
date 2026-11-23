@@ -11,6 +11,7 @@
 - public API מאפשר opt-in רק אחרי פעולה מוצלחת, ולכל הזמנה/בקשת המתנה בנפרד. API מוכר מפריד בין העדפות Push למוכר וללקוחות לבין entitlement והרשאת הדפדפן.
 - outbox נכתב באותה transaction של הפעולה העסקית. ניסיון שליחה מיידי מתבצע רק אחרי COMMIT; recovery command הוא npm run process-push-outbox, ומיועד ל-Cron חיצוני כל 30 דקות.
 - ה-Service Worker מטפל באירוע push ובלחיצה, ופותח רק כתובת מאותו origin. אין שינוי בהתנהגות cache/offline הקיימת.
+- הודעות שנמסרו לספק Push מוגדרות עם TTL של 24 שעות. הסרת מכשיר מקהל המוכר אינה מבטלת את ה-PushSubscription הכללי בדפדפן, כדי לא לפגוע בהסכמות לקוח נפרדות באותו מכשיר.
 - CRM cleanup כולל retry ו-advisory lock; שכבת DB מוסיפה retry מוגבל לרכישת חיבור Registry/Tenant. מדיניות retention לא השתנתה.
 - Dashboard onboarding מציג checklist המבוסס על פרטי עסק, מוצרים פעילים, שעות וגלריה; ניתן לדלג, להמשיך ולפתוח את המדריך מחדש. קישור ניהול קבוע וסשן 3 ימים נשמרים.
 - בדיקות Backend ו-Tenant migration smoke עברו ב-commit 8559b77; Web build ושאר בדיקות CI עדיין נבדקים לפי ה-commit האחרון. לא בוצעה בדיקת Push אמיתית מול ספק או מכשיר.
