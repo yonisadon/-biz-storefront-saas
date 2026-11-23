@@ -210,8 +210,13 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         let pushEventId: string | null = null;
         const shouldNotifyCustomer = changed && (current.status !== 'cancelled' || status !== 'cancelled');
         if (shouldNotifyCustomer) {
-          const waitlist = await db.query('SELECT id FROM waitlist_entries WHERE appointment_id = $1 LIMIT 1', [id]);
-          const eligible = current.source === 'website' || Boolean(waitlist.rows[0]);
+          const waitlistOrigin = await db.query(
+            "SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE appointment_id = $1) OR " +
+            "EXISTS (SELECT 1 FROM public.push_booking_capabilities WHERE tenant_id = app.current_tenant_id() " +
+            "AND target_type = 'appointment' AND target_id = $1) AS found",
+            [id],
+          );
+          const eligible = current.source === 'website' || waitlistOrigin.rows[0]?.found === true;
           if (eligible) {
             const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
             pushEventId = await enqueuePushEvent(db, req.tenantId, {
