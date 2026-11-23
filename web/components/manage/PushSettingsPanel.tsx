@@ -14,10 +14,11 @@ type Settings = {
   seller_devices: number;
 };
 
-function applicationServerKey(value: string): Uint8Array {
+function applicationServerKey(value: string): ArrayBuffer {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   const raw = atob(value.replace(/-/g, '+').replace(/_/g, '/') + padding);
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+  const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0));
+  return bytes.buffer as ArrayBuffer;
 }
 
 export default function PushSettingsPanel({ token }: { token: string }) {
