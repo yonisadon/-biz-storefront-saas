@@ -40,6 +40,14 @@ async function retryTransientConnection<T>(operation: () => Promise<T>, label: s
   throw new Error('PostgreSQL connection did not become available for ' + label + '.');
 }
 
+export function connectRegistryWithRetry(): Promise<pg.PoolClient> {
+  return retryTransientConnection(() => pool.connect(), 'registry database connection');
+}
+
+export function queryRegistryWithRetry(queryText: string, values: any[] = []) {
+  return retryTransientConnection(() => pool.query(queryText, values), 'registry database query');
+}
+
 const tenantPools = new Map<string, pg.Pool>();
 
 function connectionStringForDatabase(databaseName: string) {
