@@ -226,7 +226,7 @@ export async function sendWebPush(
         Authorization: 'vapid t=' + authorization + ', k=' + config.vapidPublicKey,
         'Content-Encoding': 'aes128gcm',
         'Content-Type': 'application/octet-stream',
-        TTL: '60',
+        TTL: '86400',
         Urgency: 'normal',
       },
       body: Uint8Array.from(body),
