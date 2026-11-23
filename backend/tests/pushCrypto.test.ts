@@ -17,6 +17,7 @@ import {
   encryptPushSecret,
   generateVapidKeys,
   hashPushCapability,
+  isSupportedPushEndpoint,
 } from '../src/pushCrypto';
 
 const b64u = (value: Buffer) => value.toString('base64url');
@@ -62,6 +63,14 @@ function decryptForTest(body: Buffer, clientPrivate: Buffer, authSecret: Buffer)
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   return { json: plaintext.subarray(0, -1).toString('utf8'), delimiter: plaintext.at(-1), recordSize };
 }
+
+test('Push endpoint allowlist accepts known providers and rejects arbitrary or local URLs', () => {
+  assert.equal(isSupportedPushEndpoint('https://fcm.googleapis.com/fcm/send/example'), true);
+  assert.equal(isSupportedPushEndpoint('https://updates.push.services.mozilla.com/wpush/v2/example'), true);
+  assert.equal(isSupportedPushEndpoint('https://web.push.apple.com/example'), true);
+  assert.equal(isSupportedPushEndpoint('http://localhost:5432/private'), false);
+  assert.equal(isSupportedPushEndpoint('https://example.com/hook'), false);
+});
 
 test('VAPID JWT uses the endpoint origin and a verifiable ES256 signature', () => {
   const keys = generateVapidKeys();
