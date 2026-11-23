@@ -5,7 +5,7 @@
 
 - Registry migration 006 מוסיפה platform_channel_entitlements: Push=true לעסקים קיימים וחדשים; WhatsApp/SMS=false כברירת מחדל. ניהול ההרשאה נמצא במסך סופר אדמין.
 - Tenant migration 013 מוסיפה push_settings, push_subscriptions, push_booking_capabilities, push_consents, push_outbox ו-push_deliveries. tenant-schema.sql עודכן גם להקמת DB חדש; כל הטבלאות מוגנות ב-RLS לפי tenant.
-- capability token להזמנה/בקשת המתנה הוא אקראי, נשמר כ-hash בלבד, תקף 7 ימים ומאפשר subscription יחיד לכל הזמנה. בעת שיבוץ המתנה ה-capability וה-consent עוברים לתור.
+- capability token להזמנה/בקשת המתנה נגזר ב-HMAC-SHA256 מ-UUID אקראי, מזהי tenant/target, תוקף ומפתח שרת ייעודי; נשמר hash בלבד, תקף 7 ימים ומאפשר subscription יחיד לכל הזמנה. בעת שיבוץ המתנה ה-capability וה-consent עוברים לתור.
 - subscription endpoint ו-key material מוצפנים במנוחה ב-AES-256-GCM. מימוש Web Push משתמש ב-VAPID ES256 ובהצפנת payload aes128gcm דרך node:crypto; אין תלות npm חיצונית.
 - public API מאפשר opt-in רק אחרי פעולה מוצלחת, ולכל הזמנה/בקשת המתנה בנפרד. API מוכר מפריד בין העדפות Push למוכר וללקוחות לבין entitlement והרשאת הדפדפן.
 - outbox נכתב באותה transaction של הפעולה העסקית. ניסיון שליחה מיידי מתבצע רק אחרי COMMIT; recovery command הוא npm run process-push-outbox, ומיועד ל-Cron חיצוני כל 30 דקות.
