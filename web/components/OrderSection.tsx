@@ -107,7 +107,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setPushOptInBusy(true);
     setPushOptInStatus(null);
     try {
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('push_not_supported');
       }
       const permission = await Notification.requestPermission();
