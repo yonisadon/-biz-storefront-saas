@@ -111,6 +111,8 @@
 - [x] Registry migration smoke.
 - [x] Tenant migration smoke.
 - [x] Platform account accessibility smoke.
+
+כל שש בדיקות CI עברו ב-commit b290d8c.
 - [ ] בדיקות ידניות בסביבת DB מבודדת.
 - [ ] בדיקת Push אמיתית מול ספק ומכשיר.
 - [ ] בדיקת CRM cleanup בזמן cold start/ניתוק.
