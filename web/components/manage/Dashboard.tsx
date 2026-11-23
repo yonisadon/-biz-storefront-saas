@@ -37,18 +37,23 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
   const [onboardingError, setOnboardingError] = useState('');
   const [onboardingMessage, setOnboardingMessage] = useState('');
   const [onboardingCounts, setOnboardingCounts] = useState<{ products: number; gallery: number } | null>(null);
+  const [onboardingCountsError, setOnboardingCountsError] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (!onboardingVisible) return;
     let cancelled = false;
+    setOnboardingCountsError(false);
     Promise.all([
       mcall<{ total: number }>(token, 'products?limit=1&offset=0&status=active'),
       mcall<Array<{ id: string }>>(token, 'gallery'),
     ]).then(([products, gallery]) => {
       if (!cancelled) setOnboardingCounts({ products: products.total, gallery: gallery.length });
     }).catch(() => {
-      if (!cancelled) setOnboardingCounts(null);
+      if (!cancelled) {
+        setOnboardingCounts(null);
+        setOnboardingCountsError(true);
+      }
     });
     return () => { cancelled = true; };
   }, [token, tab, biz, onboardingCompleted, onboardingVisible]);
@@ -228,11 +233,13 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           <div className="mt-4 rounded-xl bg-surface p-3">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-semibold">ההתקדמות שלך</span>
-              <span className="tabular-nums text-ink/65">{onboardingCounts === null ? 'טוען…' : `${onboardingDoneCount} מתוך ${onboardingSteps.length} שלבים`}</span>
+              <span className="tabular-nums text-ink/65">{onboardingCounts === null ? (onboardingCountsError ? 'לא ניתן לטעון כרגע' : 'טוען…') : `${onboardingDoneCount} מתוך ${onboardingSteps.length} שלבים`}</span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-label="התקדמות הקמת העסק" aria-valuemin={0} aria-valuemax={onboardingSteps.length} aria-valuenow={onboardingDoneCount}>
-              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(onboardingDoneCount / onboardingSteps.length) * 100}%` }} />
-            </div>
+            {onboardingCountsError
+              ? <p className="mt-2 text-xs text-ink/55">לא הצלחנו לבדוק את המוצרים והגלריה. אפשר להמשיך בהקמה ולנסות שוב לאחר רענון.</p>
+              : <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-label="התקדמות הקמת העסק" aria-valuemin={0} aria-valuemax={onboardingSteps.length} aria-valuenow={onboardingDoneCount}>
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(onboardingDoneCount / onboardingSteps.length) * 100}%` }} />
+                </div>}
           </div>
 
           <ol className="mt-3 grid gap-2 sm:grid-cols-2">
