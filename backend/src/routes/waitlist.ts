@@ -5,6 +5,7 @@ import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
 import { validateAppointmentSelection } from '../appointmentRules';
 import { processGoogleCalendarJobs } from '../googleCalendarService';
+import { dispatchPushEventAfterCommit, enqueuePushEvent, issuePushCapability } from '../pushService';
 import { hasUniqueServiceIds, isValidCalendarDate } from '../waitlistRules';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,7 +62,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
             services.some((service) => service.kind !== 'service' || service.booking_mode !== 'availability')) {
           throw new HttpError(400, 'invalid_waitlist_services');
         }
-        return (await db.query(
+        const entry = (await db.query(
           `INSERT INTO waitlist_entries
             (tenant_id, customer_name, customer_phone, service_ids, service_names, preferred_date,
              preferred_time, note)
@@ -73,8 +74,21 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
             input.preferred_time ?? null, input.note || null,
           ],
         )).rows[0];
+        const pushCapabilityToken = await issuePushCapability(db, req.tenantId, 'waitlist', entry.id);
+        const pushEventId = await enqueuePushEvent(db, req.tenantId, {
+          audience: 'seller',
+          eventType: 'seller.waitlist_created',
+          targetType: 'waitlist',
+          targetId: entry.id,
+          payload: { title: 'בקשת המתנה חדשה', body: 'התקבלה בקשת הצטרפות לרשימת ההמתנה', url: '/account' },
+        });
+        return { ...entry, push_capability_token: pushCapabilityToken, push_event_id: pushEventId };
       });
-      return reply.code(201).send({ id: result.id, created_at: result.created_at, message: 'waitlist_request_received' });
+      const response = result as Record<string, unknown>;
+      const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
+      delete response.push_event_id;
+      if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
+      return reply.code(201).send({ ...response, message: 'waitlist_request_received' });
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {
         throw new HttpError(409, 'duplicate_waitlist_request', 'כבר קיימת בקשה פעילה עם אותם פרטים.');
@@ -117,25 +131,43 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     const input = z.object({ status: z.enum(['waiting', 'rejected', 'scheduled_without_booking']) }).strict().parse(req.body);
     const result = await withTenant(req.tenantId, async (db) => {
-      const current = (await db.query('SELECT appointment_id FROM waitlist_entries WHERE id = $1 FOR UPDATE', [id])).rows[0];
+      const current = (await db.query('SELECT appointment_id, status FROM waitlist_entries WHERE id = $1 FOR UPDATE', [id])).rows[0];
       if (!current) throw new HttpError(404, 'not_found');
       if (current.appointment_id && input.status === 'waiting') {
         throw new HttpError(409, 'waitlist_has_scheduled_appointment', 'יש לעדכן או לבטל את התור ביומן לפני פתיחת הבקשה מחדש.');
       }
+      let pushEventId: string | null = null;
       if (current.appointment_id && input.status === 'rejected') {
-        await db.query("UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status = 'reserved'", [current.appointment_id]);
+        const cancelled = await db.query(
+          "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status = 'reserved' RETURNING id",
+          [current.appointment_id],
+        );
+        if (cancelled.rows[0]) {
+          const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
+          pushEventId = await enqueuePushEvent(db, req.tenantId, {
+            audience: 'customer',
+            eventType: 'customer.appointment_cancelled',
+            targetType: 'appointment',
+            targetId: current.appointment_id,
+            payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+          });
+        }
       }
       const updated = await db.query(
         'UPDATE waitlist_entries SET status = $1, updated_at = now() WHERE id = $2 RETURNING id, status, appointment_id, updated_at',
         [input.status, id],
       );
-      return updated.rows[0];
+      return { ...updated.rows[0], push_event_id: pushEventId };
     });
     if (result.appointment_id && input.status === 'rejected') {
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) =>
         req.log.warn({ err: error }, 'Google Calendar sync after waitlist cancellation failed'));
     }
-    return result;
+    const response = result as Record<string, unknown>;
+    const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
+    delete response.push_event_id;
+    if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
+    return response;
   });
   app.post('/waitlist/:id/schedule', async (req, reply) => {
     const id = idFrom(req);
@@ -159,7 +191,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         }
 
         const business = (await db.query(
-          'SELECT timezone, config FROM businesses WHERE id = app.current_tenant_id()',
+          'SELECT timezone, config, slug FROM businesses WHERE id = app.current_tenant_id()',
         )).rows[0];
         if (!business) throw new HttpError(404, 'not_found');
 
@@ -229,11 +261,32 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           "UPDATE waitlist_entries SET status = 'closed', appointment_id = $1, updated_at = now() WHERE id = $2",
           [appointment.id, id],
         );
-        return { ...appointment, service_name: serviceNames.join(' + '), message: 'waitlist_scheduled' };
+        await db.query(
+          "UPDATE public.push_booking_capabilities SET target_type = 'appointment', target_id = $1 " +
+          "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $2",
+          [appointment.id, id],
+        );
+        await db.query(
+          "UPDATE public.push_consents SET target_type = 'appointment', target_id = $1 " +
+          "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $2",
+          [appointment.id, id],
+        );
+        const pushEventId = await enqueuePushEvent(db, req.tenantId, {
+          audience: 'customer',
+          eventType: 'customer.waitlist_scheduled',
+          targetType: 'appointment',
+          targetId: appointment.id,
+          payload: { title: 'נמצא לך תור', body: 'העסק קבע תור בעקבות בקשת ההמתנה שלך', url: '/biz/' + business.slug },
+        });
+        return { ...appointment, service_name: serviceNames.join(' + '), message: 'waitlist_scheduled', push_event_id: pushEventId };
       });
       void processGoogleCalendarJobs(req.tenantId, 5).catch((error) =>
         req.log.warn({ err: error }, 'Google Calendar sync after waitlist scheduling failed'));
-      return reply.code(201).send(result);
+      const response = result as Record<string, unknown>;
+      const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
+      delete response.push_event_id;
+      if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
+      return reply.code(201).send(response);
     } catch (error) {
       const code = (error as { code?: string }).code;
       if (code === '23P01' || code === '23505') {
