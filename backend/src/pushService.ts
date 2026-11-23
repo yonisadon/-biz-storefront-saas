@@ -162,6 +162,11 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
     if (!event) return null;
 
     if (!entitled) {
+      await db.query(
+        "UPDATE public.push_deliveries SET status = 'invalid', locked_until = NULL, last_error = 'channel_not_entitled' " +
+        "WHERE tenant_id = app.current_tenant_id() AND outbox_id = $1 AND status IN ('pending', 'processing')",
+        [eventId],
+      );
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now(), last_error = 'channel_not_entitled' WHERE id = $1", [eventId]);
       return null;
     }
@@ -170,20 +175,25 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
     )).rows[0];
     const audienceEnabled = event.audience === 'seller' ? settings?.seller_enabled === true : settings?.customer_enabled === true;
     if (!audienceEnabled) {
+      await db.query(
+        "UPDATE public.push_deliveries SET status = 'invalid', locked_until = NULL, last_error = 'audience_disabled' " +
+        "WHERE tenant_id = app.current_tenant_id() AND outbox_id = $1 AND status IN ('pending', 'processing')",
+        [eventId],
+      );
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now(), last_error = 'audience_disabled' WHERE id = $1", [eventId]);
       return null;
     }
     await db.query(
       "UPDATE public.push_deliveries d SET status = 'invalid', locked_until = NULL, last_error = 'subscription_disabled' " +
       "FROM public.push_subscriptions s WHERE d.tenant_id = app.current_tenant_id() AND d.outbox_id = $1 " +
-      "AND d.subscription_id = s.id AND s.disabled_at IS NOT NULL AND d.status IN ('pending', 'processing')",
+      "AND d.subscription_id = s.id AND s.tenant_id = d.tenant_id AND s.disabled_at IS NOT NULL AND d.status IN ('pending', 'processing')",
       [eventId],
     );
     if (event.audience === 'customer') {
       await db.query(
         "UPDATE public.push_deliveries d SET status = 'invalid', locked_until = NULL, last_error = 'consent_revoked' " +
         "FROM public.push_subscriptions s WHERE d.tenant_id = app.current_tenant_id() AND d.outbox_id = $1 " +
-        "AND d.subscription_id = s.id AND d.status IN ('pending', 'processing') AND NOT EXISTS (" +
+        "AND d.subscription_id = s.id AND s.tenant_id = d.tenant_id AND d.status IN ('pending', 'processing') AND NOT EXISTS (" +
         "SELECT 1 FROM public.push_consents c WHERE c.tenant_id = d.tenant_id AND c.subscription_id = d.subscription_id " +
         "AND c.target_type = $2 AND c.target_id = $3 AND c.revoked_at IS NULL)",
         [eventId, event.target_type, event.target_id],
