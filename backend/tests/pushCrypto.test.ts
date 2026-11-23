@@ -10,6 +10,7 @@ import {
 } from 'node:crypto';
 import {
   createPushCapability,
+  derivePushCapabilityToken,
   createVapidJwt,
   decryptPushSecret,
   encryptPushPayload,
@@ -119,6 +120,19 @@ test('subscription secrets are encrypted at rest and reject tampering', () => {
   const parts = encrypted.split('.');
   parts[2] = (parts[2][0] === 'A' ? 'B' : 'A') + parts[2].slice(1);
   assert.throws(() => decryptPushSecret(parts.join('.'), key));
+});
+
+test('booking capability token is deterministic for one booking but bound to tenant, target and expiry', () => {
+  const key = randomBytes(32).toString('hex');
+  const expiresAt = new Date('2026-12-01T10:00:00.000Z');
+  const first = derivePushCapabilityToken('tenant-a', 'appointment', 'booking-a', 'cap-a', expiresAt, key);
+  const retry = derivePushCapabilityToken('tenant-a', 'appointment', 'booking-a', 'cap-a', expiresAt, key);
+  const otherBooking = derivePushCapabilityToken('tenant-a', 'appointment', 'booking-b', 'cap-a', expiresAt, key);
+  const otherTenant = derivePushCapabilityToken('tenant-b', 'appointment', 'booking-a', 'cap-a', expiresAt, key);
+  assert.equal(first, retry);
+  assert.notEqual(first, otherBooking);
+  assert.notEqual(first, otherTenant);
+  assert.equal(hashPushCapability(first).length, 32);
 });
 
 test('booking capability token is random and only its SHA-256 hash is stored', () => {
