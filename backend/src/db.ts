@@ -116,13 +116,26 @@ export async function withTenant<T>(
   fn: (db: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   const selectedPool = await poolForTenant(tenantId);
-  const client = await retryTransientConnection(() => selectedPool.connect(), 'tenant database connection');
+  // A sleeping PostgreSQL service can accept a pool connection before it is
+  // ready to execute the first statement. Retry transaction initialization,
+  // but never replay the caller's transaction after its callback has started.
+  const client = await retryTransientConnection(async () => {
+    const connectedClient = await selectedPool.connect();
+    try {
+      await connectedClient.query('BEGIN');
+      await connectedClient.query(
+        "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '5000', true)",
+        [tenantId],
+      );
+      return connectedClient;
+    } catch (error) {
+      // Destroy a connection whose transaction setup failed; it may be in an
+      // aborted or uncertain transaction state and must not return to the pool.
+      connectedClient.release(true);
+      throw error;
+    }
+  }, 'tenant transaction initialization');
   try {
-    await client.query('BEGIN');
-    await client.query(
-      "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '5000', true)",
-      [tenantId],
-    );
     const result = await fn(client);
     await client.query('COMMIT');
     return result;
