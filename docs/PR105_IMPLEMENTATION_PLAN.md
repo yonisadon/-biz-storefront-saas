@@ -203,7 +203,7 @@
 - [x] נמצאה ותועדה אי-התאמה בתיעוד ההיסטורי של session/PWA.
 - [x] בוצע שינוי ראשון ב-`cleanup-expired-crm.ts`: retry לחיבור, advisory lock, ושימוש חוזר בחיבורי tenant לאחר preflight.
 - [ ] נדרשת בדיקת build/test בפועל לשינוי CRM cleanup.
-- [ ] נדרשת השלמת retry גם לכשל transient בזמן שאילתת preflight, אם החיבור נופל לאחר connect.
+- [x] נוספו עד 3 ניסיונות חוזרים גם לכשלי חיבור transient בזמן שאילתת preflight.
 - [ ] נדרש Audit של כל מסלולי provisioning, לרבות יצירה על ידי סופר אדמין.
 - [ ] נדרש אפיון SQL סופי ומימוש Registry/Tenant ל-Push.
 - [ ] נדרש מימוש Push, UI, onboarding משופר ובדיקות end-to-end.
