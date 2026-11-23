@@ -113,7 +113,7 @@
 - [x] Tenant migration smoke.
 - [x] Platform account accessibility smoke.
 
-בבדיקה על commit `590312c18abb2601e2f2c7fa8d0a71e5603cfe4e` כל שש בדיקות ה-CI עברו. לאחר תיקון פתיחת מדריך ההקמה נדרש לאמת מחדש את הבדיקות על ה-commit החדש.
+בבדיקה על commit `6f66a99bdd25fb16c7a89eb36203df40360cac24` כל שש בדיקות ה-CI עברו, כולל לאחר תיקוני ה-review האחרונים.
 - [ ] בדיקות ידניות בסביבת DB מבודדת.
 - [ ] בדיקת Push אמיתית מול ספק ומכשיר.
 - [ ] בדיקת CRM cleanup בזמן cold start/ניתוק.
