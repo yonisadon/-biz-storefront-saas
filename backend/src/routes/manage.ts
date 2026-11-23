@@ -32,20 +32,23 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
       "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
       [req.tenantId],
     );
-    const settings = await withTenant(req.tenantId, async (db) => {
+    const tenantState = await withTenant(req.tenantId, async (db) => {
       await db.query(
         "INSERT INTO public.push_settings (tenant_id) VALUES (app.current_tenant_id()) ON CONFLICT (tenant_id) DO NOTHING",
       );
-      return (await db.query(
+      const settings = (await db.query(
         "SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
       )).rows[0];
+      const devices = Number((await db.query(
+        "SELECT count(*)::int AS count FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
+      )).rows[0].count);
+      return { settings, devices };
     });
+    const settings = tenantState.settings;
     const entitled = entitlement.rows[0]?.enabled === true;
     const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
       env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
-    const devices = await withTenant(req.tenantId, async (db) => Number((await db.query(
-      "SELECT count(*)::int AS count FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
-    )).rows[0].count));
+    const devices = tenantState.devices;
     return {
       entitled, configured, public_key: entitled && configured ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null,
       seller_enabled: settings?.seller_enabled === true,
