@@ -1,5 +1,23 @@
 # החלטות ואפיון Web Push — 2026-11-23 (בפיתוח ב-PR #105)
 
+
+## סטטוס מימוש בענף PR #105 — 2026-11-23
+
+- Registry migration 006 מוסיפה platform_channel_entitlements: Push=true לעסקים קיימים וחדשים; WhatsApp/SMS=false כברירת מחדל. ניהול ההרשאה נמצא במסך סופר אדמין.
+- Tenant migration 013 מוסיפה push_settings, push_subscriptions, push_booking_capabilities, push_consents, push_outbox ו-push_deliveries. tenant-schema.sql עודכן גם להקמת DB חדש; כל הטבלאות מוגנות ב-RLS לפי tenant.
+- capability token להזמנה/בקשת המתנה הוא אקראי, נשמר כ-hash בלבד, תקף 7 ימים ומאפשר subscription יחיד לכל הזמנה. בעת שיבוץ המתנה ה-capability וה-consent עוברים לתור.
+- subscription endpoint ו-key material מוצפנים במנוחה ב-AES-256-GCM. מימוש Web Push משתמש ב-VAPID ES256 ובהצפנת payload aes128gcm דרך node:crypto; אין תלות npm חיצונית.
+- public API מאפשר opt-in רק אחרי פעולה מוצלחת, ולכל הזמנה/בקשת המתנה בנפרד. API מוכר מפריד בין העדפות Push למוכר וללקוחות לבין entitlement והרשאת הדפדפן.
+- outbox נכתב באותה transaction של הפעולה העסקית. ניסיון שליחה מיידי מתבצע רק אחרי COMMIT; recovery command הוא npm run process-push-outbox, ומיועד ל-Cron חיצוני כל 30 דקות.
+- ה-Service Worker מטפל באירוע push ובלחיצה, ופותח רק כתובת מאותו origin. אין שינוי בהתנהגות cache/offline הקיימת.
+- CRM cleanup כולל retry ו-advisory lock; שכבת DB מוסיפה retry מוגבל לרכישת חיבור Registry/Tenant. מדיניות retention לא השתנתה.
+- Dashboard onboarding מציג checklist המבוסס על פרטי עסק, מוצרים פעילים, שעות וגלריה; ניתן לדלג, להמשיך ולפתוח את המדריך מחדש. קישור ניהול קבוע וסשן 3 ימים נשמרים.
+- בדיקות Backend ו-Tenant migration smoke עברו ב-commit 8559b77; Web build ושאר בדיקות CI עדיין נבדקים לפי ה-commit האחרון. לא בוצעה בדיקת Push אמיתית מול ספק או מכשיר.
+- VAPID/encryption secrets טרם הוגדרו ב-Railway; Cron חיצוני טרם אומת. אין migration production, Deploy או שינוי Railway שבוצעו במסגרת PR זה.
+- מנגנון delivery הוא at-least-once: unique key ו-leases מונעים כפילויות רגילות, אך קריסה לאחר קבלת ההודעה אצל הספק ולפני סימון sent ב-DB עלולה לגרום לניסיון חוזר. אין הבטחת exactly-once מול ספקי Push סטנדרטיים.
+
+---
+
 ## מדיניות הסכמה והרשאת לקוח להזמנה
 
 - לקוח יקבל Push תפעולי רק אם אישר במפורש לקבל התראות עבור אותה הזמנה או בקשת המתנה. אישור קודם להזמנה אחרת אינו תקף להזמנה חדשה.
@@ -29,7 +47,7 @@
 - אירוע outbox נרשם באותה טרנזקציה שבה נשמר שינוי התור/בקשת ההמתנה. אין לשלוח לפני COMMIT.
 - לאחר COMMIT מתבצע ניסיון שליחה מיידי ומוגבל בזמן, כחלק מנתיב הבקשה; כשל בשליחה אינו מבטל את הפעולה העסקית והאירוע נשאר זמין לניסיון חוזר.
 - משימת recovery מתוזמנת סורקת אירועים ממתינים/שנכשלו כל 30 דקות. אין Worker קבוע שרץ כל הזמן. משימת ה-Cron היא גיבוי בלבד ולא נתיב השליחה הרגיל.
-- יש להשתמש בנעילות/lease, idempotency ומפתח מסירה ייחודי כדי למנוע שליחה כפולה. יש לטפל בהרשמות שפג תוקפן או שהספק דחה (למשל 404/410).
+- יש להשתמש בנעילות/lease, idempotency ומפתח מסירה ייחודי כדי למנוע כפילויות רגילות. מנגנון המסירה הוא at-least-once; קריסה לאחר קבלת ההודעה אצל הספק ולפני סימון sent ב-DB עלולה לגרום לניסיון חוזר, ולכן אין להבטיח exactly-once. יש לטפל בהרשמות שפג תוקפן או שהספק דחה (למשל 404/410).
 - אישור קבלה מספק Push אינו הוכחה שהמכשיר הציג את ההתראה.
 - אין להשתמש ב-fire-and-forget לא ממתין מתוך תהליך Serverless, משום שהתהליך עלול להסתיים לפני השליחה.
 - נתוני subscriptions, קשרי הזמנה/הסכמה, העדפות, outbox, ניסיונות מסירה ותבניות עתידיות נשמרים במסד ה-tenant המתאים. Registry מרכזי שומר רק הרשאות ערוץ ברמת עסק.
