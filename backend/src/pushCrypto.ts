@@ -204,7 +204,7 @@ export async function sendWebPush(
         TTL: '60',
         Urgency: 'normal',
       },
-      body,
+      body: Uint8Array.from(body),
       signal: AbortSignal.timeout(config.timeoutMs ?? 8000),
     });
   } catch {
