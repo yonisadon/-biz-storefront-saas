@@ -12,7 +12,7 @@ import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscription } from '../pushCrypto';
-import { savePushSubscription } from '../pushService';
+import { dispatchPushEventAfterCommit, enqueuePushEvent, issuePushCapability, savePushSubscription } from '../pushService';
 import { publicWaitlistRoutes } from './waitlist';
 
 const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
@@ -514,8 +514,16 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 [body.idempotency_key],
               )).rows[0] : null;
               if (!existing) throw new HttpError(409, 'duplicate_request');
+              const duplicateAppointment = body.idempotency_key ? (await db.query(
+                "SELECT id, status FROM appointments WHERE tenant_id = app.current_tenant_id() AND idempotency_key = $1",
+                [body.idempotency_key],
+              )).rows[0] : null;
+              const duplicatePushToken = duplicateAppointment?.status === 'reserved'
+                ? await issuePushCapability(db, req.tenantId, 'appointment', duplicateAppointment.id)
+                : null;
               return {
                 lead_id: existing.id, route: body.route, status: existing.status,
+                ...(duplicatePushToken ? { push_capability_token: duplicatePushToken } : {}),
                 estimated_total_agorot: existing.estimated_total_agorot,
                 has_quote_items: existing.metadata?.has_quote_items === true,
                 duplicate: true,
@@ -541,6 +549,8 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           }
 
           let appointmentReserved = false;
+          let appointmentId: string | null = null;
+          let appointmentCreated = false;
           if (reservedServices.length && appointmentAt) {
             try {
               if (!body.idempotency_key) throw new HttpError(400, 'idempotency_key_required');
@@ -559,6 +569,8 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                  appointmentAt, biz.timezone, reservedDurationMinutes, body.idempotency_key],
               );
               if (inserted.rows[0]) {
+                appointmentId = inserted.rows[0].id as string;
+                appointmentCreated = true;
                 appointmentReserved = true;
               } else {
                 const existingAppointment = (await db.query(
@@ -568,6 +580,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 if (!existingAppointment || existingAppointment.status !== 'reserved') {
                   throw new HttpError(409, 'duplicate_request');
                 }
+                appointmentId = existingAppointment.id as string;
                 appointmentReserved = true;
               }
             } catch (error) {
@@ -578,7 +591,24 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             }
           }
 
+          let pushCapabilityToken: string | null = null;
+          let pushEventId: string | null = null;
+          if (appointmentId) {
+            pushCapabilityToken = await issuePushCapability(db, req.tenantId, 'appointment', appointmentId);
+            if (appointmentCreated) {
+              pushEventId = await enqueuePushEvent(db, req.tenantId, {
+                audience: 'seller',
+                eventType: 'seller.appointment_created',
+                targetType: 'appointment',
+                targetId: appointmentId,
+                payload: { title: 'התקבלה הזמנה חדשה', body: 'נקבע תור חדש דרך אתר העסק', url: '/account' },
+              });
+            }
+          }
+
           const out: Record<string, unknown> = {
+            ...(pushCapabilityToken ? { push_capability_token: pushCapabilityToken } : {}),
+            ...(pushEventId ? { push_event_id: pushEventId } : {}),
             ...(leadId ? { lead_id: leadId, status } : {}),
             route: body.route,
             ...(shouldCreateLead ? { estimated_total_agorot: estimated, has_quote_items: hasQuote } : {}),
@@ -663,7 +693,11 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         });
 
         void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after public booking failed'));
-        return reply.code(201).send(result);
+        const response = result as Record<string, unknown>;
+        const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
+        delete response.push_event_id;
+        if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
+        return reply.code(201).send(response);
       },
     );
   };
