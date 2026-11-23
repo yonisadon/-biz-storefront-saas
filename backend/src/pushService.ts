@@ -154,7 +154,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
 
   const claimed = await withTenant(tenantId, async (db) => {
     const event = (await db.query(
-      "SELECT id, audience, target_type, target_id, payload FROM public.push_outbox " +
+      "SELECT id, audience, event_type, target_type, target_id, payload FROM public.push_outbox " +
       "WHERE id = $1 AND status <> 'done' AND (locked_until IS NULL OR locked_until < now()) " +
       "FOR UPDATE SKIP LOCKED",
       [eventId],
@@ -186,6 +186,22 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
         )).rows;
 
     if (!subscriptions.length) {
+      if (event.audience === 'customer' && event.event_type === 'customer.waitlist_scheduled' && runtimeConfigured()) {
+        const capability = (await db.query(
+          "SELECT expires_at FROM public.push_booking_capabilities " +
+          "WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = $1 " +
+          "AND opted_in_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
+          [event.target_id],
+        )).rows[0];
+        if (capability) {
+          await db.query(
+            "UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '30 minutes', " +
+            "locked_until = NULL, last_error = 'awaiting_customer_consent' WHERE id = $1",
+            [eventId],
+          );
+          return null;
+        }
+      }
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now() WHERE id = $1", [eventId]);
       return null;
     }
