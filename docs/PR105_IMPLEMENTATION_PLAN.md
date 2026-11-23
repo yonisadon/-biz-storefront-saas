@@ -201,10 +201,10 @@
 - [x] PR #105 פתוח כ-Draft ונשאר מבוסס על `main` העדכני (לא מאחוריו בעת הבדיקה).
 - [x] החלטות מוצר Web Push והסכמת לקוח תועדו.
 - [x] נמצאה ותועדה אי-התאמה בתיעוד ההיסטורי של session/PWA.
-- [x] בוצע שינוי ראשון ב-`cleanup-expired-crm.ts`: retry לחיבור, advisory lock, ושימוש חוזר בחיבורי tenant לאחר preflight.
-- [x] Backend build/tests עברו ב-GitHub Actions עבור שינוי CRM cleanup (commit \`62530f9\`).
+- [x] בוצע שינוי ב-`cleanup-expired-crm.ts`: retry לחיבור ול-preflight, advisory lock, ושימוש חוזר בחיבורי tenant לאחר preflight.
+- [x] Backend build/tests עברו ב-GitHub Actions עבור שינוי CRM cleanup (commit `62530f9`).
 - [x] נוספו עד 3 ניסיונות חוזרים גם לכשלי חיבור transient בזמן שאילתת preflight.
-- [x] זוהו שני מסלולי provisioning: הקמה עצמית ב-\`provisioning.ts\` והקמה על ידי סופר אדמין ב-\`routes/admin.ts\`; שניהם יוצרים Registry row ומסד tenant נפרד. נדרש עדיין לאמת נקודת ברירת מחדל משותפת ל-entitlement.
+- [x] זוהו שני מסלולי provisioning: הקמה עצמית ב-`provisioning.ts` והקמה על ידי סופר אדמין ב-`routes/admin.ts`; שניהם יוצרים Registry row ומסד tenant נפרד. נדרש עדיין לאמת נקודת ברירת מחדל משותפת ל-entitlement.
 - [ ] נדרש אפיון SQL סופי ומימוש Registry/Tenant ל-Push.
 - [ ] נדרש מימוש Push, UI, onboarding משופר ובדיקות end-to-end.
 - [ ] לא בוצעו מיגרציות production, Deploy או שינויי Railway במסגרת העדכון הזה.
