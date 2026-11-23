@@ -177,7 +177,7 @@
 - tenant-schema.sql כולל את אותן טבלאות עבור DB חדש; tenant-013-web-push.sql מחיל אותן על DB קיים. tenantMigrations.ts מגלה את הקובץ לפי מספור, וה-runner מנהל את transaction ואת ledger. אין BEGIN/COMMIT פנימיים בקובץ migration tenant.
 
 ### Capability ו-consent
-- לאחר יצירת הזמנה באתר או בקשת המתנה, נוצר token אקראי של 32 bytes; ב-DB נשמר SHA-256 בלבד. token מוחזר למסך ההצלחה, לא ללוגים.
+- לאחר יצירת הזמנה באתר או בקשת המתנה, נוצר token של 32 bytes נגזר ב-HMAC-SHA256 מ-UUID אקראי של capability, מזהי tenant/target, תוקף ומפתח שרת ייעודי; ב-DB נשמר SHA-256 בלבד. כך idempotent retry יכול להחזיר בדיוק את אותו token בלי לשמור token גלוי או מוצפן. token מוחזר למסך ההצלחה, לא ללוגים.
 - opt-in מתבצע רק בלחיצה מפורשת: Notification permission, רישום Service Worker, PushManager subscription, ואז POST עם token להזמנה הספציפית.
 - token לא תקף להזמנה אחרת. כל הזמנה וכל בקשת המתנה דורשת opt-in נפרד. אותו subscription בדפדפן יכול להיות מקושר בנפרד למספר הזמנות אם בוצעה הסכמה נפרדת לכל אחת.
 - עבור capability יחיד נשמר subscription אחד. רישום מכשירים נוספים לאותה הזמנה נדחה לשלב עתידי.
@@ -208,7 +208,7 @@
 ### אבטחה והגדרות
 - pushCrypto.ts משתמש ב-node:crypto: VAPID ES256, RFC 8291 aes128gcm, AES-256-GCM להצפנת secrets, ו-SHA-256 ל-capability/endpoint hash.
 - endpoint מוגבל לספקי Push מוכרים ב-HTTPS כדי לצמצם SSRF. payloads כלליים ואינם כוללים שם/טלפון/פרטי תור.
-- Environment נדרש ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY.
+- Environment נדרש ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY ו-PUSH_CAPABILITY_HMAC_KEY.
 - יצירת מפתחות מקומית: npm run generate-web-push-keys. אין לשמור מפתחות ב-repository.
 - ה-Service Worker ב-web/public/sw.js מציג notification ומגביל notificationclick לכתובת באותו origin; מדיניות cache/offline הקיימת לא שונתה.
 - אין עדיין הגדרת VAPID secrets ב-Railway, אין בדיקת ספק/מכשיר אמיתית, וה-Cron החיצוני לא אומת. אין לטעון שהערוץ פעיל ב-production.
