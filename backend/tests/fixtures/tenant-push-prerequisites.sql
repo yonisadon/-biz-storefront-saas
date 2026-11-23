@@ -9,6 +9,9 @@ AS $function$
   SELECT nullif(current_setting('app.current_tenant', true), '')::uuid
 $function$;
 
+GRANT USAGE ON SCHEMA app TO app_runtime;
+GRANT EXECUTE ON FUNCTION app.current_tenant_id() TO app_runtime;
+
 CREATE TABLE public.businesses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL
