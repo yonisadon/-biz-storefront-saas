@@ -57,21 +57,29 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/push/settings', async (req) => {
-    const input = z.object({ seller_enabled: z.boolean(), customer_enabled: z.boolean() }).strict().parse(req.body);
+    const input = z.object({
+      seller_enabled: z.boolean().optional(),
+      customer_enabled: z.boolean().optional(),
+    }).strict().refine((value) => value.seller_enabled !== undefined || value.customer_enabled !== undefined).parse(req.body);
     const entitlement = await pool.query(
       "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
       [req.tenantId],
     );
-    if (entitlement.rows[0]?.enabled !== true && (input.seller_enabled || input.customer_enabled)) {
+    if (entitlement.rows[0]?.enabled !== true && (input.seller_enabled === true || input.customer_enabled === true)) {
       throw new HttpError(403, 'push_not_available');
     }
     return withTenant(req.tenantId, async (db) => {
+      const current = (await db.query(
+        "SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id() FOR UPDATE",
+      )).rows[0] ?? { seller_enabled: true, customer_enabled: true };
+      const sellerEnabled = input.seller_enabled ?? current.seller_enabled;
+      const customerEnabled = input.customer_enabled ?? current.customer_enabled;
       const updated = await db.query(
         "INSERT INTO public.push_settings (tenant_id, seller_enabled, customer_enabled) " +
         "VALUES (app.current_tenant_id(), $1, $2) ON CONFLICT (tenant_id) DO UPDATE SET " +
         "seller_enabled = EXCLUDED.seller_enabled, customer_enabled = EXCLUDED.customer_enabled, updated_at = now() " +
         "RETURNING seller_enabled, customer_enabled",
-        [input.seller_enabled, input.customer_enabled],
+        [sellerEnabled, customerEnabled],
       );
       return updated.rows[0];
     });
