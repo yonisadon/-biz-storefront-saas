@@ -1,5 +1,3 @@
-BEGIN;
-
 CREATE TABLE IF NOT EXISTS public.push_settings (
   tenant_id uuid PRIMARY KEY REFERENCES public.businesses(id) ON DELETE CASCADE,
   seller_enabled boolean NOT NULL DEFAULT true,
@@ -139,5 +137,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.push_outbox,
   public.push_deliveries
 TO app_runtime;
-
-COMMIT;
