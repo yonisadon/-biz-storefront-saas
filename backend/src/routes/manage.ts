@@ -39,23 +39,18 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
       const settings = (await db.query(
         "SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
       )).rows[0];
-      const devices = Number((await db.query(
-        "SELECT count(*)::int AS count FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
-      )).rows[0].count);
-      return { settings, devices };
+      return { settings };
     });
     const settings = tenantState.settings;
     const entitled = entitlement.rows[0]?.enabled === true;
     const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
       env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
-    const devices = tenantState.devices;
     return {
       entitled, configured, public_key: entitled && configured ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null,
       seller_enabled: settings?.seller_enabled === true,
       customer_enabled: settings?.customer_enabled === true,
       seller_effective: entitled && configured && settings?.seller_enabled === true,
       customer_effective: entitled && configured && settings?.customer_enabled === true,
-      seller_devices: devices,
     };
   });
 
