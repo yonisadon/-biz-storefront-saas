@@ -108,14 +108,13 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
         const endpoint = subscription.endpoint;
-        await subscription.unsubscribe();
         await mcall(token, 'push/subscriptions', {
           method: 'DELETE',
           body: JSON.stringify({ endpoint }),
         });
       }
       await load();
-      setMessage('המכשיר הזה הוסר מרשימת ההתראות.');
+      setMessage('המכשיר הוסר מהתראות למוכר. הרשאת הדפדפן נשארת זמינה להתראות לקוחות שאושרו בנפרד.');
     } catch {
       setMessage('לא הצלחנו להסיר את המכשיר. אפשר לנסות שוב.');
     } finally {
@@ -173,7 +172,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
               className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">הסרת מכשיר זה</button>
           </div>
         </div>
-        <p className="mt-2 text-xs leading-5 text-ink/55">כדי לקבל התראות, יש לאשר גם את הרשאת הדפדפן. כיבוי התראות למוכר אינו מוחק את רישום המכשיר.</p>
+        <p className="mt-2 text-xs leading-5 text-ink/55">כדי לקבל התראות, יש לאשר גם את הרשאת הדפדפן. כיבוי התראות למוכר אינו מבטל הרשאות דפדפן ואינו פוגע בהסכמות לקוח נפרדות.</p>
       </div>
       {message && <p role="status" className="text-sm text-ink/70">{message}</p>}
     </section>
