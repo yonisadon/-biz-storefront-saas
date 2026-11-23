@@ -68,7 +68,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     setSaving(true);
     setMessage('');
     try {
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('unsupported');
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('unsupported');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') throw new Error('permission');
       const registration = await navigator.serviceWorker.register('/sw.js');
