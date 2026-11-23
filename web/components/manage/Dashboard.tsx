@@ -40,7 +40,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    if (onboardingCompleted || !onboardingVisible) return;
+    if (!onboardingVisible) return;
     let cancelled = false;
     Promise.all([
       mcall<{ total: number }>(token, 'products?limit=1&offset=0&status=active'),
@@ -215,7 +215,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           {claimError && <p role="alert" className="mt-2 text-sm text-red-700">{claimError}</p>}
         </section>}
 
-        {!onboardingCompleted && onboardingVisible && <section className="mt-4 rounded-2xl border border-primary/20 bg-white p-4 shadow-sm sm:p-5">
+        {onboardingVisible && <section className="mt-4 rounded-2xl border border-primary/20 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold tracking-wide text-primary">ההקמה הראשונית של העסק</p>
@@ -263,7 +263,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={completeOnboarding} disabled={onboardingSaving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{onboardingSaving ? 'שומר…' : 'סיום ההדרכה לעת עתה'}</button>
+            <button type="button" onClick={completeOnboarding} disabled={onboardingSaving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{onboardingSaving ? 'שומר…' : 'סיימתי את ההקמה הראשונית'}</button>
             <span className="text-xs text-ink/55">אפשר להמשיך לערוך את האתר גם אחרי סיום ההדרכה.</span>
           </div>
           {onboardingError && <p role="alert" className="mt-3 text-sm text-red-700">{onboardingError}</p>}
@@ -281,6 +281,16 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
             <p className="mt-1">מומלץ לייצא את הפניות והערות המוכר לפני המחיקה.</p>
             <button type="button" onClick={() => setTab('leads')} className="mt-2 rounded-full border border-amber-700 px-3 py-1.5 font-semibold">מעבר לפניות ולייצוא</button>
           </section>
+        )}
+
+        {!onboardingVisible && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-white px-4 py-3">
+            <p className="text-sm text-ink/70">{onboardingCompleted ? 'רוצים לעבור שוב על שלבי ההקמה?' : 'אפשר להמשיך את הקמת העסק מהמקום שבו עצרתם.'}</p>
+            <button type="button" onClick={() => { setOnboardingVisible(true); setOnboardingMessage(''); setOnboardingError(''); }}
+              className="rounded-full border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
+              {onboardingCompleted ? 'הצגת מדריך ההקמה שוב' : 'המשך הקמת העסק'}
+            </button>
+          </div>
         )}
 
         <nav className="sticky top-2 z-30 mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-ink/10 bg-surface/95 p-2 pb-2 shadow-sm backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
