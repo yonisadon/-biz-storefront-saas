@@ -4,6 +4,50 @@
 ענף עבודה: `docs/audit-auth-pwa-push-2026-11-22`  
 מקור: בדיקת קוד `main` הנוכחי והקוד בענף PR #105. מסמך זה מפריד בין ממצאים שאומתו בקוד, החלטות מוצר שאושרו, ותכנון שעדיין דורש אימות/מימוש.
 
+## סטטוס מימוש עדכני — 2026-11-23
+
+הסעיפים ההיסטוריים בהמשך נשארים לצורכי הקשר. כאשר יש סתירה, סעיף הסטטוס הזה מתאר את הקוד הנוכחי בענף PR #105.
+
+### CRM cleanup ו-cold start
+- backend/scripts/cleanup-expired-crm.ts עודכן עם retry לחיבורי Registry/Tenant, retry ל-preflight, advisory lock, ושימוש חוזר בחיבורי tenant שעברו preflight.
+- backend/src/db.ts כולל כעת retry מוגבל של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. Transaction עסקי עצמו אינו מורץ מחדש אוטומטית לאחר שהתחיל, כדי לא להסתכן בביצוע כפול.
+- לא שונו בחירת הרשומות, תקופות השמירה או public.platform_retention_policies.
+- Backend build/tests עברו עבור שינויי CRM. בדיקות התרחישים המלאות של cold start וניתוק בזמן מחיקה עדיין דורשות סביבת DB ייעודית/הרצה מבוקרת.
+
+### Web Push — מה כבר קיים בקוד
+- Registry migration 006_platform_channel_entitlements.sql יוצרת platform_channel_entitlements, ממלאת Push=true לעסקים קיימים, ומוסיפה trigger שמייצר Push=true ו-WhatsApp/SMS=false לכל עסק חדש.
+- Tenant migration tenant-013-web-push.sql מוסיפה:
+  - push_settings — העדפות מוכר/לקוחות, ברירת מחדל true.
+  - push_subscriptions — subscriptions לפי קהל, endpoint ו-key material מוצפנים.
+  - push_booking_capabilities — hash token, יעד, תוקף של 7 ימים, וה-subscription היחיד שאושר עבור אותה הזמנה/בקשת המתנה.
+  - push_consents — קשר בין subscription לבין הזמנה/בקשת המתנה ספציפית. אין FK ליעד כדי לשמר את הקשר גם לאחר מחיקה פיזית של תור.
+  - push_outbox ו-push_deliveries — אירועים, ניסיונות מסירה, leases, backoff ומפתח ייחודי event+subscription.
+- tenant-schema.sql עודכן גם להקמת DB חדש. tenantMigrations.ts מגלה את migration 013 לפי מנגנון ה-migration הקיים; אין שינוי ידני ל-ledger.
+- נוצרה ספריית Web Push מבוססת node:crypto ללא תלות npm חיצונית: VAPID ES256, הצפנת payload לפי aes128gcm, הצפנת secrets במנוחה AES-256-GCM, ו-hash ל-capability token.
+- נוצרו בדיקות יחידה לחתימת VAPID, round-trip של הצפנת payload, הצפנת secrets וזיהוי שינוי token.
+- נוספו endpoints ציבוריים לטעינת Push config ולהסכמה להזמנה ספציפית; endpoints למוכר לשליטה בהעדפות ולרישום/הסרת מכשיר; ו-endpoints לסופר אדמין לשליטה בהרשאת Push לעסק.
+- ה-Service Worker מטפל באירוע push ובלחיצה על notification, תוך הגבלת קישור היעד לאותו origin.
+- OrderSection מציע opt-in נפרד לאחר הזמנה או בקשת המתנה. הרשאת דפדפן פעילה אינה יוצרת consent בפני עצמה.
+- אירועי outbox נרשמים בתוך transaction של הפעולה העסקית. לאחר COMMIT נעשה ניסיון שליחה מוגבל; כשל אינו מבטל את ההזמנה. recovery command נוסף: npm run process-push-outbox, עם advisory lock ו-processing לפי tenant.
+- נוספה פקודה ליצירת VAPID/encryption keys: npm run generate-web-push-keys. המפתחות עדיין אינם מוגדרים ב-Railway, ולא בוצעה שליחה אמיתית לספק Push או למכשיר.
+- בדיקות smoke למיגרציות Registry ו-Tenant נוספו; בדיקת Tenant migration עברה, וגם Backend build/tests עברו. Web build ויתר בדיקות CI נמצאים בבדיקה לפי ה-commit האחרון.
+- מגבלת exactly-once: unique delivery key ו-leases מונעים כפילות רגילה. אם ספק Push קיבל הודעה והתהליך נפל לפני עדכון sent ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי שמאפשר הבטחת exactly-once; לכן ההתנהגות היא at-least-once עם חלון קטן לכפילות, ולא הבטחה מוחלטת לאפס כפילויות.
+
+### Onboarding למוכר
+- Dashboard כולל checklist עם מצב שמחושב מנתוני פרטי העסק, מוצרים פעילים, שעות פעילות וגלריה.
+- הובהר ההבדל בין קישור ציבורי ללקוחות לבין אזור הניהול הפרטי.
+- אפשר לדלג, להמשיך מאוחר יותר ולהציג שוב את מדריך ההקמה גם אחרי סימון ההשלמה.
+- לא שונו קישור הניהול הקבוע, session של 3 ימים, login/logout או מסלולי יצירת העסק.
+- שדרוג ה-UI הוכנס; בדיקת Web build/lint האחרונה עדיין רצה/נבדקת.
+
+### מה עדיין לא אומת בסביבת Production
+- לא הורצו migrations 006/tenant-013 ב-Production.
+- לא הוגדרו VAPID/encryption secrets ב-Railway.
+- לא הוגדר/אומת Cron של process-push-outbox ב-Railway. נדרש להגדירו חיצונית כל 30 דקות; אין לטעון שהוא פעיל לפני בדיקה.
+- לא בוצעו Deploy או בדיקת Push אמיתית בדפדפן/מכשיר.
+- אין שינוי production או migration שבוצעו במסגרת העבודה הנוכחית.
+
+
 ## 1. גבולות עבודה והחלטות שאסור לשנות
 
 - כל העבודה נשארת ב-PR #105. אין לפתוח PR נוסף עבור אותם נושאים.
