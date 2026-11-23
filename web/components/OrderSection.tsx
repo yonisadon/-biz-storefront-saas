@@ -383,7 +383,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           company_website: '',
         }),
       });
-      const data = await response.json().catch(() => null) as { error?: string } | null;
+      const data = await response.json().catch(() => null) as { error?: string; push_capability_token?: string } | null;
       if (!response.ok) {
         if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
           setWaitlistError('כבר קיימת בקשת המתנה פעילה עם אותם פרטים.');
