@@ -318,8 +318,13 @@ export async function savePushSubscription(
   db: pg.PoolClient, tenantId: string, audience: PushAudience, subscription: BrowserPushSubscription,
 ): Promise<string> {
   if (!isSupportedPushEndpoint(subscription.endpoint)) throw new Error('Unsupported Push service endpoint.');
-  if (Buffer.from(subscription.keys.p256dh, 'base64url').length !== 65 ||
-      Buffer.from(subscription.keys.auth, 'base64url').length !== 16) {
+  if (!/^[A-Za-z0-9_-]+$/.test(subscription.keys.p256dh) ||
+      !/^[A-Za-z0-9_-]+$/.test(subscription.keys.auth)) {
+    throw new Error('Invalid Push subscription keys.');
+  }
+  const p256dh = Buffer.from(subscription.keys.p256dh, 'base64url');
+  const auth = Buffer.from(subscription.keys.auth, 'base64url');
+  if (p256dh.length !== 65 || p256dh[0] !== 4 || auth.length !== 16) {
     throw new Error('Invalid Push subscription keys.');
   }
   const key = env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY;
