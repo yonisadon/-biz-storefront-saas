@@ -120,7 +120,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         const applicationServerKey = Uint8Array.from(raw, (char) => char.charCodeAt(0));
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey,
+          applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         });
       }
       const json = subscription.toJSON();
