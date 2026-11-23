@@ -48,7 +48,12 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         method: 'PATCH',
         body: JSON.stringify({ [field]: enabled }),
       });
-      setSettings({ ...settings, ...value });
+      const next = { ...settings, ...value };
+      setSettings({
+        ...next,
+        seller_effective: next.entitled && next.configured && next.seller_enabled,
+        customer_effective: next.entitled && next.configured && next.customer_enabled,
+      });
       setMessage('ההעדפה נשמרה.');
     } catch {
       setMessage('לא הצלחנו לשמור את ההעדפה. נסו שוב.');
