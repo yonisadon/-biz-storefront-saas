@@ -1,9 +1,10 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type pg from 'pg';
+import { randomUUID } from 'node:crypto';
 import { env } from './config';
 import { queryRegistryWithRetry, withTenant } from './db';
 import {
-  createPushCapability, decryptPushSecret, encryptPushSecret, hashPushCapability,
+  derivePushCapabilityToken, decryptPushSecret, encryptPushSecret, hashPushCapability,
   isSupportedPushEndpoint, PushDeliveryError, sendWebPush, type BrowserPushSubscription,
 } from './pushCrypto';
 
@@ -28,21 +29,60 @@ function runtimeConfigured(): boolean {
 export async function issuePushCapability(
   db: pg.PoolClient, tenantId: string, targetType: PushTargetType, targetId: string,
 ): Promise<string | null> {
+  const signingKey = env.PUSH_CAPABILITY_HMAC_KEY;
+  if (!signingKey) return null;
+
   const existing = (await db.query(
-    "SELECT opted_in_at, revoked_at FROM public.push_booking_capabilities WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 FOR UPDATE",
+    "SELECT id, token_hash, expires_at, opted_in_at, revoked_at FROM public.push_booking_capabilities " +
+    "WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 FOR UPDATE",
     [tenantId, targetType, targetId],
   )).rows[0];
+
   if (existing?.opted_in_at || existing?.revoked_at) return null;
-  const capability = createPushCapability();
+  if (existing) {
+    const expiresAt = new Date(existing.expires_at as string | Date);
+    if (expiresAt.getTime() > Date.now()) {
+      const token = derivePushCapabilityToken(tenantId, targetType, targetId, existing.id, expiresAt, signingKey);
+      const expectedHash = hashPushCapability(token);
+      if (!expectedHash.equals(existing.token_hash as Buffer)) {
+        throw new Error('Push capability signing key does not match the stored capability hash.');
+      }
+      return token;
+    }
+    const nextExpiry = new Date(Date.now() + CAPABILITY_TTL_DAYS * 24 * 60 * 60 * 1000);
+    const token = derivePushCapabilityToken(tenantId, targetType, targetId, existing.id, nextExpiry, signingKey);
+    await db.query(
+      "UPDATE public.push_booking_capabilities SET token_hash = $1, expires_at = $2, created_at = now() " +
+      "WHERE id = $3 AND opted_in_at IS NULL AND revoked_at IS NULL",
+      [hashPushCapability(token), nextExpiry, existing.id],
+    );
+    return token;
+  }
+
+  const id = randomUUID();
+  const expiresAt = new Date(Date.now() + CAPABILITY_TTL_DAYS * 24 * 60 * 60 * 1000);
+  const token = derivePushCapabilityToken(tenantId, targetType, targetId, id, expiresAt, signingKey);
   const saved = await db.query(
-    "INSERT INTO public.push_booking_capabilities (tenant_id, target_type, target_id, token_hash, expires_at) " +
-    "VALUES ($1, $2, $3, $4, now() + ($5::int * interval '1 day')) " +
-    "ON CONFLICT (tenant_id, target_type, target_id) DO UPDATE SET token_hash = EXCLUDED.token_hash, " +
-    "expires_at = EXCLUDED.expires_at, created_at = now() " +
-    "WHERE push_booking_capabilities.opted_in_at IS NULL AND push_booking_capabilities.revoked_at IS NULL RETURNING id",
-    [tenantId, targetType, targetId, capability.tokenHash, CAPABILITY_TTL_DAYS],
+    "INSERT INTO public.push_booking_capabilities (id, tenant_id, target_type, target_id, token_hash, expires_at) " +
+    "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, target_type, target_id) DO NOTHING RETURNING id",
+    [id, tenantId, targetType, targetId, hashPushCapability(token), expiresAt],
   );
-  return saved.rows[0] ? capability.token : null;
+  if (saved.rows[0]) return token;
+
+  // A concurrent idempotent request may have inserted the capability first.
+  const raced = (await db.query(
+    "SELECT id, token_hash, expires_at, opted_in_at, revoked_at FROM public.push_booking_capabilities " +
+    "WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 FOR UPDATE",
+    [tenantId, targetType, targetId],
+  )).rows[0];
+  if (!raced || raced.opted_in_at || raced.revoked_at) return null;
+  const racedExpiry = new Date(raced.expires_at as string | Date);
+  if (racedExpiry.getTime() <= Date.now()) return null;
+  const racedToken = derivePushCapabilityToken(tenantId, targetType, targetId, raced.id, racedExpiry, signingKey);
+  if (!hashPushCapability(racedToken).equals(raced.token_hash as Buffer)) {
+    throw new Error('Push capability signing key does not match the stored capability hash.');
+  }
+  return racedToken;
 }
 
 export async function enqueuePushEvent(
