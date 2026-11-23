@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { themeVars } from '@/lib/theme';
+import { mcall } from '@/lib/manageApi';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
@@ -14,10 +15,11 @@ import LegalPanel from './LegalPanel';
 import ProductsPanel from './ProductsPanel';
 import WaitlistPanel from './WaitlistPanel';
 import GoogleCalendarPanel from './GoogleCalendarPanel';
+import PushSettingsPanel from './PushSettingsPanel';
 
-type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal';
+type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal' | 'push';
 const TABS: [Tab, string][] = [
-  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'],
+  ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'], ['push', 'התראות'],
 ];
 
 export default function Dashboard({ token, initialBusiness, initialLeads, initialRetention }: {
@@ -34,7 +36,37 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
   const [onboardingSaving, setOnboardingSaving] = useState(false);
   const [onboardingError, setOnboardingError] = useState('');
   const [onboardingMessage, setOnboardingMessage] = useState('');
+  const [onboardingCounts, setOnboardingCounts] = useState<{ products: number; gallery: number } | null>(null);
+  const [onboardingCountsError, setOnboardingCountsError] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!onboardingVisible) return;
+    let cancelled = false;
+    setOnboardingCountsError(false);
+    Promise.all([
+      mcall<{ total: number }>(token, 'products?limit=1&offset=0&status=active'),
+      mcall<Array<{ id: string }>>(token, 'gallery'),
+    ]).then(([products, gallery]) => {
+      if (!cancelled) setOnboardingCounts({ products: products.total, gallery: gallery.length });
+    }).catch(() => {
+      if (!cancelled) {
+        setOnboardingCounts(null);
+        setOnboardingCountsError(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [token, tab, biz, onboardingCompleted, onboardingVisible]);
+
+  const openingDays = biz.config?.opening_hours?.days ?? {};
+  const hasOpeningHours = Object.values(openingDays).some((day) => Array.isArray(day) && day.length > 0);
+  const onboardingSteps = [
+    { id: 'business', title: 'פרטי העסק', description: 'השלימו פרטי קשר ותיאור קצר שיעזרו ללקוחות להכיר אתכם.', done: Boolean((biz.phone || biz.whatsapp_number || biz.email) && biz.about_text?.trim()), tab: 'business' as Tab },
+    { id: 'products', title: 'מוצרים ושירותים', description: 'הוסיפו לפחות שירות או מוצר פעיל אחד שיופיע באתר.', done: (onboardingCounts?.products ?? 0) > 0, tab: 'products' as Tab },
+    { id: 'hours', title: 'שעות פעילות', description: 'הגדירו מתי אפשר לפנות אליכם או לקבוע תור.', done: hasOpeningHours, tab: 'hours' as Tab },
+    { id: 'gallery', title: 'תמונות ועיצוב', description: 'תמונה אחת לפחות תעזור לאתר להיראות אישי ומזמין.', done: (onboardingCounts?.gallery ?? 0) > 0, tab: 'gallery' as Tab },
+  ];
+  const onboardingDoneCount = onboardingSteps.filter((step) => step.done).length;
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +122,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
       }
       setOnboardingCompleted(true);
       setOnboardingVisible(false);
-      setOnboardingMessage('איזה יופי! העסק מוכן להמשך עבודה.');
+      setOnboardingMessage('ההדרכה הסתיימה. אפשר להמשיך לעדכן את פרטי העסק בכל עת.');
     } catch (error) {
       setOnboardingError(error instanceof Error ? error.message : 'שמירת ההתקדמות נכשלה.');
     } finally {
@@ -160,7 +192,6 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <PwaInstallButton label="התקנת ניהול העסק" />
-            {!onboardingCompleted && !onboardingVisible && <button type="button" onClick={() => setOnboardingVisible(true)} className="rounded-full border border-primary/30 px-4 py-2 text-sm font-semibold text-primary">המשך הקמת העסק</button>}
             <a href="/account" className="min-h-10 rounded-full border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10">
               החשבון שלי
             </a>
@@ -188,33 +219,58 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           {claimError && <p role="alert" className="mt-2 text-sm text-red-700">{claimError}</p>}
         </section>}
 
-        {!onboardingCompleted && onboardingVisible && <section className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+        {onboardingVisible && <section className="mt-4 rounded-2xl border border-primary/20 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold tracking-wide text-primary">ברוכים הבאים ל-BTime</p>
-              <h2 className="mt-1 text-xl font-bold text-ink">בואו נכין את העסק לקבלת לקוחות</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70">נעבור יחד על כמה דברים פשוטים. אפשר לבצע אותם עכשיו או לחזור אליהם בהמשך — בכל שלב תוכלו לראות איך העסק נראה ללקוחות.</p>
+              <p className="text-xs font-bold tracking-wide text-primary">ההקמה הראשונית של העסק</p>
+              <h2 className="mt-1 text-xl font-bold text-ink">בואו נבנה אתר שמוכן לקבל לקוחות</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70">השלבים קצרים ואפשר לבצע אותם בקצב שלכם. ההתקדמות מתעדכנת לפי הנתונים שנשמרו בפועל, ואפשר לחזור לכאן בכל עת.</p>
             </div>
-            <button type="button" onClick={() => setOnboardingVisible(false)} className="rounded-full border border-ink/20 bg-white px-3 py-2 text-xs font-semibold text-ink">אחר כך</button>
+            <button type="button" onClick={() => setOnboardingVisible(false)} className="rounded-full border border-ink/20 bg-white px-3 py-2 text-xs font-semibold text-ink">אמשיך אחר כך</button>
           </div>
-          <ol className="mt-4 grid gap-2 sm:grid-cols-2">
-            <li><button type="button" onClick={() => setTab('business')} className="w-full rounded-xl border border-ink/10 bg-white p-3 text-right hover:border-primary/40">
-              <span className="block text-sm font-bold">1. פרטי העסק ודרכי יצירת קשר</span><span className="mt-1 block text-xs text-ink/60">שם העסק, טלפון, תיאור ופרטים שיוצגו באתר.</span>
-            </button></li>
-            <li><button type="button" onClick={() => setTab('products')} className="w-full rounded-xl border border-ink/10 bg-white p-3 text-right hover:border-primary/40">
-              <span className="block text-sm font-bold">2. הוספת שירותים או מוצרים</span><span className="mt-1 block text-xs text-ink/60">מה הלקוחות יכולים להזמין או לתאם.</span>
-            </button></li>
-            <li><button type="button" onClick={() => setTab('hours')} className="w-full rounded-xl border border-ink/10 bg-white p-3 text-right hover:border-primary/40">
-              <span className="block text-sm font-bold">3. שעות פעילות וזמינות</span><span className="mt-1 block text-xs text-ink/60">הגדירו מתי העסק מקבל לקוחות.</span>
-            </button></li>
-            <li><button type="button" onClick={() => setTab('design')} className="w-full rounded-xl border border-ink/10 bg-white p-3 text-right hover:border-primary/40">
-              <span className="block text-sm font-bold">4. התאמת מראה האתר</span><span className="mt-1 block text-xs text-ink/60">תמונות, צבעים וסגנון שמתאימים לעסק.</span>
-            </button></li>
+
+          <div className="mt-4 rounded-xl bg-surface p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-semibold">ההתקדמות שלך</span>
+              <span className="tabular-nums text-ink/65">{onboardingCounts === null ? (onboardingCountsError ? 'לא ניתן לטעון כרגע' : 'טוען…') : `${onboardingDoneCount} מתוך ${onboardingSteps.length} שלבים`}</span>
+            </div>
+            {onboardingCountsError
+              ? <p className="mt-2 text-xs text-ink/55">לא הצלחנו לבדוק את המוצרים והגלריה. אפשר להמשיך בהקמה ולנסות שוב לאחר רענון.</p>
+              : <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-label="התקדמות הקמת העסק" aria-valuemin={0} aria-valuemax={onboardingSteps.length} aria-valuenow={onboardingDoneCount}>
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(onboardingDoneCount / onboardingSteps.length) * 100}%` }} />
+                </div>}
+          </div>
+
+          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+            {onboardingSteps.map((step, index) => (
+              <li key={step.id}>
+                <button type="button" onClick={() => setTab(step.tab)} className="flex min-h-24 w-full items-start gap-3 rounded-xl border border-ink/10 bg-white p-3 text-right transition hover:border-primary/40 hover:bg-primary/[0.03]">
+                  <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${step.done ? 'bg-primary text-primary-fg' : 'bg-ink/5 text-ink/65'}`}>{step.done ? '✓' : index + 1}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-bold">{step.title}</span>
+                      <span className={`text-xs font-semibold ${step.done ? 'text-primary' : 'text-ink/50'}`}>{step.done ? 'הושלם' : 'מומלץ להשלים'}</span>
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-ink/60">{step.description}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
           </ol>
+
+          <div className="mt-4 rounded-xl border border-ink/10 p-3">
+            <p className="text-sm font-bold">האתר הציבורי וקישור הניהול — שני דברים שונים</p>
+            <p className="mt-1 text-sm leading-6 text-ink/65">קישור האתר מיועד ללקוחות ואפשר לפרסם אותו. המסך שבו אתם נמצאים עכשיו הוא אזור הניהול הפרטי; את קישור הניהול שומרים אצלכם ולא שולחים ללקוחות.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">פתיחת האתר ללקוחות ↗</a>
+              <button type="button" onClick={copyCustomerLink} className="rounded-full border border-ink/20 bg-white px-4 py-2 text-sm font-semibold text-ink">העתקת קישור האתר</button>
+              <button type="button" onClick={() => setTab('design')} className="rounded-full border border-ink/20 bg-white px-4 py-2 text-sm font-semibold text-ink">התאמת העיצוב</button>
+            </div>
+          </div>
+
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <a href={`/biz/${biz.slug}`} target="_blank" rel="noopener noreferrer" className="rounded-full border border-ink/20 bg-white px-4 py-2 text-sm font-semibold text-ink">כך הלקוחות יראו את העסק</a>
-            <button type="button" onClick={copyCustomerLink} className="rounded-full border border-ink/20 bg-white px-4 py-2 text-sm font-semibold text-ink">העתקת קישור ללקוחות</button>
-            <button type="button" onClick={completeOnboarding} disabled={onboardingSaving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{onboardingSaving ? 'שומר…' : 'סיימתי, העסק מוכן לקבל לקוחות'}</button>
+            <button type="button" onClick={completeOnboarding} disabled={onboardingSaving} className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{onboardingSaving ? 'שומר…' : 'סיימתי את ההקמה הראשונית'}</button>
+            <span className="text-xs text-ink/55">אפשר להמשיך לערוך את האתר גם אחרי סיום ההדרכה.</span>
           </div>
           {onboardingError && <p role="alert" className="mt-3 text-sm text-red-700">{onboardingError}</p>}
           {onboardingMessage && <p role="status" className="mt-3 text-sm text-emerald-800">{onboardingMessage}</p>}
@@ -231,6 +287,16 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
             <p className="mt-1">מומלץ לייצא את הפניות והערות המוכר לפני המחיקה.</p>
             <button type="button" onClick={() => setTab('leads')} className="mt-2 rounded-full border border-amber-700 px-3 py-1.5 font-semibold">מעבר לפניות ולייצוא</button>
           </section>
+        )}
+
+        {!onboardingVisible && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-white px-4 py-3">
+            <p className="text-sm text-ink/70">{onboardingCompleted ? 'רוצים לעבור שוב על שלבי ההקמה?' : 'אפשר להמשיך את הקמת העסק מהמקום שבו עצרתם.'}</p>
+            <button type="button" onClick={() => { setOnboardingVisible(true); setOnboardingMessage(''); setOnboardingError(''); }}
+              className="rounded-full border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
+              {onboardingCompleted ? 'הצגת מדריך ההקמה שוב' : 'המשך הקמת העסק'}
+            </button>
+          </div>
         )}
 
         <nav className="sticky top-2 z-30 mt-4 flex gap-2 overflow-x-auto rounded-2xl border border-ink/10 bg-surface/95 p-2 pb-2 shadow-sm backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="ניווט">
@@ -252,6 +318,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           <div hidden={tab !== 'business'}><BusinessPanel token={token} biz={biz} onSaved={setBiz} /></div>
           <div hidden={tab !== 'design'}><DesignPanel token={token} biz={biz} onSaved={setBiz} /></div>
           {tab === 'legal' && <LegalPanel token={token} biz={biz} onSaved={setBiz} />}
+          {tab === 'push' && <PushSettingsPanel token={token} />}
         </div>
       </div>
     </div>

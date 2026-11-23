@@ -21,6 +21,11 @@ const Env = z.object({
   GOOGLE_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
   // Dedicated AES-256-GCM key for recoverable permanent seller management links.
   MANAGEMENT_TOKEN_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  WEB_PUSH_VAPID_PUBLIC_KEY: z.string().optional(),
+  WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
+  WEB_PUSH_VAPID_SUBJECT: z.string().optional(),
+  PUSH_SUBSCRIPTION_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  PUSH_CAPABILITY_HMAC_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
 
   // שדות חדשים שהתווספו לניהול תמונות ואחסון:
   STORAGE_DRIVER: z.enum(['s3', 'local']).default('local'),

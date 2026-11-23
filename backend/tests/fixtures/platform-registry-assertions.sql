@@ -231,3 +231,38 @@ END
 $seller_onboarding_backfill$;
 
 
+
+-- Push entitlement defaults apply to existing businesses and all future provisioning paths.
+DO $channel_entitlements$
+DECLARE
+  v_old uuid := (SELECT id FROM public.businesses WHERE slug = 'migration-smoke-old');
+  v_new uuid := (SELECT id FROM public.businesses WHERE slug = 'migration-smoke-new');
+BEGIN
+  IF v_old IS NULL OR v_new IS NULL THEN
+    RAISE EXCEPTION 'channel entitlement fixture businesses are missing';
+  END IF;
+  IF (SELECT count(*) FROM public.platform_channel_entitlements WHERE tenant_id = v_old) <> 3
+     OR (SELECT count(*) FROM public.platform_channel_entitlements WHERE tenant_id = v_new) <> 3 THEN
+    RAISE EXCEPTION 'every business must receive all three channel entitlement rows';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.platform_channel_entitlements
+     WHERE tenant_id IN (v_old, v_new) AND channel = 'push' AND enabled = true
+  ) THEN
+    RAISE EXCEPTION 'Push must be enabled by default for existing and new businesses';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.platform_channel_entitlements
+     WHERE tenant_id IN (v_old, v_new) AND channel IN ('whatsapp', 'sms') AND enabled = true
+  ) THEN
+    RAISE EXCEPTION 'future channels must remain disabled by default';
+  END IF;
+  IF NOT has_table_privilege('app_runtime', 'public.platform_channel_entitlements', 'SELECT')
+     OR has_table_privilege('app_runtime', 'public.platform_channel_entitlements', 'UPDATE') THEN
+    RAISE EXCEPTION 'runtime may read, but not change, channel entitlements';
+  END IF;
+  IF NOT has_table_privilege('app_superadmin', 'public.platform_channel_entitlements', 'UPDATE') THEN
+    RAISE EXCEPTION 'Super Admin must be able to update channel entitlements';
+  END IF;
+END
+$channel_entitlements$;

@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
+import { env } from '../config';
 import { pool, withTenant } from '../db';
 import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
@@ -9,6 +11,8 @@ import { appointmentRoutes } from './appointments';
 import { manageWaitlistRoutes } from './waitlist';
 import { googleCalendarManageRoutes } from './googleCalendar';
 import { processGoogleCalendarJobs } from '../googleCalendarService';
+import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscription } from '../pushCrypto';
+import { savePushSubscription } from '../pushService';
 
 export const manageRoutes: FastifyPluginAsync = async (app) => {
   app.addHook('preHandler', resolveByToken);
@@ -22,6 +26,102 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
   await app.register(appointmentRoutes);
   await app.register(manageWaitlistRoutes);
   await app.register(googleCalendarManageRoutes);
+
+  app.get('/push/settings', async (req) => {
+    const entitlement = await pool.query(
+      "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
+      [req.tenantId],
+    );
+    const tenantState = await withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "INSERT INTO public.push_settings (tenant_id) VALUES (app.current_tenant_id()) ON CONFLICT (tenant_id) DO NOTHING",
+      );
+      const settings = (await db.query(
+        "SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
+      )).rows[0];
+      return { settings };
+    });
+    const settings = tenantState.settings;
+    const entitled = entitlement.rows[0]?.enabled === true;
+    const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
+      env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
+    return {
+      entitled, configured, public_key: entitled && configured ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null,
+      seller_enabled: settings?.seller_enabled === true,
+      customer_enabled: settings?.customer_enabled === true,
+      seller_effective: entitled && configured && settings?.seller_enabled === true,
+      customer_effective: entitled && configured && settings?.customer_enabled === true,
+    };
+  });
+
+  app.patch('/push/settings', async (req) => {
+    const input = z.object({
+      seller_enabled: z.boolean().optional(),
+      customer_enabled: z.boolean().optional(),
+    }).strict().refine((value) => value.seller_enabled !== undefined || value.customer_enabled !== undefined).parse(req.body);
+    const entitlement = await pool.query(
+      "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
+      [req.tenantId],
+    );
+    if (entitlement.rows[0]?.enabled !== true && (input.seller_enabled === true || input.customer_enabled === true)) {
+      throw new HttpError(403, 'push_not_available');
+    }
+    return withTenant(req.tenantId, async (db) => {
+      const current = (await db.query(
+        "SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id() FOR UPDATE",
+      )).rows[0] ?? { seller_enabled: true, customer_enabled: true };
+      const sellerEnabled = input.seller_enabled ?? current.seller_enabled;
+      const customerEnabled = input.customer_enabled ?? current.customer_enabled;
+      const updated = await db.query(
+        "INSERT INTO public.push_settings (tenant_id, seller_enabled, customer_enabled) " +
+        "VALUES (app.current_tenant_id(), $1, $2) ON CONFLICT (tenant_id) DO UPDATE SET " +
+        "seller_enabled = EXCLUDED.seller_enabled, customer_enabled = EXCLUDED.customer_enabled, updated_at = now() " +
+        "RETURNING seller_enabled, customer_enabled",
+        [sellerEnabled, customerEnabled],
+      );
+      return updated.rows[0];
+    });
+  });
+
+  app.post('/push/subscriptions', async (req) => {
+    const input = z.object({
+      subscription: z.object({
+        endpoint: z.string().url().max(2048),
+        keys: z.object({ p256dh: z.string().min(80).max(120), auth: z.string().min(20).max(40) }).strict(),
+      }).strict(),
+    }).strict().parse(req.body);
+    if (!isSupportedPushEndpoint(input.subscription.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+    const entitlement = await pool.query(
+      "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
+      [req.tenantId],
+    );
+    if (entitlement.rows[0]?.enabled !== true) throw new HttpError(403, 'push_not_available');
+    if (!env.WEB_PUSH_VAPID_PUBLIC_KEY || !env.WEB_PUSH_VAPID_PRIVATE_KEY ||
+        !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY || !env.PUSH_CAPABILITY_HMAC_KEY) {
+      throw new HttpError(503, 'push_not_configured');
+    }
+    return withTenant(req.tenantId, async (db) => {
+      const settings = (await db.query(
+        "SELECT seller_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
+      )).rows[0];
+      if (settings?.seller_enabled !== true) throw new HttpError(403, 'seller_push_disabled');
+      const id = await savePushSubscription(db, req.tenantId, 'seller', input.subscription as BrowserPushSubscription);
+      return { ok: true, subscription_id: id };
+    });
+  });
+
+  app.delete('/push/subscriptions', async (req) => {
+    const input = z.object({ endpoint: z.string().url().max(2048) }).strict().parse(req.body);
+    if (!isSupportedPushEndpoint(input.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+    return withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "UPDATE public.push_subscriptions SET disabled_at = now(), updated_at = now() " +
+        "WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND endpoint_hash = $1 AND disabled_at IS NULL",
+        [hashPushCapability(input.endpoint)],
+      );
+      return { ok: true };
+    });
+  });
 
   // ---- Business profile ----
   app.get('/business', async (req) => {

@@ -15,6 +15,7 @@ const migrations = [
   'migrations/003_platform_retention_policies.sql',
   'migrations/004_management_access_and_encrypted_tokens.sql',
   'migrations/005_seller_onboarding_state.sql',
+  'migrations/006_platform_channel_entitlements.sql',
 ];
 
 if (!adminConnectionString || !registryConnectionString) {

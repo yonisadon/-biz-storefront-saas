@@ -10,6 +10,11 @@ on:
       - 'backend/migrations/003_platform_retention_policies.sql'
       - 'backend/migrations/004_management_access_and_encrypted_tokens.sql'
       - 'backend/migrations/005_seller_onboarding_state.sql'
+      - 'backend/migrations/006_platform_channel_entitlements.sql'
+      - 'backend/migrations/tenant-013-web-push.sql'
+      - 'backend/migrations/tenant-schema.sql'
+      - 'backend/src/pushCrypto.ts'
+      - 'backend/tests/pushCrypto.test.ts'
       - 'backend/migrations/tenant-012-configurable-retention.sql'
       - 'backend/tests/fixtures/platform-registry-prerequisites.sql'
       - 'backend/tests/fixtures/platform-registry-assertions.sql'
@@ -83,6 +88,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/005_seller_onboarding_state.sql
+      - name: Apply platform channel entitlements migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/006_platform_channel_entitlements.sql
+      - name: Re-run platform channel entitlements migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/006_platform_channel_entitlements.sql
       - name: Create a new unfinished business before migration rerun
         env:
           PGPASSWORD: postgres
