@@ -2,7 +2,7 @@ import type { FastifyPluginAsync, preHandlerAsyncHookHandler } from 'fastify';
 import type pg from 'pg';
 import { z } from 'zod';
 import { env } from '../config';
-import { withTenant } from '../db';
+import { pool, withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
 import { resolveCrmSettings, resolveLeadRoute } from '../crmRouting';
@@ -11,6 +11,8 @@ import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
 import { ogKey as ogVariant } from '../storage'; // <-- 1. הוספת אימפורט זה
 import { processGoogleCalendarJobs } from '../googleCalendarService';
+import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscription } from '../pushCrypto';
+import { savePushSubscription } from '../pushService';
 import { publicWaitlistRoutes } from './waitlist';
 
 const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
@@ -142,6 +144,63 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
   async (app) => {
     app.addHook('preHandler', resolver);
     await app.register(publicWaitlistRoutes);
+
+    app.get('/push/config', async (req) => {
+      const entitlement = await pool.query(
+        "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
+        [req.tenantId],
+      );
+      const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
+        env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY);
+      const enabled = entitlement.rows[0]?.enabled === true && configured;
+      return { enabled, public_key: enabled ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null };
+    });
+
+    app.post('/push/consent', async (req) => {
+      const input = z.object({
+        token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+        subscription: z.object({
+          endpoint: z.string().url().max(2048),
+          keys: z.object({ p256dh: z.string().min(80).max(120), auth: z.string().min(20).max(40) }).strict(),
+        }).strict(),
+      }).strict().parse(req.body);
+      if (!isSupportedPushEndpoint(input.subscription.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+      const entitlement = await pool.query(
+        "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
+        [req.tenantId],
+      );
+      if (entitlement.rows[0]?.enabled !== true) throw new HttpError(403, 'push_not_available');
+      if (!env.WEB_PUSH_VAPID_PUBLIC_KEY || !env.WEB_PUSH_VAPID_PRIVATE_KEY ||
+          !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY) {
+        throw new HttpError(503, 'push_not_configured');
+      }
+
+      return withTenant(req.tenantId, async (db) => {
+        const capability = (await db.query(
+          "SELECT id, target_type, target_id, opted_in_at, subscription_id FROM public.push_booking_capabilities " +
+          "WHERE tenant_id = app.current_tenant_id() AND token_hash = $1 AND expires_at > now() AND revoked_at IS NULL FOR UPDATE",
+          [hashPushCapability(input.token)],
+        )).rows[0];
+        if (!capability) throw new HttpError(404, 'push_consent_expired');
+        const subscriptionId = await savePushSubscription(
+          db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription,
+        );
+        if (capability.opted_in_at) {
+          if (capability.subscription_id === subscriptionId) return { ok: true, already_enabled: true };
+          throw new HttpError(409, 'push_consent_already_used');
+        }
+        await db.query(
+          "INSERT INTO public.push_consents (tenant_id, target_type, target_id, subscription_id) " +
+          "VALUES (app.current_tenant_id(), $1, $2, $3) ON CONFLICT (tenant_id, target_type, target_id, subscription_id) DO NOTHING",
+          [capability.target_type, capability.target_id, subscriptionId],
+        );
+        await db.query(
+          "UPDATE public.push_booking_capabilities SET opted_in_at = now(), subscription_id = $1 WHERE id = $2",
+          [subscriptionId, capability.id],
+        );
+        return { ok: true, already_enabled: false };
+      });
+    });
 
     // Business config + first catalog page + gallery in one round trip.
     app.get('/', async (req) => withTenant(req.tenantId, buildPublicPayload));
