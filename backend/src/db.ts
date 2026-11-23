@@ -7,10 +7,38 @@ import { HttpError } from './errors';
 export const pool = new pg.Pool({
   connectionString: env.APP_DATABASE_URL,
   max: 10,
+  connectionTimeoutMillis: 5_000,
   ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on('error', (err) => console.error('pg registry pool error', err));
+
+const TRANSIENT_CONNECTION_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH',
+  'EAI_AGAIN', '57P03', '08001', '08006',
+]);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function retryTransientConnection<T>(operation: () => Promise<T>, label: string): Promise<T> {
+  const maxAttempts = 6;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await operation();
+      if (attempt > 1) console.info('PostgreSQL connection recovered for ' + label + ' after ' + attempt + ' attempts.');
+      return result;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (!code || !TRANSIENT_CONNECTION_CODES.has(code) || attempt === maxAttempts) {
+        console.error('PostgreSQL connection failed for ' + label + ' (attempt ' + attempt + '/' + maxAttempts + '; code ' + (code ?? 'unknown') + ').');
+        throw error;
+      }
+      const delayMs = Math.min(250 * (2 ** (attempt - 1)), 3000);
+      console.warn('PostgreSQL is not ready for ' + label + ' (attempt ' + attempt + '/' + maxAttempts + '; code ' + code + '); retrying in ' + delayMs + 'ms.');
+      await sleep(delayMs);
+    }
+  }
+  throw new Error('PostgreSQL connection did not become available for ' + label + '.');
+}
 
 const tenantPools = new Map<string, pg.Pool>();
 
@@ -28,9 +56,9 @@ function connectionStringForDatabase(databaseName: string) {
 async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   let databaseName: string | undefined;
   try {
-    const result = await pool.query(
-      'SELECT database_name FROM app.tenant_databases WHERE tenant_id = $1',
-      [tenantId],
+    const result = await retryTransientConnection(
+      () => pool.query('SELECT database_name FROM app.tenant_databases WHERE tenant_id = $1', [tenantId]),
+      'tenant registry lookup',
     );
     databaseName = result.rows[0]?.database_name;
   } catch (err) {
@@ -80,7 +108,7 @@ export async function withTenant<T>(
   fn: (db: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
   const selectedPool = await poolForTenant(tenantId);
-  const client = await selectedPool.connect();
+  const client = await retryTransientConnection(() => selectedPool.connect(), 'tenant database connection');
   try {
     await client.query('BEGIN');
     await client.query(
