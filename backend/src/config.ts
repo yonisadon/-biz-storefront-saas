@@ -25,6 +25,7 @@ const Env = z.object({
   WEB_PUSH_VAPID_PRIVATE_KEY: z.string().optional(),
   WEB_PUSH_VAPID_SUBJECT: z.string().optional(),
   PUSH_SUBSCRIPTION_ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+  PUSH_CAPABILITY_HMAC_KEY: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
 
   // שדות חדשים שהתווספו לניהול תמונות ואחסון:
   STORAGE_DRIVER: z.enum(['s3', 'local']).default('local'),
