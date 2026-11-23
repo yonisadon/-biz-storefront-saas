@@ -246,27 +246,32 @@
 
 ## 9. שלבי ביצוע ו-gates
 
-| שלב | עבודה | תנאי מעבר |
+| שלב | עבודה | סטטוס / תנאי מעבר |
 |---|---|---|
-| A | Audit מלא של מסלולי יצירת עסק, אירועי תור/המתנה, סכימות ו-Cron | ממצאים מאומתים ותיעוד פערים |
-| B | CRM cleanup cold-start ו-concurrency | build/tests ותרחישי retry/preflight/lock |
-| C | תכנון SQL סופי ל-Registry ול-Tenant, כולל backfill וברירות מחדל | review של קשרים, אינדקסים, RLS/tenant scope ו-idempotency |
-| D | VAPID, subscriptions, entitlement והעדפות מוכר | בדיקות הצפנה, הרשאות ובידוד בין tenants |
-| E | capability tokens ו-opt-in להזמנה/המתנה | בדיקות token expiry, duplicate/idempotency ו-consent לכל הזמנה |
-| F | outbox, dispatch מיידי ו-Cron recovery | בדיקות כשל אחרי commit, retries, leases ו-duplicate suppression |
-| G | UI opt-in ללקוח והגדרות Push למוכר | בדיקות הרשאות דפדפן, opt-out ותרחישי חסימה |
-| H | שיפור onboarding והדרכת מוכר | בדיקות מסלולי הקמה, התקדמות, קישורים ושימור זרימות קיימות |
-| I | בדיקות מלאות ועדכון מסמכים/PR description | כל בדיקות CI עוברות; תוצאות ידניות מסומנות בנפרד |
+| A | Audit של מסלולי יצירת עסק, אירועי תור/המתנה, סכימות ו-Cron | הושלם בקוד ובתיעוד; Cron חיצוני לא אומת |
+| B | CRM cleanup cold-start ו-concurrency | הקוד ו-Backend CI עברו; בדיקת cold start/ניתוק חיה עדיין נדרשת |
+| C | SQL ל-Registry ול-Tenant, backfill, defaults ו-RLS | מימוש הושלם; Registry ו-Tenant migration smoke tests נוספו |
+| D | VAPID, subscriptions, entitlement והעדפות מוכר | מימוש הושלם; בדיקות crypto ו-Backend CI עברו |
+| E | capability tokens ו-opt-in להזמנה/המתנה | מימוש הושלם בקוד; בדיקת דפדפן/מכשיר אמיתית עדיין נדרשת |
+| F | outbox, dispatch מיידי ו-Cron recovery | מימוש הושלם בקוד; Cron Railway טרם הוגדר/אומת; at-least-once מתועד |
+| G | UI opt-in ללקוח והגדרות Push למוכר/סופר אדמין | מימוש הוכנס; ממתין לאימות Web build/Validate האחרון ולבדיקה ידנית |
+| H | שיפור onboarding והדרכת מוכר | checklist, progress, קישורים, דילוג וחזרה הוכנסו; נדרשת בדיקת קבלה ידנית |
+| I | בדיקות מלאות ועדכון מסמכים/PR description | בתהליך; אין לסמן הושלם עד שכל CI עובר והבדיקות הידניות מתועדות |
 
 ## 10. סטטוס נכון לעדכון זה
 
-- [x] PR #105 פתוח כ-Draft ונשאר מבוסס על `main` העדכני (לא מאחוריו בעת הבדיקה).
 - [x] החלטות מוצר Web Push והסכמת לקוח תועדו.
 - [x] נמצאה ותועדה אי-התאמה בתיעוד ההיסטורי של session/PWA.
-- [x] בוצע שינוי ב-`cleanup-expired-crm.ts`: retry לחיבור ול-preflight, advisory lock, ושימוש חוזר בחיבורי tenant לאחר preflight.
-- [x] Backend build/tests עברו ב-GitHub Actions עבור שינוי CRM cleanup (commit `62530f9`).
-- [x] נוספו עד 3 ניסיונות חוזרים גם לכשלי חיבור transient בזמן שאילתת preflight.
-- [x] זוהו שני מסלולי provisioning: הקמה עצמית ב-`provisioning.ts` והקמה על ידי סופר אדמין ב-`routes/admin.ts`; שניהם יוצרים Registry row ומסד tenant נפרד. נדרש עדיין לאמת נקודת ברירת מחדל משותפת ל-entitlement.
-- [ ] נדרש אפיון SQL סופי ומימוש Registry/Tenant ל-Push.
-- [ ] נדרש מימוש Push, UI, onboarding משופר ובדיקות end-to-end.
-- [ ] לא בוצעו מיגרציות production, Deploy או שינויי Railway במסגרת העדכון הזה.
+- [x] CRM cleanup כולל retry/preflight retry, advisory lock ושימוש חוזר בחיבורי tenant; Backend CI עבר.
+- [x] נוספו retries מוגבלים ל-Registry ולרכישת חיבור tenant ב-db.ts; אין retry אוטומטי ל-transaction שכבר התחיל.
+- [x] זוהו מסלולי provisioning עצמאי וסופר אדמין; entitlement defaults מרוכזים ב-trigger של Registry כדי ששניהם יקבלו אותה ברירת מחדל.
+- [x] Registry migration 006 ו-Tenant migration 013 נוספו; tenant-schema.sql עודכן; נוספו migration smoke tests.
+- [x] נוספו crypto helpers ובדיקות VAPID/encryption/capability.
+- [x] נוספו public consent API, seller settings/subscription API, Super Admin entitlement API/UI, outbox dispatch ו-recovery command.
+- [x] נוספו אירועי seller booking/waitlist ולקוח update/cancel, כולל העברת waitlist consent לתור וזיהוי תור waitlist לפי הקשר ולא לפי appointments.source.
+- [x] Service Worker ו-UI opt-in ללקוח/מוכר נוספו.
+- [x] Onboarding Dashboard שודרג עם progress, הבחנה בין קישורים, דילוג, חזרה והצגה מחדש.
+- [x] Backend build/tests ו-Tenant migration smoke עברו ב-commit 8559b77; בדיקות Registry smoke עברו ב-commit קודם. Web build/Validate האחרון עדיין בבדיקה.
+- [ ] נדרשות בדיקות קבלה ידניות של Push בדפדפנים/מכשירים ושל תרחישי cold start/CRM cleanup.
+- [ ] נדרשת הגדרת VAPID/encryption secrets ו-Cron חיצוני ב-Railway לאחר אישור נפרד; לא בוצעו שינויים כאלה.
+- [ ] לא בוצעו מיגרציות Production, Deploy או שינויי Railway במסגרת העבודה הזאת.
