@@ -286,6 +286,43 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     if (!authorized(req) && !(await authorizedBySession(req))) throw new HttpError(401, 'unauthorized');
   });
 
+  app.get('/channel-entitlements', async () => {
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const result = await registry.query(
+        "SELECT b.id, b.name, b.slug, b.status, COALESCE(e.enabled, false) AS push_enabled, e.updated_at " +
+        "FROM public.businesses b LEFT JOIN public.platform_channel_entitlements e " +
+        "ON e.tenant_id = b.id AND e.channel = 'push' ORDER BY b.created_at DESC, b.name",
+      );
+      return { businesses: result.rows };
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
+  app.put('/businesses/:id/channel-entitlements', async (req) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const input = z.object({ channel: z.literal('push'), enabled: z.boolean() }).strict().parse(req.body);
+    if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
+    const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
+      ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    try {
+      const result = await registry.query(
+        "UPDATE public.platform_channel_entitlements SET enabled = $1, updated_at = now() " +
+        "WHERE tenant_id = $2 AND channel = $3 RETURNING tenant_id, channel, enabled, updated_at",
+        [input.enabled, id, input.channel],
+      );
+      if (!result.rowCount) throw new HttpError(404, 'channel_entitlement_not_found');
+      return result.rows[0];
+    } finally {
+      await registry.end().catch(() => {});
+    }
+  });
+
   app.get('/retention-policies', async () => {
     if (!env.SUPERADMIN_DATABASE_URL) throw new HttpError(503, 'provisioning_not_configured');
     const registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, {
