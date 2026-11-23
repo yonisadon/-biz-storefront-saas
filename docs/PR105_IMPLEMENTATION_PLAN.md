@@ -215,6 +215,7 @@
 - pushCrypto.ts משתמש ב-node:crypto: VAPID ES256, RFC 8291 aes128gcm, AES-256-GCM להצפנת secrets, ו-SHA-256 ל-capability/endpoint hash.
 - endpoint מוגבל לספקי Push מוכרים ב-HTTPS כדי לצמצם SSRF. payloads כלליים ואינם כוללים שם/טלפון/פרטי תור.
 - Environment נדרש ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY ו-PUSH_CAPABILITY_HMAC_KEY.
+- יש לשמור את מפתח AES ואת מפתח HMAC יציבים. שינוי מפתח AES מחייב re-encryption של subscriptions; שינוי מפתח HMAC מונע שחזור capability token ב-idempotent retry. אין עדיין כלי key rotation אוטומטי. החלפת VAPID key דורשת טיפול מחודש ב-subscriptions של הדפדפנים.
 - יצירת מפתחות מקומית: npm run generate-web-push-keys. אין לשמור מפתחות ב-repository.
 - ה-Service Worker ב-web/public/sw.js מציג notification ומגביל notificationclick לכתובת באותו origin; מדיניות cache/offline הקיימת לא שונתה.
 - מסך הגדרות המוכר יכול להסיר מכשיר מקהל המוכר בלי לבטל את PushSubscription של הדפדפן, כדי לא לפגוע בהסכמות לקוח נפרדות באותו דפדפן.
