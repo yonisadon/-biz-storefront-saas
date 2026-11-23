@@ -12,6 +12,7 @@
 - backend/scripts/cleanup-expired-crm.ts עודכן עם retry לחיבורי Registry/Tenant, retry ל-preflight, advisory lock, ושימוש חוזר בחיבורי tenant שעברו preflight.
 - backend/src/db.ts כולל כעת retry מוגבל של עד 6 ניסיונות לחיבור Registry, לשליפת מיפוי tenant ולרכישת חיבור tenant. Transaction עסקי עצמו אינו מורץ מחדש אוטומטית לאחר שהתחיל, כדי לא להסתכן בביצוע כפול.
 - לא שונו בחירת הרשומות, תקופות השמירה או public.platform_retention_policies.
+- כדי לא לאבד את תוצאת ה-preflight בגלל sleep/reconnect, הסקריפט מחזיק חיבור פתוח לכל tenant עד סיום שלב המחיקות. מספר החיבורים המקביליים גדל ביחס ישר למספר ה-tenants; יש לעקוב אחרי מגבלת connections של PostgreSQL ולבחון תכנון אחר אם מספר העסקים יגדל משמעותית.
 - Backend build/tests עברו. בדיקות התרחישים המלאות של cold start וניתוק בזמן מחיקה עדיין דורשות סביבת DB ייעודית/הרצה מבוקרת.
 
 ### Web Push — מה כבר קיים בקוד
@@ -203,6 +204,9 @@
 6. recovery command: npm run process-push-outbox. הוא עובר על tenants, מחזיק Registry advisory lock כדי למנוע ריצות Cron מקבילות, ומעבד pending/expired leases. התכנון הוא Cron חיצוני כל 30 דקות.
 7. אם אין recipients, האירוע נסגר ללא שליחה. אם אין הגדרת VAPID אך קיימים recipients, האירוע נשאר pending עד ניסיון recovery נוסף.
 8. אם DB אינו זמין ולא ניתן לבצע COMMIT, אין להחזיר הצלחה לפעולה העסקית.
+
+### Retention פתוח להחלטה
+- כרגע לא נמחקים אוטומטית אירועי outbox/deliveries שהסתיימו, capabilities שפגו או subscriptions לא פעילות. יש להחליט על תקופת שמירה לפני הוספת cleanup אוטומטי; לא נקבעה תקופה שרירותית ולא שונתה מדיניות CRM.
 
 ### Delivery guarantee — מגבלה ידועה
 מפתח UNIQUE (tenant_id, outbox_id, subscription_id) ו-leases מונעים יצירת delivery כפולה ומצמצמים כפילויות בזמן concurrency. עם זאת, אם ספק Push קיבל את ההודעה והתהליך נפל לפני עדכון status='sent' ב-DB, recovery עלול לשלוח שוב. ספקי Push סטנדרטיים אינם מספקים idempotency key כללי; לכן ההבטחה היא at-least-once עם חלון קטן לכפילות, ולא exactly-once.
