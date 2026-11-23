@@ -178,7 +178,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         throw new HttpError(503, 'push_not_configured');
       }
 
-      return withTenant(req.tenantId, async (db) => {
+      const consentResult = await withTenant(req.tenantId, async (db) => {
         const customerSettings = (await db.query(
           "SELECT customer_enabled FROM public.push_settings WHERE tenant_id = app.current_tenant_id()",
         )).rows[0];
@@ -193,7 +193,9 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription,
         );
         if (capability.opted_in_at) {
-          if (capability.subscription_id === subscriptionId) return { ok: true, already_enabled: true };
+          if (capability.subscription_id === subscriptionId) {
+            return { ok: true, already_enabled: true, target_type: capability.target_type, target_id: capability.target_id };
+          }
           throw new HttpError(409, 'push_consent_already_used');
         }
         await db.query(
@@ -205,8 +207,21 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           "UPDATE public.push_booking_capabilities SET opted_in_at = now(), subscription_id = $1 WHERE id = $2",
           [subscriptionId, capability.id],
         );
-        return { ok: true, already_enabled: false };
+        return { ok: true, already_enabled: false, target_type: capability.target_type, target_id: capability.target_id };
       });
+
+      if (consentResult.target_type === 'appointment') {
+        const pendingEvents = await withTenant(req.tenantId, async (db) => (await db.query(
+          "SELECT id FROM public.push_outbox WHERE tenant_id = app.current_tenant_id() " +
+          "AND audience = 'customer' AND event_type = 'customer.waitlist_scheduled' " +
+          "AND target_type = 'appointment' AND target_id = $1 AND status = 'pending' ORDER BY created_at",
+          [consentResult.target_id],
+        )).rows.map((row) => row.id as string));
+        for (const eventId of pendingEvents) {
+          await dispatchPushEventAfterCommit(req.tenantId, eventId, req.log);
+        }
+      }
+      return { ok: true, already_enabled: consentResult.already_enabled };
     });
 
     // Business config + first catalog page + gallery in one round trip.
