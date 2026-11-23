@@ -21,9 +21,33 @@ function databaseUrl(name: string): string {
   const url = new URL(registryUrl!); url.pathname = '/' + name; return url.toString();
 }
 function expectedDatabaseName(id: string): string { return 'biz_' + id.replace(/-/g, '').slice(0, 24); }
-async function connect(url: string): Promise<pg.Client> {
-  const client = new pg.Client({ connectionString: url, ssl, connectionTimeoutMillis: 5000 });
-  await client.connect(); return client;
+const TRANSIENT_DB_CODES = new Set([
+  'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENETUNREACH', 'EAI_AGAIN',
+  '57P03', '08001', '08006',
+]);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function connectWithRetry(url: string, label: string): Promise<pg.Client> {
+  const maxAttempts = 12;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const client = new pg.Client({ connectionString: url, ssl, connectionTimeoutMillis: 5000 });
+    try {
+      await client.connect();
+      if (attempt > 1) console.log('Connected to ' + label + ' after ' + attempt + ' attempts.');
+      return client;
+    } catch (error) {
+      await client.end().catch(() => {});
+      const code = (error as { code?: string }).code;
+      if (!code || !TRANSIENT_DB_CODES.has(code) || attempt === maxAttempts) {
+        console.error('Database connection failed for ' + label + ' (attempt ' + attempt + '/' + maxAttempts + '; code ' + (code ?? 'unknown') + ').');
+        throw error;
+      }
+      const delayMs = Math.min(1000 * attempt, 5000);
+      console.warn('Database connection not ready for ' + label + ' (attempt ' + attempt + '/' + maxAttempts + '; code ' + code + '); retrying in ' + delayMs + 'ms.');
+      await sleep(delayMs);
+    }
+  }
+  throw new Error('PostgreSQL connection did not become available for ' + label + '.');
 }
 function getDays(row: PolicyRow | undefined): number | null {
   if (!row) throw new Error('Retention policy is incomplete; refusing cleanup.');
@@ -59,10 +83,18 @@ async function main() {
   }
 
   const apply = process.argv.includes('--apply');
-  const registry = await connect(registryUrl!);
+  const registry = await connectWithRetry(registryUrl!, 'tenant registry');
+  const tenantConnections = new Map<string, pg.Client>();
+  let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0, appointmentsToUnlink = 0;
   try {
+    const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
+    if (!lock.rows[0]?.locked) {
+      console.log('CRM cleanup skipped: another cleanup run already holds the lock.');
+      return;
+    }
+    lockAcquired = true;
     const tenantResult = await registry.query(
       'SELECT td.tenant_id, td.database_name, app.get_tenant_plan_code(td.tenant_id) AS plan_code FROM app.tenant_databases td ORDER BY td.tenant_id',
     );
@@ -79,7 +111,8 @@ async function main() {
     for (const tenant of tenants) {
       if (tenant.database_name !== expectedDatabaseName(tenant.tenant_id)) throw new Error('Unexpected tenant database mapping; refusing cleanup.');
       if (tenant.plan_code !== 'standard' && tenant.plan_code !== 'plus') throw new Error('Unsupported tenant plan; refusing cleanup.');
-      const db = await connect(databaseUrl(tenant.database_name));
+      const db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
+      tenantConnections.set(tenant.database_name, db);
       try {
         const check = await db.query(
           "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
@@ -93,16 +126,19 @@ async function main() {
         const c = check.rows[0];
         if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
             !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
-          throw new Error('Required configurable-retention migrations are incomplete for ' + tenant.database_name + '; no tenant rows were deleted.');
+          throw new Error('Required configurable-retention migrations are incomplete.');
         }
-      } finally { await db.end(); }
+      } catch (error) {
+        throw new Error('CRM cleanup preflight failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+      }
     }
     console.log('Retention cleanup preflight passed for ' + tenants.length + ' tenant database(s).');
 
     for (const tenant of tenants) {
       const p = policies.get(tenant.plan_code);
       if (!p) throw new Error('No retention policy for tenant plan; refusing cleanup.');
-      const db = await connect(databaseUrl(tenant.database_name));
+      const db = tenantConnections.get(tenant.database_name);
+      if (!db) throw new Error('CRM cleanup connection missing after successful preflight for ' + tenant.database_name + '.');
       try {
         await db.query('BEGIN');
         await db.query("SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)", [tenant.tenant_id]);
@@ -164,15 +200,21 @@ async function main() {
           unlink + ' appointment(s) will be detached from expired CRM leads.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
-        throw new Error('Retention cleanup failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
-      } finally { await db.end(); }
+        throw new Error('CRM cleanup deletion failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+      }
     }
     console.log('Retention cleanup complete. Mode: ' + (apply ? 'APPLY' : 'DRY_RUN') +
       '; tenants: ' + tenants.length + '; leads deleted/found: ' + leadsDeleted + '/' + leadsFound +
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
       '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
       '; appointments to unlink: ' + appointmentsToUnlink + '.');
-  } finally { await registry.end(); }
+  } finally {
+    await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
+    if (lockAcquired) {
+      await registry.query('SELECT pg_advisory_unlock($1, $2)', [74122, 93002]).catch(() => {});
+    }
+    await registry.end();
+  }
 }
 
 main().catch((error) => {
