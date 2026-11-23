@@ -137,6 +137,18 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         throw new HttpError(409, 'waitlist_has_scheduled_appointment', 'יש לעדכן או לבטל את התור ביומן לפני פתיחת הבקשה מחדש.');
       }
       let pushEventId: string | null = null;
+      if (!current.appointment_id && input.status !== 'waiting') {
+        await db.query(
+          "UPDATE public.push_booking_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
+          "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
+          [id],
+        );
+        await db.query(
+          "UPDATE public.push_consents SET revoked_at = COALESCE(revoked_at, now()) " +
+          "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
+          [id],
+        );
+      }
       if (current.appointment_id && input.status === 'rejected') {
         const cancelled = await db.query(
           "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status = 'reserved' RETURNING id",
@@ -299,6 +311,16 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/waitlist/:id', async (req, reply) => {
     const id = idFrom(req);
     return withTenant(req.tenantId, async (db) => {
+      await db.query(
+        "UPDATE public.push_booking_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
+        "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
+        [id],
+      );
+      await db.query(
+        "UPDATE public.push_consents SET revoked_at = COALESCE(revoked_at, now()) " +
+        "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
+        [id],
+      );
       const result = await db.query('DELETE FROM waitlist_entries WHERE id = $1 RETURNING id', [id]);
       if (!result.rowCount) throw new HttpError(404, 'not_found');
       return reply.code(204).send();
