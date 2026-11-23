@@ -187,11 +187,6 @@ export function derivePushCapabilityToken(
   return createHmac('sha256', Buffer.from(keyHex, 'hex')).update(input, 'utf8').digest('base64url');
 }
 
-export function createPushCapability(): { token: string; tokenHash: Buffer } {
-  const token = randomBytes(32).toString('base64url');
-  return { token, tokenHash: hashPushCapability(token) };
-}
-
 export class PushDeliveryError extends Error {
   constructor(
     message: string,
