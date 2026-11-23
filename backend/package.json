@@ -12,6 +12,7 @@
     "test": "tsx --test tests/*.test.ts",
     "migrate-tenant-schemas:deploy": "tsx scripts/migrate-tenant-schemas.ts --apply",
     "cleanup-expired-crm": "tsx scripts/cleanup-expired-crm.ts",
+    "process-push-outbox": "tsx scripts/process-push-outbox.ts",
     "sync-google-calendar": "tsx scripts/sync-google-calendar.ts",
     "test:platform-integration": "tsx --test integration-tests/platformAuth.integration.ts",
     "migrate-platform-registry": "tsx --env-file=.env scripts/migrate-platform-registry.ts",
