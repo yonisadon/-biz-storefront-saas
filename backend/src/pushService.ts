@@ -173,6 +173,22 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       await db.query("UPDATE public.push_outbox SET status = 'done', locked_until = NULL, processed_at = now(), last_error = 'audience_disabled' WHERE id = $1", [eventId]);
       return null;
     }
+    await db.query(
+      "UPDATE public.push_deliveries d SET status = 'invalid', locked_until = NULL, last_error = 'subscription_disabled' " +
+      "FROM public.push_subscriptions s WHERE d.tenant_id = app.current_tenant_id() AND d.outbox_id = $1 " +
+      "AND d.subscription_id = s.id AND s.disabled_at IS NOT NULL AND d.status IN ('pending', 'processing')",
+      [eventId],
+    );
+    if (event.audience === 'customer') {
+      await db.query(
+        "UPDATE public.push_deliveries d SET status = 'invalid', locked_until = NULL, last_error = 'consent_revoked' " +
+        "FROM public.push_subscriptions s WHERE d.tenant_id = app.current_tenant_id() AND d.outbox_id = $1 " +
+        "AND d.subscription_id = s.id AND d.status IN ('pending', 'processing') AND NOT EXISTS (" +
+        "SELECT 1 FROM public.push_consents c WHERE c.tenant_id = d.tenant_id AND c.subscription_id = d.subscription_id " +
+        "AND c.target_type = $2 AND c.target_id = $3 AND c.revoked_at IS NULL)",
+        [eventId, event.target_type, event.target_id],
+      );
+    }
     const subscriptions = event.audience === 'seller'
       ? (await db.query(
           "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
