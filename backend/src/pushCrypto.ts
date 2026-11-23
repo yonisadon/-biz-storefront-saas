@@ -174,6 +174,19 @@ export function hashPushCapability(token: string): Buffer {
   return createHash('sha256').update(token, 'utf8').digest();
 }
 
+export function derivePushCapabilityToken(
+  tenantId: string,
+  targetType: string,
+  targetId: string,
+  capabilityId: string,
+  expiresAt: Date,
+  keyHex: string,
+): string {
+  if (!/^[a-f0-9]{64}$/i.test(keyHex)) throw new Error('PUSH_CAPABILITY_HMAC_KEY must be 32-byte hex.');
+  const input = [tenantId, targetType, targetId, capabilityId, expiresAt.toISOString()].join('\n');
+  return createHmac('sha256', Buffer.from(keyHex, 'hex')).update(input, 'utf8').digest('base64url');
+}
+
 export function createPushCapability(): { token: string; tokenHash: Buffer } {
   const token = randomBytes(32).toString('base64url');
   return { token, tokenHash: hashPushCapability(token) };
