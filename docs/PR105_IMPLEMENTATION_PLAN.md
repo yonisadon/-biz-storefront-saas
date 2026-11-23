@@ -199,6 +199,7 @@
 3. אין fire-and-forget לא ממתין מתוך בקשת Serverless.
 4. pushService.ts טוען entitlement והעדפות, יוצר deliveries ייחודיים, נועל event/delivery באמצעות leases, ושולח עד 10 deliveries בכל מעבר.
 5. sendWebPush משתמש ב-timeout של 8 שניות. כשלי ספק זמניים (network/408/429/5xx) מקבלים עד 8 ניסיונות עם backoff עד 6 שעות; 404/410 מנטרלים subscription.
+- הודעה שהתקבלה אצל ספק Push מקבלת TTL של 24 שעות. deliveries של subscription שנוטרל או consent שבוטל מסומנות invalid כדי שלא יישארו אירועים pending ללא סוף.
 6. recovery command: npm run process-push-outbox. הוא עובר על tenants, מחזיק Registry advisory lock כדי למנוע ריצות Cron מקבילות, ומעבד pending/expired leases. התכנון הוא Cron חיצוני כל 30 דקות.
 7. אם אין recipients, האירוע נסגר ללא שליחה. אם אין הגדרת VAPID אך קיימים recipients, האירוע נשאר pending עד ניסיון recovery נוסף.
 8. אם DB אינו זמין ולא ניתן לבצע COMMIT, אין להחזיר הצלחה לפעולה העסקית.
@@ -212,6 +213,7 @@
 - Environment נדרש ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY ו-PUSH_CAPABILITY_HMAC_KEY.
 - יצירת מפתחות מקומית: npm run generate-web-push-keys. אין לשמור מפתחות ב-repository.
 - ה-Service Worker ב-web/public/sw.js מציג notification ומגביל notificationclick לכתובת באותו origin; מדיניות cache/offline הקיימת לא שונתה.
+- מסך הגדרות המוכר יכול להסיר מכשיר מקהל המוכר בלי לבטל את PushSubscription של הדפדפן, כדי לא לפגוע בהסכמות לקוח נפרדות באותו דפדפן.
 - אין עדיין הגדרת VAPID secrets ב-Railway, אין בדיקת ספק/מכשיר אמיתית, וה-Cron החיצוני לא אומת. אין לטעון שהערוץ פעיל ב-production.
 
 ## 7. Cold start — Push API ו-Recovery
