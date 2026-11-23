@@ -151,7 +151,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         [req.tenantId],
       );
       const configured = Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
-        env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY);
+        env.WEB_PUSH_VAPID_SUBJECT && env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY && env.PUSH_CAPABILITY_HMAC_KEY);
       const enabled = entitlement.rows[0]?.enabled === true && configured;
       return { enabled, public_key: enabled ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null };
     });
@@ -171,7 +171,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       );
       if (entitlement.rows[0]?.enabled !== true) throw new HttpError(403, 'push_not_available');
       if (!env.WEB_PUSH_VAPID_PUBLIC_KEY || !env.WEB_PUSH_VAPID_PRIVATE_KEY ||
-          !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY) {
+          !env.WEB_PUSH_VAPID_SUBJECT || !env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY || !env.PUSH_CAPABILITY_HMAC_KEY) {
         throw new HttpError(503, 'push_not_configured');
       }
 
