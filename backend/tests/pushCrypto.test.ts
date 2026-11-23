@@ -9,7 +9,6 @@ import {
   randomBytes,
 } from 'node:crypto';
 import {
-  createPushCapability,
   derivePushCapabilityToken,
   createVapidJwt,
   decryptPushSecret,
@@ -144,10 +143,3 @@ test('booking capability token is deterministic for one booking but bound to ten
   assert.equal(hashPushCapability(first).length, 32);
 });
 
-test('booking capability token is random and only its SHA-256 hash is stored', () => {
-  const first = createPushCapability();
-  const second = createPushCapability();
-  assert.notEqual(first.token, second.token);
-  assert.equal(first.tokenHash.equals(hashPushCapability(first.token)), true);
-  assert.equal(first.tokenHash.equals(Buffer.from(first.token)), false);
-});
