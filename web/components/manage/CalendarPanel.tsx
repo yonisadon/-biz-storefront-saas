@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mcall } from '@/lib/manageApi';
+import CalendarTimeline from '@/components/manage/CalendarTimeline';
 import type { ManageBusiness, MProduct, MProductsResponse } from '@/lib/types';
 
 type Appointment = {
@@ -54,6 +55,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   const [allDayBlock, setAllDayBlock] = useState(false);
   const [editingTimes, setEditingTimes] = useState<Record<string, string>>({});
   const [editingServices, setEditingServices] = useState<Record<string, string>>({});
+  const [activeAppointmentId, setActiveAppointmentId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +113,10 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     const count = viewMode === 'week' ? 7 : 42;
     return Array.from({ length: count }, (_, index) => { const d = new Date(from); d.setUTCDate(d.getUTCDate() + index); return d.toISOString().slice(0, 10); });
   }, [viewMode, range.from]);
+  const timelineDates = useMemo(
+    () => viewMode === 'day' ? [date] : viewMode === 'week' ? visibleDates : [],
+    [viewMode, date, visibleDates],
+  );
   const ranges = useMemo(() => {
     const days = biz.config?.opening_hours?.days;
     if (!days || typeof days !== 'object') return [];
@@ -219,6 +225,21 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       </div>
     </div>
     {viewMode !== 'day' && <div className="rounded-2xl border border-gray-200 bg-white p-3"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500">{['ב׳','ג׳','ד׳','ה׳','ו׳','ש׳','א׳'].map((x) => <span key={x}>{x}</span>)}</div><div className="grid grid-cols-7 gap-1">{visibleDates.map((day) => { const events = (calendar?.appointments ?? []).filter((a) => a.start_at.slice(0,10) === day && a.status === 'reserved'); return <button key={day} type="button" onClick={() => {setDate(day);setViewMode('day');}} aria-pressed={date === day} className={`min-h-16 rounded-xl border p-1 text-center ${date === day ? 'border-gray-900 bg-primary text-primary-fg' : 'border-gray-100 bg-white'}`}><span className="text-sm font-semibold">{Number(day.slice(8,10))}</span><span className={`mt-1 block text-[10px] ${date === day ? 'text-primary-fg/75' : 'text-gray-500'}`}>{events.length ? `${events.length} תורים` : '—'}</span>{events.slice(0,2).map((event) => <span key={event.id} className={`mt-1 block truncate rounded px-1 text-[9px] ${date === day ? 'bg-white/15' : 'bg-blue-50 text-blue-800'}`}>{localLabel(event.start_at)} {event.service_name}</span>)}</button>;})}</div></div>}
+    {timelineDates.length > 0 && (
+      <CalendarTimeline
+        mode={viewMode === 'week' ? 'week' : 'day'}
+        dates={timelineDates}
+        selectedDate={date}
+        appointments={calendar?.appointments ?? []}
+        blocks={calendar?.blocks ?? []}
+        openingDays={biz.config?.opening_hours?.days as Record<string, unknown> | null}
+        onSelectDate={(day) => { setDate(day); setViewMode('day'); }}
+        onSelectAppointment={(id) => {
+          setActiveAppointmentId(id);
+          document.getElementById('appointment-details-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }}
+      />
+    )}
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {message && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</p>}
     <div className="grid gap-4 lg:grid-cols-2">
@@ -251,7 +272,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       <h3 className="font-bold">תורים לתאריך הנבחר</h3>
       {busy && !calendar && <p className="mt-3 text-sm text-gray-500">טוען…</p>}
       {!selectedAppointments.length && <p className="mt-3 text-sm text-gray-500">אין תורים משוריינים בתאריך זה.</p>}
-      <div className="mt-3 space-y-3">{selectedAppointments.map((item) => <div key={item.id} className="rounded-xl border border-gray-200 p-3">
+      <div className="mt-3 space-y-3">{selectedAppointments.map((item) => <div id={'appointment-details-' + item.id} key={item.id} className={'rounded-xl border p-3 ' + (activeAppointmentId === item.id ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200')}>
         <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{localLabel(item.start_at)}–{localLabel(item.end_at)} · {item.service_name}</p><p className="mt-1 text-sm text-gray-600" dir="ltr">{item.customer_phone} · {item.source === 'manual' ? 'תור ידני' : 'הגיע מהאתר'}</p><p className="mt-1 text-xs text-gray-500">{item.status === 'reserved' ? 'משוריין' : 'בוטל'}</p></div>
           <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void changeStatus(item, item.status === 'reserved' ? 'cancelled' : 'reserved')} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs">{item.status === 'reserved' ? 'ביטול ושחרור שעה' : 'החזרה ליומן'}</button><button type="button" disabled={busy} onClick={() => void deleteAppointment(item)} className="rounded-full border border-red-200 px-3 py-1.5 text-xs text-red-700">מחיקה</button></div>
         </div>
