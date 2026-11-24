@@ -259,7 +259,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         pushEventId = await enqueuePushEvent(db, req.tenantId, {
           audience: 'customer', eventType: 'customer.appointment_cancelled',
           targetType: 'appointment', targetId: id,
-          payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+          payload: { title: 'BTime', body: 'התור שלך בוטל', url: '/biz/' + business.slug },
         });
       }
       await db.query(
