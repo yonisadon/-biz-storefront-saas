@@ -81,6 +81,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
   const pushAttemptRef = useRef({ appointment: 0, waitlist: 0 });
+  const pushAbortRef = useRef<{ appointment: AbortController | null; waitlist: AbortController | null }>({ appointment: null, waitlist: null });
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistName, setWaitlistName] = useState('');
@@ -109,8 +110,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!appointmentPushState.busy && !waitlistPushState.busy) return;
       // A browser permission prompt or an external settings screen may suspend the page.
       // Invalidate the old attempt so a late promise cannot overwrite a fresh retry.
-      if (appointmentPushState.busy) pushAttemptRef.current.appointment += 1;
-      if (waitlistPushState.busy) pushAttemptRef.current.waitlist += 1;
+      if (appointmentPushState.busy) {
+        pushAttemptRef.current.appointment += 1;
+        pushAbortRef.current.appointment?.abort();
+        pushAbortRef.current.appointment = null;
+      }
+      if (waitlistPushState.busy) {
+        pushAttemptRef.current.waitlist += 1;
+        pushAbortRef.current.waitlist?.abort();
+        pushAbortRef.current.waitlist = null;
+      }
       setAppointmentPushState((current) => current.busy
         ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
         : current);
@@ -144,6 +153,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setTargetState({ busy: true, success: false, status: null });
     let timeoutId: number | undefined;
     const controller = new AbortController();
+    pushAbortRef.current[target] = controller;
     try {
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('push_not_supported');
@@ -204,6 +214,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       });
     } finally {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      if (pushAbortRef.current[target] === controller) pushAbortRef.current[target] = null;
       if (isCurrent()) setTargetState((current) => ({ ...current, busy: false }));
     }
   }
