@@ -43,7 +43,7 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
-function withPushTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
   let timer: number;
   const timeout = new Promise<T>((_, reject) => {
     timer = window.setTimeout(() => {
@@ -409,7 +409,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     try {
       const requestKey = idempotencyKey || crypto.randomUUID();
       if (!idempotencyKey) setIdempotencyKey(requestKey);
-      const res = await fetch(`${apiBase}/leads`, {
+      const submitController = new AbortController();
+      const res = await withTimeout(fetch(`${apiBase}/leads`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -420,7 +421,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
-      });
+        signal: submitController.signal,
+      }), 30000, () => submitController.abort());
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
@@ -451,7 +453,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
     setWaitlistBusy(true);
     try {
-      const response = await fetch(`${apiBase}/waitlist`, {
+      const waitlistController = new AbortController();
+      const response = await withTimeout(fetch(`${apiBase}/waitlist`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -463,7 +466,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           note: waitlistNote.trim(),
           company_website: '',
         }),
-      });
+        signal: waitlistController.signal,
+      }), 30000, () => waitlistController.abort());
       const data = await response.json().catch(() => null) as { error?: string; push_capability_token?: string } | null;
       if (!response.ok) {
         if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
