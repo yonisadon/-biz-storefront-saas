@@ -80,7 +80,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
           eventType: 'seller.waitlist_created',
           targetType: 'waitlist',
           targetId: entry.id,
-          payload: { title: 'בקשת המתנה חדשה', body: 'התקבלה בקשת הצטרפות לרשימת ההמתנה', url: '/account' },
+          payload: { title: 'BTime', body: 'לקוח הצטרף לרשימת המתנה', url: '/account' },
         });
         return { ...entry, push_capability_token: pushCapabilityToken, push_event_id: pushEventId };
       });
@@ -149,7 +149,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
             eventType: 'customer.appointment_cancelled',
             targetType: 'appointment',
             targetId: current.appointment_id,
-            payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+            payload: { title: 'BTime', body: 'יש עדכון לגבי רשימת ההמתנה שלך', url: '/biz/' + business.slug },
           });
         }
       }
@@ -276,7 +276,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           eventType: 'customer.waitlist_scheduled',
           targetType: 'appointment',
           targetId: appointment.id,
-          payload: { title: 'נמצא לך תור', body: 'העסק קבע תור בעקבות בקשת ההמתנה שלך', url: '/biz/' + business.slug },
+          payload: { title: 'BTime', body: 'יש עדכון לגבי רשימת ההמתנה שלך', url: '/biz/' + business.slug },
         });
         return { ...appointment, service_name: serviceNames.join(' + '), message: 'waitlist_scheduled', push_event_id: pushEventId };
       });
