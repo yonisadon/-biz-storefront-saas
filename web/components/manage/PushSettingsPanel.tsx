@@ -54,9 +54,9 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     }
     const currentPermission = Notification.permission;
     setPermission(currentPermission);
-    const registration = await navigator.serviceWorker.getRegistration('/');
+    const registration = await withPushTimeout(navigator.serviceWorker.getRegistration('/'), 10000);
     if (!isLatestRefresh()) return;
-    const subscription = await registration?.pushManager.getSubscription();
+    const subscription = await (registration ? withPushTimeout(registration.pushManager.getSubscription(), 10000) : Promise.resolve(null));
     if (!isLatestRefresh()) return;
     if (!subscription) {
       setDeviceSubscribed(false);
@@ -72,7 +72,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
 
   const load = useCallback(async () => {
     try {
-      const value = await mcall<Settings>(token, 'push/settings');
+      const value = await withPushTimeout(mcall<Settings>(token, 'push/settings'), 15000);
       setSettings(value);
       await refreshDeviceState();
     } catch {
@@ -110,10 +110,10 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     setSaving(true);
     setMessage('');
     try {
-      const value = await mcall<Partial<Settings>>(token, 'push/settings', {
+      const value = await withPushTimeout(mcall<Partial<Settings>>(token, 'push/settings', {
         method: 'PATCH',
         body: JSON.stringify({ [field]: enabled }),
-      });
+      }), 15000);
       const next = { ...settings, ...value };
       setSettings({
         ...next,
@@ -195,8 +195,8 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     deviceStateRefreshRef.current += 1;
     setMessage('');
     try {
-      const registration = await navigator.serviceWorker.getRegistration('/');
-      const subscription = await registration?.pushManager.getSubscription();
+      const registration = await withPushTimeout(navigator.serviceWorker.getRegistration('/'), 10000);
+      const subscription = await (registration ? withPushTimeout(registration.pushManager.getSubscription(), 10000) : Promise.resolve(null));
       if (subscription) {
         await withPushTimeout(mcall(token, 'push/subscriptions', {
           method: 'DELETE',
