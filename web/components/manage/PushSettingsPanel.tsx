@@ -210,15 +210,14 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     <section className="space-y-4 rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
       <div>
         <p className="text-xs font-bold tracking-wide text-primary">התראות Push</p>
-        <h2 className="mt-1 text-xl font-bold text-ink">שליטה בהתראות העסק</h2>
-        <p className="mt-2 text-sm leading-6 text-ink/65">אפשר להפעיל או לכבות בנפרד את ההתראות למוכר ואת ההתראות שנשלחות ללקוחות. סוגי ההתראות עצמם מוגדרים במערכת.</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">התראות העסק</h2>
       </div>
 
       {!settings.entitled && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">ערוץ Push אינו מאושר כרגע לעסק על ידי מנהל המערכת. ההעדפות הקיימות נשמרות, אך לא תישלחנה התראות.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">התראות Push אינן זמינות לעסק כרגע.</p>
       )}
       {settings.entitled && !settings.configured && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">הערוץ מאושר לעסק, אך שירות ההתראות עדיין לא הוגדר במערכת.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">שירות ההתראות עדיין לא הוגדר.</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -227,7 +226,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('seller_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות למוכר</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">הזמנה חדשה באתר ובקשת הצטרפות לרשימת המתנה. אפשר לבחור אם לקבל את ההתראות האלה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">תורים חדשים ובקשות הצטרפות לרשימת המתנה.</span>
           </span>
         </label>
         <label className="flex items-start gap-3 rounded-xl border border-ink/10 p-3">
@@ -235,7 +234,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('customer_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות ללקוחות</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">שיבוץ תור מרשימת המתנה, עדכון או ביטול תור — רק ללקוחות שנתנו הסכמה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">עדכונים ללקוחות שנתנו הסכמה.</span>
           </span>
         </label>
       </div>
