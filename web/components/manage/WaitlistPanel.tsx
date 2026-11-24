@@ -52,7 +52,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
       const result = await mcallWithTimeout<Response>(token, `waitlist${query}`);
       setEntries(result.entries);
     } catch {
-      setError('לא הצלחנו לטעון את רשימת ההמתנה. ודאו שמיגרציית רשימת ההמתנה הותקנה בשרת העסק.');
+      setError('לא הצלחנו לטעון את רשימת ההמתנה. נסו שוב.');
     } finally {
       setBusy(false);
     }
@@ -117,7 +117,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">רשימת המתנה</h2>
-          <p className="mt-1 text-sm text-gray-600">בקשות המתנה של לקוחות, בנפרד מפניות CRM ומיומן התורים. בקשה אינה שומרת מקום ביומן.</p>
+          <p className="mt-1 text-sm text-gray-600">בקשת המתנה אינה שומרת מקום ביומן.</p>
         </div>
         <div className="flex items-center gap-2">
           <label className="text-sm">סינון
