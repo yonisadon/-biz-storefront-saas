@@ -139,7 +139,14 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         const created = await mcallWithTimeout<MProduct>(token, 'products', { method: 'POST', body: JSON.stringify(payload) });
         id = created.id; setCurrent(created);
       }
-    } catch { setBusy(false); return setMsg('שמירת המוצר נכשלה.'); }
+    } catch (error) {
+      setBusy(false);
+      if (error instanceof Error && error.name === 'AbortError') {
+        onChanged();
+        return setMsg('הבקשה התעכבה. בדקו אם המוצר נשמר ברשימה לפני ניסיון נוסף.');
+      }
+      return setMsg('שמירת המוצר נכשלה.');
+    }
 
     // Defer removals until the product fields have saved successfully, so a failed PATCH
     // never leaves an image deleted while the form reports that saving failed.
