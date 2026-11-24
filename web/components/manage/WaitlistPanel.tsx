@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, mcall } from '@/lib/manageApi';
+import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
 
 type Status = 'waiting' | 'rejected' | 'closed' | 'scheduled_without_booking';
 type Entry = {
@@ -49,7 +49,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
     setError(null);
     try {
       const query = filter ? `?status=${filter}` : '';
-      const result = await mcall<Response>(token, `waitlist${query}`);
+      const result = await mcallWithTimeout<Response>(token, `waitlist${query}`);
       setEntries(result.entries);
     } catch {
       setError('לא הצלחנו לטעון את רשימת ההמתנה. ודאו שמיגרציית רשימת ההמתנה הותקנה בשרת העסק.');
@@ -63,7 +63,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
   async function updateStatus(entry: Entry, status: Status) {
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, `waitlist/${entry.id}`, {
+      await mcallWithTimeout(token, `waitlist/${entry.id}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
@@ -80,7 +80,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
     if (!start_at) { setError('יש לבחור תאריך ושעה לשיבוץ ביומן.'); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(
+      await mcallWithTimeout(
         token,
         'waitlist/' + entry.id + '/schedule',
         { method: 'POST', body: JSON.stringify({ start_at }) },
@@ -103,7 +103,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
     if (!confirm(`למחוק את בקשת ההמתנה של ${entry.customer_name || entry.customer_phone}? אם קיים תור ביומן, הוא יישאר ביומן ולא יבוטל.`)) return;
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, `waitlist/${entry.id}`, { method: 'DELETE' });
+      await mcallWithTimeout(token, `waitlist/${entry.id}`, { method: 'DELETE' });
       setMessage('בקשת ההמתנה נמחקה.');
       await load();
     } catch {
