@@ -55,10 +55,10 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       setDeviceSubscribed(false);
       return;
     }
-    const status = await mcall<{ active: boolean }>(token, 'push/subscriptions/status', {
+    const status = await withPushTimeout(mcall<{ active: boolean }>(token, 'push/subscriptions/status', {
       method: 'POST',
       body: JSON.stringify({ endpoint: subscription.endpoint }),
-    });
+    }), 10000);
     setDeviceSubscribed(currentPermission === 'granted' && status.active);
   }, [token]);
 
@@ -171,7 +171,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
           : reason === 'push_timeout'
             ? 'התהליך התעכב. אפשר לנסות שוב.'
           : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
-      await refreshDeviceState().catch(() => undefined);
+      void refreshDeviceState().catch(() => undefined);
     } finally {
       if (isCurrent()) {
         deviceOperationRef.current = false;
@@ -188,10 +188,10 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       const registration = await navigator.serviceWorker.getRegistration('/');
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
-        await mcall(token, 'push/subscriptions', {
+        await withPushTimeout(mcall(token, 'push/subscriptions', {
           method: 'DELETE',
           body: JSON.stringify({ endpoint: subscription.endpoint }),
-        });
+        }), 15000);
       }
       // Keep the browser subscription: customer consent may use this same endpoint.
       setDeviceSubscribed(false);
