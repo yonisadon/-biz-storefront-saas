@@ -80,7 +80,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' })
+    fetchWithTimeout('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' }, 10000)
       .then(async (response) => {
         const data = await response.json().catch(() => null);
         if (cancelled) return;
