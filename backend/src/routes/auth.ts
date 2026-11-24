@@ -201,17 +201,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const email = input.email.toLowerCase();
     const phone = normalizeInternationalPhone(input.phone);
     if (!phone) throw new HttpError(400, 'invalid_phone');
-    const db = registry();
-
+    const client = await connectRegistryClient();
+    let token: string;
     try {
+      await client.query('BEGIN');
       const role = 'owner';
-      const inserted = await db.query(
+      const inserted = await client.query(
         'INSERT INTO public.platform_users (email, phone, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
         [email, phone, passwordHash(input.password), role],
       );
       const userId = inserted.rows[0].id as string;
       const consentVersion = '2026-11-18-v1';
-      await db.query(
+      await client.query(
         `INSERT INTO public.platform_user_consents (user_id, consent_type, granted, consent_version, source)
          VALUES ($1, 'terms_of_use', true, $2, 'registration'),
                 ($1, 'privacy_policy', true, $2, 'registration'),
@@ -219,18 +220,29 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
                 ($1, 'marketing_sms', $4, $2, 'registration')`,
         [userId, consentVersion, input.marketingEmail, input.marketingSms],
       );
-      const token = await issueEmailToken(userId, 'verify_email');
-      const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
-      await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
-        `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
-        `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
-      return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
+      // Keep account creation, consent records and verification token atomic.
+      // Only connection acquisition/health check is retried; this transaction is not.
+      token = randomToken();
+      await client.query(
+        "INSERT INTO public.platform_email_tokens (user_id, token_hash, purpose, expires_at) VALUES ($1, $2, 'verify_email', now() + interval '24 hours')",
+        [userId, digest(token)],
+      );
+      await client.query('COMMIT');
     } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
       if ((error as { code?: string }).code === '23505') {
         return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
       }
       throw error;
+    } finally {
+      client.release();
     }
+
+    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+    await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
+      `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
+      `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
+    return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
   });
 
   app.post('/resend-verification', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
