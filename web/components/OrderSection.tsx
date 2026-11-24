@@ -80,7 +80,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
-  const pushAttemptRef = useRef(0);
+  const pushAttemptRef = useRef({ appointment: 0, waitlist: 0 });
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistName, setWaitlistName] = useState('');
@@ -109,7 +109,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!appointmentPushState.busy && !waitlistPushState.busy) return;
       // A browser permission prompt or an external settings screen may suspend the page.
       // Invalidate the old attempt so a late promise cannot overwrite a fresh retry.
-      pushAttemptRef.current += 1;
+      if (appointmentPushState.busy) pushAttemptRef.current.appointment += 1;
+      if (waitlistPushState.busy) pushAttemptRef.current.waitlist += 1;
       setAppointmentPushState((current) => current.busy
         ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
         : current);
@@ -137,8 +138,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     if (!pushPublicKey) return;
     const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
     if (currentState.busy || currentState.success) return;
-    const attempt = ++pushAttemptRef.current;
-    const isCurrent = () => pushAttemptRef.current === attempt;
+    const attempt = ++pushAttemptRef.current[target];
+    const isCurrent = () => pushAttemptRef.current[target] === attempt;
     const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
     setTargetState({ busy: true, success: false, status: null });
     let timeoutId: number | undefined;
