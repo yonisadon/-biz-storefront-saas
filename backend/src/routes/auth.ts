@@ -118,7 +118,6 @@ function clearSessionCookie(reply: FastifyReply): void {
 
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
   const token = randomToken();
-  const db = registry();
   const client = await connectRegistryClient();
   try {
     await client.query('BEGIN');

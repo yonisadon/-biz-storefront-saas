@@ -216,6 +216,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     } catch (error) {
       if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
+      const aborted = error instanceof DOMException && error.name === 'AbortError';
       setTargetState({
         busy: false,
         success: false,
@@ -231,7 +232,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   ? 'בקשת ההתראות הזו כבר קושרה למכשיר אחר.'
                   : code === 'push_not_configured'
                     ? 'שירות ההתראות עדיין לא הוגדר בעסק.'
-                    : code === 'AbortError' || code === 'push_timeout'
+                    : aborted || code === 'AbortError' || code === 'push_timeout'
                       ? 'התהליך התעכב. אפשר לנסות שוב.'
                       : code === 'push_service_worker_inactive'
                         ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
