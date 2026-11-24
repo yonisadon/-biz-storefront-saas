@@ -18,6 +18,16 @@ import GoogleCalendarPanel from './GoogleCalendarPanel';
 import PushSettingsPanel from './PushSettingsPanel';
 
 type Tab = 'leads' | 'calendar' | 'waitlist' | 'products' | 'gallery' | 'hours' | 'business' | 'design' | 'legal' | 'push';
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 const TABS: [Tab, string][] = [
   ['leads', 'פניות'], ['calendar', 'יומן תורים'], ['waitlist', 'רשימת המתנה'], ['products', 'מוצרים'], ['gallery', 'גלריה'], ['hours', 'שעות'], ['business', 'פרטי העסק'], ['design', 'עיצוב האתר'], ['legal', 'מסמכי האתר'], ['push', 'התראות'],
 ];
@@ -89,11 +99,11 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
   async function logout() {
     setLoggingOut(true);
     try {
-      await fetch('/api/auth/logout', {
+      await fetchWithTimeout('/api/auth/logout', {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-      });
+      }, 5000);
     } catch {
       // Continue to the login screen even if the network response is unavailable.
     }
@@ -111,11 +121,11 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
     setOnboardingError('');
     setOnboardingMessage('');
     try {
-      const response = await fetch(`/api/manage/${token}/onboarding/complete`, {
+      const response = await fetchWithTimeout(`/api/manage/${token}/onboarding/complete`, {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-      });
+      }, 15000);
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.completed_at) {
         throw new Error('לא הצלחנו לשמור את השלמת ההקמה. אפשר לנסות שוב.');
@@ -145,13 +155,13 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
     setClaimMessage('');
     setClaimError('');
     try {
-      const response = await fetch('/api/auth/claim-business', {
+      const response = await fetchWithTimeout('/api/auth/claim-business', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ token }),
         cache: 'no-store',
         credentials: 'same-origin',
-      });
+      }, 15000);
       const data = await response.json().catch(() => null);
       if (response.status === 401) {
         window.location.assign('/login?next=' + encodeURIComponent('/manage/' + token));
