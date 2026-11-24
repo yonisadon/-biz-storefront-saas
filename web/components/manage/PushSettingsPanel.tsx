@@ -86,16 +86,12 @@ export default function PushSettingsPanel({ token }: { token: string }) {
 
   useEffect(() => {
     const refreshAfterSettings = () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState !== 'visible' || deviceOperationRef.current) return;
+      // Do not invalidate an active permission/registration/subscription flow
+      // just because the browser or app became visible again.
       void refreshDeviceState().catch(() => {
         setMessage('לא הצלחנו לבדוק את הרשאת ההתראות. אפשר לנסות שוב.');
       });
-      if (deviceOperationRef.current) {
-        deviceAttemptRef.current += 1;
-        deviceOperationRef.current = false;
-        setSaving(false);
-        setMessage('חזרתם מהגדרות המכשיר. בדקו את ההרשאה ונסו שוב.');
-      }
     };
     document.addEventListener('visibilitychange', refreshAfterSettings);
     window.addEventListener('pageshow', refreshAfterSettings);
@@ -149,8 +145,13 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       if (!isCurrent()) return;
       if (granted !== 'granted') throw new Error('permission');
 
-      const registration = await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
+      await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
+      // register() can resolve while the worker is still installing. Wait for
+      // the active root-scope worker before using PushManager.
+      const registration = await withPushTimeout(navigator.serviceWorker.ready, 15000);
+      if (!isCurrent()) return;
+      if (!registration.active) throw new Error('service_worker_inactive');
       let subscription = await withPushTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
@@ -179,9 +180,11 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
         : reason === 'unsupported'
           ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
-          : reason === 'push_timeout'
-            ? 'התהליך התעכב. אפשר לנסות שוב.'
-          : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
+          : reason === 'service_worker_inactive'
+            ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+            : reason === 'push_timeout'
+              ? 'התהליך התעכב. אפשר לנסות שוב.'
+              : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
       void refreshDeviceState().catch(() => undefined);
     } finally {
       if (isCurrent()) {

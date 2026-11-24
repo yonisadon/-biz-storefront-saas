@@ -114,36 +114,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     return () => { cancelled = true; };
   }, [apiBase]);
 
-  useEffect(() => {
-    const refreshAfterSettings = () => {
-      if (document.visibilityState !== 'visible') return;
-      if (!appointmentPushState.busy && !waitlistPushState.busy) return;
-      // A browser permission prompt or an external settings screen may suspend the page.
-      // Invalidate the old attempt so a late promise cannot overwrite a fresh retry.
-      if (appointmentPushState.busy) {
-        pushAttemptRef.current.appointment += 1;
-        pushAbortRef.current.appointment?.abort();
-        pushAbortRef.current.appointment = null;
-      }
-      if (waitlistPushState.busy) {
-        pushAttemptRef.current.waitlist += 1;
-        pushAbortRef.current.waitlist?.abort();
-        pushAbortRef.current.waitlist = null;
-      }
-      setAppointmentPushState((current) => current.busy
-        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
-        : current);
-      setWaitlistPushState((current) => current.busy
-        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
-        : current);
-    };
-    document.addEventListener('visibilitychange', refreshAfterSettings);
-    window.addEventListener('pageshow', refreshAfterSettings);
-    return () => {
-      document.removeEventListener('visibilitychange', refreshAfterSettings);
-      window.removeEventListener('pageshow', refreshAfterSettings);
-    };
-  }, [appointmentPushState.busy, waitlistPushState.busy]);
+
 
   useEffect(() => {
     setAppointmentPushState({ busy: false, success: false, status: null });
@@ -162,6 +133,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
     setTargetState({ busy: true, success: false, status: null });
     let timeoutId: number | undefined;
+    let pushStage: 'permission' | 'service_worker' | 'subscription' | 'consent' = 'permission';
     const controller = new AbortController();
     pushAbortRef.current[target] = controller;
     try {
@@ -175,6 +147,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!isCurrent()) return;
       if (permission !== 'granted') throw new Error('push_permission_denied');
 
+      pushStage = 'service_worker';
       await withTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
       // register() may return while the worker is still installing. PushManager
@@ -182,6 +155,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const registration = await withTimeout(navigator.serviceWorker.ready, 15000);
       if (!isCurrent()) return;
       if (!registration.active) throw new Error('push_service_worker_inactive');
+      pushStage = 'subscription';
       let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
@@ -197,6 +171,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('push_subscription_invalid');
 
+      pushStage = 'consent';
       timeoutId = window.setTimeout(() => controller.abort(), 15000);
       const response = await fetch(`${apiBase}/push/consent`, {
         method: 'POST',
@@ -232,8 +207,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   ? 'בקשת ההתראות הזו כבר קושרה למכשיר אחר.'
                   : code === 'push_not_configured'
                     ? 'שירות ההתראות עדיין לא הוגדר בעסק.'
-                    : aborted || code === 'AbortError' || code === 'push_timeout'
-                      ? 'התהליך התעכב. אפשר לנסות שוב.'
+                    : code === 'push_timeout'
+                      ? pushStage === 'service_worker'
+                        ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+                        : pushStage === 'subscription'
+                          ? 'הדפדפן מתעכב ביצירת הרשמת ההתראות. אפשר לנסות שוב.'
+                          : pushStage === 'consent'
+                            ? 'שמירת ההסכמה בשרת התעכבה. אפשר לנסות שוב.'
+                            : 'בקשת ההרשאה לא הושלמה. אפשר לנסות שוב.'
+                      : aborted || code === 'AbortError'
+                        ? 'שמירת ההסכמה בשרת התעכבה. אפשר לנסות שוב.'
                       : code === 'push_service_worker_inactive'
                         ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
                         : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
