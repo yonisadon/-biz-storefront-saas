@@ -39,8 +39,16 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     setPermission(Notification.permission);
     const registration = await navigator.serviceWorker.getRegistration('/');
     const subscription = await registration?.pushManager.getSubscription();
-    setDeviceSubscribed(Boolean(subscription));
-  }, []);
+    if (!subscription) {
+      setDeviceSubscribed(false);
+      return;
+    }
+    const status = await mcall<{ active: boolean }>(token, 'push/subscriptions/status', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    });
+    setDeviceSubscribed(status.active);
+  }, [token]);
 
   const load = useCallback(async () => {
     try {
@@ -164,16 +172,14 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       const registration = await navigator.serviceWorker.getRegistration('/');
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
-        const endpoint = subscription.endpoint;
         await mcall(token, 'push/subscriptions', {
           method: 'DELETE',
-          body: JSON.stringify({ endpoint }),
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
-        await subscription.unsubscribe();
       }
+      // Keep the browser subscription: customer consent may use this same endpoint.
       setDeviceSubscribed(false);
-      await refreshDeviceState();
-      setMessage('ההתראות למוכר כובו במכשיר הזה. הרשאת הדפדפן נשארת זמינה להתראות לקוחות שאושרו בנפרד.');
+      setMessage('התראות למוכר כובו במכשיר הזה. הרשמת הדפדפן נשארת זמינה ללקוחות שאישרו בנפרד.');
     } catch {
       setMessage('לא הצלחנו להסיר את המכשיר. אפשר לנסות שוב.');
     } finally {
