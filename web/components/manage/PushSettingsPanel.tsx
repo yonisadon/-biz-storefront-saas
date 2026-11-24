@@ -110,10 +110,12 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     setSaving(true);
     setMessage('');
     try {
+      const controller = new AbortController();
       const value = await withPushTimeout(mcall<Partial<Settings>>(token, 'push/settings', {
         method: 'PATCH',
         body: JSON.stringify({ [field]: enabled }),
-      }), 15000);
+        signal: controller.signal,
+      }), 15000, () => controller.abort());
       const next = { ...settings, ...value };
       setSettings({
         ...next,
