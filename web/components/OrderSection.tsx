@@ -114,24 +114,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     return () => { cancelled = true; };
   }, [apiBase]);
 
-  useEffect(() => {
-    const refreshAfterSettings = () => {
-      if (document.visibilityState !== 'visible') return;
-      // Returning from a browser permission prompt or another app does not mean
-      // the in-flight Push operation failed. Let requestPermission()/subscribe()
-      // finish; refreshing or invalidating it here can prevent consent from
-      // ever reaching the backend.
-      if (appointmentPushState.busy || waitlistPushState.busy) return;
-      void navigator.serviceWorker?.getRegistration('/')
-        .catch(() => undefined);
-    };
-    document.addEventListener('visibilitychange', refreshAfterSettings);
-    window.addEventListener('pageshow', refreshAfterSettings);
-    return () => {
-      document.removeEventListener('visibilitychange', refreshAfterSettings);
-      window.removeEventListener('pageshow', refreshAfterSettings);
-    };
-  }, [appointmentPushState.busy, waitlistPushState.busy]);
+
 
   useEffect(() => {
     setAppointmentPushState({ busy: false, success: false, status: null });
