@@ -134,7 +134,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
       setOnboardingVisible(false);
       setOnboardingMessage('ההדרכה הסתיימה. אפשר להמשיך לעדכן את פרטי העסק בכל עת.');
     } catch (error) {
-      setOnboardingError(error instanceof Error ? error.message : 'שמירת ההתקדמות נכשלה.');
+      setOnboardingError(error instanceof Error && error.name !== 'AbortError' ? error.message : 'הבקשה התעכבה. אפשר לנסות שוב.');
     } finally {
       setOnboardingSaving(false);
     }
@@ -181,7 +181,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
       setClaimMessage(data?.already_claimed ? 'העסק כבר מחובר לחשבון שלך.' : 'העסק חובר לחשבון שלך. הקישור הקבוע נשאר ללא שינוי.');
       window.location.reload();
     } catch (error) {
-      setClaimError(error instanceof Error ? error.message : 'חיבור העסק נכשל.');
+      setClaimError(error instanceof Error && error.name !== 'AbortError' ? error.message : 'הבקשה התעכבה. אפשר לנסות שוב.');
     } finally {
       setClaiming(false);
     }
