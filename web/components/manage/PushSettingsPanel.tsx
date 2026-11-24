@@ -36,7 +36,8 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       setDeviceSubscribed(false);
       return;
     }
-    setPermission(Notification.permission);
+    const currentPermission = Notification.permission;
+    setPermission(currentPermission);
     const registration = await navigator.serviceWorker.getRegistration('/');
     const subscription = await registration?.pushManager.getSubscription();
     if (!subscription) {
@@ -47,7 +48,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       method: 'POST',
       body: JSON.stringify({ endpoint: subscription.endpoint }),
     });
-    setDeviceSubscribed(status.active);
+    setDeviceSubscribed(currentPermission === 'granted' && status.active);
   }, [token]);
 
   const load = useCallback(async () => {
