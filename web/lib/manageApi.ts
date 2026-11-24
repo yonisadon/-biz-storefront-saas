@@ -64,7 +64,7 @@ export function uploadErrorText(err: unknown): string {
       case 429: return 'יותר מדי העלאות. נסו שוב בעוד דקה.';
     }
   }
-  if (err instanceof Error && err.name === 'AbortError') return 'ההעלאה התעכבה. בדקו את החיבור ונסו שוב.';
+  if (err instanceof Error && err.name === 'AbortError') return 'ההעלאה התעכבה. בדקו אם התמונה נוספה לפני ניסיון נוסף.';
   if (err instanceof Error && err.message === 'type') return 'סוג הקובץ אינו נתמך. אפשר להעלות JPG, PNG או WebP.';
   if (err instanceof Error && err.message === 'size') return 'הקובץ גדול מדי (מעל 10MB).';
   return 'ההעלאה נכשלה. נסו שוב.';
