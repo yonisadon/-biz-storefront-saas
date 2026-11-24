@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { DAYS } from '@/lib/labels';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
 type Range = { open: string; close: string };
@@ -49,7 +49,7 @@ export default function HoursPanel({ token, biz, onSaved }: {
     if (problem) return setMsg({ ok: false, text: problem });
     setBusy(true); setMsg(null);
     try {
-      const saved = await mcall<Partial<ManageBusiness> & { warnings?: { future_reserved_appointments: number } }>(token, 'business', {
+      const saved = await mcallWithTimeout<Partial<ManageBusiness> & { warnings?: { future_reserved_appointments: number } }>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({
           // Replaces the whole opening_hours section, so send days AND banner together
