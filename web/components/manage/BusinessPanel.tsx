@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toLocalPhone } from '@/lib/format';
-import { ApiError, mcall } from '@/lib/manageApi';
+import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
 function initialWhatsAppIntro(flow: Record<string, unknown>): string {
@@ -64,9 +64,9 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     setSaving(true);
     try {
       // Read the latest config before saving so settings changed in another panel (e.g. hero image) are preserved.
-      const latest = await mcall<ManageBusiness>(token, 'business');
+      const latest = await mcallWithTimeout<ManageBusiness>(token, 'business');
       const latestFlow = latest.config.order_flow ?? flow;
-      const saved = await mcall<Partial<ManageBusiness>>(token, 'business', {
+      const saved = await mcallWithTimeout<Partial<ManageBusiness>>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({
           name: f.name.trim(),

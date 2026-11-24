@@ -167,7 +167,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
               pushEventId = await enqueuePushEvent(db, req.tenantId, {
                 audience: 'customer', eventType: 'customer.appointment_cancelled',
                 targetType: 'appointment', targetId: id,
-                payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+                payload: { title: 'BTime', body: 'התור שלך בוטל', url: '/biz/' + business.slug },
               });
             }
           }
@@ -225,8 +225,8 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
               targetType: 'appointment',
               targetId: id,
               payload: {
-                title: status === 'cancelled' && current.status !== 'cancelled' ? 'עדכון לגבי התור' : 'התור שלך עודכן',
-                body: status === 'cancelled' && current.status !== 'cancelled' ? 'העסק עדכן את מצב התור שלך' : 'העסק עדכן את פרטי התור שלך',
+                title: 'BTime',
+                body: status === 'cancelled' && current.status !== 'cancelled' ? 'התור שלך בוטל' : 'התור שלך עודכן',
                 url: '/biz/' + business.slug,
               },
             });
@@ -259,7 +259,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         pushEventId = await enqueuePushEvent(db, req.tenantId, {
           audience: 'customer', eventType: 'customer.appointment_cancelled',
           targetType: 'appointment', targetId: id,
-          payload: { title: 'עדכון לגבי התור', body: 'העסק עדכן את מצב התור שלך', url: '/biz/' + business.slug },
+          payload: { title: 'BTime', body: 'התור שלך בוטל', url: '/biz/' + business.slug },
         });
       }
       await db.query(

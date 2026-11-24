@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 import { LEGAL_DEFAULTS, LEGAL_LAST_UPDATED } from '@/lib/legalDefaults';
 import type { ManageBusiness } from '@/lib/types';
 
@@ -48,11 +48,11 @@ export default function LegalPanel({ token, biz, onSaved }: {
   async function save() {
     setSaving(true); setMessage(null);
     try {
-      const latest = await mcall<ManageBusiness>(token, 'business');
+      const latest = await mcallWithTimeout<ManageBusiness>(token, 'business');
       const legal = Object.fromEntries(DOCS.map(({ key }) => [
         key, { custom_text: values[key].trim() || '' },
       ]));
-      const saved = await mcall<Partial<ManageBusiness>>(token, 'business', {
+      const saved = await mcallWithTimeout<Partial<ManageBusiness>>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({ config: { legal } }),
       });

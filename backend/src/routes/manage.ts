@@ -110,6 +110,19 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  app.post('/push/subscriptions/status', async (req) => {
+    const input = z.object({ endpoint: z.string().url().max(2048) }).strict().parse(req.body);
+    if (!isSupportedPushEndpoint(input.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+    return withTenant(req.tenantId, async (db) => {
+      const result = await db.query(
+        "SELECT EXISTS (SELECT 1 FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() " +
+        "AND audience = 'seller' AND endpoint_hash = $1 AND disabled_at IS NULL) AS active",
+        [hashPushCapability(input.endpoint)],
+      );
+      return { active: result.rows[0]?.active === true };
+    });
+  });
+
   app.delete('/push/subscriptions', async (req) => {
     const input = z.object({ endpoint: z.string().url().max(2048) }).strict().parse(req.body);
     if (!isSupportedPushEndpoint(input.endpoint)) throw new HttpError(400, 'invalid_push_subscription');

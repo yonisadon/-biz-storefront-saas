@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { mcall } from '@/lib/manageApi';
 
 type Settings = {
@@ -20,39 +20,102 @@ function applicationServerKey(value: string): ArrayBuffer {
   return bytes.buffer as ArrayBuffer;
 }
 
+function withPushTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
+  let timer: number;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('push_timeout'));
+    }, milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
 export default function PushSettingsPanel({ token }: { token: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [deviceSubscribed, setDeviceSubscribed] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const deviceOperationRef = useRef(false);
+  const deviceAttemptRef = useRef(0);
+  const deviceStateRefreshRef = useRef(0);
+
+  const refreshDeviceState = useCallback(async () => {
+    const refreshId = ++deviceStateRefreshRef.current;
+    const isLatestRefresh = () => deviceStateRefreshRef.current === refreshId;
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      if (isLatestRefresh()) {
+        setPermission('unsupported');
+        setDeviceSubscribed(false);
+      }
+      return;
+    }
+    const currentPermission = Notification.permission;
+    setPermission(currentPermission);
+    const registration = await withPushTimeout(navigator.serviceWorker.getRegistration('/'), 10000);
+    if (!isLatestRefresh()) return;
+    const subscription = await (registration ? withPushTimeout(registration.pushManager.getSubscription(), 10000) : Promise.resolve(null));
+    if (!isLatestRefresh()) return;
+    if (!subscription) {
+      setDeviceSubscribed(false);
+      return;
+    }
+    const status = await withPushTimeout(mcall<{ active: boolean }>(token, 'push/subscriptions/status', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    }), 10000);
+    if (!isLatestRefresh()) return;
+    setDeviceSubscribed(status.active);
+  }, [token]);
 
   const load = useCallback(async () => {
     try {
-      const value = await mcall<Settings>(token, 'push/settings');
+      const value = await withPushTimeout(mcall<Settings>(token, 'push/settings'), 15000);
       setSettings(value);
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.getRegistration('/');
-        setDeviceSubscribed(Boolean(await registration?.pushManager.getSubscription()));
-      }
+      await refreshDeviceState();
     } catch {
       setMessage('לא הצלחנו לטעון את הגדרות ההתראות.');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, refreshDeviceState]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    const refreshAfterSettings = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshDeviceState().catch(() => {
+        setMessage('לא הצלחנו לבדוק את הרשאת ההתראות. אפשר לנסות שוב.');
+      });
+      if (deviceOperationRef.current) {
+        deviceAttemptRef.current += 1;
+        deviceOperationRef.current = false;
+        setSaving(false);
+        setMessage('חזרתם מהגדרות המכשיר. בדקו את ההרשאה ונסו שוב.');
+      }
+    };
+    document.addEventListener('visibilitychange', refreshAfterSettings);
+    window.addEventListener('pageshow', refreshAfterSettings);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshAfterSettings);
+      window.removeEventListener('pageshow', refreshAfterSettings);
+    };
+  }, [refreshDeviceState]);
 
   async function updatePreference(field: 'seller_enabled' | 'customer_enabled', enabled: boolean) {
     if (!settings || saving) return;
     setSaving(true);
     setMessage('');
     try {
-      const value = await mcall<Partial<Settings>>(token, 'push/settings', {
+      const controller = new AbortController();
+      const value = await withPushTimeout(mcall<Partial<Settings>>(token, 'push/settings', {
         method: 'PATCH',
         body: JSON.stringify({ [field]: enabled }),
-      });
+        signal: controller.signal,
+      }), 15000, () => controller.abort());
       const next = { ...settings, ...value };
       setSettings({
         ...next,
@@ -68,60 +131,83 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   }
 
   async function enableThisDevice() {
-    if (!settings?.public_key || saving) return;
+    if (!settings?.public_key || saving || deviceOperationRef.current) return;
+    const attempt = ++deviceAttemptRef.current;
+    deviceStateRefreshRef.current += 1;
+    const isCurrent = () => deviceAttemptRef.current === attempt;
+    deviceOperationRef.current = true;
     setSaving(true);
     setMessage('');
     try {
-      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('unsupported');
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') throw new Error('permission');
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      let subscription = await registration.pushManager.getSubscription();
+      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        throw new Error('unsupported');
+      }
+      if (Notification.permission === 'denied') throw new Error('permission');
+      const granted = Notification.permission === 'granted'
+        ? 'granted'
+        : await withPushTimeout(Notification.requestPermission(), 45000);
+      if (!isCurrent()) return;
+      if (granted !== 'granted') throw new Error('permission');
+
+      const registration = await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
+      if (!isCurrent()) return;
+      let subscription = await withPushTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!isCurrent()) return;
       if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
+        subscription = await withPushTimeout(registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey(settings.public_key),
-        });
+        }), 20000);
       }
+      if (!isCurrent()) return;
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('subscription');
-      await mcall(token, 'push/subscriptions', {
+      const controller = new AbortController();
+      await withPushTimeout(mcall(token, 'push/subscriptions', {
         method: 'POST',
         body: JSON.stringify({ subscription: { endpoint: json.endpoint, keys: json.keys } }),
-      });
+        signal: controller.signal,
+      }), 15000, () => controller.abort());
+      if (!isCurrent()) return;
       setDeviceSubscribed(true);
-      await load();
-      setMessage('המכשיר הזה נרשם לקבלת התראות מהמוכר.');
+      setPermission('granted');
+      setMessage('ההתראות למוכר הופעלו במכשיר הזה.');
     } catch (error) {
+      if (!isCurrent()) return;
       const reason = error instanceof Error ? error.message : '';
       setMessage(reason === 'permission'
-        ? 'לא ניתנה הרשאה להתראות. אפשר לשנות זאת בהגדרות הדפדפן.'
+        ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
         : reason === 'unsupported'
           ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
-          : 'לא הצלחנו לרשום את המכשיר. נסו שוב.');
+          : reason === 'push_timeout'
+            ? 'התהליך התעכב. אפשר לנסות שוב.'
+          : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
+      void refreshDeviceState().catch(() => undefined);
     } finally {
-      setSaving(false);
+      if (isCurrent()) {
+        deviceOperationRef.current = false;
+        setSaving(false);
+      }
     }
   }
 
   async function disableThisDevice() {
     if (saving) return;
     setSaving(true);
+    deviceStateRefreshRef.current += 1;
     setMessage('');
     try {
-      const registration = await navigator.serviceWorker.getRegistration('/');
-      const subscription = await registration?.pushManager.getSubscription();
+      const registration = await withPushTimeout(navigator.serviceWorker.getRegistration('/'), 10000);
+      const subscription = await (registration ? withPushTimeout(registration.pushManager.getSubscription(), 10000) : Promise.resolve(null));
       if (subscription) {
-        const endpoint = subscription.endpoint;
-        await mcall(token, 'push/subscriptions', {
+        await withPushTimeout(mcall(token, 'push/subscriptions', {
           method: 'DELETE',
-          body: JSON.stringify({ endpoint }),
-        });
-        await subscription.unsubscribe();
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        }), 15000);
       }
+      // Keep the browser subscription: customer consent may use this same endpoint.
       setDeviceSubscribed(false);
-      await load();
-      setMessage('ההתראות למוכר כובו במכשיר הזה. הרשאת הדפדפן נשארת זמינה להתראות לקוחות שאושרו בנפרד.');
+      setMessage('התראות למוכר כובו במכשיר הזה. הרשמת הדפדפן נשארת זמינה ללקוחות שאישרו בנפרד.');
     } catch {
       setMessage('לא הצלחנו להסיר את המכשיר. אפשר לנסות שוב.');
     } finally {
@@ -136,15 +222,14 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     <section className="space-y-4 rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
       <div>
         <p className="text-xs font-bold tracking-wide text-primary">התראות Push</p>
-        <h2 className="mt-1 text-xl font-bold text-ink">שליטה בהתראות העסק</h2>
-        <p className="mt-2 text-sm leading-6 text-ink/65">אפשר להפעיל או לכבות בנפרד את ההתראות למוכר ואת ההתראות שנשלחות ללקוחות. סוגי ההתראות עצמם מוגדרים במערכת.</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">התראות העסק</h2>
       </div>
 
       {!settings.entitled && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">ערוץ Push אינו מאושר כרגע לעסק על ידי מנהל המערכת. ההעדפות הקיימות נשמרות, אך לא תישלחנה התראות.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">התראות Push אינן זמינות לעסק כרגע.</p>
       )}
       {settings.entitled && !settings.configured && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">הערוץ מאושר לעסק, אך שירות ההתראות עדיין לא הוגדר במערכת.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">שירות ההתראות עדיין לא הוגדר.</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -153,7 +238,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('seller_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות למוכר</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">הזמנה חדשה באתר ובקשת הצטרפות לרשימת המתנה. אפשר לבחור אם לקבל את ההתראות האלה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">תורים חדשים ובקשות הצטרפות לרשימת המתנה.</span>
           </span>
         </label>
         <label className="flex items-start gap-3 rounded-xl border border-ink/10 p-3">
@@ -161,7 +246,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
             onChange={(event) => void updatePreference('customer_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
             <span className="block text-sm font-bold">התראות ללקוחות</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">שיבוץ תור מרשימת המתנה, עדכון או ביטול תור — רק ללקוחות שנתנו הסכמה.</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">עדכונים ללקוחות שנתנו הסכמה.</span>
           </span>
         </label>
       </div>
@@ -169,12 +254,12 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/10 p-3">
         <div className="min-w-0">
           <p className="text-sm font-bold">התראות למוכר במכשיר הזה</p>
-          <p className="mt-1 text-xs leading-5 text-ink/60">{deviceSubscribed ? 'המכשיר הזה מוגדר לקבלת התראות.' : 'כדי לקבל התראות כאן, יש לאשר את ההתראות בדפדפן.'}</p>
+          <p className="mt-1 text-xs leading-5 text-ink/60">{permission === 'denied' ? 'ההרשאה חסומה בדפדפן. יש לאפשר התראות בהגדרות האתר.' : permission === 'unsupported' ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.' : deviceSubscribed ? 'המכשיר הזה רשום לקבלת התראות.' : 'אפשר להפעיל התראות במכשיר הזה.'}</p>
         </div>
         {deviceSubscribed ? (
           <button type="button" onClick={() => void disableThisDevice()} disabled={saving}
             className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">כיבוי במכשיר הזה</button>
-        ) : (
+        ) : permission === 'unsupported' || permission === 'denied' ? null : (
           <button type="button" onClick={() => void enableThisDevice()} disabled={saving || !settings.seller_effective}
             className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">הפעלת התראות במכשיר הזה</button>
         )}

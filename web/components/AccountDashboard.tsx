@@ -37,6 +37,16 @@ function remainingDays(value: string | null): number | null {
   return Math.max(0, Math.ceil((timestamp - Date.now()) / 86_400_000));
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export default function AccountDashboard() {
   const [user,setUser]=useState<AccountUser|null>(null);
   const [notifications,setNotifications]=useState<PlatformNotification[]>([]);
@@ -261,7 +271,7 @@ export default function AccountDashboard() {
 
   async function logout(){
     setSaving(true);
-    await fetch('/api/auth/logout',{method:'POST',cache:'no-store',credentials:'same-origin'}).catch(()=>{});
+    await fetchWithTimeout('/api/auth/logout',{method:'POST',cache:'no-store',credentials:'same-origin'},5000).catch(()=>{});
     clearAccountState();
     try{window.localStorage.setItem('btime-session-ended',String(Date.now()));}catch{}
     try{const channel=new BroadcastChannel('btime-auth');channel.postMessage('session-ended');channel.close();}catch{}

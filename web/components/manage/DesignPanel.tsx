@@ -4,7 +4,7 @@ import { useState } from 'react';
 import PalettePicker from '@/components/PalettePicker';
 import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
 import { BRAND_PALETTES, paletteIdForColors, type PaletteId } from '@/lib/palettes';
-import { ApiError, mcall } from '@/lib/manageApi';
+import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 
 type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
@@ -42,8 +42,8 @@ export default function DesignPanel({ token, biz, onSaved }: {
     setMsg(null);
     setSaving(true);
     try {
-      const latest = await mcall<ManageBusiness>(token, 'business');
-      const saved = await mcall<Partial<ManageBusiness>>(token, 'business', {
+      const latest = await mcallWithTimeout<ManageBusiness>(token, 'business');
+      const saved = await mcallWithTimeout<Partial<ManageBusiness>>(token, 'business', {
         method: 'PATCH',
         body: JSON.stringify({
           config: {

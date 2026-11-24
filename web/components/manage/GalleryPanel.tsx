@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
+import { mcallWithTimeout, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
 import type { MGalleryImage, ManageBusiness } from '@/lib/types';
 
@@ -18,8 +18,8 @@ export default function GalleryPanel({ token }: { token: string }) {
   const load = useCallback(async () => {
     try {
       const [images, biz] = await Promise.all([
-        mcall<MGalleryImage[]>(token, 'gallery'),
-        mcall<ManageBusiness>(token, 'business'),
+        mcallWithTimeout<MGalleryImage[]>(token, 'gallery'),
+        mcallWithTimeout<ManageBusiness>(token, 'business'),
       ]);
       setItems(images);
       setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
@@ -60,22 +60,22 @@ export default function GalleryPanel({ token }: { token: string }) {
     [next[i], next[j]] = [next[j], next[i]];
     setItems(next);
     try {
-      await mcall(token, 'gallery/order', { method: 'PUT', body: JSON.stringify({ ids: next.map((x) => x.id) }) });
+      await mcallWithTimeout(token, 'gallery/order', { method: 'PUT', body: JSON.stringify({ ids: next.map((x) => x.id) }) });
     } catch { setMsg('שינוי הסדר נכשל.'); load(); }
   }
 
   async function remove(img: MGalleryImage) {
     if (!confirm('למחוק את התמונה?')) return;
     try {
-      await mcall(token, `gallery/${img.id}`, { method: 'DELETE' });
+      await mcallWithTimeout(token, `gallery/${img.id}`, { method: 'DELETE' });
       setItems((cur) => cur?.filter((x) => x.id !== img.id) ?? null);
     } catch { setMsg('המחיקה נכשלה.'); }
   }
 
   async function setHero(img: MGalleryImage) {
     try {
-      const biz = await mcall<ManageBusiness>(token, 'business');
-      await mcall<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
+      const biz = await mcallWithTimeout<ManageBusiness>(token, 'business');
+      await mcallWithTimeout<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), hero_gallery_image_id: img.id } } }) });
       setHeroId(img.id);
       setMsg('התמונה הראשית נשמרה.');
     } catch { setMsg('שמירת התמונה הראשית נכשלה.'); }
@@ -83,8 +83,8 @@ export default function GalleryPanel({ token }: { token: string }) {
 
   async function setIcon(img: MGalleryImage) {
     try {
-      const biz = await mcall<ManageBusiness>(token, 'business');
-      await mcall<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), icon_gallery_image_id: img.id } } }) });
+      const biz = await mcallWithTimeout<ManageBusiness>(token, 'business');
+      await mcallWithTimeout<ManageBusiness>(token, 'business', { method: 'PATCH', body: JSON.stringify({ config: { branding: { ...(biz.config?.branding ?? {}), icon_gallery_image_id: img.id } } }) });
       setIconId(img.id);
       setMsg('אייקון ה-PWA נשמר. האייקון יתעדכן לאחר רענון/התקנה מחדש לפי הדפדפן.');
     } catch { setMsg('שמירת אייקון ה-PWA נכשלה.'); }
@@ -94,7 +94,7 @@ export default function GalleryPanel({ token }: { token: string }) {
     const v = value.trim();
     if (v === (img.alt_text ?? '')) return;
     try {
-      await mcall(token, `gallery/${img.id}`, { method: 'PATCH', body: JSON.stringify({ alt_text: v || null }) });
+      await mcallWithTimeout(token, `gallery/${img.id}`, { method: 'PATCH', body: JSON.stringify({ alt_text: v || null }) });
       setItems((cur) => cur?.map((x) => (x.id === img.id ? { ...x, alt_text: v || null } : x)) ?? null);
     } catch { setMsg('שמירת הטקסט החלופי נכשלה.'); }
   }

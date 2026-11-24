@@ -629,7 +629,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 eventType: 'seller.appointment_created',
                 targetType: 'appointment',
                 targetId: appointmentId,
-                payload: { title: 'התקבלה הזמנה חדשה', body: 'נקבע תור חדש דרך אתר העסק', url: '/account' },
+                payload: { title: 'BTime', body: 'נקבע תור חדש', url: '/account' },
               });
             }
           }

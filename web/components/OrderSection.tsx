@@ -1,7 +1,6 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import ReadMoreText from '@/components/ReadMoreText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
@@ -43,6 +42,17 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
+  let timer: number;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('push_timeout'));
+    }, milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -78,8 +88,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushCapability, setWaitlistPushCapability] = useState<string | null>(null);
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
-  const [pushOptInBusy, setPushOptInBusy] = useState(false);
-  const [pushOptInStatus, setPushOptInStatus] = useState<string | null>(null);
+  const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
+  const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
+  const pushAttemptRef = useRef({ appointment: 0, waitlist: 0 });
+  const pushAbortRef = useRef<{ appointment: AbortController | null; waitlist: AbortController | null }>({ appointment: null, waitlist: null });
   const [waitlistBusy, setWaitlistBusy] = useState(false);
   const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [waitlistName, setWaitlistName] = useState('');
@@ -102,28 +114,85 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     return () => { cancelled = true; };
   }, [apiBase]);
 
-  async function optInForPush(capabilityToken: string) {
-    if (!pushPublicKey || pushOptInBusy) return;
-    setPushOptInBusy(true);
-    setPushOptInStatus(null);
+  useEffect(() => {
+    const refreshAfterSettings = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!appointmentPushState.busy && !waitlistPushState.busy) return;
+      // A browser permission prompt or an external settings screen may suspend the page.
+      // Invalidate the old attempt so a late promise cannot overwrite a fresh retry.
+      if (appointmentPushState.busy) {
+        pushAttemptRef.current.appointment += 1;
+        pushAbortRef.current.appointment?.abort();
+        pushAbortRef.current.appointment = null;
+      }
+      if (waitlistPushState.busy) {
+        pushAttemptRef.current.waitlist += 1;
+        pushAbortRef.current.waitlist?.abort();
+        pushAbortRef.current.waitlist = null;
+      }
+      setAppointmentPushState((current) => current.busy
+        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
+        : current);
+      setWaitlistPushState((current) => current.busy
+        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
+        : current);
+    };
+    document.addEventListener('visibilitychange', refreshAfterSettings);
+    window.addEventListener('pageshow', refreshAfterSettings);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshAfterSettings);
+      window.removeEventListener('pageshow', refreshAfterSettings);
+    };
+  }, [appointmentPushState.busy, waitlistPushState.busy]);
+
+  useEffect(() => {
+    setAppointmentPushState({ busy: false, success: false, status: null });
+  }, [done?.pushCapabilityToken]);
+
+  useEffect(() => {
+    setWaitlistPushState({ busy: false, success: false, status: null });
+  }, [waitlistPushCapability]);
+
+  async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
+    if (!pushPublicKey) return;
+    const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
+    if (currentState.busy || currentState.success || pushAbortRef.current[target]) return;
+    const attempt = ++pushAttemptRef.current[target];
+    const isCurrent = () => pushAttemptRef.current[target] === attempt;
+    const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
+    setTargetState({ busy: true, success: false, status: null });
+    let timeoutId: number | undefined;
+    const controller = new AbortController();
+    pushAbortRef.current[target] = controller;
     try {
       if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
         throw new Error('push_not_supported');
       }
-      const permission = await Notification.requestPermission();
+      if (Notification.permission === 'denied') throw new Error('push_permission_blocked');
+      const permission = Notification.permission === 'granted'
+        ? 'granted'
+        : await withTimeout(Notification.requestPermission(), 45000);
+      if (!isCurrent()) return;
       if (permission !== 'granted') throw new Error('push_permission_denied');
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      let subscription = await registration.pushManager.getSubscription();
+
+      const registration = await withTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
+      if (!isCurrent()) return;
+      let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!isCurrent()) return;
       if (!subscription) {
         const padding = '='.repeat((4 - (pushPublicKey.length % 4)) % 4);
         const raw = atob(pushPublicKey.replace(/-/g, '+').replace(/_/g, '/') + padding);
         const applicationServerKey = Uint8Array.from(raw, (char) => char.charCodeAt(0));
-        subscription = await registration.pushManager.subscribe({
+        subscription = await withTimeout(registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
-        });
+        }), 20000);
       }
+      if (!isCurrent()) return;
       const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('push_subscription_invalid');
+
+      timeoutId = window.setTimeout(() => controller.abort(), 15000);
       const response = await fetch(`${apiBase}/push/consent`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -131,21 +200,32 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           token: capabilityToken,
           subscription: { endpoint: json.endpoint, keys: json.keys },
         }),
+        signal: controller.signal,
       });
+      if (!isCurrent()) return;
       if (!response.ok) {
-        const data = await response.json().catch(() => null) as { error?: string; push_capability_token?: string } | null;
+        const data = await response.json().catch(() => null) as { error?: string } | null;
         throw new Error(data?.error ?? 'push_consent_failed');
       }
-      setPushOptInStatus('ההתראות הופעלו. תקבלו עדכונים רק לגבי הבקשה הזו.');
+      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לבקשה הזו.' });
     } catch (error) {
+      if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
-      setPushOptInStatus(code === 'push_permission_denied'
-        ? 'לא ניתנה הרשאה להתראות. אפשר לשנות זאת בהגדרות הדפדפן.'
-        : code === 'push_not_supported'
-          ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
-          : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.');
+      setTargetState({
+        busy: false,
+        success: false,
+        status: code === 'push_permission_blocked' || code === 'push_permission_denied'
+          ? 'כדי להפעיל התראות, אשרו אותן בהגדרות הדפדפן וחזרו לכאן.'
+          : code === 'push_not_supported'
+            ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.'
+            : code === 'AbortError' || code === 'push_timeout'
+              ? 'התהליך התעכב. אפשר לנסות שוב.'
+              : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
+      });
     } finally {
-      setPushOptInBusy(false);
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      if (pushAbortRef.current[target] === controller) pushAbortRef.current[target] = null;
+      if (isCurrent()) setTargetState((current) => ({ ...current, busy: false }));
     }
   }
 
@@ -328,7 +408,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     try {
       const requestKey = idempotencyKey || crypto.randomUUID();
       if (!idempotencyKey) setIdempotencyKey(requestKey);
-      const res = await fetch(`${apiBase}/leads`, {
+      const submitController = new AbortController();
+      const res = await withTimeout(fetch(`${apiBase}/leads`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -339,7 +420,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
-      });
+        signal: submitController.signal,
+      }), 30000, () => submitController.abort());
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
       if (!res.ok) return setError(errorText(res.status, data));
 
@@ -370,7 +452,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
     setWaitlistBusy(true);
     try {
-      const response = await fetch(`${apiBase}/waitlist`, {
+      const waitlistController = new AbortController();
+      const response = await withTimeout(fetch(`${apiBase}/waitlist`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -382,7 +465,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           note: waitlistNote.trim(),
           company_website: '',
         }),
-      });
+        signal: waitlistController.signal,
+      }), 30000, () => waitlistController.abort());
       const data = await response.json().catch(() => null) as { error?: string; push_capability_token?: string } | null;
       if (!response.ok) {
         if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
@@ -561,7 +645,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         {!done && needsReservedAppointment && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
             <p className="text-sm leading-6">לא מצאתם תאריך או שעה שמתאימים לכם? אפשר לבקש להצטרף לרשימת ההמתנה ולציין כל תאריך ושעה מועדפים, גם אם הם אינם פנויים בלוח. הבקשה אינה שומרת מקום ביומן.</p>
-            <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setPushOptInStatus(null); }}
+            <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setWaitlistPushState({ busy: false, success: false, status: null }); }}
               className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
               בקשת תאריך או שעה שאינם פנויים
             </button>
@@ -573,12 +657,18 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p>הבקשה נוספה לרשימת ההמתנה. העסק יוכל ליצור איתכם קשר; לא נשמר תור ביומן.</p>
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
-                <button type="button" disabled={pushOptInBusy} onClick={() => optInForPush(waitlistPushCapability)}
-                  className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
-                  {pushOptInBusy ? 'מפעילים התראות…' : 'עדכנו אותי אם יימצא לי תור'}
-                </button>
-                <p className="mt-1 text-xs text-green-900/75">ההסכמה תקפה לבקשת ההמתנה הזו בלבד.</p>
-                {pushOptInStatus && <p className="mt-2 text-xs">{pushOptInStatus}</p>}
+                {waitlistPushState.success ? (
+                  <p role="status" className="text-sm">ההתראות הופעלו לבקשת ההמתנה הזו.</p>
+                ) : (
+                  <>
+                    <p className="mb-1 text-xs text-green-900/75">עדכונים לבקשת ההמתנה הזו בלבד.</p>
+                    <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
+                      className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
+                      {waitlistPushState.busy ? 'מפעילים…' : 'עדכנו אותי אם יימצא לי תור'}
+                    </button>
+                    {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -620,13 +710,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
             {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
-                <p className="font-semibold">רוצים לקבל עדכונים על התור?</p>
-                <p className="mt-1 text-sm text-ink/65">אפשר לקבל התראה אם העסק יעדכן או יבטל את התור. נדרשת הסכמה נפרדת עבור התור הזה.</p>
-                <button type="button" disabled={pushOptInBusy} onClick={() => optInForPush(done.pushCapabilityToken!)}
-                  className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
-                  {pushOptInBusy ? 'מפעילים התראות…' : 'קבלת עדכונים על התור'}
-                </button>
-                {pushOptInStatus && <p role="status" className="mt-2 text-xs text-ink/70">{pushOptInStatus}</p>}
+                {appointmentPushState.success ? (
+                  <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
+                ) : (
+                  <>
+                    <p className="font-semibold">לקבל עדכונים על התור?</p>
+                    <p className="mt-1 text-xs text-ink/65">עדכונים על התור הזה בלבד.</p>
+                    <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
+                      className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
+                      {appointmentPushState.busy ? 'מפעילים…' : 'הפעלת עדכונים'}
+                    </button>
+                    {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
+                  </>
+                )}
               </div>
             )}
           </div>

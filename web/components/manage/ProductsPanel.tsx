@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ils } from '@/lib/format';
-import { mcall, mupload, uploadErrorText } from '@/lib/manageApi';
+import { mcallWithTimeout, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
 import type { MProduct, MProductsResponse } from '@/lib/types';
 const PAGE = 25;
@@ -9,11 +9,11 @@ const btn = 'min-h-10 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-gray-300
 export default function ProductsPanel({ token }: { token: string }) {
  const [data,setData]=useState<MProductsResponse|null>(null); const [error,setError]=useState<string|null>(null); const [editing,setEditing]=useState<MProduct|'new'|null>(null);
  const [searchInput,setSearchInput]=useState(''); const [search,setSearch]=useState(''); const [status,setStatus]=useState<'all'|'active'|'inactive'>('all'); const [loading,setLoading]=useState(false);
- const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcall<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError('לא הצלחנו לטעון את המוצרים.');}finally{setLoading(false);}},[token,search,status]);
+ const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcallWithTimeout<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError('לא הצלחנו לטעון את המוצרים.');}finally{setLoading(false);}},[token,search,status]);
  useEffect(()=>{void load(0);},[load]);
- async function move(p:MProduct,direction:'up'|'down'){if(!data)return;try{await mcall(token,`products/${p.id}/move`,{method:'POST',body:JSON.stringify({direction})});await load(data.offset);}catch{setError('שינוי הסדר נכשל.');}}
- async function toggleActive(p:MProduct){try{await mcall(token,`products/${p.id}`,{method:'PATCH',body:JSON.stringify({is_active:!p.is_active})});await load(data?.offset??0);}catch{setError('העדכון נכשל.');}}
- async function remove(p:MProduct){if(!confirm(`למחוק את "${p.name}"? הפעולה אינה הפיכה.`))return;try{await mcall(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError('המחיקה נכשלה.');}}
+ async function move(p:MProduct,direction:'up'|'down'){if(!data)return;try{await mcallWithTimeout(token,`products/${p.id}/move`,{method:'POST',body:JSON.stringify({direction})});await load(data.offset);}catch{setError('שינוי הסדר נכשל.');}}
+ async function toggleActive(p:MProduct){try{await mcallWithTimeout(token,`products/${p.id}`,{method:'PATCH',body:JSON.stringify({is_active:!p.is_active})});await load(data?.offset??0);}catch{setError('העדכון נכשל.');}}
+ async function remove(p:MProduct){if(!confirm(`למחוק את "${p.name}"? הפעולה אינה הפיכה.`))return;try{await mcallWithTimeout(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError('המחיקה נכשלה.');}}
  return <section aria-label="מוצרים ושירותים">
   <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">מוצרים ושירותים {data&&<span className="text-sm font-normal text-gray-500">({data.total})</span>}</h2><button type="button" onClick={()=>setEditing('new')} className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white">+ הוספה</button></div>
   <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-gray-200">
@@ -134,21 +134,28 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     let id = current?.id;
     try {
       if (id) {
-        await mcall(token, `products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        await mcallWithTimeout(token, `products/${id}`, { method: 'PATCH', body: JSON.stringify(payload) });
       } else {
-        const created = await mcall<MProduct>(token, 'products', { method: 'POST', body: JSON.stringify(payload) });
+        const created = await mcallWithTimeout<MProduct>(token, 'products', { method: 'POST', body: JSON.stringify(payload) });
         id = created.id; setCurrent(created);
       }
-    } catch { setBusy(false); return setMsg('שמירת המוצר נכשלה.'); }
+    } catch (error) {
+      setBusy(false);
+      if (error instanceof Error && error.name === 'AbortError') {
+        onChanged();
+        return setMsg('הבקשה התעכבה. בדקו אם המוצר נשמר ברשימה לפני ניסיון נוסף.');
+      }
+      return setMsg('שמירת המוצר נכשלה.');
+    }
 
     // Defer removals until the product fields have saved successfully, so a failed PATCH
     // never leaves an image deleted while the form reports that saving failed.
     if (current && removePrimaryPending) {
-      try { await mcall(token, `products/${id}/image`, { method: 'DELETE' }); setCurrent((item) => item ? { ...item, image_url: null } : item); }
+      try { await mcallWithTimeout(token, `products/${id}/image`, { method: 'DELETE' }); setCurrent((item) => item ? { ...item, image_url: null } : item); }
       catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת התמונה הראשית נכשלה. נסו שוב.'); }
     }
     for (const imageId of removeAdditionalPending) {
-      try { await mcall(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
+      try { await mcallWithTimeout(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
       catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת תמונה נוספת נכשלה. נסו שוב.'); }
     }
     if (file) {

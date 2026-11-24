@@ -17,13 +17,35 @@ export async function mcall<T>(
   return body as T;
 }
 
+/**
+ * Management actions can otherwise leave a panel in a permanent loading state
+ * when the API or a sleeping backend never completes the request.
+ */
+export async function mcallWithTimeout<T>(
+  token: string, path: string, init?: Omit<RequestInit, 'body'> & { body?: string }, timeoutMs = 45_000,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await mcall<T>(token, path, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg', method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const fd = new FormData();
   fd.append('file', file, filename); // no content-type header: the browser adds the boundary
-  const res = await fetch(`/api/manage/${token}/${path}`, { method, body: fd, cache: 'no-store' });
-  const body = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, body);
-  return body as T;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const res = await fetch(`/api/manage/${token}/${path}`, { method, body: fd, cache: 'no-store', signal: controller.signal });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new ApiError(res.status, body);
+    return body as T;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function uploadErrorText(err: unknown): string {
@@ -42,6 +64,7 @@ export function uploadErrorText(err: unknown): string {
       case 429: return 'יותר מדי העלאות. נסו שוב בעוד דקה.';
     }
   }
+  if (err instanceof Error && err.name === 'AbortError') return 'ההעלאה התעכבה. בדקו אם התמונה נוספה לפני ניסיון נוסף.';
   if (err instanceof Error && err.message === 'type') return 'סוג הקובץ אינו נתמך. אפשר להעלות JPG, PNG או WebP.';
   if (err instanceof Error && err.message === 'size') return 'הקובץ גדול מדי (מעל 10MB).';
   return 'ההעלאה נכשלה. נסו שוב.';
