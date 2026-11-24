@@ -146,9 +146,11 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       setMessage('התור הידני נשמר ביומן.');
       await load();
     } catch (err) {
-      setError(err instanceof Error && err.message.includes('409')
-        ? 'השעה נתפסה בינתיים. בחרו שעה אחרת.'
-        : 'שמירת התור נכשלה. בדקו את מספר הטלפון, שעות הפעילות וזמינות השעה.');
+      setError(err instanceof Error && err.name === 'AbortError'
+        ? 'הבקשה התעכבה. בדקו ביומן אם התור נשמר לפני ניסיון נוסף.'
+        : err instanceof Error && err.message.includes('409')
+          ? 'השעה נתפסה בינתיים. בחרו שעה אחרת.'
+          : 'שמירת התור נכשלה. בדקו את מספר הטלפון, שעות הפעילות וזמינות השעה.');
     } finally { setBusy(false); }
   }
 
