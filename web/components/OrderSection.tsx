@@ -43,6 +43,17 @@ function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => v
   );
 }
 
+function withPushTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
+  let timer: number;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('push_timeout'));
+    }, milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -161,22 +172,22 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (Notification.permission === 'denied') throw new Error('push_permission_blocked');
       const permission = Notification.permission === 'granted'
         ? 'granted'
-        : await Notification.requestPermission();
+        : await withPushTimeout(Notification.requestPermission(), 45000);
       if (!isCurrent()) return;
       if (permission !== 'granted') throw new Error('push_permission_denied');
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
-      let subscription = await registration.pushManager.getSubscription();
+      let subscription = await withPushTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
         const padding = '='.repeat((4 - (pushPublicKey.length % 4)) % 4);
         const raw = atob(pushPublicKey.replace(/-/g, '+').replace(/_/g, '/') + padding);
         const applicationServerKey = Uint8Array.from(raw, (char) => char.charCodeAt(0));
-        subscription = await registration.pushManager.subscribe({
+        subscription = await withPushTimeout(registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
-        });
+        }), 20000);
       }
       if (!isCurrent()) return;
       const json = subscription.toJSON();
@@ -208,8 +219,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           ? 'כדי להפעיל התראות, אשרו אותן בהגדרות הדפדפן וחזרו לכאן.'
           : code === 'push_not_supported'
             ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.'
-            : code === 'AbortError'
-              ? 'הבקשה התעכבה. אפשר לנסות שוב.'
+            : code === 'AbortError' || code === 'push_timeout'
+              ? 'התהליך התעכב. אפשר לנסות שוב.'
               : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
       });
     } finally {
