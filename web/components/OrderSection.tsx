@@ -117,25 +117,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   useEffect(() => {
     const refreshAfterSettings = () => {
       if (document.visibilityState !== 'visible') return;
-      if (!appointmentPushState.busy && !waitlistPushState.busy) return;
-      // A browser permission prompt or an external settings screen may suspend the page.
-      // Invalidate the old attempt so a late promise cannot overwrite a fresh retry.
-      if (appointmentPushState.busy) {
-        pushAttemptRef.current.appointment += 1;
-        pushAbortRef.current.appointment?.abort();
-        pushAbortRef.current.appointment = null;
-      }
-      if (waitlistPushState.busy) {
-        pushAttemptRef.current.waitlist += 1;
-        pushAbortRef.current.waitlist?.abort();
-        pushAbortRef.current.waitlist = null;
-      }
-      setAppointmentPushState((current) => current.busy
-        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
-        : current);
-      setWaitlistPushState((current) => current.busy
-        ? { ...current, busy: false, status: 'אפשר לנסות שוב.' }
-        : current);
+      // Returning from a browser permission prompt or another app does not mean
+      // the in-flight Push operation failed. Let requestPermission()/subscribe()
+      // finish; refreshing or invalidating it here can prevent consent from
+      // ever reaching the backend.
+      if (appointmentPushState.busy || waitlistPushState.busy) return;
+      void navigator.serviceWorker?.getRegistration('/')
+        .catch(() => undefined);
     };
     document.addEventListener('visibilitychange', refreshAfterSettings);
     window.addEventListener('pageshow', refreshAfterSettings);
