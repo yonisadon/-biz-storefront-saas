@@ -97,10 +97,6 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    if (!activeAppointmentId) return;
-    document.getElementById('appointment-details-' + activeAppointmentId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [activeAppointmentId, date, selectedAppointments]);
   const moveDate = (delta: number) => {
     const next = new Date(date + 'T12:00:00Z');
     if (viewMode === 'month') { next.setUTCDate(1); next.setUTCMonth(next.getUTCMonth() + delta); }
@@ -112,6 +108,11 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   const service = products.find((p) => p.id === serviceId);
   const selectedAppointments = useMemo(() => (calendar?.appointments ?? []).filter((item) => item.start_at < date + 'T24:00' && item.end_at > date + 'T00:00'), [calendar, date]);
   const selectedBlocks = useMemo(() => (calendar?.blocks ?? []).filter((item) => item.start_at < date + 'T24:00' && item.end_at > date + 'T00:00'), [calendar, date]);
+
+  useEffect(() => {
+    if (!activeAppointmentId) return;
+    document.getElementById('appointment-details-' + activeAppointmentId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeAppointmentId, date, selectedAppointments]);
   const visibleDates = useMemo(() => {
     if (viewMode === 'day') return [];
     const from = new Date(range.from + 'T12:00:00Z');
