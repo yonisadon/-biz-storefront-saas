@@ -238,7 +238,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       client.release();
     }
 
-    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
     await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
       `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
       `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
@@ -254,7 +254,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (result.rows[0] && env.BREVO_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
       try {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
-        const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
         await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
           `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>השלמת ההרשמה ל-BTime</h2><p>כדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות.</p></body></html>`,
           `השלמת ההרשמה ל-BTime\n\nכדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות.`);
