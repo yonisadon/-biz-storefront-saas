@@ -20,7 +20,7 @@ type Props = {
   blocks: TimeBlock[];
   openingDays: Record<string, unknown> | null;
   onSelectDate: (date: string) => void;
-  onSelectAppointment: (id: string) => void;
+  onSelectAppointment: (id: string, date: string) => void;
 };
 
 function minuteOf(value: string) {
@@ -149,7 +149,7 @@ export default function CalendarTimeline({
                     return (
                       <button key={item.id} type="button"
                         aria-label={'פתיחת פרטי תור ' + clockLabel(item.start_at) + ' ' + item.service_name}
-                        onClick={() => onSelectAppointment(item.id)}
+                        onClick={() => onSelectAppointment(item.id, day)}
                         className={'absolute inset-x-1 z-20 overflow-hidden rounded-md border px-1.5 py-1 text-start text-[10px] shadow-sm hover:brightness-95 ' + sourceClass}
                         style={{ top: ((start - bounds.start) / 60) * 64, height: Math.max(24, ((end - start) / 60) * 64) }}>
                         <span className="block truncate font-semibold">{clockLabel(item.start_at)} · {item.service_name}</span>
