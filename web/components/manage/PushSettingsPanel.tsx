@@ -20,6 +20,17 @@ function applicationServerKey(value: string): ArrayBuffer {
   return bytes.buffer as ArrayBuffer;
 }
 
+function withPushTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: () => void): Promise<T> {
+  let timer: number;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = window.setTimeout(() => {
+      onTimeout?.();
+      reject(new Error('push_timeout'));
+    }, milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
 export default function PushSettingsPanel({ token }: { token: string }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,27 +134,29 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       if (Notification.permission === 'denied') throw new Error('permission');
       const granted = Notification.permission === 'granted'
         ? 'granted'
-        : await Notification.requestPermission();
+        : await withPushTimeout(Notification.requestPermission(), 45000);
       if (!isCurrent()) return;
       if (granted !== 'granted') throw new Error('permission');
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
-      let subscription = await registration.pushManager.getSubscription();
+      let subscription = await withPushTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
+        subscription = await withPushTimeout(registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey(settings.public_key),
-        });
+        }), 20000);
       }
       if (!isCurrent()) return;
       const json = subscription.toJSON();
       if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('subscription');
-      await mcall(token, 'push/subscriptions', {
+      const controller = new AbortController();
+      await withPushTimeout(mcall(token, 'push/subscriptions', {
         method: 'POST',
         body: JSON.stringify({ subscription: { endpoint: json.endpoint, keys: json.keys } }),
-      });
+        signal: controller.signal,
+      }), 15000, () => controller.abort());
       if (!isCurrent()) return;
       setDeviceSubscribed(true);
       setPermission('granted');
@@ -155,6 +168,8 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
         : reason === 'unsupported'
           ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
+          : reason === 'push_timeout'
+            ? 'התהליך התעכב. אפשר לנסות שוב.'
           : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
       await refreshDeviceState().catch(() => undefined);
     } finally {
