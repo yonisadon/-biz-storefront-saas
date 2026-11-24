@@ -8,6 +8,7 @@ import { normalizeInternationalPhone } from '../util';
 import { provisionBusinessForOwner } from '../provisioning';
 import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 import { sendBrevoEmail } from '../email';
+import { retryTransientOperation } from '../retryTransient';
 
 const SESSION_COOKIE = 'btime_session';
 const SESSION_DAYS = 3;
@@ -54,6 +55,21 @@ function registry(): pg.Pool {
     registryPool.on('error', (error) => console.error('platform account registry pool error', error.message));
   }
   return registryPool;
+}
+
+async function connectRegistryClient(): Promise<pg.PoolClient> {
+  return retryTransientOperation(async () => {
+    const client = await registry().connect();
+    try {
+      // A pool can hand out a socket just as a sleeping database is waking up.
+      // Verify it before beginning a session transaction.
+      await client.query('SELECT 1');
+      return client;
+    } catch (error) {
+      client.release(true);
+      throw error;
+    }
+  }, 'platform account registry connection');
 }
 
 const digest = (value: string) => createHash('sha256').update(value, 'utf8').digest();
@@ -103,7 +119,7 @@ function clearSessionCookie(reply: FastifyReply): void {
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
   const token = randomToken();
   const db = registry();
-  const client = await db.connect();
+  const client = await connectRegistryClient();
   try {
     await client.query('BEGIN');
     // Keep active sessions on other devices, but remove expired rows for this user
@@ -296,9 +312,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = LoginInput.parse(req.body);
-    const result = await registry().query(
-      'SELECT id, password_hash, email_verified_at, disabled_at, role FROM public.platform_users WHERE email = $1 LIMIT 1',
-      [input.email.toLowerCase()],
+    const result = await retryTransientOperation(
+      () => registry().query(
+        'SELECT id, password_hash, email_verified_at, disabled_at, role FROM public.platform_users WHERE email = $1 LIMIT 1',
+        [input.email.toLowerCase()],
+      ),
+      'platform account login lookup',
     );
     const user = result.rows[0];
     if (!user || user.disabled_at || !passwordMatches(input.password, user.password_hash)) {
