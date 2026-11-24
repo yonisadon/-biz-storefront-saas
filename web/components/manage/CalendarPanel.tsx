@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 import CalendarTimeline from '@/components/manage/CalendarTimeline';
 import type { ManageBusiness, MProduct, MProductsResponse } from '@/lib/types';
 
@@ -83,8 +83,8 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     try {
       const query = range.from === range.to ? `appointments?date=${range.from}` : `appointments?from=${range.from}&to=${range.to}`;
       const [cal, list] = await Promise.all([
-        mcall<CalendarResponse>(token, query),
-        mcall<MProductsResponse>(token, 'products?limit=100&offset=0&status=active'),
+        mcallWithTimeout<CalendarResponse>(token, query),
+        mcallWithTimeout<MProductsResponse>(token, 'products?limit=100&offset=0&status=active'),
       ]);
       setCalendar(cal);
       const services = list.items.filter((p) => p.kind === 'service' && p.is_active);
@@ -138,7 +138,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     if (!serviceId || !phone.trim() || !startTime) return setError('יש לבחור שירות, להזין טלפון ולבחור שעה פנויה.');
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, 'appointments', {
+      await mcallWithTimeout(token, 'appointments', {
         method: 'POST',
         body: JSON.stringify({ service_id: serviceId, customer_phone: phone, start_at: `${date}T${startTime}` }),
       });
@@ -155,7 +155,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   async function changeStatus(item: Appointment, status: 'reserved' | 'cancelled') {
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
       setMessage(status === 'cancelled' ? 'התור בוטל והשעה שוחררה.' : 'התור חזר ליומן.');
       await load();
     } catch { setError('עדכון התור נכשל. אם המועד החדש אינו פנוי, התור המקורי נשאר ללא שינוי.'); }
@@ -168,7 +168,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     if (!start_at && !editingServices[item.id]) return;
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ ...(start_at ? { start_at } : {}), ...(service_id ? { service_id } : {}) }) });
+      await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ ...(start_at ? { start_at } : {}), ...(service_id ? { service_id } : {}) }) });
       setMessage('פרטי התור עודכנו.');
       setEditingTimes((v) => { const n = { ...v }; delete n[item.id]; return n; });
       setEditingServices((v) => { const n = { ...v }; delete n[item.id]; return n; });
@@ -180,7 +180,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   async function deleteAppointment(item: Appointment) {
     if (!confirm(`למחוק את התור של ${item.customer_phone}?`)) return;
     setBusy(true); setError(null);
-    try { await mcall(token, `appointments/${item.id}`, { method: 'DELETE' }); setMessage('התור נמחק.'); await load(); }
+    try { await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'DELETE' }); setMessage('התור נמחק.'); await load(); }
     catch { setError('מחיקת התור נכשלה.'); }
     finally { setBusy(false); }
   }
@@ -192,7 +192,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       const nextDateValue = new Date(`${date}T12:00:00Z`);
       nextDateValue.setUTCDate(nextDateValue.getUTCDate() + 1);
       const nextDate = `${nextDateValue.getUTCFullYear()}-${String(nextDateValue.getUTCMonth() + 1).padStart(2, '0')}-${String(nextDateValue.getUTCDate()).padStart(2, '0')}`;
-      const result = await mcall<TimeBlock>(token, 'appointment-blocks', {
+      const result = await mcallWithTimeout<TimeBlock>(token, 'appointment-blocks', {
         method: 'POST',
         body: JSON.stringify({
           start_at: allDayBlock ? `${date}T00:00` : `${date}T${blockStart}`,
@@ -211,7 +211,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
 
   async function deleteBlock(block: TimeBlock) {
     setBusy(true); setError(null);
-    try { await mcall(token, `appointment-blocks/${block.id}`, { method: 'DELETE' }); setMessage('החסימה הוסרה.'); await load(); }
+    try { await mcallWithTimeout(token, `appointment-blocks/${block.id}`, { method: 'DELETE' }); setMessage('החסימה הוסרה.'); await load(); }
     catch { setError('הסרת החסימה נכשלה.'); }
     finally { setBusy(false); }
   }
