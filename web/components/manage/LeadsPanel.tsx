@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { fmtDate, ils, toLocalPhone, waLink } from '@/lib/format';
 import { LEAD_STATUSES, STATUS_LABEL } from '@/lib/labels';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 import type { Lead, LeadStatus, LeadsResponse } from '@/lib/types';
 import LeadNotes from './LeadNotes';
 
@@ -25,7 +25,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       const qs = new URLSearchParams({ limit: String(PAGE), offset: String(offset) });
       if (status) qs.set('status', status);
       if (searchTerm) qs.set('search', searchTerm);
-      setData(await mcall<LeadsResponse>(token, `leads?${qs}`));
+      setData(await mcallWithTimeout<LeadsResponse>(token, `leads?${qs}`));
     } catch {
       setError('לא הצלחנו לטעון את הפניות.');
     } finally {
@@ -44,7 +44,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         const qs = new URLSearchParams({ limit: '100', offset: String(offset) });
         if (filter) qs.set('status', filter);
         if (search) qs.set('search', search);
-        const page = await mcall<LeadsResponse>(token, `leads?${qs}`);
+        const page = await mcallWithTimeout<LeadsResponse>(token, `leads?${qs}`);
         all.push(...page.leads);
         total = page.total;
         offset += page.leads.length;
@@ -82,7 +82,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
     const prev = data;
     setData({ ...data, leads: data.leads.map((l) => (l.id === id ? { ...l, status } : l)) }); // optimistic
     try {
-      await mcall(token, `leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await mcallWithTimeout(token, `leads/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
     } catch {
       setData(prev);
       setError('עדכון הסטטוס נכשל.');
@@ -93,7 +93,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
     if (!window.confirm('למחוק את הפנייה לצמיתות? הפריטים וההערות הקשורים אליה יימחקו גם הם.')) return;
     setError(null);
     try {
-      await mcall(token, `leads/${id}`, { method: 'DELETE' });
+      await mcallWithTimeout(token, `leads/${id}`, { method: 'DELETE' });
       setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
       const remaining = data.leads.filter((lead) => lead.id !== id);
       if (remaining.length === 0 && data.offset > 0) {
