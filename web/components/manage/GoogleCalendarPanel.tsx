@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 
 type Status = {
   configured: boolean;
@@ -23,12 +23,12 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const current = await mcall<Status>(token, 'google-calendar/status');
+      const current = await mcallWithTimeout<Status>(token, 'google-calendar/status');
       setStatus(current);
       if (current.configured && current.connected && current.pending > 0) {
         try {
-          await mcall(token, 'google-calendar/sync', { method: 'POST' });
-          setStatus(await mcall<Status>(token, 'google-calendar/status'));
+          await mcallWithTimeout(token, 'google-calendar/sync', { method: 'POST' });
+          setStatus(await mcallWithTimeout<Status>(token, 'google-calendar/status'));
         } catch {
           setError('חלק מהאירועים ממתינים לסנכרון. אפשר לנסות שוב באופן ידני.');
         }
@@ -43,7 +43,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
   async function connect() {
     setBusy(true); setError(null);
     try {
-      const result = await mcall<{ authorization_url: string }>(token, 'google-calendar/connect', { method: 'POST' });
+      const result = await mcallWithTimeout<{ authorization_url: string }>(token, 'google-calendar/connect', { method: 'POST' });
       window.location.assign(result.authorization_url);
     } catch {
       setError('לא ניתן להתחיל חיבור ל-Google Calendar. בדקו שהוגדרו פרטי OAuth בשרת.');
@@ -54,7 +54,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
   async function sync() {
     setBusy(true); setError(null); setMessage(null);
     try {
-      const result = await mcall<{ processed: number; failed: number; pending: number }>(token, 'google-calendar/sync', { method: 'POST' });
+      const result = await mcallWithTimeout<{ processed: number; failed: number; pending: number }>(token, 'google-calendar/sync', { method: 'POST' });
       setMessage(`הסנכרון הסתיים: ${result.processed} אירועים עודכנו, ${result.failed} נכשלו, ${result.pending} ממתינים.`);
       await load();
     } catch {
@@ -66,7 +66,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
     if (!confirm('לנתק את Google Calendar? אירועים שכבר נוצרו ביומן Google יישארו שם ולא יימחקו.')) return;
     setBusy(true); setError(null); setMessage(null);
     try {
-      await mcall(token, 'google-calendar/disconnect', { method: 'POST' });
+      await mcallWithTimeout(token, 'google-calendar/disconnect', { method: 'POST' });
       setMessage('החיבור נותק וההרשאה בוטלה ככל שפרטי OAuth זמינים. אירועים קיימים נשארים ביומן Google.');
       await load();
     } catch {
