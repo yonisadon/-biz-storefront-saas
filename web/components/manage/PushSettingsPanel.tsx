@@ -131,7 +131,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   }
 
   async function enableThisDevice() {
-    if (!settings?.public_key || saving) return;
+    if (!settings?.public_key || saving || deviceOperationRef.current) return;
     const attempt = ++deviceAttemptRef.current;
     deviceStateRefreshRef.current += 1;
     const isCurrent = () => deviceAttemptRef.current === attempt;
