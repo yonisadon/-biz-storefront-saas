@@ -90,11 +90,13 @@ export default function WaitlistPanel({ token }: { token: string }) {
       await load();
     } catch (err) {
       const errorCode = err instanceof ApiError ? err.body?.error : null;
-      setError(errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
-        ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
-        : err instanceof ApiError && err.status === 400
-          ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
-          : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+      setError(err instanceof Error && err.name === 'AbortError'
+        ? 'הבקשה התעכבה. בדקו ביומן אם התור נוצר לפני ניסיון נוסף.'
+        : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
+          ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
+          : err instanceof ApiError && err.status === 400
+            ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
+            : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
