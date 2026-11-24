@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { themeVars } from '@/lib/theme';
-import { mcall } from '@/lib/manageApi';
+import { mcallWithTimeout } from '@/lib/manageApi';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import type { CrmRetentionSummary, LeadsResponse, ManageBusiness } from '@/lib/types';
 import BusinessPanel from './BusinessPanel';
@@ -55,8 +55,8 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
     let cancelled = false;
     setOnboardingCountsError(false);
     Promise.all([
-      mcall<{ total: number }>(token, 'products?limit=1&offset=0&status=active'),
-      mcall<Array<{ id: string }>>(token, 'gallery'),
+      mcallWithTimeout<{ total: number }>(token, 'products?limit=1&offset=0&status=active'),
+      mcallWithTimeout<Array<{ id: string }>>(token, 'gallery'),
     ]).then(([products, gallery]) => {
       if (!cancelled) setOnboardingCounts({ products: products.total, gallery: gallery.length });
     }).catch(() => {
