@@ -180,9 +180,11 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
         : reason === 'unsupported'
           ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
-          : reason === 'push_timeout'
-            ? 'התהליך התעכב. אפשר לנסות שוב.'
-          : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
+          : reason === 'service_worker_inactive'
+            ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+            : reason === 'push_timeout'
+              ? 'התהליך התעכב. אפשר לנסות שוב.'
+              : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
       void refreshDeviceState().catch(() => undefined);
     } finally {
       if (isCurrent()) {
