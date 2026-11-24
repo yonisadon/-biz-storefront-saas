@@ -40,17 +40,24 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const deviceOperationRef = useRef(false);
   const deviceAttemptRef = useRef(0);
+  const deviceStateRefreshRef = useRef(0);
 
   const refreshDeviceState = useCallback(async () => {
+    const refreshId = ++deviceStateRefreshRef.current;
+    const isLatestRefresh = () => deviceStateRefreshRef.current === refreshId;
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setPermission('unsupported');
-      setDeviceSubscribed(false);
+      if (isLatestRefresh()) {
+        setPermission('unsupported');
+        setDeviceSubscribed(false);
+      }
       return;
     }
     const currentPermission = Notification.permission;
     setPermission(currentPermission);
     const registration = await navigator.serviceWorker.getRegistration('/');
+    if (!isLatestRefresh()) return;
     const subscription = await registration?.pushManager.getSubscription();
+    if (!isLatestRefresh()) return;
     if (!subscription) {
       setDeviceSubscribed(false);
       return;
@@ -59,6 +66,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       method: 'POST',
       body: JSON.stringify({ endpoint: subscription.endpoint }),
     }), 10000);
+    if (!isLatestRefresh()) return;
     setDeviceSubscribed(currentPermission === 'granted' && status.active);
   }, [token]);
 
@@ -123,6 +131,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   async function enableThisDevice() {
     if (!settings?.public_key || saving) return;
     const attempt = ++deviceAttemptRef.current;
+    deviceStateRefreshRef.current += 1;
     const isCurrent = () => deviceAttemptRef.current === attempt;
     deviceOperationRef.current = true;
     setSaving(true);
@@ -183,6 +192,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   async function disableThisDevice() {
     if (saving) return;
     setSaving(true);
+    deviceStateRefreshRef.current += 1;
     setMessage('');
     try {
       const registration = await navigator.serviceWorker.getRegistration('/');
