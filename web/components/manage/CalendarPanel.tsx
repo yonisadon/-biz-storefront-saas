@@ -96,6 +96,11 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   }, [token, range.from, range.to]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    if (!activeAppointmentId) return;
+    document.getElementById('appointment-details-' + activeAppointmentId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [activeAppointmentId, date, selectedAppointments]);
   const moveDate = (delta: number) => {
     const next = new Date(date + 'T12:00:00Z');
     if (viewMode === 'month') { next.setUTCDate(1); next.setUTCMonth(next.getUTCMonth() + delta); }
@@ -234,9 +239,10 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
         blocks={calendar?.blocks ?? []}
         openingDays={biz.config?.opening_hours?.days as Record<string, unknown> | null}
         onSelectDate={(day) => { setDate(day); setViewMode('day'); }}
-        onSelectAppointment={(id) => {
+        onSelectAppointment={(id, day) => {
+          setDate(day);
+          setViewMode('day');
           setActiveAppointmentId(id);
-          document.getElementById('appointment-details-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }}
       />
     )}
