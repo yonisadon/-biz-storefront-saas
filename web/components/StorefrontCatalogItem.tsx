@@ -36,12 +36,28 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
       ? `שירות · מועד מבוקש ${product.appointment_duration_minutes} דק׳`
       : 'שירות';
 
+  const selectFromCard = () => {
+    if (!catalogAction || !canSelect || catalogAction.quantity > 0) return;
+    catalogAction.onQuantityChange(1);
+  };
+
   return (
     <li
       id={itemId}
-      tabIndex={focusableTarget ? -1 : undefined}
+      role={canSelect ? 'group' : undefined}
+      aria-label={canSelect ? `${product.name} – בחירת ${product.kind === 'service' ? 'שירות' : 'מוצר'}` : undefined}
+      tabIndex={canSelect ? 0 : focusableTarget ? -1 : undefined}
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, summary, details, [role="button"], [contenteditable="true"]')) return;
+        selectFromCard();
+      }}
+      onKeyDown={(event) => {
+        if (!canSelect || event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        selectFromCard();
+      }}
       data-has-image={Boolean(product.image || product.additional_images?.length) ? 'true' : 'false'}
-      className={`storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white ${focusableTarget ? 'scroll-mt-24 target:ring-4 target:ring-primary/40' : ''}`}
+      className={`storefront-card flex flex-col overflow-hidden rounded-2xl border bg-white ${canSelect ? 'cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary' : ''} ${focusableTarget ? 'scroll-mt-24 target:ring-4 target:ring-primary/40' : ''}`}
     >
       <StorefrontItemImage product={product} />
       <div className="flex min-w-0 flex-col gap-3 p-4">

@@ -8,6 +8,7 @@ import { normalizeInternationalPhone } from '../util';
 import { provisionBusinessForOwner } from '../provisioning';
 import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 import { sendBrevoEmail } from '../email';
+import { retryTransientOperation } from '../retryTransient';
 
 const SESSION_COOKIE = 'btime_session';
 const SESSION_DAYS = 3;
@@ -56,6 +57,21 @@ function registry(): pg.Pool {
   return registryPool;
 }
 
+async function connectRegistryClient(): Promise<pg.PoolClient> {
+  return retryTransientOperation(async () => {
+    const client = await registry().connect();
+    try {
+      // A pool can hand out a socket just as a sleeping database is waking up.
+      // Verify it before beginning a session transaction.
+      await client.query('SELECT 1');
+      return client;
+    } catch (error) {
+      client.release(true);
+      throw error;
+    }
+  }, 'platform account registry connection');
+}
+
 const digest = (value: string) => createHash('sha256').update(value, 'utf8').digest();
 const randomToken = () => randomBytes(32).toString('base64url');
 
@@ -102,8 +118,7 @@ function clearSessionCookie(reply: FastifyReply): void {
 
 async function createSession(userId: string, reply: FastifyReply): Promise<void> {
   const token = randomToken();
-  const db = registry();
-  const client = await db.connect();
+  const client = await connectRegistryClient();
   try {
     await client.query('BEGIN');
     // Keep active sessions on other devices, but remove expired rows for this user
@@ -186,17 +201,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const email = input.email.toLowerCase();
     const phone = normalizeInternationalPhone(input.phone);
     if (!phone) throw new HttpError(400, 'invalid_phone');
-    const db = registry();
-
+    const client = await connectRegistryClient();
+    let token: string;
     try {
+      await client.query('BEGIN');
       const role = 'owner';
-      const inserted = await db.query(
+      const inserted = await client.query(
         'INSERT INTO public.platform_users (email, phone, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
         [email, phone, passwordHash(input.password), role],
       );
       const userId = inserted.rows[0].id as string;
       const consentVersion = '2026-11-18-v1';
-      await db.query(
+      await client.query(
         `INSERT INTO public.platform_user_consents (user_id, consent_type, granted, consent_version, source)
          VALUES ($1, 'terms_of_use', true, $2, 'registration'),
                 ($1, 'privacy_policy', true, $2, 'registration'),
@@ -204,18 +220,29 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
                 ($1, 'marketing_sms', $4, $2, 'registration')`,
         [userId, consentVersion, input.marketingEmail, input.marketingSms],
       );
-      const token = await issueEmailToken(userId, 'verify_email');
-      const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
-      await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
-        `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
-        `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
-      return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
+      // Keep account creation, consent records and verification token atomic.
+      // Only connection acquisition/health check is retried; this transaction is not.
+      token = randomToken();
+      await client.query(
+        "INSERT INTO public.platform_email_tokens (user_id, token_hash, purpose, expires_at) VALUES ($1, $2, 'verify_email', now() + interval '24 hours')",
+        [userId, digest(token)],
+      );
+      await client.query('COMMIT');
     } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
       if ((error as { code?: string }).code === '23505') {
         return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
       }
       throw error;
+    } finally {
+      client.release();
     }
+
+    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+    await sendEmail(email, 'אימות כתובת המייל שלך ב-BTime',
+      `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>ברוכים הבאים ל-BTime</h2><p>כדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.</p></body></html>`,
+      `ברוכים הבאים ל-BTime\n\nכדי להשלים את פתיחת החשבון ולהמשיך להקמת העסק, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות. אם לא ביקשת להירשם, אפשר להתעלם מההודעה.`);
+    return reply.code(202).send({ message: 'בקשת ההרשמה התקבלה. אם ניתן להשלים הרשמה עם כתובת הדוא״ל הזו, נשלח אליה קישור לאימות ולהמשך הקמת העסק. כדאי לבדוק גם בתיקיית הספאם.' });
   });
 
   app.post('/resend-verification', { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } }, async (req, reply) => {
@@ -227,7 +254,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (result.rows[0] && env.BREVO_API_KEY && env.EMAIL_FROM && env.PUBLIC_BASE_URL) {
       try {
         const token = await issueEmailToken(result.rows[0].id, 'verify_email');
-        const verifyUrl = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
         await sendEmail(result.rows[0].email, 'אימות כתובת המייל שלך ב-BTime',
           `<!doctype html><html lang="he" dir="rtl"><body dir="rtl" style="font-family:Arial,sans-serif;line-height:1.7"><h2>השלמת ההרשמה ל-BTime</h2><p>כדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:</p><p><a href="${verifyUrl}">אימות כתובת הדוא״ל</a></p><p>הקישור תקף ל-24 שעות.</p></body></html>`,
           `השלמת ההרשמה ל-BTime\n\nכדי להשלים את ההרשמה, יש לאמת את כתובת הדוא״ל באמצעות הקישור:\n${verifyUrl}\n\nהקישור תקף ל-24 שעות.`);
@@ -296,9 +323,12 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const input = LoginInput.parse(req.body);
-    const result = await registry().query(
-      'SELECT id, password_hash, email_verified_at, disabled_at, role FROM public.platform_users WHERE email = $1 LIMIT 1',
-      [input.email.toLowerCase()],
+    const result = await retryTransientOperation(
+      () => registry().query(
+        'SELECT id, password_hash, email_verified_at, disabled_at, role FROM public.platform_users WHERE email = $1 LIMIT 1',
+        [input.email.toLowerCase()],
+      ),
+      'platform account login lookup',
     );
     const user = result.rows[0];
     if (!user || user.disabled_at || !passwordMatches(input.password, user.password_hash)) {

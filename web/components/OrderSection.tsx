@@ -175,8 +175,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!isCurrent()) return;
       if (permission !== 'granted') throw new Error('push_permission_denied');
 
-      const registration = await withTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
+      await withTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
+      // register() may return while the worker is still installing. PushManager
+      // operations must use an active registration, especially on first visit.
+      const registration = await withTimeout(navigator.serviceWorker.ready, 15000);
+      if (!isCurrent()) return;
+      if (!registration.active) throw new Error('push_service_worker_inactive');
       let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
@@ -203,14 +208,15 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         signal: controller.signal,
       });
       if (!isCurrent()) return;
-      if (!response.ok) {
-        const data = await response.json().catch(() => null) as { error?: string } | null;
+      const data = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+      if (!response.ok || data?.ok !== true) {
         throw new Error(data?.error ?? 'push_consent_failed');
       }
       setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לבקשה הזו.' });
     } catch (error) {
       if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
+      const aborted = error instanceof DOMException && error.name === 'AbortError';
       setTargetState({
         busy: false,
         success: false,
@@ -218,9 +224,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           ? 'כדי להפעיל התראות, אשרו אותן בהגדרות הדפדפן וחזרו לכאן.'
           : code === 'push_not_supported'
             ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.'
-            : code === 'AbortError' || code === 'push_timeout'
-              ? 'התהליך התעכב. אפשר לנסות שוב.'
-              : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
+            : code === 'customer_push_disabled' || code === 'push_not_available'
+              ? 'ההתראות אינן זמינות כרגע בעסק הזה.'
+              : code === 'push_consent_expired'
+                ? 'תוקף בקשת ההרשמה להתראות הסתיים. רעננו את הדף ונסו שוב.'
+                : code === 'push_consent_already_used'
+                  ? 'בקשת ההתראות הזו כבר קושרה למכשיר אחר.'
+                  : code === 'push_not_configured'
+                    ? 'שירות ההתראות עדיין לא הוגדר בעסק.'
+                    : aborted || code === 'AbortError' || code === 'push_timeout'
+                      ? 'התהליך התעכב. אפשר לנסות שוב.'
+                      : code === 'push_service_worker_inactive'
+                        ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+                        : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
       });
     } finally {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
