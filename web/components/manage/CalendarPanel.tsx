@@ -132,7 +132,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   }, [biz.config, date]);
   const freeSlots = useMemo(() => service && calendar
     ? slotsFor(date, service.appointment_duration_minutes || 30, ranges, selectedAppointments, selectedBlocks)
-    : [], [service, selectedAppointments, selectedBlocks, date, ranges]);
+    : [], [service, calendar, selectedAppointments, selectedBlocks, date, ranges]);
 
   async function createAppointment() {
     if (!serviceId || !phone.trim() || !startTime) return setError('יש לבחור שירות, להזין טלפון ולבחור שעה פנויה.');
