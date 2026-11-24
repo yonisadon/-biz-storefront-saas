@@ -1,7 +1,6 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import ReadMoreText from '@/components/ReadMoreText';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
