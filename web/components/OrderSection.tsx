@@ -171,19 +171,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (Notification.permission === 'denied') throw new Error('push_permission_blocked');
       const permission = Notification.permission === 'granted'
         ? 'granted'
-        : await withPushTimeout(Notification.requestPermission(), 45000);
+        : await withTimeout(Notification.requestPermission(), 45000);
       if (!isCurrent()) return;
       if (permission !== 'granted') throw new Error('push_permission_denied');
 
-      const registration = await withPushTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
+      const registration = await withTimeout(navigator.serviceWorker.register('/sw.js'), 15000);
       if (!isCurrent()) return;
-      let subscription = await withPushTimeout(registration.pushManager.getSubscription(), 10000);
+      let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
       if (!isCurrent()) return;
       if (!subscription) {
         const padding = '='.repeat((4 - (pushPublicKey.length % 4)) % 4);
         const raw = atob(pushPublicKey.replace(/-/g, '+').replace(/_/g, '/') + padding);
         const applicationServerKey = Uint8Array.from(raw, (char) => char.charCodeAt(0));
-        subscription = await withPushTimeout(registration.pushManager.subscribe({
+        subscription = await withTimeout(registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
         }), 20000);
