@@ -17,6 +17,22 @@ export async function mcall<T>(
   return body as T;
 }
 
+/**
+ * Management actions can otherwise leave a panel in a permanent loading state
+ * when the API or a sleeping backend never completes the request.
+ */
+export async function mcallWithTimeout<T>(
+  token: string, path: string, init?: Omit<RequestInit, 'body'> & { body?: string }, timeoutMs = 45_000,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await mcall<T>(token, path, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function mupload<T>(token: string, path: string, file: Blob, filename = 'photo.jpg', method: 'POST' | 'PUT' = 'POST'): Promise<T> {
   const fd = new FormData();
   fd.append('file', file, filename); // no content-type header: the browser adds the boundary
