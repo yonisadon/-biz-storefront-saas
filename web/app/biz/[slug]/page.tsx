@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
+import PwaInstallButton from '@/components/PwaInstallButton';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import Hours from '@/components/Hours';
@@ -149,6 +150,9 @@ export default async function StorefrontPage({ params }: Props) {
   return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
+    <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
+      <PwaInstallButton label="הוספת האתר למסך הבית לקבלת התראות" />
+    </div>
     {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="עדכון מטעם העסק" role="status"><p>{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
       hasGallery={data.gallery.length > 0}
