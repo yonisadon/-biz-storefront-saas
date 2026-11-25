@@ -10,7 +10,6 @@ import { catalogRoutes } from './catalog';
 import { appointmentRoutes } from './appointments';
 import { manageWaitlistRoutes } from './waitlist';
 import { googleCalendarManageRoutes } from './googleCalendar';
-import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscription } from '../pushCrypto';
 import { savePushSubscription } from '../pushService';
 
@@ -354,15 +353,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         [status, id],
       );
       if (!r.rows[0]) throw new HttpError(404, 'not_found'); // also hit for other tenants' ids
-      if (status === 'rejected' || status === 'cancelled') {
-        await db.query(
-          "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE lead_id = $1 AND status = 'reserved'",
-          [id],
-        );
-      }
       return r.rows[0];
     });
-    void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after lead status change failed'));
     return updatedLead;
   });
 };
