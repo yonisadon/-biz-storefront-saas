@@ -852,6 +852,26 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(bearerOnlyAfterClaim.rows[0].tenant_id, null,
         'claiming a business must stop bearer-only access without changing the link');
 
+      const customDomain = `${manualSlug}.example.test`;
+      await pool.query(
+        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, true, true)',
+        [manualBusinessId, customDomain],
+      );
+      const registryResourcesBefore = await pool.query(
+        'SELECT ' +
+        '(SELECT count(*)::int FROM app.tenant_databases WHERE tenant_id = $1) AS tenant_mapping, ' +
+        '(SELECT count(*)::int FROM public.access_tokens WHERE tenant_id = $1) AS access_tokens, ' +
+        '(SELECT count(*)::int FROM public.business_domains WHERE tenant_id = $1) AS domains, ' +
+        '(SELECT count(*)::int FROM public.platform_business_owners WHERE tenant_id = $1) AS owners, ' +
+        '(SELECT count(*)::int FROM public.platform_channel_entitlements WHERE tenant_id = $1) AS entitlements',
+        [manualBusinessId],
+      );
+      assert.equal(registryResourcesBefore.rows[0].tenant_mapping, 1);
+      assert.ok(registryResourcesBefore.rows[0].access_tokens > 0);
+      assert.equal(registryResourcesBefore.rows[0].domains, 1);
+      assert.equal(registryResourcesBefore.rows[0].owners, 1);
+      assert.ok(registryResourcesBefore.rows[0].entitlements > 0);
+
       const requestResponse = await app.inject({
         method: 'POST',
         url: `/api/admin/businesses/${manualBusinessId}/deletion-request`,
@@ -920,6 +940,25 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(databaseAfterDeletion.rowCount, 0);
       const businessAfterDeletion = await pool.query('SELECT 1 FROM public.businesses WHERE id = $1', [manualBusinessId]);
       assert.equal(businessAfterDeletion.rowCount, 0);
+      const registryResourcesAfter = await pool.query(
+        'SELECT ' +
+        '(SELECT count(*)::int FROM app.tenant_databases WHERE tenant_id = $1) AS tenant_mapping, ' +
+        '(SELECT count(*)::int FROM public.access_tokens WHERE tenant_id = $1) AS access_tokens, ' +
+        '(SELECT count(*)::int FROM public.business_domains WHERE tenant_id = $1) AS domains, ' +
+        '(SELECT count(*)::int FROM public.platform_business_owners WHERE tenant_id = $1) AS owners, ' +
+        '(SELECT count(*)::int FROM public.platform_channel_entitlements WHERE tenant_id = $1) AS entitlements',
+        [manualBusinessId],
+      );
+      assert.deepEqual(registryResourcesAfter.rows[0], {
+        tenant_mapping: 0, access_tokens: 0, domains: 0, owners: 0, entitlements: 0,
+      });
+      const retainedOwner = await pool.query('SELECT 1 FROM public.platform_users WHERE email = $1', [claimEmail]);
+      assert.equal(retainedOwner.rowCount, 1, 'deleting a business must not delete its owner's platform account');
+      const oldManagementAccess = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(oldManagementAccess.rows[0].tenant_id, null, 'old management links must stop resolving after deletion');
     } finally {
       if (manualDatabase) await pool.query(`DROP DATABASE IF EXISTS "${manualDatabase}" WITH (FORCE)`).catch(() => {});
       if (manualBusinessId) {
