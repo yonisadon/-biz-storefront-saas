@@ -203,6 +203,11 @@ test('platform account lifecycle and independent marketing consents', async () =
     const preservedSession = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
     assert.equal(preservedSession.rowCount, 1, 'logout must not delete another active session');
     await pool.query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
+    const ownerManagementLogin = await app.inject({
+      method: 'POST', url: '/api/auth/login', payload: { email, password: 'new-correct-horse-battery' },
+    });
+    assert.equal(ownerManagementLogin.statusCode, 200);
+    sessionCookie = String(ownerManagementLogin.headers['set-cookie']).split(';')[0];
 
     // Exercise the real dedicated-database provisioning path against the disposable CI registry.
     const { provisionBusinessForOwner } = await import('../src/provisioning');
