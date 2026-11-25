@@ -236,7 +236,7 @@ async function main() {
               AND ((table_name = 'products' AND column_name = 'booking_mode')
                 OR (table_name = 'leads' AND column_name IN ('idempotency_key', 'retention_closed_at', 'retention_opened_at'))
                 OR (table_name = 'appointments' AND column_name IN ('lead_id', 'start_at', 'end_at', 'status', 'source', 'status_changed_at'))
-                OR (table_name = 'waitlist_entries' AND column_name IN ('preferred_time', 'appointment_id'))
+                OR (table_name = 'waitlist_entries' AND column_name IN ('preferred_time', 'appointment_id', 'lead_id'))
                 OR (table_name = 'appointment_blocks' AND column_name IN ('start_at', 'end_at')))`,
         );
         const present = new Set(requiredColumns.rows.map((row) => `${row.table_name}.${row.column_name}`));
@@ -244,7 +244,7 @@ async function main() {
           'products.booking_mode', 'leads.idempotency_key', 'leads.retention_closed_at', 'leads.retention_opened_at',
           'appointments.lead_id', 'appointments.start_at', 'appointments.end_at',
           'appointments.status', 'appointments.source', 'appointments.status_changed_at',
-          'waitlist_entries.preferred_time', 'waitlist_entries.appointment_id',
+          'waitlist_entries.preferred_time', 'waitlist_entries.appointment_id', 'waitlist_entries.lead_id',
           'appointment_blocks.start_at', 'appointment_blocks.end_at',
         ]) {
           if (!present.has(required)) throw new Error(`Postflight failed for ${tenant.database_name}: missing ${required}.`);
@@ -258,6 +258,16 @@ async function main() {
         if (!retentionAppointmentFk.rowCount ||
             !String(retentionAppointmentFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve calendar appointments.`);
+        }
+        const waitlistLeadFk = await db.query(
+          `SELECT pg_get_constraintdef(oid) AS definition
+             FROM pg_constraint
+            WHERE conrelid = 'public.waitlist_entries'::regclass
+              AND conname = 'waitlist_entries_tenant_lead_fkey'`,
+        );
+        if (!waitlistLeadFk.rowCount ||
+            !String(waitlistLeadFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve waitlist requests.`);
         }
         const retentionTrigger = await db.query(
           `SELECT 1 FROM pg_trigger
