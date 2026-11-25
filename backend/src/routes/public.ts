@@ -352,7 +352,10 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         )).rows : [];
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
         if (rows.some((item) => item.kind !== 'service')) throw new HttpError(400, 'mixed_catalog_types');
-        const legacyCalendar = rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        const legacyCalendar = !biz.config?.contact_options && Boolean((await db.query(
+          "SELECT EXISTS (SELECT 1 FROM products WHERE id = ANY($1::uuid[]) AND kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+          [ids],
+        )).rows[0]?.enabled);
         if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
         const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
