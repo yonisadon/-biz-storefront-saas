@@ -403,6 +403,19 @@ CREATE TABLE IF NOT EXISTS public.push_consents (
   UNIQUE (tenant_id, target_type, target_id, subscription_id)
 );
 
+CREATE TABLE IF NOT EXISTS public.push_device_consents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  subscription_id uuid NOT NULL,
+  purpose text NOT NULL DEFAULT 'operational' CHECK (purpose = 'operational'),
+  consented_at timestamptz NOT NULL DEFAULT now(),
+  revoked_at timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (tenant_id, subscription_id)
+    REFERENCES public.push_subscriptions (tenant_id, id) ON DELETE CASCADE,
+  UNIQUE (tenant_id, subscription_id)
+);
+
 CREATE TABLE IF NOT EXISTS public.push_outbox (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
@@ -453,6 +466,9 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_active
 CREATE INDEX IF NOT EXISTS idx_push_consents_target
   ON public.push_consents (tenant_id, target_type, target_id)
   WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_push_device_consents_active
+  ON public.push_device_consents (tenant_id, subscription_id)
+  WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_push_outbox_pending
   ON public.push_outbox (next_attempt_at, created_at)
   WHERE status IN ('pending', 'processing');
@@ -465,6 +481,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.push_subscriptions,
   public.push_booking_capabilities,
   public.push_consents,
+  public.push_device_consents,
   public.push_outbox,
   public.push_deliveries
 TO app_runtime;
@@ -479,7 +496,7 @@ BEGIN
   FOREACH t IN ARRAY ARRAY['products','leads','lead_items','lead_notes',
                            'media_assets','product_images','portfolio_images','appointments','appointment_blocks',
                            'push_settings','push_subscriptions','push_booking_capabilities',
-                           'push_consents','push_outbox','push_deliveries']
+                           'push_consents','push_device_consents','push_outbox','push_deliveries']
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE public.%I FORCE  ROW LEVEL SECURITY', t);
