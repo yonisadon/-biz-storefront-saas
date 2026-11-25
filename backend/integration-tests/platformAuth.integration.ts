@@ -178,6 +178,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     const setCookie = String(login.headers['set-cookie']);
     assert.match(setCookie, /Max-Age=259200/);
     const newCookie = setCookie.split(';')[0];
+    sessionCookie = newCookie;
     const newSessionToken = decodeURIComponent(newCookie.slice('btime_session='.length));
     const newSessionHash = createHash('sha256').update(newSessionToken).digest();
     const sessionRows = await pool.query(
