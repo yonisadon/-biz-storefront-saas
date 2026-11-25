@@ -14,8 +14,8 @@ BEGIN
     RAISE EXCEPTION 'Seller and customer Push must be enabled by default';
   END IF;
   FOREACH v_table IN ARRAY ARRAY[
-    'push_settings', 'push_subscriptions', 'push_booking_capabilities',
-    'push_consents', 'push_device_consents', 'push_outbox', 'push_deliveries'
+    'push_settings', 'push_subscriptions', 'push_target_link_capabilities',
+    'push_subscription_targets', 'push_device_consents', 'push_outbox', 'push_deliveries'
   ]
   LOOP
     IF NOT EXISTS (
@@ -34,7 +34,7 @@ BEGIN
   END LOOP;
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-     WHERE conrelid = 'public.push_booking_capabilities'::regclass
+     WHERE conrelid = 'public.push_target_link_capabilities'::regclass
        AND contype = 'f'
        AND confrelid = 'public.push_subscriptions'::regclass
   ) THEN
