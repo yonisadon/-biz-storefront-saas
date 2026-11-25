@@ -236,7 +236,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
               <h2 className="mt-1 text-xl font-bold text-ink">בואו נבנה אתר שמוכן לקבל לקוחות</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/70">השלבים קצרים ואפשר לבצע אותם בקצב שלכם. ההתקדמות מתעדכנת לפי הנתונים שנשמרו בפועל, ואפשר לחזור לכאן בכל עת.</p>
             </div>
-            <button type="button" onClick={() => setOnboardingVisible(false)} className="rounded-full border border-ink/20 bg-white px-3 py-2 text-xs font-semibold text-ink">אמשיך אחר כך</button>
+            <button type="button" onClick={completeOnboarding} disabled={onboardingSaving} className="rounded-full border border-ink/20 bg-white px-3 py-2 text-xs font-semibold text-ink disabled:opacity-50">{onboardingSaving ? 'שומר…' : 'סגירת ההדרכה'}</button>
           </div>
 
           <div className="mt-4 rounded-xl bg-surface p-3">
