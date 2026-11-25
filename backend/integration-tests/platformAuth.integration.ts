@@ -941,13 +941,29 @@ test('platform account lifecycle and independent marketing consents', async () =
       const databaseBeforeBackup = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [manualDatabase]);
       assert.equal(databaseBeforeBackup.rowCount, 1);
 
-      const executedDeletion = await app.inject({
-        method: 'POST',
-        url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
-        headers: { ...adminHeaders, 'content-type': 'application/json' },
-        payload: { backupVerified: true, backupReference: 'railway-backup-integration-001' },
-      });
+      const originalFetch = globalThis.fetch;
+      let revokedGoogleToken: string | null = null;
+      globalThis.fetch = (async (input, init) => {
+        if (String(input) === 'https://oauth2.googleapis.com/revoke') {
+          revokedGoogleToken = new URLSearchParams(String(init?.body ?? '')).get('token');
+          return new Response(null, { status: 200 });
+        }
+        return originalFetch(input, init);
+      }) as typeof fetch;
+      let executedDeletion;
+      try {
+        executedDeletion = await app.inject({
+          method: 'POST',
+          url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { backupVerified: true, backupReference: 'railway-backup-integration-001' },
+        });
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
       assert.equal(executedDeletion.statusCode, 200);
+      assert.equal(revokedGoogleToken, 'integration-refresh-token',
+        'business deletion must revoke its Google OAuth refresh token before dropping the tenant database');
       const deletionAudit = await pool.query(
         `SELECT status, tenant_id, database_name, backup_reference, backup_verified_at
            FROM public.business_deletion_requests WHERE id = $1`,
