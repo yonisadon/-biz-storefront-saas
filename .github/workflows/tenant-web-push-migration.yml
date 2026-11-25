@@ -2,9 +2,10 @@ name: Tenant Web Push migration smoke test
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/service-product-contact-flows]
     paths:
       - 'backend/migrations/tenant-013-web-push.sql'
+      - 'backend/migrations/tenant-018-customer-device-push-consent.sql'
       - 'backend/migrations/tenant-schema.sql'
       - 'backend/tests/fixtures/tenant-push-prerequisites.sql'
       - 'backend/tests/fixtures/tenant-push-assertions.sql'
@@ -40,10 +41,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-013-web-push.sql
-      - name: Re-run tenant Push migration to verify idempotence
+      - name: Apply customer device consent migration
         env:
           PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-013-web-push.sql
+        run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-018-customer-device-push-consent.sql
+      - name: Re-run customer device consent migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-018-customer-device-push-consent.sql
       - name: Verify tenant isolation, defaults, and indexes
         env:
           PGPASSWORD: postgres
