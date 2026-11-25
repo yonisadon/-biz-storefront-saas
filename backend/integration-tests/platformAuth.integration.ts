@@ -42,6 +42,15 @@ test('platform account lifecycle and independent marketing consents', async () =
   let sessionCookie = '';
   let ownerSessionCookie = '';
   let claimSessionCookie = '';
+  const pushClientEcdh = createECDH('prime256v1');
+  pushClientEcdh.generateKeys();
+  const customerSubscription = {
+    endpoint: `https://fcm.googleapis.com/fcm/send/integration-${randomUUID()}`,
+    keys: {
+      p256dh: pushClientEcdh.getPublicKey(undefined, 'uncompressed').toString('base64url'),
+      auth: randomBytes(16).toString('base64url'),
+    },
+  };
 
   const extractToken = (html: string, route: 'verify-email' | 'reset-password') => {
     const match = html.match(new RegExp(`/${route}\\?token=([^"&]+)`));
@@ -276,15 +285,6 @@ test('platform account lifecycle and independent marketing consents', async () =
           return token;
         };
 
-        const clientEcdh = createECDH('prime256v1');
-        clientEcdh.generateKeys();
-        const customerSubscription = {
-          endpoint: `https://fcm.googleapis.com/fcm/send/integration-${randomUUID()}`,
-          keys: {
-            p256dh: clientEcdh.getPublicKey(undefined, 'uncompressed').toString('base64url'),
-            auth: randomBytes(16).toString('base64url'),
-          },
-        };
         const firstCapability = await createPushTarget();
         const firstConsent = await app.inject({
           method: 'POST',
@@ -533,7 +533,7 @@ test('platform account lifecycle and independent marketing consents', async () =
       // Exercise the Super Admin provisioning path as well: it must produce the
       // same contact defaults and initialize Push settings in the fresh tenant.
       const adminProvisionSlug = `admin-integration-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
-      let adminProvisioned: { id: string; database: string } | undefined;
+      let adminProvisioned: { id: string; database: string; slug: string } | undefined;
       try {
         const adminCreate = await app.inject({
           method: 'POST',
@@ -542,7 +542,7 @@ test('platform account lifecycle and independent marketing consents', async () =
           payload: { name: 'Admin Provisioning Integration Business', slug: adminProvisionSlug },
         });
         assert.equal(adminCreate.statusCode, 201, adminCreate.body);
-        adminProvisioned = adminCreate.json() as { id: string; database: string };
+        adminProvisioned = adminCreate.json() as { id: string; database: string; slug: string };
         const adminTenantUrl = new URL(databaseUrl);
         adminTenantUrl.pathname = `/${adminProvisioned.database}`;
         const adminTenant = new pgModule.default.Client({ connectionString: adminTenantUrl.toString() });
@@ -561,6 +561,40 @@ test('platform account lifecycle and independent marketing consents', async () =
           );
           assert.equal(tenantBusiness.rows[0].config.contact_options.products.crm_enabled, true);
           assert.equal(tenantBusiness.rows[0].config.contact_options.services.calendar_enabled, true);
+
+          const startAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+          const endAt = new Date(startAt.getTime() + 30 * 60 * 1000);
+          const appointment = await adminTenant.query(
+            `INSERT INTO public.appointments
+               (tenant_id, service_name, customer_phone, start_at, end_at, source, status)
+             VALUES ($1, 'Cross-tenant Push service', '+972501234567', $2, $3, 'website', 'reserved')
+             RETURNING id`,
+            [adminProvisioned.id, startAt, endAt],
+          );
+          const targetId = appointment.rows[0].id as string;
+          const capabilityId = randomUUID();
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const token = derivePushCapabilityToken(
+            adminProvisioned.id, 'appointment', targetId, capabilityId, expiresAt, process.env.PUSH_CAPABILITY_HMAC_KEY!,
+          );
+          await adminTenant.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (id, tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, 'appointment', $3, $4, $5)`,
+            [capabilityId, adminProvisioned.id, targetId, hashPushCapability(token), expiresAt],
+          );
+          const crossTenantConsent = await app.inject({
+            method: 'POST',
+            url: `/api/biz/${adminProvisioned.slug}/push/consent`,
+            payload: { token, explicit_consent: false, subscription: customerSubscription },
+          });
+          assert.equal(crossTenantConsent.statusCode, 403,
+            'a browser consent granted in another tenant must not be reused automatically');
+          const isolatedConsent = await adminTenant.query(
+            'SELECT count(*)::int AS n FROM public.push_device_consents WHERE tenant_id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(isolatedConsent.rows[0].n, 0, 'device consent must remain tenant-scoped');
         } finally {
           await adminTenant.end();
         }
