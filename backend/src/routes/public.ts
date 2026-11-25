@@ -272,7 +272,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
         const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
         if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
-        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
 
         const days = biz.config?.opening_hours?.days;
         const [year, monthNumber] = query.month.split('-').map(Number);
