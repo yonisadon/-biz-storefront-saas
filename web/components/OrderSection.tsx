@@ -3,13 +3,13 @@
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
-import type { DayHours, OrderFlow, Product, PublicCatalogPage } from '@/lib/types';
+import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; flow: OrderFlow; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
-type Route = 'whatsapp' | 'site';
-type Done = { route: 'site'; message: string; pushCapabilityToken?: string } | { route: 'whatsapp'; url: string; message: string; pushCapabilityToken?: string };
-type Step = 'choose' | 'site';
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; contactOptions: ContactOptions; kind: 'product' | 'service'; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
+type Route = 'whatsapp' | 'site' | 'reserve';
+type Done = { route: 'site' | 'reserve'; message: string; pushCapabilityToken?: string } | { route: 'whatsapp'; url: string; message: string; pushCapabilityToken?: string };
+type Step = 'choose' | 'site' | 'reserve';
 
 type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?: string; whatsapp_url?: string; success_message?: string; push_capability_token?: string };
 
@@ -53,13 +53,13 @@ function withTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: (
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
 
-export default function OrderSection({ apiBase, items: initialItems, quoteLabel, flow, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
   const successRef = useRef<HTMLParagraphElement>(null);
-  const [items, setItems] = useState<Product[]>(initialItems);
-  const [nextOffset, setNextOffset] = useState(initialItems.length);
+  const [items, setItems] = useState<Product[]>(initialItems.filter((item) => item.kind === kind));
+  const [nextOffset, setNextOffset] = useState(initialItems.filter((item) => item.kind === kind).length);
   const [hasMore, setHasMore] = useState(initiallyHasMore);
   const [loadingMore, setLoadingMore] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -98,6 +98,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistPreferredDate, setWaitlistPreferredDate] = useState('');
   const [waitlistPreferredTime, setWaitlistPreferredTime] = useState('');
   const [waitlistNote, setWaitlistNote] = useState('');
+  const contactSettings = kind === 'product' ? contactOptions.products : contactOptions.services;
+  const whatsappEnabled = contactSettings.whatsapp_enabled;
+  const crmEnabled = contactSettings.crm_enabled;
+  const calendarEnabled = kind === 'service' && 'calendar_enabled' in contactSettings && contactSettings.calendar_enabled;
 
   useEffect(() => {
     if (done) successRef.current?.focus();
@@ -228,8 +232,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     }
   }
 
-  const canOrder = flow.whatsapp_enabled || flow.site_inquiry_enabled;
-  const calendarOnlyAvailable = !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
   useEffect(() => {
     const term = search.trim();
     if (!term) {
@@ -244,7 +246,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     let cancelled = false;
     setSearching(true);
     setCatalogError(null);
-    const params = new URLSearchParams({ search: term, limit: '12', offset: '0' });
+    const params = new URLSearchParams({ kind, search: term, limit: '12', offset: '0' });
     fetch(`${apiBase}/catalog?${params.toString()}`, { cache: 'no-store' })
       .then(async (response) => {
         if (!response.ok) throw new Error('catalog_search_failed');
@@ -260,13 +262,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       .catch(() => { if (!cancelled) setCatalogError('לא הצלחנו לחפש כרגע. נסו שוב.'); })
       .finally(() => { if (!cancelled) setSearching(false); });
     return () => { cancelled = true; };
-  }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal]);
+  }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal, kind]);
 
   async function loadMore() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true); setCatalogError(null);
     try {
-      const params = new URLSearchParams({ limit: '12', offset: String(nextOffset) });
+      const params = new URLSearchParams({ kind, limit: '12', offset: String(nextOffset) });
       if (search.trim()) params.set('search', search.trim());
       const response = await fetch(`${apiBase}/catalog?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('catalog_request_failed');
@@ -281,26 +283,20 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     .map(([id, q]) => ({ p: selectedProducts[id] ?? byId.get(id), q }))
     .filter((line): line is { p: Product; q: number } => Boolean(line.p));
   const count = lines.reduce((s, l) => s + l.q, 0);
-  const modeOf = (p: Product) => p.booking_mode ?? (p.requires_appointment ? 'free_datetime' : 'none');
-  const appointmentLines = lines.filter(({ p }) => p.kind === 'service' && modeOf(p) !== 'none');
-  const needsAppointment = appointmentLines.length > 0;
-  const reservedAppointmentLines = appointmentLines.filter(({ p }) => modeOf(p) === 'availability');
-  const freeDatetimeLines = appointmentLines.filter(({ p }) => modeOf(p) === 'free_datetime');
-  const needsReservedAppointment = reservedAppointmentLines.length > 0;
-  const needsFreeDatetimeAppointment = freeDatetimeLines.length > 0;
-  const calendarOnlySelection = needsReservedAppointment && lines.length > 0 && lines.every(({ p }) => p.kind === 'service' && modeOf(p) === 'availability');
-  const calendarOnlyFlow = calendarOnlySelection && !flow.whatsapp_enabled && !flow.site_inquiry_enabled;
-  const reservedAppointmentDurationMinutes = reservedAppointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
-  const freeDatetimeDurationMinutes = freeDatetimeLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
-  const appointmentDurationMinutes = needsReservedAppointment ? reservedAppointmentDurationMinutes : freeDatetimeDurationMinutes;
+  const appointmentLines = kind === 'service' ? lines : [];
+  const needsAppointment = calendarEnabled && appointmentLines.length > 0;
+  const reservedAppointmentLines = appointmentLines;
+  const needsReservedAppointment = needsAppointment;
+  const reservedAppointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
+  const appointmentDurationMinutes = reservedAppointmentDurationMinutes;
   const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
     [openingHours],
   );
-  const appointmentTimeRequired = needsAppointment && (needsReservedAppointment || hasAppointmentHours);
+  const appointmentTimeRequired = needsAppointment && step === 'reserve';
   useEffect(() => {
-    if (!needsAppointment || !cartSignature || !hasAppointmentHours) {
+    if (!needsAppointment || step !== 'reserve' || !cartSignature || !hasAppointmentHours) {
       setMonthAvailableDates([]);
       setMonthLoading(false);
       return;
@@ -318,7 +314,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       .catch(() => { if (!cancelled) { setMonthError(true); setMonthAvailableDates([]); } })
       .finally(() => { if (!cancelled) setMonthLoading(false); });
     return () => { cancelled = true; };
-  }, [apiBase, appointmentMonth, cartSignature, hasAppointmentHours, needsAppointment]);
+  }, [apiBase, appointmentMonth, cartSignature, hasAppointmentHours, needsAppointment, step]);
   const monthCells = useMemo(() => {
     const [year, month] = appointmentMonth.split('-').map(Number);
     const firstWeekday = new Date(Date.UTC(year, month - 1, 1, 12)).getUTCDay();
@@ -342,7 +338,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     { label: 'ערב', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 17) },
   ];
   useEffect(() => {
-    if (!needsAppointment || !appointmentDate || !cartSignature) {
+    if (!needsAppointment || step !== 'reserve' || !appointmentDate || !cartSignature) {
       setServerAppointmentSlots([]);
       setSlotsLoading(false);
       return;
@@ -363,9 +359,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       .catch(() => { if (!cancelled) { setSlotsError(true); setServerAppointmentSlots([]); setAppointmentTime(''); } })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };
-  }, [apiBase, appointmentDate, cartSignature, needsAppointment]);
-  // Both reserved and free-datetime services use the same server-generated
-  // quarter-hour grid. Only availability-mode services block calendar time.
+  }, [apiBase, appointmentDate, cartSignature, needsAppointment, step]);
+  // All selected services share one duration and reserve one calendar block.
   const priced = lines.filter((l) => l.p.price_agorot !== null);
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
