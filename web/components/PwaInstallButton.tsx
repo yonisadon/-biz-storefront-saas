@@ -55,7 +55,7 @@ export default function PwaInstallButton({ label }: { label: string }) {
 
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
     setHelp(isIos
-      ? 'ב-iPhone/iPad ההתקנה נעשית דרך Safari: פתחו שיתוף ובחרו „הוספה למסך הבית”. כך האתר נפתח כאפליקציה נפרדת.'
+      ? 'ב-iPhone/iPad: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. לאחר ההתקנה פתחו את האתר מהסמל החדש. כך ניתן לקבל התראות Push (נדרש iOS/iPadOS 16.4 ומעלה).'
       : 'הדפדפן עדיין לא הציע התקנה כאפליקציה. פתחו את קישור הניהול ב-Chrome ועדכנו את הדף. אם מופיעה רק אפשרות „יצירת קיצור דרך” — אל תבחרו בה; נבדוק מדוע הדפדפן לא מזהה את אפשרות ההתקנה.');
   }
 
