@@ -688,7 +688,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
             </label>
             <label className="block min-w-0 text-sm">תאריך מועדף *
-              <input required type="date" min={new Date().toLocaleDateString('en-CA')} value={waitlistPreferredDate} onChange={(e) => setWaitlistPreferredDate(e.target.value)} className={`${input} block`}/>
+              <input required type="date" min={todayDate} value={waitlistPreferredDate} onChange={(e) => setWaitlistPreferredDate(e.target.value)} className={`${input} block`}/>
             </label>
             <label className="block text-sm">שעה מועדפת (רשות)
               <input type="time" value={waitlistPreferredTime} onChange={(e) => setWaitlistPreferredTime(e.target.value)} className={input}/>
