@@ -1,5 +1,9 @@
 export type LeadStatus =  | 'whatsapp_initiated' | 'pending_approval' | 'approved'  | 'rejected' | 'completed' | 'cancelled';
-export type OrderFlow = { whatsapp_enabled: boolean; site_inquiry_enabled: boolean; whatsapp_crm_enabled: boolean; crm_enabled: boolean; whatsapp_intro?: string };
+export type ContactOptions = {
+  products: { whatsapp_enabled: boolean; crm_enabled: boolean };
+  services: { calendar_enabled: boolean; whatsapp_enabled: boolean; crm_enabled: boolean };
+};
+export type OrderFlow = { whatsapp_intro?: string };
 export type DayHours = 'closed' | { open: string; close: string }[];
 export type Product = {
   id: string;
@@ -8,8 +12,6 @@ export type Product = {
   description: string | null;
   details: { label: string; value: string }[];
   price_agorot: number | null;
-  requires_appointment: boolean;
-  booking_mode: 'none' | 'free_datetime' | 'availability';
   appointment_duration_minutes: number;
   image: { url: string; width: number | null; height: number | null } | null;
   additional_images: { id: string; url: string; width: number | null; height: number | null; position: number }[];
@@ -29,7 +31,7 @@ export type PublicPayload = {
   social_links?: { instagram?: string; facebook?: string };
   business_profile?: { city?: string; street_address?: string; show_address?: boolean };
   business_announcement?: { enabled: boolean; message: string };
-  site_mode: 'catalog_order' | 'services_whatsapp';
+  contact_options: ContactOptions;
   order_flow: OrderFlow;
   opening_hours: {
     days: Record<string, DayHours> | null;
@@ -37,7 +39,7 @@ export type PublicPayload = {
     show_out_of_hours_banner: boolean;
     banner_message: string | null;
   };
-  catalog: { quote_label: string; items: Product[]; total: number; limit: number | null; offset: number; has_more: boolean };
+  catalog: { quote_label: string; products: PublicCatalogPage; services: PublicCatalogPage };
   gallery: GalleryImage[];
   sections: { about: boolean; gallery: boolean };
   og: { title: string; description: string | null; image_url: string | null };
@@ -51,7 +53,7 @@ export type Lead = {
   submission_channel: 'whatsapp' | 'site';
   status: LeadStatus;
   estimated_total_agorot: number | null;
-  metadata: { has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number; appointment_needs_coordination?: boolean; booking_mode?: 'none' | 'free_datetime' | 'availability'; booking_modes?: ('free_datetime' | 'availability')[]; unreserved_service_duration_minutes?: number; unreserved_service_names?: string[] };
+  metadata: { domain?: 'products' | 'services'; action?: 'whatsapp' | 'site' | 'reserve' | 'waitlist'; has_quote_items?: boolean; appointment_at?: string; appointment_duration_minutes?: number; preferred_date?: string; preferred_time?: string | null };
   created_at: string;
   items: { name: string; unit_price_agorot: number | null; quantity: number }[];
   notes: { body: string; created_at: string }[];
@@ -89,8 +91,6 @@ export type MProduct = {
   image_width?: number | null;
   image_height?: number | null;
   additional_images: { id: string; url: string; width: number | null; height: number | null; position: number }[];
-  requires_appointment: boolean;
-  booking_mode: 'none' | 'free_datetime' | 'availability';
   appointment_duration_minutes: number;
 };
 
