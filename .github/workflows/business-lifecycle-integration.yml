@@ -55,17 +55,9 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -c "
-            DO \$\$
-            BEGIN
-              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN
-                CREATE ROLE app_runtime LOGIN PASSWORD 'CHANGE_ME_RUNTIME' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-              END IF;
-              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_superadmin') THEN
-                CREATE ROLE app_superadmin LOGIN PASSWORD 'CHANGE_ME_SUPERADMIN' NOSUPERUSER NOCREATEDB NOCREATEROLE BYPASSRLS;
-              END IF;
-            END
-            \$\$;"
+          # The central Registry starts from the common platform schema, then receives
+          # the platform-only migrations that add ownership, subscriptions and policies.
+          psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-schema.sql
           for migration in \
             backend/migrations/000_tenant_registry.sql \
             backend/migrations/001_platform_accounts_subscriptions.sql \
