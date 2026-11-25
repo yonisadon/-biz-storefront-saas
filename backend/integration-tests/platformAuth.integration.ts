@@ -465,6 +465,29 @@ test('platform account lifecycle and independent marketing consents', async () =
             WHERE tenant_id = $1 AND target_id = ANY($2::uuid[])`,
           [provisioned.id, [expiredAppointmentId, expiredWaitlistId]],
         );
+        const appointmentEvent = await tenantDb.query(
+          "SELECT id FROM public.push_outbox WHERE tenant_id = $1 AND target_type = 'appointment' AND target_id = $2",
+          [provisioned.id, expiredAppointmentId],
+        );
+        const pendingDelivery = await tenantDb.query(
+          `INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id, status)
+           VALUES ($1, $2, $3, 'pending') RETURNING id`,
+          [provisioned.id, appointmentEvent.rows[0].id, subscriptionId],
+        );
+        runRetentionCleanup();
+        const deliveryDeferredTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count',
+          [expiredAppointmentId, expiredWaitlistId],
+        );
+        assert.equal(deliveryDeferredTargets.rows[0].appointment_count, 1,
+          'a pending delivery must defer appointment retention even after its outbox event is marked done');
+        assert.equal(deliveryDeferredTargets.rows[0].waitlist_count, 0,
+          'a completed waitlist event may be cleaned independently');
+        await tenantDb.query(
+          "UPDATE public.push_deliveries SET status = 'sent', sent_at = now() WHERE id = $1",
+          [pendingDelivery.rows[0].id],
+        );
         runRetentionCleanup();
         const cleanedTargets = await tenantDb.query(
           'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
