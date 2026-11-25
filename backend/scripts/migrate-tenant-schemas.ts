@@ -269,6 +269,16 @@ async function main() {
             !String(waitlistLeadFk.rows[0].definition).includes('ON DELETE SET NULL (lead_id)')) {
           throw new Error(`Postflight failed for ${tenant.database_name}: CRM deletion would not preserve waitlist requests.`);
         }
+        const waitlistAppointmentFk = await db.query(
+          `SELECT pg_get_constraintdef(oid) AS definition
+             FROM pg_constraint
+            WHERE conrelid = 'public.waitlist_entries'::regclass
+              AND conname = 'waitlist_entries_tenant_appointment_fkey'`,
+        );
+        if (!waitlistAppointmentFk.rowCount ||
+            !String(waitlistAppointmentFk.rows[0].definition).includes('ON DELETE SET NULL (appointment_id)')) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: appointment deletion would not preserve waitlist requests.`);
+        }
         const retentionTrigger = await db.query(
           `SELECT 1 FROM pg_trigger
             WHERE tgrelid = 'public.leads'::regclass
