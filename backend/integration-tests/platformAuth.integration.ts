@@ -214,6 +214,19 @@ test('platform account lifecycle and independent marketing consents', async () =
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
       await tenantDb.connect();
       try {
+        const pushSettings = await tenantDb.query(
+          'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
+          [provisioned.id],
+        );
+        assert.equal(pushSettings.rowCount, 1, 'self-service provisioning must create Push settings after the tenant business row');
+        assert.equal(pushSettings.rows[0].seller_enabled, true);
+        assert.equal(pushSettings.rows[0].customer_enabled, true);
+        const tenantBusinessConfig = await tenantDb.query(
+          'SELECT config FROM public.businesses WHERE id = $1',
+          [provisioned.id],
+        );
+        assert.equal(tenantBusinessConfig.rows[0].config.contact_options.products.crm_enabled, true);
+        assert.equal(tenantBusinessConfig.rows[0].config.contact_options.services.calendar_enabled, true);
         const retentionClosedAt = await tenantDb.query(
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_closed_at'",
         );
@@ -413,6 +426,48 @@ test('platform account lifecycle and independent marketing consents', async () =
       );
 
       const adminHeaders = { authorization: `Bearer ${adminToken}` };
+
+      // Exercise the Super Admin provisioning path as well: it must produce the
+      // same contact defaults and initialize Push settings in the fresh tenant.
+      const adminProvisionSlug = `admin-integration-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+      let adminProvisioned: { id: string; database: string } | undefined;
+      try {
+        const adminCreate = await app.inject({
+          method: 'POST',
+          url: '/api/admin/businesses',
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { name: 'Admin Provisioning Integration Business', slug: adminProvisionSlug },
+        });
+        assert.equal(adminCreate.statusCode, 201, adminCreate.body);
+        adminProvisioned = adminCreate.json() as { id: string; database: string };
+        const adminTenantUrl = new URL(databaseUrl);
+        adminTenantUrl.pathname = `/${adminProvisioned.database}`;
+        const adminTenant = new pgModule.default.Client({ connectionString: adminTenantUrl.toString() });
+        await adminTenant.connect();
+        try {
+          const settings = await adminTenant.query(
+            'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(settings.rowCount, 1, 'Super Admin provisioning must initialize Push settings');
+          assert.equal(settings.rows[0].seller_enabled, true);
+          assert.equal(settings.rows[0].customer_enabled, true);
+          const tenantBusiness = await adminTenant.query(
+            'SELECT config FROM public.businesses WHERE id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(tenantBusiness.rows[0].config.contact_options.products.crm_enabled, true);
+          assert.equal(tenantBusiness.rows[0].config.contact_options.services.calendar_enabled, true);
+        } finally {
+          await adminTenant.end();
+        }
+      } finally {
+        if (adminProvisioned) {
+          await pool.query(`DROP DATABASE IF EXISTS "${adminProvisioned.database}" WITH (FORCE)`).catch(() => {});
+          await pool.query('DELETE FROM public.businesses WHERE id = $1', [adminProvisioned.id]).catch(() => {});
+        }
+      }
+
       const legacyLinkBeforeAssociation = await app.inject({
         method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
       });
