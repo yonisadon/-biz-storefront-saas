@@ -120,8 +120,8 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       const n = await db.query('SELECT count(*)::int AS n FROM products');
       if (n.rows[0].n >= MAX_PRODUCTS) throw new HttpError(409, 'product_limit');
       const ins = await db.query(
-        `INSERT INTO products (tenant_id, kind, name, description, details, price_agorot, is_active, requires_appointment, booking_mode, appointment_duration_minutes, sort_order)
-         VALUES (app.current_tenant_id(), $1, $2, $3, $4::jsonb, $5, $6, false, 'none', $7,
+        `INSERT INTO products (tenant_id, kind, name, description, details, price_agorot, is_active, appointment_duration_minutes, sort_order)
+         VALUES (app.current_tenant_id(), $1, $2, $3, $4::jsonb, $5, $6, $7,
                  (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM products))
          RETURNING id`,
         [b.kind, b.name, b.description, JSON.stringify(b.details), b.price_agorot, b.is_active, b.kind === 'service' ? b.appointment_duration_minutes : 30],
