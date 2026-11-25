@@ -5,7 +5,7 @@ import { env } from '../config';
 import { pool, withTenant } from '../db';
 import { HttpError } from '../errors';
 import { LeadInput, LegalDoc } from '../schemas';
-import { resolveCrmSettings, resolveLeadRoute } from '../crmRouting';
+import { resolveContactOptions, resolveLeadRoute } from '../crmRouting';
 import { quarterHourStartMinutes, validateAppointmentSelection } from '../appointmentRules';
 import { PublicCatalogQuery } from '../catalogSchemas';
 import { ils, isOpenNow, mediaUrl, toLocalPhone } from '../util';
@@ -19,42 +19,33 @@ const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את �
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 
 const PUBLIC_CATALOG_PAGE_SIZE = 12;
-async function loadPublicCatalog(db: pg.PoolClient, limit: number | null, offset = 0, search = '') {
+async function loadPublicCatalog(db: pg.PoolClient, kind: 'product' | 'service' | null, limit: number | null, offset = 0, search = '') {
   const term = search.trim();
-  const where = term ? `WHERE p.is_active AND (p.name ILIKE '%' || $1 || '%' OR COALESCE(p.description, '') ILIKE '%' || $1 || '%')` : 'WHERE p.is_active';
-  const result = limit === null
-    ? await db.query(`SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height,
-                COALESCE((
-                  SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
-                    FROM product_images pi
-                    JOIN media_assets pm ON pm.tenant_id = pi.tenant_id AND pm.id = pi.asset_id
-                   WHERE pi.tenant_id = p.tenant_id AND pi.product_id = p.id
-                ), '[]'::json) AS extra_images
-           FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at`, term ? [term] : [])
-    : await db.query(`SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, m.storage_key, m.width, m.height, count(*) OVER()::int AS total,
-                COALESCE((
-                  SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
-                    FROM product_images pi
-                    JOIN media_assets pm ON pm.tenant_id = pi.tenant_id AND pm.id = pi.asset_id
-                   WHERE pi.tenant_id = p.tenant_id AND pi.product_id = p.id
-                ), '[]'::json) AS extra_images
-           FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at LIMIT ${term ? '$2' : '$1'} OFFSET ${term ? '$3' : '$2'}`, term ? [term, limit, offset] : [limit, offset]);
+  const where = `WHERE p.is_active AND ($1::text IS NULL OR p.kind = $1) AND ($2::text = '' OR p.name ILIKE '%' || $2 || '%' OR COALESCE(p.description, '') ILIKE '%' || $2 || '%')`;
+  const columns = `p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.appointment_duration_minutes, m.storage_key, m.width, m.height,
+         COALESCE((
+           SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
+             FROM product_images pi
+             JOIN media_assets pm ON pm.tenant_id = pi.tenant_id AND pm.id = pi.asset_id
+            WHERE pi.tenant_id = p.tenant_id AND pi.product_id = p.id
+         ), '[]'::json) AS extra_images`;
+  const select = limit === null
+    ? `SELECT ${columns} FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at`
+    : `SELECT ${columns}, count(*) OVER()::int AS total FROM products p LEFT JOIN media_assets m ON m.tenant_id = p.tenant_id AND m.id = p.image_asset_id ${where} ORDER BY p.sort_order, p.created_at LIMIT $3 OFFSET $4`;
+  const result = await db.query(select, limit === null ? [kind, term] : [kind, term, limit, offset]);
   const items = result.rows.map((r) => ({
     id: r.id, kind: r.kind, name: r.name, description: r.description, details: r.details ?? [], price_agorot: r.price_agorot,
-    requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
+    appointment_duration_minutes: r.appointment_duration_minutes ?? 30,
     image: r.storage_key ? { url: mediaUrl(env.MEDIA_BASE_URL, r.storage_key), width: r.width, height: r.height } : null,
     additional_images: (r.extra_images ?? []).map((image: any) => ({ id: image.id, url: mediaUrl(env.MEDIA_BASE_URL, image.storage_key), width: image.width, height: image.height, position: image.position })),
   }));
   let total = limit === null ? items.length : (result.rows[0] ? Number(result.rows[0].total) : 0);
   if (limit !== null && items.length === 0 && offset > 0) {
-    const count = term
-      ? await db.query(`SELECT count(*)::int AS total FROM products WHERE is_active AND (name ILIKE '%' || $1 || '%' OR COALESCE(description, '') ILIKE '%' || $1 || '%')`, [term])
-      : await db.query('SELECT count(*)::int AS total FROM products WHERE is_active');
+    const count = await db.query(`SELECT count(*)::int AS total FROM products p ${where}`, [kind, term]);
     total = Number(count.rows[0].total);
   }
   return { items, total, limit, offset, has_more: limit !== null && offset + items.length < total };
 }
-
 
 async function loadBusiness(db: pg.PoolClient) {
   const { rows } = await db.query(
@@ -70,11 +61,15 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const cfg = biz.config ?? {};
   const flow = cfg.order_flow ?? {};
   // Missing flags preserve legacy behavior for existing businesses.
-  const { crmEnabled, whatsappCrmEnabled } = resolveCrmSettings(cfg);
-  const siteMode = cfg.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order';
+  const siteMode = 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
-  const catalog = await loadPublicCatalog(db, siteMode === 'services_whatsapp' ? null : PUBLIC_CATALOG_PAGE_SIZE);
+  const legacyCalendarServices = Boolean((await db.query(
+    "SELECT EXISTS (SELECT 1 FROM products WHERE kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+  )).rows[0]?.enabled);
+  const contactOptions = resolveContactOptions(cfg, legacyCalendarServices);
+  const products = await loadPublicCatalog(db, 'product', PUBLIC_CATALOG_PAGE_SIZE);
+  const services = await loadPublicCatalog(db, 'service', PUBLIC_CATALOG_PAGE_SIZE);
 
   const galleryRows = (await db.query(
     `SELECT pi.id, pi.position, pi.alt_text, pi.caption, m.storage_key, m.width, m.height
@@ -114,11 +109,10 @@ async function buildPublicPayload(db: pg.PoolClient) {
       message: typeof cfg.business_announcement?.message === 'string' ? cfg.business_announcement.message : '',
     },
     site_mode: siteMode,
+    contact_options: contactOptions,
     order_flow: {
-      crm_enabled: crmEnabled,
-      whatsapp_crm_enabled: whatsappCrmEnabled,
-      whatsapp_enabled: flow.whatsapp_enabled === true,
-      site_inquiry_enabled: crmEnabled && flow.site_inquiry_enabled === true,
+      whatsapp_enabled: contactOptions.products.whatsapp_enabled || contactOptions.services.whatsapp_enabled,
+      site_inquiry_enabled: contactOptions.products.crm_enabled,
       // The same seller-defined opening is used for general contact and order messages.
       whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || (siteMode === 'services_whatsapp' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO),
     },
@@ -128,7 +122,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
       show_out_of_hours_banner: hours.out_of_hours_banner?.enabled !== false && openNow === false,
       banner_message: hours.out_of_hours_banner?.message ?? null,
     },
-    catalog: { quote_label: cfg.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL, ...catalog },
+    catalog: { quote_label: cfg.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL, products, services },
     gallery,                                      // [] => component hidden
     sections: { about: !!biz.about_text, gallery: gallery.length > 0 },
     og: {
@@ -234,7 +228,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
     app.get('/', async (req) => withTenant(req.tenantId, buildPublicPayload));
     app.get('/catalog', async (req) => {
       const q = PublicCatalogQuery.parse(req.query);
-      return withTenant(req.tenantId, async (db) => loadPublicCatalog(db, q.limit, q.offset, q.search));
+      return withTenant(req.tenantId, async (db) => loadPublicCatalog(db, q.kind ?? null, q.limit, q.offset, q.search));
     });
 
     // Legal texts are fetched separately (can be large). null => use platform default.
