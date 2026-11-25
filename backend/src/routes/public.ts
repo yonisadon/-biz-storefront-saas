@@ -162,7 +162,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           "AND s.endpoint_hash = $1 AND s.disabled_at IS NULL AND c.revoked_at IS NULL",
           [hashPushCapability(input.endpoint)],
         );
-        return { active: result.rowCount > 0 };
+        return { active: result.rows.length > 0 };
       });
     });
 
