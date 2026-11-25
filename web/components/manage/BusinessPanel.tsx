@@ -22,7 +22,7 @@ function saveError(err: unknown): string {
     if (msgs.includes('invalid_il_phone')) return 'מספר טלפון אינו תקין.';
     if (err.body?.error === 'constraint_violation')
       return 'ההגדרות אינן תואמות למגבלות העסק. בדקו את מספר ה־WhatsApp ואת הגדרות ההזמנה.';
-    if (err.body?.error === 'invalid_config') return 'ההגדרות לא עברו אימות.';
+    if (err.body?.error === 'invalid_config' || err.body?.error === 'invalid_contact_options') return 'ההגדרות לא עברו אימות. ודאו שלכל סוג פריט יש לפחות דרך פנייה אחת.';
   }
   return 'השמירה נכשלה. נסו שוב.';
 }
@@ -31,6 +31,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
   const flow = biz.config.order_flow ?? {};
+  const contact = biz.config.contact_options ?? { products: { whatsapp_enabled: flow.whatsapp_enabled === true, crm_enabled: biz.config.crm_enabled !== false }, services: { calendar_enabled: false, whatsapp_enabled: flow.whatsapp_enabled === true, crm_enabled: biz.config.crm_enabled !== false } };
   const [f, setF] = useState({
     name: biz.name,
     phone: toLocalPhone(biz.phone),
@@ -42,15 +43,15 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     city: biz.config.business_profile?.city ?? '',
     streetAddress: biz.config.business_profile?.street_address ?? '',
     showAddress: biz.config.business_profile?.show_address === true,
-    wa: flow.whatsapp_enabled === true,
-    site: biz.config.crm_enabled === false ? false : flow.site_inquiry_enabled === true,
-    crm: biz.config.crm_enabled !== false,
-    whatsappCrm: flow.whatsapp_crm_enabled !== false,
+    productWa: contact.products.whatsapp_enabled === true,
+    productCrm: contact.products.crm_enabled === true,
+    serviceCalendar: contact.services.calendar_enabled === true,
+    serviceWa: contact.services.whatsapp_enabled === true,
+    serviceCrm: contact.services.crm_enabled === true,
     whatsappIntro: initialWhatsAppIntro(flow),
     announcementEnabled: biz.config.business_announcement?.enabled === true,
     announcementMessage: typeof biz.config.business_announcement?.message === 'string' ? biz.config.business_announcement.message : '',
   });
-  const [siteMode, setSiteMode] = useState<'catalog_order' | 'services_whatsapp'>(biz.config?.site_mode === 'services_whatsapp' ? 'services_whatsapp' : 'catalog_order');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
@@ -58,8 +59,9 @@ export default function BusinessPanel({ token, biz, onSaved }: {
   async function save(e: React.FormEvent) {
     e.preventDefault(); setMsg(null);
     if (!f.name.trim()) return setMsg({ ok: false, text: 'שם העסק הוא שדה חובה.' });
-    if (f.wa && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'כדי להפעיל מסלול וואטסאפ יש להזין מספר וואטסאפ.' });
-    if (siteMode === 'services_whatsapp' && (!f.wa || !f.whatsapp.trim())) return setMsg({ ok: false, text: 'במצב הצגת שירותים ב-WhatsApp יש להפעיל את מסלול WhatsApp ולהזין מספר WhatsApp.' });
+    if (!f.productWa && !f.productCrm) return setMsg({ ok: false, text: 'למוצרים יש להפעיל לפחות WhatsApp או CRM (פנייה באתר).' });
+    if (!f.serviceCalendar && !f.serviceWa) return setMsg({ ok: false, text: 'לשירותים יש להפעיל לפחות שריון ביומן או WhatsApp.' });
+    if ((f.productWa || f.serviceWa) && !f.whatsapp.trim()) return setMsg({ ok: false, text: 'כדי להפעיל WhatsApp יש להזין מספר WhatsApp.' });
 
     setSaving(true);
     try {
@@ -75,13 +77,17 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
           config: {
-            site_mode: siteMode,
-            crm_enabled: f.crm,
+            site_mode: 'catalog_order',
+            crm_enabled: f.productCrm || f.serviceCrm,
+            contact_options: {
+              products: { whatsapp_enabled: f.productWa, crm_enabled: f.productCrm },
+              services: { calendar_enabled: f.serviceCalendar, whatsapp_enabled: f.serviceWa, crm_enabled: f.serviceCrm },
+            },
             order_flow: {
               ...latestFlow,
-              whatsapp_enabled: f.wa,
-              site_inquiry_enabled: f.crm && f.site,
-              whatsapp_crm_enabled: f.whatsappCrm,
+              whatsapp_enabled: f.productWa || f.serviceWa,
+              site_inquiry_enabled: f.productCrm,
+              whatsapp_crm_enabled: true,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
             branding: latest.config.branding ?? {},
@@ -113,11 +119,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
     <div className="grid gap-6 md:grid-cols-2">
       <form onSubmit={save} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <h2 className="text-lg font-bold">פרטי העסק</h2>
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">אופן קבלת הזמנות ופניות</legend>
-          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'catalog_order'} onChange={() => setSiteMode('catalog_order')} /><span><strong>קטלוג והזמנות</strong><span className="block text-xs leading-5 text-gray-500">המצב הרגיל: בחירת מוצרים או שירותים, סל והמשך להזמנה.</span></span></label>
-          <label className="flex items-start gap-2 text-sm"><input className="mt-1" type="radio" name="siteMode" checked={siteMode === 'services_whatsapp'} onChange={() => setSiteMode('services_whatsapp')} /><span><strong>הצגת מוצרים ושירותים ופנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">כל המוצרים והשירותים הפעילים יוצגו באתר. כל פריט יפנה לשיחה ב-WhatsApp, ללא סל, טופס הזמנה או בחירת תור באתר.</span></span></label>
-        </fieldset>
+
         <label className="block text-sm font-medium">שם העסק
           <input className={input} value={f.name} onChange={(e) => set('name', e.target.value)} />
         </label>
@@ -167,7 +169,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           </label>
         </fieldset>
 
-        {(f.wa || siteMode === 'services_whatsapp') && (
+        {(f.productWa || f.serviceWa) && (
           <label className="block text-sm font-medium">נוסח הודעת WhatsApp (משמש גם לפנייה כללית וגם להזמנה)
             <textarea className={input} rows={2} maxLength={1000} value={f.whatsappIntro}
               onChange={(e) => set('whatsappIntro', e.target.value)} />
@@ -175,34 +177,35 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           </label>
         )}
 
-        <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-semibold">ניהול פניות (CRM)</legend>
+        <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">הגדרות מוצרים</legend>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={f.crm} onChange={(e) => {
-              const enabled = e.target.checked;
-              setF((current) => ({ ...current, crm: enabled, ...(enabled ? {} : { site: false }) }));
-            }} />
-            <span><strong>הפעלת ניהול פניות ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כשמכבים CRM, טופס פנייה ותיעוד WhatsApp ב-CRM מושבתים. פניות קיימות לא יימחקו. הזמנת שירות עם שריון ביומן נשארת זמינה באתר, בלי ליצור פנייה ב-CRM. פנייה ישירה ב-WhatsApp יכולה לפעול אם המסלול מופעל.</span></span>
+            <input type="checkbox" checked={f.productWa} onChange={(e) => set('productWa', e.target.checked)} />
+            <span><strong>פנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">הלקוח יוכל לשלוח לעסק הודעה עם פרטי המוצרים שבחר.</span></span>
           </label>
-          {f.crm && f.wa && (
-            <label className="flex items-start gap-2 border-t border-gray-100 pt-2 text-sm">
-              <input type="checkbox" checked={f.whatsappCrm} onChange={(e) => set('whatsappCrm', e.target.checked)} />
-              <span><strong>תיעוד פניות WhatsApp ב-CRM</strong><span className="block text-xs leading-5 text-gray-500">כבוי: הלקוח יעבור ישירות ל-WhatsApp ולא תיפתח פנייה במערכת. פעיל: תיווצר גם רשומת פנייה, בנוסף לפתיחת WhatsApp.</span></span>
-            </label>
-          )}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={f.productCrm} onChange={(e) => set('productCrm', e.target.checked)} />
+            <span><strong>CRM למוצרים ופנייה באתר</strong><span className="block text-xs leading-5 text-gray-500">הלקוח יוכל להשאיר פנייה באתר, והיא תתועד ב-CRM. כאשר CRM פעיל, גם פנייה ב-WhatsApp תתועד.</span></span>
+          </label>
+          <p className="text-xs text-gray-500">יש להפעיל לפחות אחת מהאפשרויות.</p>
         </fieldset>
 
-        {siteMode === 'catalog_order' && <fieldset className="space-y-2 pt-1">
-          <legend className="text-sm font-medium">מסלולי הזמנה באתר</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={f.wa} onChange={(e) => set('wa', e.target.checked)} /> שלח הזמנה בוואטסאפ
+        <fieldset className="space-y-3 rounded-xl border border-gray-200 p-3">
+          <legend className="px-1 text-sm font-semibold">הגדרות שירותים</legend>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={f.serviceCalendar} onChange={(e) => set('serviceCalendar', e.target.checked)} />
+            <span><strong>שריון ביומן ורשימת המתנה</strong><span className="block text-xs leading-5 text-gray-500">הלקוח יוכל לבחור תור פנוי ביומן או להגיש בקשת המתנה עם תאריך מועדף. בקשת המתנה אינה שומרת שעה ביומן.</span></span>
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={f.site} disabled={!f.crm} onChange={(e) => set('site', e.target.checked)} /> השאר פנייה באתר
-            {!f.crm && <span className="block ps-6 text-xs text-gray-500">יש להפעיל CRM כדי לאפשר טופס פנייה באתר.</span>}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={f.serviceWa} onChange={(e) => set('serviceWa', e.target.checked)} />
+            <span><strong>פנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">הלקוח יוכל לפנות לעסק לתיאום או לקבלת פרטים.</span></span>
           </label>
-          <p className="text-xs leading-5 text-gray-500">אפשר להשאיר את שני המסלולים כבויים. במקרה כזה רק שירותים שהוגדרו לשריון ביומן יאפשרו קביעת תור באתר; מוצרים ושירותים ללא שריון לא יציגו כפתור פעולה. הזמנת תור נשמרת ביומן גם ללא CRM.</p>
-        </fieldset>}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={f.serviceCrm} onChange={(e) => set('serviceCrm', e.target.checked)} />
+            <span><strong>CRM לשירותים</strong><span className="block text-xs leading-5 text-gray-500">כל שריון, בקשת המתנה או התחלת פנייה ב-WhatsApp יתועדו ב-CRM. כיבוי CRM לא יפגע בתור או בבקשת ההמתנה.</span></span>
+          </label>
+          <p className="text-xs text-gray-500">יש להפעיל לפחות שריון ביומן או WhatsApp. CRM לשירותים הוא עצמאי מה-CRM למוצרים.</p>
+        </fieldset>
 
         {msg && (
           <p role={msg.ok ? 'status' : 'alert'}
