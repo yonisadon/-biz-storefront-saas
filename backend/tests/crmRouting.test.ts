@@ -1,108 +1,77 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveCrmSettings, resolveLeadRoute } from '../src/crmRouting';
+import { resolveContactOptions, resolveLeadRoute, validateContactOptions } from '../src/crmRouting';
 
-test('legacy tenant settings keep CRM and WhatsApp tracking enabled by default', () => {
+test('legacy global settings map to the new product and service settings', () => {
   const config = { order_flow: { whatsapp_enabled: true, site_inquiry_enabled: true } };
-  assert.deepEqual(resolveCrmSettings(config), {
-    crmEnabled: true,
-    whatsappEnabled: true,
-    siteInquiryEnabled: true,
-    whatsappCrmEnabled: true,
+  assert.deepEqual(resolveContactOptions(config, true), {
+    products: { whatsapp_enabled: true, crm_enabled: true },
+    services: { calendar_enabled: true, whatsapp_enabled: true, crm_enabled: true },
   });
-  assert.equal(resolveLeadRoute(config, 'whatsapp').createLead, true);
 });
 
-test('WhatsApp can be direct without creating a CRM lead', () => {
-  const config = {
-    crm_enabled: true,
-    order_flow: {
-      whatsapp_enabled: true,
-      site_inquiry_enabled: true,
-      whatsapp_crm_enabled: false,
-    },
-  };
-  const route = resolveLeadRoute(config, 'whatsapp');
-  assert.equal(route.routeEnabled, true);
-  assert.equal(route.createLead, false);
-  assert.equal(resolveLeadRoute(config, 'site').createLead, true);
+test('legacy free-datetime services map to calendar-enabled services for waitlist migration', () => {
+  const config = { order_flow: { whatsapp_enabled: false }, crm_enabled: true };
+  assert.equal(resolveContactOptions(config, true).services.calendar_enabled, true);
+  assert.equal(resolveContactOptions(config, false).services.calendar_enabled, false);
 });
 
-test('disabling CRM blocks site inquiries but keeps direct WhatsApp available', () => {
-  const config = {
-    crm_enabled: false,
-    order_flow: {
-      whatsapp_enabled: true,
-      site_inquiry_enabled: true,
-      whatsapp_crm_enabled: true,
-    },
-  };
-  const whatsapp = resolveLeadRoute(config, 'whatsapp');
+test('product CRM enables website inquiry and records WhatsApp when enabled', () => {
+  const config = { contact_options: {
+    products: { whatsapp_enabled: true, crm_enabled: true },
+    services: { calendar_enabled: false, whatsapp_enabled: true, crm_enabled: false },
+  } };
+  assert.deepEqual(resolveLeadRoute(config, 'site', 'products'), {
+    options: config.contact_options, routeEnabled: true, createLead: true,
+  });
+  assert.equal(resolveLeadRoute(config, 'whatsapp', 'products').createLead, true);
+});
+
+test('product WhatsApp can operate without CRM', () => {
+  const config = { contact_options: {
+    products: { whatsapp_enabled: true, crm_enabled: false },
+    services: { calendar_enabled: false, whatsapp_enabled: true, crm_enabled: false },
+  } };
+  const whatsapp = resolveLeadRoute(config, 'whatsapp', 'products');
   assert.equal(whatsapp.routeEnabled, true);
   assert.equal(whatsapp.createLead, false);
-  const site = resolveLeadRoute(config, 'site');
+  const site = resolveLeadRoute(config, 'site', 'products');
   assert.equal(site.routeEnabled, false);
   assert.equal(site.createLead, false);
 });
 
-test('calendar-only booking remains available alongside direct WhatsApp when CRM is disabled', () => {
-  const config = {
-    crm_enabled: false,
-    order_flow: {
-      whatsapp_enabled: true,
-      site_inquiry_enabled: false,
-      whatsapp_crm_enabled: false,
-    },
-  };
-  const booking = resolveLeadRoute(config, 'site', { bookingMode: 'availability' });
-  assert.equal(booking.routeEnabled, true);
-  assert.equal(booking.createLead, false);
-
-  const whatsapp = resolveLeadRoute(config, 'whatsapp', { bookingMode: 'availability' });
+test('service reservation and WhatsApp use service CRM independently of product CRM', () => {
+  const config = { contact_options: {
+    products: { whatsapp_enabled: false, crm_enabled: true },
+    services: { calendar_enabled: true, whatsapp_enabled: true, crm_enabled: false },
+  } };
+  const reserve = resolveLeadRoute(config, 'reserve', 'services');
+  assert.equal(reserve.routeEnabled, true);
+  assert.equal(reserve.createLead, false);
+  const whatsapp = resolveLeadRoute(config, 'whatsapp', 'services');
   assert.equal(whatsapp.routeEnabled, true);
   assert.equal(whatsapp.createLead, false);
 });
 
-test('calendar reservations remain available with CRM and both contact routes disabled', () => {
-  const config = {
-    crm_enabled: false,
-    order_flow: {
-      whatsapp_enabled: false,
-      site_inquiry_enabled: false,
-      whatsapp_crm_enabled: false,
-    },
-  };
-  const booking = resolveLeadRoute(config, 'site', { bookingMode: 'availability' });
-  assert.equal(booking.routeEnabled, true);
-  assert.equal(booking.createLead, false);
-
-  const ordinarySiteInquiry = resolveLeadRoute(config, 'site', { bookingMode: 'none' });
-  assert.equal(ordinarySiteInquiry.routeEnabled, false);
-  assert.equal(ordinarySiteInquiry.createLead, false);
-
-  const freeDatetimeRequest = resolveLeadRoute(config, 'site', { bookingMode: 'free_datetime' });
-  assert.equal(freeDatetimeRequest.routeEnabled, false);
-  assert.equal(freeDatetimeRequest.createLead, false);
+test('service CRM records all enabled service actions', () => {
+  const config = { contact_options: {
+    products: { whatsapp_enabled: false, crm_enabled: true },
+    services: { calendar_enabled: true, whatsapp_enabled: true, crm_enabled: true },
+  } };
+  assert.equal(resolveLeadRoute(config, 'reserve', 'services').createLead, true);
+  assert.equal(resolveLeadRoute(config, 'whatsapp', 'services').createLead, true);
 });
 
-test('calendar-only exception does not bypass a disabled WhatsApp route', () => {
-  const config = {
-    crm_enabled: false,
-    order_flow: { whatsapp_enabled: false, site_inquiry_enabled: false },
-  };
-  const whatsapp = resolveLeadRoute(config, 'whatsapp', { bookingMode: 'availability' });
-  assert.equal(whatsapp.routeEnabled, false);
-  assert.equal(whatsapp.createLead, false);
-});
-
-test('WhatsApp tracking does not enable a disabled WhatsApp route', () => {
-  const route = resolveLeadRoute({
-    order_flow: {
-      whatsapp_enabled: false,
-      site_inquiry_enabled: true,
-      whatsapp_crm_enabled: true,
-    },
-  }, 'whatsapp');
-  assert.equal(route.routeEnabled, false);
-  assert.equal(route.createLead, false);
+test('invalid contact settings cannot leave a domain without a customer route', () => {
+  assert.deepEqual(validateContactOptions({ contact_options: {
+    products: { whatsapp_enabled: false, crm_enabled: false },
+    services: { calendar_enabled: false, whatsapp_enabled: false, crm_enabled: true },
+  } }), [
+    'products require WhatsApp or CRM website inquiry',
+    'services require calendar reservation or WhatsApp',
+  ]);
+  assert.deepEqual(validateContactOptions({ contact_options: {
+    products: { whatsapp_enabled: true, crm_enabled: false },
+    services: { calendar_enabled: true, whatsapp_enabled: false, crm_enabled: false },
+  } }), []);
 });
