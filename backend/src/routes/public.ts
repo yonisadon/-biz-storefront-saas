@@ -61,7 +61,6 @@ async function buildPublicPayload(db: pg.PoolClient) {
   const cfg = biz.config ?? {};
   const flow = cfg.order_flow ?? {};
   // Missing flags preserve legacy behavior for existing businesses.
-  const siteMode = 'catalog_order';
   const hours = cfg.opening_hours ?? {};
 
   const legacyCalendarServices = Boolean((await db.query(
@@ -108,13 +107,12 @@ async function buildPublicPayload(db: pg.PoolClient) {
       enabled: cfg.business_announcement?.enabled === true,
       message: typeof cfg.business_announcement?.message === 'string' ? cfg.business_announcement.message : '',
     },
-    site_mode: siteMode,
     contact_options: contactOptions,
     order_flow: {
       whatsapp_enabled: contactOptions.products.whatsapp_enabled || contactOptions.services.whatsapp_enabled,
       site_inquiry_enabled: contactOptions.products.crm_enabled,
       // The same seller-defined opening is used for general contact and order messages.
-      whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || (siteMode === 'services_whatsapp' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO),
+      whatsapp_intro: String(flow.whatsapp_intro ?? '').trim() || DEFAULT_WA_INTRO,
     },
     opening_hours: {
       days: hours.days ?? null,
