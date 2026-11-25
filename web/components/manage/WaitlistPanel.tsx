@@ -92,11 +92,13 @@ export default function WaitlistPanel({ token }: { token: string }) {
       const errorCode = err instanceof ApiError ? err.body?.error : null;
       setError(err instanceof Error && err.name === 'AbortError'
         ? 'הבקשה התעכבה. בדקו ביומן אם התור נוצר לפני ניסיון נוסף.'
-        : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
-          ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
-          : err instanceof ApiError && err.status === 400
-            ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
-            : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+        : errorCode === 'invalid_appointment_time'
+          ? 'אי אפשר לשבץ תור לתאריך או לשעה שכבר עברו. בחרו מועד מהיום והלאה.'
+          : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
+            ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
+            : err instanceof ApiError && err.status === 400
+              ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
+              : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
