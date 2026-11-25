@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     lockAcquired = true;
 
     const tenants = await queryRegistryWithRetry(
-      'SELECT tenant_id FROM app.tenant_databases ORDER BY tenant_id',
+      'SELECT td.tenant_id FROM app.tenant_databases td JOIN public.businesses b ON b.id = td.tenant_id WHERE b.status = \'active\' ORDER BY td.tenant_id',
     );
     console.info('Push outbox recovery started for ' + tenants.rows.length + ' tenants.');
 
