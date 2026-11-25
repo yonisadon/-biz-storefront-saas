@@ -23,6 +23,11 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.WEB_PUSH_VAPID_SUBJECT = 'mailto:push-tests@example.test';
   process.env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY = 'c'.repeat(64);
   process.env.PUSH_CAPABILITY_HMAC_KEY = 'd'.repeat(64);
+  process.env.GOOGLE_OAUTH_CLIENT_ID = 'integration-google-client';
+  process.env.GOOGLE_OAUTH_CLIENT_SECRET = 'integration-google-secret';
+  process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/google-calendar/callback';
+  process.env.GOOGLE_OAUTH_STATE_SECRET = 'f'.repeat(64);
+  process.env.GOOGLE_TOKEN_ENCRYPTION_KEY = 'e'.repeat(64);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
