@@ -372,6 +372,18 @@ test('platform account lifecycle and independent marketing consents', async () =
           payload: { endpoint: customerSubscription.endpoint },
         });
         assert.equal(activeAgain.json().active, true);
+        const sellerRemoved = await app.inject({
+          method: 'DELETE', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(sellerRemoved.statusCode, 200);
+        const customerStillActive = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(customerStillActive.json().active, true,
+          'removing seller Push on this browser must not revoke independent customer consent');
 
         // Retention must wait for pending Push events, then remove only target
         // links/capabilities while preserving the tenant+device consent record.
