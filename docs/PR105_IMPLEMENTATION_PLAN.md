@@ -9,13 +9,13 @@
 המודל הקודם של הסכמה נפרדת לכל תור הוחלף עבור הרשמות חדשות:
 
 - `push_device_consents` היא מקור האמת להסכמה תפעולית קבועה של subscription מסוים אצל tenant מסוים. היא כוללת purpose, consented_at ו-revoked_at.
-- `push_consents` נשארת קישור בין subscription ליעד תפעולי (appointment/waitlist), ולא מהווה לבדה הסכמה כללית.
+- `push_subscription_targets` נשארת קישור בין subscription ליעד תפעולי (appointment/waitlist), ולא מהווה לבדה הסכמה כללית.
 - לאחר פעולה מוצלחת, הלקוח מקושר אוטומטית ליעד החדש אם הדפדפן כבר מחזיק subscription עם הסכמה פעילה לאותו עסק. אחרת מוצגת בקשת הצטרפות מפורשת.
-- capability token נשאר token אבטחה קצר-טווח שמוכיח בעלות על יעד ההזמנה/ההמתנה בעת הקישור; הוא אינו מחייב הסכמה מחדש לכל יעד.
+- `push_target_link_capabilities` והעמודה `linked_at` מחליפים את שמות המודל הישן. ה-token נשאר אמצעי אבטחה קצר-טווח שמוכיח בעלות על יעד ההזמנה/ההמתנה בעת הקישור; הוא אינו מחייב הסכמה מחדש לכל יעד.
 - ביטול דרך `DELETE /push/subscriptions/customer` מבטל את ההסכמה ואת כל קישורי היעדים של אותו subscription בעסק הנוכחי בלבד. אין להסיר את ה-PushSubscription מהדפדפן, כדי לא לפגוע בעסקים אחרים באותו origin.
 - `POST /push/subscriptions/customer/status` בודק אם קיימת הסכמה פעילה למכשיר ולעסק. `POST /push/consent` מקבל `explicit_consent`: false עבור קישור שקט להסכמה קיימת, true רק לאחר פעולה מפורשת של הלקוח.
 - אין להמיר הסכמות היסטוריות לפי תור להסכמה קבועה; היקף ההסכמה הישנה נשמר. הודעות שיווקיות אינן כלולות ומחייבות תכנון והסכמה נפרדים.
-- migration 018 מוסיפה את טבלת ההסכמה, ובמקביל tenant-schema.sql עודכן עבור tenants חדשים.
+- migration 018 משנה את שמות טבלאות/עמודת הקישור הישנות ומוסיפה את טבלת ההסכמה. tenant-schema.sql שומר את שמות הבסיס הישנים כדי שה-runner יוכל להחיל את migration 018 גם על tenant חדש.
 - המימוש בענף `feat/customer-device-push-consent`; נדרשים CI ובדיקות קבלה מלאות לפני merge. אין Production migration או Deploy.
 
 ## סטטוס מימוש עדכני — 2026-11-23
