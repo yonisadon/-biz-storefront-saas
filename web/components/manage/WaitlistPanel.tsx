@@ -81,6 +81,10 @@ export default function WaitlistPanel({ token }: { token: string }) {
   }, [token, filter, page]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+    if (page > lastPage) setPage(lastPage);
+  }, [page, total]);
 
   async function updateStatus(entry: Entry, status: Status) {
     setBusy(true); setError(null); setMessage(null);
