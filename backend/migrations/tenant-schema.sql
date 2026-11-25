@@ -374,7 +374,7 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
   UNIQUE (tenant_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS public.push_booking_capabilities (
+CREATE TABLE IF NOT EXISTS public.push_target_link_capabilities (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   target_type text NOT NULL CHECK (target_type IN ('appointment', 'waitlist')),
@@ -382,7 +382,7 @@ CREATE TABLE IF NOT EXISTS public.push_booking_capabilities (
   token_hash bytea NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32),
   subscription_id uuid,
   expires_at timestamptz NOT NULL,
-  opted_in_at timestamptz,
+  linked_at timestamptz,
   revoked_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, target_type, target_id),
@@ -390,7 +390,7 @@ CREATE TABLE IF NOT EXISTS public.push_booking_capabilities (
     REFERENCES public.push_subscriptions (tenant_id, id) ON DELETE SET NULL (subscription_id)
 );
 
-CREATE TABLE IF NOT EXISTS public.push_consents (
+CREATE TABLE IF NOT EXISTS public.push_subscription_targets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   target_type text NOT NULL CHECK (target_type IN ('appointment', 'waitlist')),
@@ -463,8 +463,8 @@ CREATE TABLE IF NOT EXISTS public.push_deliveries (
 CREATE INDEX IF NOT EXISTS idx_push_subscriptions_active
   ON public.push_subscriptions (tenant_id, audience, created_at)
   WHERE disabled_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_push_consents_target
-  ON public.push_consents (tenant_id, target_type, target_id)
+CREATE INDEX IF NOT EXISTS idx_push_subscription_targets_target
+  ON public.push_subscription_targets (tenant_id, target_type, target_id)
   WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_push_device_consents_active
   ON public.push_device_consents (tenant_id, subscription_id)
@@ -479,8 +479,8 @@ CREATE INDEX IF NOT EXISTS idx_push_deliveries_pending
 GRANT SELECT, INSERT, UPDATE, DELETE ON
   public.push_settings,
   public.push_subscriptions,
-  public.push_booking_capabilities,
-  public.push_consents,
+  public.push_target_link_capabilities,
+  public.push_subscription_targets,
   public.push_device_consents,
   public.push_outbox,
   public.push_deliveries
@@ -495,8 +495,8 @@ DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['products','leads','lead_items','lead_notes',
                            'media_assets','product_images','portfolio_images','appointments','appointment_blocks',
-                           'push_settings','push_subscriptions','push_booking_capabilities',
-                           'push_consents','push_device_consents','push_outbox','push_deliveries']
+                           'push_settings','push_subscriptions','push_target_link_capabilities',
+                           'push_subscription_targets','push_device_consents','push_outbox','push_deliveries']
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
     EXECUTE format('ALTER TABLE public.%I FORCE  ROW LEVEL SECURITY', t);
