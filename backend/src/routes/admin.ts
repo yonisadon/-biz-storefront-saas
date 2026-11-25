@@ -405,6 +405,10 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
             whatsappNumber,
             JSON.stringify({
               ...(input.branding ? { branding: input.branding } : {}),
+              contact_options: {
+                products: { whatsapp_enabled: false, crm_enabled: true },
+                services: { calendar_enabled: true, whatsapp_enabled: false, crm_enabled: true },
+              },
               opening_hours: {
                 days: { sun: [], mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] },
               out_of_hours_banner: { enabled: false, message: '' },
