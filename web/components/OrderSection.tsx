@@ -193,7 +193,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey) return;
     const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
-    if (currentState.busy || currentState.success || pushAbortRef.current[target]) return;
+    if (currentState.busy || pushAbortRef.current[target]) return;
     const attempt = ++pushAttemptRef.current[target];
     const isCurrent = () => pushAttemptRef.current[target] === attempt;
     const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
