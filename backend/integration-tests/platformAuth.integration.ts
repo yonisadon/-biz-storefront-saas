@@ -991,7 +991,7 @@ test('platform account lifecycle and independent marketing consents', async () =
         tenant_mapping: 0, access_tokens: 0, domains: 0, owners: 0, entitlements: 0,
       });
       const retainedOwner = await pool.query('SELECT 1 FROM public.platform_users WHERE email = $1', [claimEmail]);
-      assert.equal(retainedOwner.rowCount, 1, 'deleting a business must not delete its owner's platform account');
+      assert.equal(retainedOwner.rowCount, 1, `deleting a business must not delete its owner's platform account`);
       const oldManagementAccess = await pool.query(
         'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
         [legacyManagementHash],
