@@ -1019,14 +1019,15 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         if (databaseExists.rows[0]?.exists === true) {
           tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
           try {
-            if (!request.database_name) {
-              const mediaAssetsTable = await tenant.query(
-                "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
-              );
-              if (mediaAssetsTable.rows[0]?.exists === true) {
-                const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
-                storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
-              }
+            const mediaAssetsTable = await tenant.query(
+              "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+            );
+            if (mediaAssetsTable.rows[0]?.exists === true) {
+              const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+              storageKeys = [...new Set([
+                ...storageKeys,
+                ...assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)),
+              ])];
             }
 
             // Revoke Google OAuth before dropping the tenant database. Match the
@@ -1063,14 +1064,13 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
             tenant = undefined;
           }
         }
-        if (!request.database_name) {
-          // Persist the cleanup manifest before touching storage or dropping the DB,
-          // so an interrupted deletion can be retried safely.
-          await registry.query(
-            'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
-            [requestId, databaseName, JSON.stringify(storageKeys)],
-          );
-        }
+        // Persist the complete manifest before touching storage or dropping the DB.
+        // Re-read media_assets on every retry while the tenant DB still exists, so
+        // older/incomplete manifests cannot leave untracked objects behind.
+        await registry.query(
+          'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
+          [requestId, databaseName, JSON.stringify(storageKeys)],
+        );
       }
 
       if (!databaseName || !/^biz_[a-f0-9]{24}$/.test(databaseName)) {
