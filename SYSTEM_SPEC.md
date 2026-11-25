@@ -2995,6 +2995,7 @@
 - מחיקת CRM משאירה תורים והמתנות; מחיקת תור משאירה CRM והמתנה; מחיקת המתנה משאירה CRM ותור. ניקוי retention בוחן כל סוג רשומה בנפרד.
 - מיגרציה 015 ממפה שירותי legacy מסוג `availability` ו-`free_datetime` להגדרת יומן ברמת העסק. שירותים ישנים שהציעו רק פנייה באתר בקטלוג הישן ממופים אף הם ליומן, משום שאין במודל החדש מסלול site-inquiry כללי לשירותים. זו נקודת מעבר התנהגותית שצריך לבדוק בעסקי legacy לפני הרצת המיגרציה.
 - מיגרציה 016 מסירה את ה-trigger וה-function הישנים שמסנכרנים booking_mode ו-requires_appointment. העמודות הישנות נשארות זמנית לצורך מיפוי legacy בלבד ואינן מוצגות או נכתבות עוד על ידי הממשק/ה-API החדש.
+- מיגרציה 017 משנה את FK של `appointments.lead_id` ל-`ON DELETE SET NULL`, כך שמחיקת רשומת CRM אינה מוחקת תור. גם FK של `waitlist_entries.appointment_id` ושל `waitlist_entries.lead_id` נשארים nullable עם `ON DELETE SET NULL`.
 - מיגרציה 011 כללה זמנית deadline של 24 שעות; מיגרציה 012 הסירה את ה-trigger וה-function. 24 שעות אינן מדיניות פעילה. מדיניות retention הנוכחית נשארת מנוהלת דרך platform_retention_policies.
 
 סטטוס: המימוש מתבצע בענף `feat/service-product-contact-flows`. השינויים לא מוזגו ל-main, לא הופעלה מיגרציה במסדי נתונים, ולא בוצעו פעולות ב-Production. נדרשות בדיקות build/tests ותרחישי קבלה לפני מיזוג.
