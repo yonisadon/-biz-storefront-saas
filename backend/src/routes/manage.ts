@@ -147,7 +147,7 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
       const business = result.rows[0];
       if (!business) return null;
       const legacyCalendar = Boolean((await db.query(
-        \"SELECT EXISTS (SELECT 1 FROM products WHERE kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled\",
+        "SELECT EXISTS (SELECT 1 FROM products WHERE kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
       )).rows[0]?.enabled);
       return {
         ...business,
