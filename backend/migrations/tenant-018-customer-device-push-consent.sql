@@ -1,5 +1,31 @@
--- Customer Push consent is scoped to one device subscription and one business.
--- Existing push_consents remain target-scoped so legacy opt-ins are not broadened.
+-- Retire the old per-booking consent names. These rows now secure target linking only.
+DO $$
+BEGIN
+  IF to_regclass('public.push_target_link_capabilities') IS NULL
+     AND to_regclass('public.push_booking_capabilities') IS NOT NULL THEN
+    ALTER TABLE public.push_booking_capabilities RENAME TO push_target_link_capabilities;
+  END IF;
+  IF to_regclass('public.push_subscription_targets') IS NULL
+     AND to_regclass('public.push_consents') IS NOT NULL THEN
+    ALTER TABLE public.push_consents RENAME TO push_subscription_targets;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'push_target_link_capabilities' AND column_name = 'opted_in_at'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'push_target_link_capabilities' AND column_name = 'linked_at'
+  ) THEN
+    ALTER TABLE public.push_target_link_capabilities RENAME COLUMN opted_in_at TO linked_at;
+  END IF;
+  IF to_regclass('public.idx_push_subscription_targets_target') IS NULL
+     AND to_regclass('public.idx_push_consents_target') IS NOT NULL THEN
+    ALTER INDEX public.idx_push_consents_target RENAME TO idx_push_subscription_targets_target;
+  END IF;
+END $$;
+
+-- Persistent, business-scoped consent for one browser PushSubscription.
+-- Existing target links are deliberately not promoted into persistent consent.
 CREATE TABLE IF NOT EXISTS public.push_device_consents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
