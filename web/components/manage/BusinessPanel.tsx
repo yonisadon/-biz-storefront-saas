@@ -77,7 +77,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           email: f.email.trim() || null,
           about_text: f.about.trim() || null,
           config: {
-            site_mode: 'catalog_order',
             crm_enabled: f.productCrm || f.serviceCrm,
             contact_options: {
               products: { whatsapp_enabled: f.productWa, crm_enabled: f.productCrm },
