@@ -118,7 +118,7 @@ async function main() {
     }
     lockAcquired = true;
     const tenantResult = await registry.query(
-      'SELECT td.tenant_id, td.database_name, app.get_tenant_plan_code(td.tenant_id) AS plan_code FROM app.tenant_databases td ORDER BY td.tenant_id',
+      'SELECT td.tenant_id, td.database_name, app.get_tenant_plan_code(td.tenant_id) AS plan_code FROM app.tenant_databases td JOIN public.businesses b ON b.id = td.tenant_id WHERE b.status = \'active\' ORDER BY td.tenant_id',
     );
     const policyResult = await registry.query(
       'SELECT plan_code, record_type, record_status, delete_enabled, retention_days FROM public.platform_retention_policies',
