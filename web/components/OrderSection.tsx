@@ -103,7 +103,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const contactSettings = kind === 'product' ? contactOptions.products : contactOptions.services;
   const whatsappEnabled = contactSettings.whatsapp_enabled;
   const crmEnabled = contactSettings.crm_enabled;
-  const calendarEnabled = kind === 'service' && 'calendar_enabled' in contactSettings && contactSettings.calendar_enabled;
+  const calendarEnabled = kind === 'service' && contactOptions.services.calendar_enabled;
 
   useEffect(() => {
     if (done) successRef.current?.focus();
