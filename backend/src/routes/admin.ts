@@ -1006,16 +1006,27 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       let storageKeys = Array.isArray(request.storage_keys) ? request.storage_keys as string[] : [];
       if (!databaseName && request.tenant_id) {
         databaseName = await getTenantDatabase(registry, request.tenant_id);
-        tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-        const mediaAssetsTable = await tenant.query(
-          "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+      }
+      if (databaseName && !request.database_name) {
+        // A failed provisioning rollback may have left a Registry mapping after
+        // successfully dropping the tenant DB. Treat that as an empty tenant,
+        // not as an unconnectable database that blocks recovery forever.
+        const databaseExists = await registry.query(
+          'SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1) AS exists',
+          [databaseName],
         );
-        if (mediaAssetsTable.rows[0]?.exists === true) {
-          const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
-          storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+        if (databaseExists.rows[0]?.exists === true) {
+          tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+          const mediaAssetsTable = await tenant.query(
+            "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+          );
+          if (mediaAssetsTable.rows[0]?.exists === true) {
+            const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+            storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+          }
+          await tenant.end();
+          tenant = undefined;
         }
-        await tenant.end();
-        tenant = undefined;
         // Persist the cleanup manifest before touching storage or dropping the DB,
         // so an interrupted deletion can be retried safely.
         await registry.query(
