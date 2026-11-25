@@ -6,7 +6,7 @@ import { ils, normalizeILPhone } from '@/lib/format';
 import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
-type Props = { apiBase: string; items: Product[]; quoteLabel: string; contactOptions: ContactOptions; kind: 'product' | 'service'; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
+type Props = { apiBase: string; items: Product[]; quoteLabel: string; contactOptions: ContactOptions; kind: 'product' | 'service'; businessTimezone: string; openingHours: Record<string, DayHours> | null; catalogTotal: number; hasMore: boolean; productLayout: Layout; serviceLayout: Layout };
 type Route = 'whatsapp' | 'site' | 'reserve';
 type Done = { route: 'site' | 'reserve'; message: string; pushCapabilityToken?: string } | { route: 'whatsapp'; url: string; message: string; pushCapabilityToken?: string };
 type Step = 'choose' | 'site' | 'reserve';
@@ -55,7 +55,18 @@ function withTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout?: (
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
 
-export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
+function dateInTimezone(timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, businessTimezone, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -73,7 +84,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
   const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentMonth, setAppointmentMonth] = useState(() => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; });
+  const [appointmentMonth, setAppointmentMonth] = useState(() => dateInTimezone(businessTimezone).slice(0, 7));
   const [monthAvailableDates, setMonthAvailableDates] = useState<string[]>([]);
   const [monthLoading, setMonthLoading] = useState(false);
   const [monthError, setMonthError] = useState(false);
@@ -330,7 +341,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setAppointmentMonth(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`);
   };
   const appointmentMonthLabel = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${appointmentMonth}-01T12:00:00Z`));
-  const todayDate = new Date().toLocaleDateString('en-CA');
+  const todayDate = dateInTimezone(businessTimezone);
   const appointmentSlots = serverAppointmentSlots;
   const appointmentTimeGroups = [
     { label: 'בוקר', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) < 12) },
