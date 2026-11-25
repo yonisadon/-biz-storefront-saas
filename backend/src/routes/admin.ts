@@ -1024,6 +1024,16 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         );
       }
 
+      if (!databaseName || !/^biz_[a-f0-9]{24}$/.test(databaseName)) {
+        throw new HttpError(409, 'tenant_database_mapping_missing', 'לא נמצא מיפוי תקין למסד הנתונים של העסק; המחיקה נעצרה כדי לא למחוק משאב שגוי.');
+      }
+      if (request.tenant_id) {
+        const expectedDatabaseName = 'biz_' + String(request.tenant_id).replace(/-/g, '').slice(0, 24);
+        if (databaseName !== expectedDatabaseName) {
+          throw new HttpError(409, 'tenant_database_mapping_mismatch', 'מיפוי מסד הנתונים אינו תואם לעסק; המחיקה נעצרה.');
+        }
+      }
+
       for (let offset = 0; offset < storageKeys.length; offset += 1000) {
         await storage.remove(storageKeys.slice(offset, offset + 1000));
       }
