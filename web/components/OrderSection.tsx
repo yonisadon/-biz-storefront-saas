@@ -101,6 +101,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushCapability, setWaitlistPushCapability] = useState<string | null>(null);
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
+  const [customerPushActive, setCustomerPushActive] = useState(false);
+  const [customerPushManageStatus, setCustomerPushManageStatus] = useState<string | null>(null);
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [pushRevoked, setPushRevoked] = useState({ appointment: false, waitlist: false });
@@ -143,6 +145,50 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setWaitlistPushState({ busy: false, success: false, status: null });
     setPushRevoked((current) => ({ ...current, waitlist: false }));
   }, [waitlistPushCapability]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!pushPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+        !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    void (async () => {
+      try {
+        const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+        const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+        if (!subscription) return;
+        const response = await fetch(`${apiBase}/push/subscriptions/customer/status`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+        const status = await response.json().catch(() => null) as { active?: boolean } | null;
+        if (!cancelled && response.ok) setCustomerPushActive(status?.active === true);
+      } catch {
+        if (!cancelled) setCustomerPushActive(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [apiBase, pushPublicKey]);
+
+  async function cancelCustomerPush() {
+    setCustomerPushManageStatus(null);
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) throw new Error('push_subscription_missing');
+      const response = await fetch(`${apiBase}/push/subscriptions/customer`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      if (!response.ok) throw new Error('push_revoke_failed');
+      setCustomerPushActive(false);
+      setPushRevoked({ appointment: true, waitlist: true });
+      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
+    } catch {
+      setCustomerPushManageStatus('לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.');
+    }
+  }
 
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey) return;
@@ -210,6 +256,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         throw new Error(data?.error ?? 'push_consent_failed');
       }
       setPushRevoked((current) => ({ ...current, [target]: false }));
+      setCustomerPushActive(true);
+      setCustomerPushManageStatus(null);
       setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.' });
     } catch (error) {
       if (!isCurrent()) return;
@@ -266,6 +314,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       });
       if (!response.ok) throw new Error('push_revoke_failed');
       setPushRevoked((current) => ({ ...current, [target]: true }));
+      setCustomerPushActive(false);
+      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
       setTargetState({ busy: false, success: false, status: 'ההתראות בוטלו לעסק הזה. לא יישלחו עוד עדכונים למכשיר הזה מהעסק.' });
     } catch {
       setTargetState((current) => ({ ...current, busy: false, status: 'לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.' }));
@@ -574,7 +624,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
+        {kind === 'service' && customerPushActive && (
+          <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/65 underline">
+            ביטול התראות מהעסק
+          </button>
+        )}
       </div>
+      {kind === 'service' && customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/65">{customerPushManageStatus}</p>}
       {(items.length > 0 || search.trim()) && <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות כדי להוסיף אותו להזמנה.</p>}
 
       {catalogTotal >= 5 && (
