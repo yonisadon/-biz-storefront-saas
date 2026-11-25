@@ -86,7 +86,6 @@ export default function BusinessPanel({ token, biz, onSaved }: {
               ...latestFlow,
               whatsapp_enabled: f.productWa || f.serviceWa,
               site_inquiry_enabled: f.productCrm,
-              whatsapp_crm_enabled: true,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
             branding: latest.config.branding ?? {},
