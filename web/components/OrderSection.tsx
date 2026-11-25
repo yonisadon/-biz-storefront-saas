@@ -718,8 +718,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p>הבקשה נוספה לרשימת ההמתנה. העסק יוכל ליצור איתכם קשר; לא נשמר תור ביומן.</p>
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
-                {waitlistPushState.success ? (
-                  <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
+                {pushRevoked.waitlist ? (
+                  <p role="status" className="text-sm">{waitlistPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                ) : waitlistPushState.success ? (
+                  <div>
+                    <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
+                    <button type="button" disabled={waitlistPushState.busy} onClick={() => void cancelPushForBusiness('waitlist')}
+                      className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                  </div>
                 ) : (
                   <>
                     <p className="mb-1 text-xs text-green-900/75">עדכונים על התורים ובקשות ההמתנה שלכם בעסק הזה בלבד.</p>
@@ -771,12 +777,18 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
             {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
-                {appointmentPushState.success ? (
-                  <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
+                {pushRevoked.appointment ? (
+                  <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                ) : appointmentPushState.success ? (
+                  <div>
+                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
+                    <button type="button" disabled={appointmentPushState.busy} onClick={() => void cancelPushForBusiness('appointment')}
+                      className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                  </div>
                 ) : (
                   <>
-                    <p className="font-semibold">לקבל עדכונים על התור?</p>
-                    <p className="mt-1 text-xs text-ink/65">עדכונים על התורים ובקשות ההמתנה שלכם בעסק הזה בלבד.</p>
+                    <p className="font-semibold">לקבל עדכונים על התורים שלך בעסק הזה?</p>
+                    <p className="mt-1 text-xs text-ink/65">העדכונים יכללו רק את התורים ובקשות ההמתנה שלך בעסק הזה.</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
                       {appointmentPushState.busy ? 'מפעילים…' : 'קבלת עדכונים על התורים שלי'}
