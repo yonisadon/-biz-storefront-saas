@@ -372,6 +372,29 @@ test('platform account lifecycle and independent marketing consents', async () =
           payload: { endpoint: customerSubscription.endpoint },
         });
         assert.equal(activeAgain.json().active, true);
+        const customerOff = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { customer_enabled: false },
+        });
+        assert.equal(customerOff.statusCode, 200);
+        const disabledCustomerConfig = await app.inject({
+          method: 'GET', url: `/api/biz/${provisioned.slug}/push/config`,
+        });
+        assert.equal(disabledCustomerConfig.json().enabled, false);
+        const blockedCustomerConsent = await app.inject({
+          method: 'POST', url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: false, subscription: customerSubscription },
+        });
+        assert.equal(blockedCustomerConsent.statusCode, 403);
+        const customerOn = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { customer_enabled: true },
+        });
+        assert.equal(customerOn.statusCode, 200);
+        const enabledCustomerConfig = await app.inject({
+          method: 'GET', url: `/api/biz/${provisioned.slug}/push/config`,
+        });
+        assert.equal(enabledCustomerConfig.json().enabled, true);
         const sellerRemoved = await app.inject({
           method: 'DELETE', url: `/api/manage/${permanentToken}/push/subscriptions`,
           headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { endpoint: customerSubscription.endpoint },
