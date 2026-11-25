@@ -425,7 +425,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setAppointmentDate('');
       setAppointmentTime('');
       setServerAppointmentSlots([]);
-      if (route === 'whatsapp' && data?.whatsapp_url) {
+      if (route === 'whatsapp') {
+        if (!data?.whatsapp_url) return setError('לא הצלחנו להכין קישור WhatsApp. נסו שוב.');
         setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.', pushCapabilityToken: data.push_capability_token });
       } else {
         setDone({ route, message: data?.success_message ?? (route === 'reserve' ? 'התור נשמר ביומן.' : 'הפנייה נשלחה בהצלחה.'), pushCapabilityToken: data?.push_capability_token });
