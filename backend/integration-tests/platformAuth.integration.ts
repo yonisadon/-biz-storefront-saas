@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
+import { derivePushCapabilityToken, generateVapidKeys, hashPushCapability } from '../src/pushCrypto';
 
 test('platform account lifecycle and independent marketing consents', async () => {
   const databaseUrl = 'postgres://postgres:postgres@localhost:5432/btime_registry_test';
@@ -15,6 +16,12 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.NODE_ENV = 'test';
   process.env.SUPERADMIN_API_TOKEN = 't'.repeat(48);
   process.env.MANAGEMENT_TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
+  const vapidKeys = generateVapidKeys();
+  process.env.WEB_PUSH_VAPID_PUBLIC_KEY = vapidKeys.publicKey;
+  process.env.WEB_PUSH_VAPID_PRIVATE_KEY = vapidKeys.privateKey;
+  process.env.WEB_PUSH_VAPID_SUBJECT = 'mailto:push-tests@example.test';
+  process.env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY = 'c'.repeat(64);
+  process.env.PUSH_CAPABILITY_HMAC_KEY = 'd'.repeat(64);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
