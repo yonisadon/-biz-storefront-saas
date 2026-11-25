@@ -877,6 +877,23 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(registryResourcesBefore.rows[0].owners, 1);
       assert.ok(registryResourcesBefore.rows[0].entitlements > 0);
 
+      const { encryptGoogleToken } = await import('../src/googleCalendarService');
+      const googleTenant = new pgModule.default.Client({
+        connectionString: databaseUrl.replace(/\/[^/]*$/, `/${manualDatabase}`),
+      });
+      await googleTenant.connect();
+      try {
+        await googleTenant.query(
+          `INSERT INTO public.google_calendar_connections
+             (tenant_id, google_email, access_token_encrypted, refresh_token_encrypted,
+              access_token_expires_at, calendar_id, connected_at)
+           VALUES ($1, 'owner@example.test', $2, $3, now() + interval '1 hour', 'primary', now())`,
+          [manualBusinessId, encryptGoogleToken('integration-access-token'), encryptGoogleToken('integration-refresh-token')],
+        );
+      } finally {
+        await googleTenant.end();
+      }
+
       const requestResponse = await app.inject({
         method: 'POST',
         url: `/api/admin/businesses/${manualBusinessId}/deletion-request`,
