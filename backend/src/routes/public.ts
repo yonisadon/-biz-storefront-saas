@@ -63,7 +63,7 @@ async function buildPublicPayload(db: pg.PoolClient) {
   // Missing flags preserve legacy behavior for existing businesses.
   const hours = cfg.opening_hours ?? {};
 
-  const legacyCalendarServices = Boolean((await db.query(
+  const legacyCalendarServices = !cfg.contact_options && Boolean((await db.query(
     "SELECT EXISTS (SELECT 1 FROM products WHERE kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
   )).rows[0]?.enabled);
   const contactOptions = resolveContactOptions(cfg, legacyCalendarServices);
@@ -265,7 +265,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         )).rows;
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
         if (rows.some((item) => item.kind !== 'service')) throw new HttpError(400, 'mixed_catalog_types');
-        const legacyCalendar = rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        const legacyCalendar = !biz.config?.contact_options && rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
         if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
         const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
@@ -439,7 +439,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (body.route === 'site' && domain !== 'products') throw new HttpError(400, 'invalid_contact_flow');
           if (body.route !== 'reserve' && body.appointment_at) throw new HttpError(400, 'invalid_contact_flow');
 
-          const legacyCalendarServices = found.some((item) => item.kind === 'service' &&
+          const legacyCalendarServices = !biz.config?.contact_options && found.some((item) => item.kind === 'service' &&
             (item.booking_mode ?? (item.requires_appointment === true ? 'free_datetime' : 'none')) !== 'none');
           const routeSettings = resolveLeadRoute(biz.config, body.route, domain, legacyCalendarServices);
           if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
