@@ -970,8 +970,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     let registry: pg.Client | undefined;
     let databaseAdmin: pg.Client | undefined;
     let tenant: pg.Client | undefined;
+    let deletionLockAcquired = false;
     try {
       registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const deletionLock = await registry.query(
+        'SELECT pg_try_advisory_lock(hashtextextended($1::text, 93003)) AS locked',
+        [requestId],
+      );
+      if (deletionLock.rows[0]?.locked !== true) {
+        throw new HttpError(409, 'business_deletion_in_progress', 'מחיקת העסק כבר מתבצעת. נסו שוב לאחר סיומה.');
+      }
+      deletionLockAcquired = true;
       const selected = await registry.query(
         `SELECT id, tenant_id, business_name, business_slug, database_name, storage_keys, status
            FROM public.business_deletion_requests WHERE id = $1 LIMIT 1`,
@@ -998,8 +1007,13 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       if (!databaseName && request.tenant_id) {
         databaseName = await getTenantDatabase(registry, request.tenant_id);
         tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-        const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
-        storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+        const mediaAssetsTable = await tenant.query(
+          "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+        );
+        if (mediaAssetsTable.rows[0]?.exists === true) {
+          const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+          storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+        }
         await tenant.end();
         tenant = undefined;
         // Persist the cleanup manifest before touching storage or dropping the DB,
@@ -1049,6 +1063,12 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     } finally {
       if (tenant) await tenant.end().catch(() => {});
       if (databaseAdmin) await databaseAdmin.end().catch(() => {});
+      if (registry && deletionLockAcquired) {
+        await registry.query(
+          'SELECT pg_advisory_unlock(hashtextextended($1::text, 93003))',
+          [requestId],
+        ).catch(() => {});
+      }
       if (registry) await registry.end().catch(() => {});
     }
   });
