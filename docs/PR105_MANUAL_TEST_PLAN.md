@@ -95,6 +95,7 @@
 - [ ] manifest של database name וכל media storage variants נשמר לפני מחיקת storage או DB.
 - [ ] כשל לאחר מחיקת storage, לאחר DROP DATABASE או במהלך מחיקת Registry ניתן להשלמה באמצעות retry.
 - [ ] tenant DB חלקי ללא `media_assets` עדיין ניתן למחיקה בטוחה.
+- [ ] אם קיים חיבור Google Calendar, המחיקה מבטלת את OAuth refresh token לפני DROP DATABASE; אירועים שכבר נוצרו נשארים ביומן Google, בהתאם להתנהגות ניתוק החיבור הקיימת.
 - [ ] מחיקת עסק מסירה את tenant DB, media objects, tenant mapping, access tokens, domains, entitlements, subscriptions, owners ויתר רשומות ה-Registry התלויות לפי FK.
 - [ ] אחרי מחיקה, slug, management link ו-session ישנים אינם פותחים את העסק.
 - [ ] מחיקת עסק אחד אינה משנה נתונים או משאבים של עסק אחר.
