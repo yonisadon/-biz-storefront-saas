@@ -8,6 +8,7 @@ UPDATE public.businesses b
        'products', jsonb_build_object(
          'whatsapp_enabled', COALESCE((b.config #>> '{order_flow,whatsapp_enabled}')::boolean, false),
          'crm_enabled', COALESCE((b.config ->> 'crm_enabled')::boolean, true)
+          OR NOT COALESCE((b.config #>> '{order_flow,whatsapp_enabled}')::boolean, false)
        ),
        'services', jsonb_build_object(
          'calendar_enabled',
