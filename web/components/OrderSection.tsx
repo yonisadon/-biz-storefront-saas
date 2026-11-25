@@ -19,7 +19,9 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   if (d?.error === 'appointment_required') return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (d?.error === 'invalid_appointment_time') return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'contact_required') return 'כדי לשמור תור ביומן, יש להזין מספר טלפון.';
-  if (d?.error === 'appointment_not_applicable') return 'לא ניתן לבחור מועד עבור הפריטים שנבחרו.';
+  if (d?.error === 'calendar_booking_disabled' || d?.error === 'route_disabled') return 'מסלול הפנייה הזה אינו פעיל בעסק. רעננו את הדף ונסו שוב.';
+  if (d?.error === 'mixed_catalog_types' || d?.error === 'invalid_contact_flow') return 'יש לבחור מוצרים או שירותים בתהליך נפרד.';
+  if (d?.error === 'whatsapp_not_configured') return 'מספר ה-WhatsApp של העסק אינו מוגדר כרגע.';
   const msgs: string[] = (d?.issues ?? []).map((i) => i.message);
   if (msgs.includes('invalid_il_phone')) return 'מספר הטלפון אינו תקין.';
   if (msgs.includes('items_or_message_required')) return 'בחרו פריט או כתבו הודעה.';
@@ -390,7 +392,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function submit(route: Route) {
     setError(null);
     const phone = normalizeILPhone(form.phone);
-    if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
+    if (count === 0) return setError(kind === 'product' ? 'יש לבחור לפחות מוצר אחד.' : 'יש לבחור לפחות שירות אחד.');
     if (route === 'reserve' && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר להצטרף לרשימת המתנה.');
     if (route === 'reserve' && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות.');
     if ((route === 'site' || route === 'reserve') && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
@@ -559,7 +561,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {/* Order Modal */}
       <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
-          <h3 id="order-dialog-title" className="min-w-0 text-xl font-bold">המשך להזמנה</h3>
+          <h3 id="order-dialog-title" className="min-w-0 text-xl font-bold">{kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
