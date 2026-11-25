@@ -9,6 +9,14 @@ For per-tenant schema changes:
 - Update `backend/migrations/tenant-schema.sql` for newly created tenant databases as well.
 - Do not run legacy SQL against Railway or tenant databases without reviewing the target database and obtaining explicit approval.
 
+## Tenant CRM, contact-flow and booking migrations
+
+- `tenant-011-waitlist-lifecycle.sql` introduced a temporary 24-hour lead-retention deadline. It is historical migration code only: `tenant-012-configurable-retention.sql` removes its trigger/function and moves retention to the central platform policy matrix. Do not treat 24 hours as an active retention rule or reintroduce that trigger.
+- `tenant-014-waitlist-crm-link.sql` adds a nullable technical `waitlist_entries.lead_id` foreign key with `ON DELETE SET NULL`. It never cascades deletion between waitlist and CRM.
+- `tenant-015-contact-options.sql` migrates legacy global CRM/WhatsApp flags and per-service booking settings into `config.contact_options`, with independent product and service settings. Legacy `free_datetime` and `availability` services map to business-level calendar-enabled services; in the new flow, customers can then choose a reserved appointment or a waitlist request. Legacy site-only service inquiries also map to calendar-enabled services when the old storefront was in catalog mode. This is an intentional behavior transition because the new service model has no generic site-inquiry route.
+- `tenant-016-retire-service-booking-trigger.sql` removes the old per-product booking-mode trigger/function. The legacy columns remain temporarily as read-only migration-compatibility data; the application no longer exposes per-service booking modes or uses them after `contact_options` has been migrated.
+- CRM leads, appointments and waitlist requests have independent statuses, retention and deletion. Their nullable links are technical only; deleting one record type only nulls links from surviving records.
+
 The `migrate-tenant-schemas` command preflights all mapped tenant databases first. It performs a dry run by default. Actual changes require both `APPLY_TENANT_MIGRATIONS=true` and `TENANT_MIGRATION_BACKUP_CONFIRMED=true`, after a restorable backup has been verified and explicit approval has been granted.
 
 
