@@ -132,6 +132,10 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
       offset: z.coerce.number().int().min(0).max(10000).default(0),
     }).parse(req.query);
     return withTenant(req.tenantId, async (db) => {
+      const business = (await db.query(
+        'SELECT timezone FROM businesses WHERE id = app.current_tenant_id()',
+      )).rows[0];
+      if (!business) throw new HttpError(404, 'not_found');
       const result = await db.query(
         `SELECT w.id, w.customer_name, w.customer_phone, w.service_ids, w.service_names, w.preferred_date,
                 w.preferred_time, w.note, w.status, w.created_at, w.updated_at,
@@ -145,6 +149,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         [query.status ?? null, query.limit, query.offset],
       );
       return {
+        timezone: business.timezone,
         total: result.rows[0] ? Number(result.rows[0].total) : 0,
         limit: query.limit,
         offset: query.offset,
