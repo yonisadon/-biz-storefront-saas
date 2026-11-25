@@ -366,6 +366,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     // Exercise ownerless/manual business visibility and the two-step deletion flow.
     const adminToken = 't'.repeat(48);
     process.env.SUPERADMIN_API_TOKEN = adminToken;
+    const adminHeaders = { authorization: `Bearer ${adminToken}` };
     const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const manualName = 'Manual Integration Business';
     const claimEmail = `claim-${randomUUID()}@example.test`;
@@ -424,8 +425,6 @@ test('platform account lifecycle and independent marketing consents', async () =
         'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
         [manualBusinessId, manualDatabase],
       );
-
-      const adminHeaders = { authorization: `Bearer ${adminToken}` };
 
       // Exercise the Super Admin provisioning path as well: it must produce the
       // same contact defaults and initialize Push settings in the fresh tenant.
