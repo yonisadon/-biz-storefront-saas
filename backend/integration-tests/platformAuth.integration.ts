@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createECDH, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
+import { execFileSync } from 'node:child_process';
 import { derivePushCapabilityToken, generateVapidKeys, hashPushCapability } from '../src/pushCrypto';
 
 test('platform account lifecycle and independent marketing consents', async () => {
@@ -343,6 +344,101 @@ test('platform account lifecycle and independent marketing consents', async () =
           payload: { endpoint: customerSubscription.endpoint },
         });
         assert.equal(activeAgain.json().active, true);
+
+        // Retention must wait for pending Push events, then remove only target
+        // links/capabilities while preserving the tenant+device consent record.
+        await pool.query(
+          `UPDATE public.platform_retention_policies
+              SET delete_enabled = true, retention_days = 1
+            WHERE plan_code = 'standard' AND
+              ((record_type = 'appointment' AND record_status = 'cancelled') OR
+               (record_type = 'waitlist' AND record_status = 'closed'))`,
+        );
+        const subscriptionRow = await tenantDb.query(
+          'SELECT id FROM public.push_subscriptions WHERE tenant_id = $1 AND audience = $2 AND endpoint_hash = $3',
+          [provisioned.id, 'customer', hashPushCapability(customerSubscription.endpoint)],
+        );
+        const subscriptionId = subscriptionRow.rows[0].id as string;
+        const oldStart = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+        const oldEnd = new Date(oldStart.getTime() + 30 * 60 * 1000);
+        const expiredAppointment = await tenantDb.query(
+          `INSERT INTO public.appointments
+             (tenant_id, service_name, customer_phone, start_at, end_at, source, status, status_changed_at)
+           VALUES ($1, 'Expired Push appointment', '+972501234567', $2, $3, 'manual', 'cancelled', now() - interval '3 days')
+           RETURNING id`,
+          [provisioned.id, oldStart, oldEnd],
+        );
+        const expiredAppointmentId = expiredAppointment.rows[0].id as string;
+        const expiredWaitlist = await tenantDb.query(
+          `INSERT INTO public.waitlist_entries
+             (tenant_id, customer_phone, service_ids, service_names, preferred_date, status, updated_at)
+           VALUES ($1, '+972501234567', ARRAY[$2::uuid], ARRAY['Expired service'], (now() - interval '3 days')::date, 'closed', now() - interval '3 days')
+           RETURNING id`,
+          [provisioned.id, randomUUID()],
+        );
+        const expiredWaitlistId = expiredWaitlist.rows[0].id as string;
+        for (const [targetType, targetId] of [
+          ['appointment', expiredAppointmentId],
+          ['waitlist', expiredWaitlistId],
+        ] as const) {
+          await tenantDb.query(
+            'INSERT INTO public.push_subscription_targets (tenant_id, target_type, target_id, subscription_id) VALUES ($1, $2, $3, $4)',
+            [provisioned.id, targetType, targetId, subscriptionId],
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, $3, $4, now() + interval '7 days')`,
+            [provisioned.id, targetType, targetId, hashPushCapability(randomUUID())],
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_outbox
+               (tenant_id, audience, event_type, target_type, target_id, payload, status)
+             VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'pending')`,
+            [provisioned.id, targetType === 'appointment' ? 'customer' : 'seller',
+             targetType === 'appointment' ? 'customer.appointment_cancelled' : 'seller.waitlist_created',
+             targetType, targetId, JSON.stringify({ title: 'BTime', body: 'Cleanup integration test', url: '/' })],
+          );
+        }
+
+        const runRetentionCleanup = () => execFileSync(
+          'npx',
+          ['tsx', 'scripts/cleanup-expired-crm.ts', '--apply'],
+          {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            env: { ...process.env, APP_DATABASE_URL: databaseUrl, DATABASE_SSL: 'false' },
+          },
+        );
+        const deferredCleanup = runRetentionCleanup();
+        assert.match(deferredCleanup, /preflight passed/i);
+        const retainedTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count',
+          [expiredAppointmentId, expiredWaitlistId],
+        );
+        assert.equal(retainedTargets.rows[0].appointment_count, 1, 'pending appointment Push must defer appointment retention');
+        assert.equal(retainedTargets.rows[0].waitlist_count, 1, 'pending waitlist Push must defer waitlist retention');
+
+        await tenantDb.query(
+          `UPDATE public.push_outbox SET status = 'done', processed_at = now()
+            WHERE tenant_id = $1 AND target_id = ANY($2::uuid[])`,
+          [provisioned.id, [expiredAppointmentId, expiredWaitlistId]],
+        );
+        runRetentionCleanup();
+        const cleanedTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count, ' +
+          '(SELECT count(*)::int FROM public.push_subscription_targets WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS links, ' +
+          '(SELECT count(*)::int FROM public.push_target_link_capabilities WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS capabilities, ' +
+          '(SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $3 AND subscription_id = $5 AND revoked_at IS NULL) AS device_consents',
+          [expiredAppointmentId, expiredWaitlistId, provisioned.id, [expiredAppointmentId, expiredWaitlistId], subscriptionId],
+        );
+        assert.equal(cleanedTargets.rows[0].appointment_count, 0);
+        assert.equal(cleanedTargets.rows[0].waitlist_count, 0);
+        assert.equal(cleanedTargets.rows[0].links, 0, 'completed targets must not leave Push subscription links behind');
+        assert.equal(cleanedTargets.rows[0].capabilities, 0, 'completed targets must not leave link capabilities behind');
+        assert.equal(cleanedTargets.rows[0].device_consents, 1, 'target cleanup must preserve device-level consent');
       } finally {
         await tenantDb.end();
       }
