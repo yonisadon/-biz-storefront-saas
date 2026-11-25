@@ -147,7 +147,7 @@ async function main() {
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='lead_id') AS has_waitlist_lead_link, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_preferred_time, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_status_changed_at, " +
-            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_fk, " +
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (appointment_id)%') AS has_waitlist_fk, " +
             "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_lead_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_waitlist_leads"
           );
           const c = check.rows[0];
