@@ -607,7 +607,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               const price = item.price_agorot === null ? quoteLabel : ils(item.price_agorot * quantity);
               const duration = item.kind === 'service' ? ` · משך השירות: ${(item.appointment_duration_minutes ?? 30) * quantity} דקות` : '';
               return `• ${item.name} × ${quantity}${duration} — ${price}`;
-            }).join('\\n');
+            }).join('\n');
             const totalText = estimated === null ? quoteLabel : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
             const intro = String(flow.whatsapp_intro ?? '').trim() || (domain === 'services' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO);
             const messageLines = [intro, '', domain === 'services' ? 'שירותים שנבחרו:' : 'פריטים שנבחרו:', itemsText || '-'];
@@ -615,7 +615,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             if (body.customer_phone) messageLines.push(`טלפון: ${toLocalPhone(body.customer_phone)}`);
             messageLines.push('', `סכום משוער: ${totalText}`);
             if (body.message) messageLines.push('', `הערה: ${body.message}`);
-            out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).replace(/\\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(messageLines.join('\\n'))}`;
+            out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).replace(/\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(messageLines.join('\n'))}`;
             out.success_message = shouldCreateLead
               ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
               : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
