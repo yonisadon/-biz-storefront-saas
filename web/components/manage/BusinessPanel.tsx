@@ -13,7 +13,7 @@ function initialWhatsAppIntro(flow: Record<string, unknown>): string {
     .replace(/\\n/g, '\n')
     .replace(/\{(?:customer_name|customer_phone|estimated_total|message)\}/g, '')
     .trim();
-  return intro || 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
+  return intro || 'שלום, אשמח לקבל פרטים נוספים לגבי המוצרים או השירותים הבאים:';
 }
 
 function saveError(err: unknown): string {
@@ -126,7 +126,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
         <label className="block text-sm font-medium">טלפון
           <input className={input} dir="ltr" inputMode="tel" value={f.phone} onChange={(e) => set('phone', e.target.value)} />
         </label>
-        <label className="block text-sm font-medium">מספר וואטסאפ (מקבל הזמנות)
+        <label className="block text-sm font-medium">מספר WhatsApp
           <input className={input} dir="ltr" inputMode="tel" value={f.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} />
         </label>
         <label className="block text-sm font-medium">דוא״ל
