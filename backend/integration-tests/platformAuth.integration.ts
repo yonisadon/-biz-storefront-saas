@@ -715,6 +715,23 @@ test('platform account lifecycle and independent marketing consents', async () =
         await tenantAdmin.query(readFileSync('migrations/tenant-schema.sql', 'utf8'));
         const { applyTenantMigrations } = await import('../src/tenantMigrations');
         await applyTenantMigrations(tenantAdmin);
+        const manualBusinessRow = (await pool.query(
+          'SELECT id, slug, name, status, whatsapp_number, phone, email, about_text, locale, timezone, config FROM public.businesses WHERE id = $1',
+          [manualBusinessId],
+        )).rows[0];
+        await tenantAdmin.query(
+          `INSERT INTO public.businesses
+             (id, slug, name, status, whatsapp_number, phone, email, about_text, locale, timezone, config)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
+          [manualBusinessRow.id, manualBusinessRow.slug, manualBusinessRow.name, manualBusinessRow.status,
+           manualBusinessRow.whatsapp_number, manualBusinessRow.phone, manualBusinessRow.email,
+           manualBusinessRow.about_text, manualBusinessRow.locale, manualBusinessRow.timezone,
+           JSON.stringify(manualBusinessRow.config)],
+        );
+        await tenantAdmin.query(
+          'INSERT INTO public.push_settings (tenant_id) VALUES ($1) ON CONFLICT (tenant_id) DO NOTHING',
+          [manualBusinessId],
+        );
       } finally {
         await tenantAdmin.end().catch(() => {});
       }
