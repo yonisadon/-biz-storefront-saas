@@ -289,6 +289,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const needsReservedAppointment = needsAppointment;
   const reservedAppointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
   const appointmentDurationMinutes = reservedAppointmentDurationMinutes;
+  const canOrder = whatsappEnabled || crmEnabled || calendarEnabled;
   const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
@@ -393,10 +394,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setError(null);
     const phone = normalizeILPhone(form.phone);
     if (count === 0) return setError('יש לבחור לפחות מוצר או שירות אחד.');
-    if (needsReservedAppointment && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. יש לפנות לעסק ישירות.');
-    if (appointmentTimeRequired && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות שדורש תיאום.');
-    if (route === 'site' && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
-    if (needsReservedAppointment && !phone) return setError('כדי לשמור תור ביומן, יש להזין מספר טלפון ישראלי תקין.');
+    if (route === 'reserve' && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר להצטרף לרשימת המתנה.');
+    if (route === 'reserve' && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות.');
+    if ((route === 'site' || route === 'reserve') && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
 
     setBusy(route);
     try {
@@ -409,8 +409,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           route,
           idempotency_key: requestKey,
-          ...(route === 'site' || needsReservedAppointment ? { customer_phone: phone ?? undefined, ...(route === 'site' && flow.site_inquiry_enabled ? { customer_name: form.name.trim() || undefined, customer_email: form.email.trim() || undefined } : {}) } : {}),
-          ...(needsAppointment && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
+          ...(form.name.trim() ? { customer_name: form.name.trim() } : {}),
+          ...(phone ? { customer_phone: phone } : {}),
+          ...(route === 'site' && form.email.trim() ? { customer_email: form.email.trim() } : {}),
+          ...(route === 'reserve' && appointmentDate && appointmentTime ? { appointment_at: `${appointmentDate}T${appointmentTime}` } : {}),
           items: Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity })),
           company_website: form.hp,
         }),
@@ -426,10 +428,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setAppointmentDate('');
       setAppointmentTime('');
       setServerAppointmentSlots([]);
-      if (data?.route === 'whatsapp' && data.whatsapp_url) {
+      if (route === 'whatsapp' && data?.whatsapp_url) {
         setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.', pushCapabilityToken: data.push_capability_token });
       } else {
-        setDone({ route: 'site', message: data?.success_message ?? 'הפנייה נשלחה בהצלחה.', pushCapabilityToken: data?.push_capability_token });
+        setDone({ route, message: data?.success_message ?? (route === 'reserve' ? 'התור נשמר ביומן.' : 'הפנייה נשלחה בהצלחה.'), pushCapabilityToken: data?.push_capability_token });
       }
     } catch {
       setError('שגיאת רשת. נסו שוב.');
@@ -453,7 +455,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         body: JSON.stringify({
           customer_name: waitlistName.trim() || undefined,
           customer_phone: phone,
-          service_ids: reservedAppointmentLines.map(({ p }) => p.id),
+          service_ids: lines.map(({ p }) => p.id),
           preferred_date: waitlistPreferredDate,
           ...(waitlistPreferredTime ? { preferred_time: waitlistPreferredTime } : {}),
           note: waitlistNote.trim(),
@@ -486,7 +488,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const openContinuation = () => {
     setError(null);
     setDone(null);
-    setStep(calendarOnlyFlow ? 'site' : flow.whatsapp_enabled && flow.site_inquiry_enabled ? 'choose' : flow.site_inquiry_enabled ? 'site' : 'choose');
+    setStep(kind === 'product' && crmEnabled && !whatsappEnabled ? 'site' : 'choose');
     dlg.current?.showModal();
   };
 
@@ -524,8 +526,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 type: 'catalog',
                 quantity: cart[p.id] ?? 0,
                 canOrder,
-                calendarOnlyAvailable,
-                bookingMode: modeOf(p),
                 onQuantityChange: (quantity) => setQty(p, quantity),
               }}
             />
@@ -569,8 +569,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           <div className="mb-4 rounded-xl bg-gray-50 p-3">
             <ul className="space-y-1.5 text-sm">
               {lines.map(({ p, q }) => {
-                const mode = p.kind === 'service' ? modeOf(p) : 'none';
-                const durationLabel = mode === 'availability' ? 'משך שמשוריין ביומן' : mode === 'free_datetime' ? 'משך מבוקש, ללא שריון' : '';
+                const durationLabel = p.kind === 'service' ? 'משך השירות' : '';
                 return <li key={`${p.kind}:${p.id}`} data-cart-item-id={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0">
                   <span className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
                   <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
@@ -587,12 +586,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </div>
         )}
 
-        {!done && needsAppointment && (
+        {!done && step === 'reserve' && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
             {hasAppointmentHours ? (
               <>
-                <p className="text-xs leading-5 text-ink/65">{needsReservedAppointment ? `משך השריון ביומן: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.` : `משך השירותים שמבקשים לתאם: ${freeDatetimeDurationMinutes} דקות. המועד המבוקש לא תופס את היומן והעסק יתאם אתכם.`}{needsReservedAppointment && needsFreeDatetimeAppointment ? ` שירותים נוספים ללא שריון: ${freeDatetimeLines.map(({ p }) => p.name).join(', ')}; הם לא מוסיפים זמן לשריון ביומן.` : ''}</p>
+                <p className="text-xs leading-5 text-ink/65">`משך השריון ביומן לכל השירותים שנבחרו: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.`</p>
                 <div className="space-y-3">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">בחירת תאריך</span>
@@ -631,17 +630,17 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
               </>
             ) : (
-              <p className="text-sm leading-6 text-ink/75">{needsReservedAppointment ? 'לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. פנו לעסק ישירות כדי לתאם.' : `העסק עדיין לא הגדיר שעות פעילות. אפשר לשלוח את הבקשה ללא מועד, והמוכר יתאם איתכם את התור. משך התור הכולל: ${appointmentDurationMinutes} דקות.`}</p>
+              <p className="text-sm leading-6 text-ink/75">'לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר לבחור בקשת המתנה או לפנות לעסק ב-WhatsApp.'</p>
             )}
           </fieldset>
         )}
 
-        {!done && needsReservedAppointment && (
+        {!done && step === 'choose' && needsAppointment && (
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-sm leading-6">לא מצאתם תאריך או שעה שמתאימים לכם? אפשר לבקש להצטרף לרשימת ההמתנה ולציין כל תאריך ושעה מועדפים, גם אם הם אינם פנויים בלוח. הבקשה אינה שומרת מקום ביומן.</p>
+            <p className="text-sm leading-6">אפשר לבחור בקשת המתנה ולציין תאריך מועדף ושעה אם רוצים. בקשת המתנה אינה שומרת מקום ביומן.</p>
             <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setWaitlistPushState({ busy: false, success: false, status: null }); }}
               className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
-              בקשת תאריך או שעה שאינם פנויים
+הצטרפות לרשימת המתנה
             </button>
           </div>
         )}
@@ -723,58 +722,65 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         ) : step === 'choose' ? (
           <div className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            {needsReservedAppointment && (
-              <div>
-                <label htmlFor="reserved-phone" className="block text-sm font-medium">מספר טלפון לשמירת התור *</label>
-                <input id="reserved-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
-                <p className="mt-1 text-xs text-ink/60">התור נשמר ביומן לפני המעבר ל־WhatsApp. לשינוי או לביטול יש לפנות לעסק ישירות.</p>
-              </div>
+            {kind === 'service' ? (
+              <>
+                {calendarEnabled && hasAppointmentHours && <button type="button" disabled={busy !== null} onClick={() => { setError(null); setStep('reserve'); }}
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">שריון תור ביומן</button>}
+                {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">העסק עדיין לא הגדיר שעות פעילות. אפשר להצטרף לרשימת המתנה או לפנות ב-WhatsApp.</p>}
+                {calendarEnabled && <button type="button" onClick={() => { setWaitlistPreferredDate(''); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setWaitlistPushState({ busy: false, success: false, status: null }); }}
+                  className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">בקשת הצטרפות לרשימת המתנה</button>}
+                {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
+                  {busy === 'whatsapp' ? 'מכין הודעה…' : 'פנייה ב-WhatsApp'}
+                </button>}
+              </>
+            ) : (
+              <>
+                {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
+                  {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
+                </button>}
+                {crmEnabled && <button type="button" onClick={() => { setError(null); setStep('site'); }}
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary">השארת פנייה באתר</button>}
+              </>
             )}
-            {flow.whatsapp_enabled && (
-              <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] transition hover:bg-[#168A52]/10 disabled:opacity-50">
-                {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
-              </button>
-            )}
-            {calendarOnlySelection && flow.whatsapp_enabled && (
-              <div className="space-y-2 rounded-xl border border-primary/25 p-3">
-                <p className="text-sm leading-6">אפשר לשמור את התור ביומן בלי לשלוח הודעת WhatsApp. פרטי התור יישמרו גם אם לא תשלחו הודעה לעסק.</p>
-                <button type="button" disabled={busy !== null} onClick={() => submit('site')}
-                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
-                  {busy === 'site' ? 'שומר את התור…' : 'קביעת תור בלבד – ללא WhatsApp'}
-                </button>
-              </div>
-            )}
-            {flow.site_inquiry_enabled && (
-              <button type="button" onClick={() => { setError(null); setStep('site'); }}
-                className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10">
-                השארת פנייה באתר
-              </button>
-            )}
-            <p className="text-center text-xs leading-5 text-ink/60">הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp לא שולח את ההודעה במקומכם. בקביעת תור בלבד, התור נשמר ביומן גם ללא שליחת הודעה.</p>
+            <p className="text-center text-xs leading-5 text-ink/60">{kind === 'service' ? 'בחרו דרך אחת להמשך עבור כל השירותים שנבחרו.' : 'הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp אינו שולח את ההודעה במקומכם.'}</p>
           </div>
+        ) : step === 'reserve' ? (
+          <form onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            <label className="block text-sm font-medium">מספר טלפון לשמירת התור *
+              <input name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+            </label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => { setError(null); setStep('choose'); }} className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3">חזרה</button>
+              <button type="submit" disabled={busy !== null || !appointmentDate || !appointmentTime || !hasAppointmentHours} className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
+                {busy === 'reserve' ? 'שומר תור…' : 'אישור שריון התור'}
+              </button>
+            </div>
+          </form>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
-            {!calendarOnlyFlow && <div>
+            <div>
               <label htmlFor="lead-name" className="block text-sm font-medium">שם (רשות)</label>
               <input id="lead-name" name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
-            </div>}
+            </div>
             <div>
               <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
               <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
-            {!calendarOnlyFlow && <div>
+            <div>
               <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
               <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
-            </div>}
+            </div>
             <div className="flex gap-2 pt-2">
-              {flow.whatsapp_enabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
+              {whatsappEnabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
                 className="min-h-12 flex-1 rounded-xl px-4 py-3 font-medium text-ink/70 transition hover:bg-ink/5">חזרה</button>}
               <button type="submit" disabled={busy !== null}
-                className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
-                {busy === 'site' ? 'שומר…' : calendarOnlyFlow ? 'שמירת התור ביומן' : 'שליחת הפנייה'}
+                className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
+                {busy === 'site' ? 'שומר…' : 'שליחת הפנייה'}
               </button>
             </div>
           </form>
