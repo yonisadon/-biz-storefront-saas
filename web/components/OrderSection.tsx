@@ -209,6 +209,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok || data?.ok !== true) {
         throw new Error(data?.error ?? 'push_consent_failed');
       }
+      setPushRevoked((current) => ({ ...current, [target]: false }));
       setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.' });
     } catch (error) {
       if (!isCurrent()) return;
@@ -719,7 +720,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
                 {pushRevoked.waitlist ? (
-                  <p role="status" className="text-sm">{waitlistPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                  <div>
+                    <p role="status" className="text-sm">{waitlistPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist', true)}
+                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                  </div>
                 ) : waitlistPushState.success ? (
                   <div>
                     <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
@@ -778,7 +783,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
                 {pushRevoked.appointment ? (
-                  <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                  <div>
+                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment', true)}
+                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                  </div>
                 ) : appointmentPushState.success ? (
                   <div>
                     <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
