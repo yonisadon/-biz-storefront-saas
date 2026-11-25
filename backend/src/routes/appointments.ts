@@ -152,7 +152,6 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
             "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status IS DISTINCT FROM 'cancelled' RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status",
             [id],
           );
-          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
           let pushEventId: string | null = null;
           if (cancelled.rows[0]) {
             const waitlistOrigin = await db.query(
@@ -202,11 +201,6 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           'RETURNING id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status',
           [nextServiceId, serviceName, nextPhone, startAt, biz.timezone, duration, status, id],
         );
-        if (status === 'cancelled') {
-          await db.query("UPDATE waitlist_entries SET status = 'rejected', updated_at = now() WHERE appointment_id = $1", [id]);
-        } else if (status === 'reserved') {
-          await db.query("UPDATE waitlist_entries SET status = 'closed', updated_at = now() WHERE appointment_id = $1", [id]);
-        }
         let pushEventId: string | null = null;
         const shouldNotifyCustomer = changed && (current.status !== 'cancelled' || status !== 'cancelled');
         if (shouldNotifyCustomer) {
@@ -268,7 +262,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         [id],
       );
       await db.query(
-        "UPDATE waitlist_entries SET status = 'rejected', appointment_id = NULL, updated_at = now() WHERE appointment_id = $1",
+        "UPDATE waitlist_entries SET appointment_id = NULL WHERE appointment_id = $1",
         [id],
       );
       const deleted = await db.query('DELETE FROM appointments WHERE id = $1 RETURNING id', [id]);
