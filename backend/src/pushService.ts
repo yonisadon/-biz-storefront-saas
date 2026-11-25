@@ -207,7 +207,10 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
           "SELECT s.id FROM public.push_subscriptions s JOIN public.push_consents c " +
           "ON c.tenant_id = s.tenant_id AND c.subscription_id = s.id " +
           "WHERE s.tenant_id = app.current_tenant_id() AND s.audience = 'customer' AND s.disabled_at IS NULL " +
-          "AND c.target_type = $1 AND c.target_id = $2 AND c.revoked_at IS NULL",
+          "AND c.target_type = $1 AND c.target_id = $2 AND c.revoked_at IS NULL " +
+          "AND (EXISTS (SELECT 1 FROM public.push_device_consents dc WHERE dc.tenant_id = s.tenant_id " +
+          "AND dc.subscription_id = s.id AND dc.revoked_at IS NULL) OR NOT EXISTS (" +
+          "SELECT 1 FROM public.push_device_consents dc WHERE dc.tenant_id = s.tenant_id AND dc.subscription_id = s.id))",
           [event.target_type, event.target_id],
         )).rows;
 
