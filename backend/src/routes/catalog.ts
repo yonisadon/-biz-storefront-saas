@@ -71,7 +71,7 @@ async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Pro
 }
 
 const PRODUCT_SELECT = `
-  SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.requires_appointment, p.booking_mode, p.appointment_duration_minutes, p.is_active, p.sort_order,
+  SELECT p.id, p.kind, p.name, p.description, p.details, p.price_agorot, p.appointment_duration_minutes, p.is_active, p.sort_order,
          m.storage_key, m.width, m.height,
          COALESCE((
            SELECT json_agg(json_build_object('id', pi.id, 'storage_key', pm.storage_key, 'width', pm.width, 'height', pm.height, 'position', pi.position) ORDER BY pi.position)
@@ -84,7 +84,7 @@ const PRODUCT_SELECT = `
 
 const shapeProduct = (r: any) => ({
   id: r.id, kind: r.kind, name: r.name, description: r.description, details: r.details ?? [],
-  price_agorot: r.price_agorot, requires_appointment: r.booking_mode ? r.booking_mode !== 'none' : r.requires_appointment === true, booking_mode: r.booking_mode ?? (r.requires_appointment === true ? 'free_datetime' : 'none'), appointment_duration_minutes: r.appointment_duration_minutes ?? 30, is_active: r.is_active, sort_order: r.sort_order,
+  price_agorot: r.price_agorot, appointment_duration_minutes: r.appointment_duration_minutes ?? 30, is_active: r.is_active, sort_order: r.sort_order,
   image_url: r.storage_key ? mediaUrl(r.storage_key) : null,
   image_width: r.width ?? null, image_height: r.height ?? null,
   additional_images: (r.extra_images ?? []).map((image: any) => ({ id: image.id, url: mediaUrl(image.storage_key), width: image.width, height: image.height, position: image.position })),
@@ -119,13 +119,12 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     const row = await withTenant(req.tenantId, async (db) => {
       const n = await db.query('SELECT count(*)::int AS n FROM products');
       if (n.rows[0].n >= MAX_PRODUCTS) throw new HttpError(409, 'product_limit');
-      const bookingMode = b.kind === 'product' ? 'none' : b.booking_mode ?? (b.requires_appointment ? 'free_datetime' : 'none');
       const ins = await db.query(
         `INSERT INTO products (tenant_id, kind, name, description, details, price_agorot, is_active, requires_appointment, booking_mode, appointment_duration_minutes, sort_order)
-         VALUES (app.current_tenant_id(), $1, $2, $3, $4::jsonb, $5, $6, $7, $8, $9,
+         VALUES (app.current_tenant_id(), $1, $2, $3, $4::jsonb, $5, $6, false, 'none', $7,
                  (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM products))
          RETURNING id`,
-        [b.kind, b.name, b.description, JSON.stringify(b.details), b.price_agorot, b.is_active, bookingMode !== 'none', bookingMode, b.appointment_duration_minutes],
+        [b.kind, b.name, b.description, JSON.stringify(b.details), b.price_agorot, b.is_active, b.kind === 'service' ? b.appointment_duration_minutes : 30],
       );
       return (await db.query(`${PRODUCT_SELECT} WHERE p.id = $1`, [ins.rows[0].id])).rows[0];
     });
@@ -172,24 +171,13 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     return withTenant(req.tenantId, async (db) => {
       const sets: string[] = [];
       const vals: unknown[] = [];
+      // Booking behavior is business-level; only service duration remains per item.
       const normalizedPatch = {
         ...patch,
-        booking_mode: patch.kind === 'product'
-          ? 'none'
-          : patch.booking_mode ?? (patch.requires_appointment === undefined
-            ? undefined
-            : patch.requires_appointment ? 'free_datetime' : 'none'),
-        requires_appointment: patch.kind === 'product'
-          ? false
-          : patch.booking_mode !== undefined
-            ? patch.booking_mode !== 'none'
-            : patch.requires_appointment,
+        ...(patch.kind === 'product' ? { appointment_duration_minutes: 30 } : {}),
       };
-      // Column names are hard-coded; legacy clients map the old boolean to free_datetime.
-      for (const c of ['kind', 'name', 'description', 'details', 'price_agorot', 'is_active', 'requires_appointment', 'booking_mode', 'appointment_duration_minutes'] as const) {
+      for (const c of ['kind', 'name', 'description', 'details', 'price_agorot', 'is_active', 'appointment_duration_minutes'] as const) {
         if (normalizedPatch[c] !== undefined) {
-          // node-postgres serializes JS arrays as PostgreSQL arrays (e.g. {}), not JSON arrays.
-          // JSONB details must be sent as JSON text so [] remains a JSON array and passes the DB constraint.
           vals.push(c === 'details' ? JSON.stringify(normalizedPatch[c]) : normalizedPatch[c]);
           sets.push(productPatchAssignment(c, vals.length));
         }
