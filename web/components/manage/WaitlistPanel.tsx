@@ -19,7 +19,8 @@ type Entry = {
   appointment_id: string | null;
   appointment_start_at: string | null;
 };
-type Response = { total: number; entries: Entry[]; timezone: string };
+type Response = { total: number; limit: number; offset: number; entries: Entry[]; timezone: string };
+const PAGE_SIZE = 50;
 const labels: Record<Status, string> = {
   waiting: 'ממתין',
   rejected: 'נדחה',
@@ -52,6 +53,8 @@ function formatPreferredDate(value: string): string {
 
 export default function WaitlistPanel({ token }: { token: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [filter, setFilter] = useState<Status | ''>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,16 +67,18 @@ export default function WaitlistPanel({ token }: { token: string }) {
     setBusy(true);
     setError(null);
     try {
-      const query = filter ? `?status=${filter}` : '';
-      const result = await mcallWithTimeout<Response>(token, `waitlist${query}`);
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(page * PAGE_SIZE) });
+      if (filter) params.set('status', filter);
+      const result = await mcallWithTimeout<Response>(token, `waitlist?${params.toString()}`);
       setEntries(result.entries);
+      setTotal(result.total);
       if (result.timezone) setBusinessTimezone(result.timezone);
     } catch {
       setError('לא הצלחנו לטעון את רשימת ההמתנה. נסו שוב.');
     } finally {
       setBusy(false);
     }
-  }, [token, filter]);
+  }, [token, filter, page]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -126,7 +131,8 @@ export default function WaitlistPanel({ token }: { token: string }) {
     try {
       await mcallWithTimeout(token, `waitlist/${entry.id}`, { method: 'DELETE' });
       setMessage('בקשת ההמתנה נמחקה.');
-      await load();
+      if (entries.length === 1 && page > 0) setPage((current) => current - 1);
+      else await load();
     } catch {
       setError('מחיקת הבקשה נכשלה.');
       setBusy(false);
@@ -142,7 +148,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
         </div>
         <div className="flex items-center gap-2">
           <label className="text-sm">סינון
-            <select className="ms-2 min-h-10 rounded-lg border border-gray-300 bg-white px-3" value={filter} onChange={(e) => setFilter(e.target.value as Status | '')}>
+            <select className="ms-2 min-h-10 rounded-lg border border-gray-300 bg-white px-3" value={filter} onChange={(e) => { setFilter(e.target.value as Status | ''); setPage(0); }}>
               <option value="">כל הסטטוסים</option>
               {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status}>{labels[status]}</option>)}
             </select>
@@ -154,6 +160,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
       {message && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</p>}
       {busy && !entries.length && <p className="text-sm text-gray-500">טוען…</p>}
       {!busy && !entries.length && <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">אין בקשות המתנה להצגה.</p>}
+      {total > 0 && <p className="text-xs text-gray-500">מוצגות {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} מתוך {total} בקשות</p>}
       <div className="space-y-3">
         {entries.map((entry) => (
           <article key={entry.id} className="rounded-xl border border-gray-200 bg-white p-4">
@@ -196,6 +203,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
           </article>
         ))}
       </div>
+      {total > PAGE_SIZE && <nav aria-label="עמודי רשימת המתנה" className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <button type="button" disabled={busy || page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">הקודם</button>
+        <span className="text-sm text-gray-600">עמוד {page + 1} מתוך {Math.ceil(total / PAGE_SIZE)}</span>
+        <button type="button" disabled={busy || (page + 1) * PAGE_SIZE >= total} onClick={() => setPage((current) => current + 1)} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">הבא</button>
+      </nav>}
     </section>
   );
 }
