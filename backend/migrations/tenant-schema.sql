@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS public.businesses (
                    CHECK (jsonb_typeof(config) = 'object'),
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
-  -- WhatsApp requires a number when enabled. Both contact routes may be
-  -- disabled because availability-mode calendar bookings are independent.
+  -- Legacy WhatsApp flag remains only as a compatibility constraint.
+  -- Current product/service contact options are stored in config.contact_options.
   CONSTRAINT chk_whatsapp_route_needs_number
     CHECK ((config #>> '{order_flow,whatsapp_enabled}') IS DISTINCT FROM 'true'
            OR whatsapp_number IS NOT NULL)
