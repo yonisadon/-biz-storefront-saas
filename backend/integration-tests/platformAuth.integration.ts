@@ -261,8 +261,10 @@ test('platform account lifecycle and independent marketing consents', async () =
         assert.equal(pushConfig.statusCode, 200);
         assert.equal(pushConfig.json().enabled, true, 'fresh tenant Push must be available immediately after provisioning');
 
+        let pushTargetCounter = 0;
         const createPushTarget = async () => {
-          const startAt = new Date(Date.now() + 60 * 60 * 1000);
+          pushTargetCounter += 1;
+          const startAt = new Date(Date.now() + (60 + pushTargetCounter * 60) * 60 * 1000);
           const endAt = new Date(startAt.getTime() + 30 * 60 * 1000);
           const appointment = await tenantDb.query(
             `INSERT INTO public.appointments
