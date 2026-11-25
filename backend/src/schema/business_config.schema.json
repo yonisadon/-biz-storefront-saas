@@ -237,6 +237,52 @@
         "message"
       ],
       "additionalProperties": false
+    },
+    "contact_options": {
+      "type": "object",
+      "properties": {
+        "products": {
+          "type": "object",
+          "properties": {
+            "whatsapp_enabled": {
+              "type": "boolean"
+            },
+            "crm_enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "whatsapp_enabled",
+            "crm_enabled"
+          ],
+          "additionalProperties": false
+        },
+        "services": {
+          "type": "object",
+          "properties": {
+            "calendar_enabled": {
+              "type": "boolean"
+            },
+            "whatsapp_enabled": {
+              "type": "boolean"
+            },
+            "crm_enabled": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "calendar_enabled",
+            "whatsapp_enabled",
+            "crm_enabled"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "products",
+        "services"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
