@@ -789,10 +789,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   </div>
                 ) : (
                   <>
-                    <p className="mb-1 text-xs text-green-900/75">עדכונים על התורים ובקשות ההמתנה שלכם בעסק הזה בלבד.</p>
+                    <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על התורים ובקשות ההמתנה שתיצרו בעתיד דרך המכשיר הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה בלבד, וניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
-                      {waitlistPushState.busy ? 'מפעילים…' : 'קבלת עדכונים על התורים שלי'}
+                      {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
                   </>
@@ -853,10 +853,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 ) : (
                   <>
                     <p className="font-semibold">לקבל עדכונים על התורים שלך בעסק הזה?</p>
-                    <p className="mt-1 text-xs text-ink/65">העדכונים יכללו רק את התורים ובקשות ההמתנה שלך בעסק הזה.</p>
+                    <p className="mt-1 text-xs text-ink/65">ההסכמה תחול על התורים ובקשות ההמתנה שתיצרו בעתיד דרך המכשיר הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה בלבד, וניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
-                      {appointmentPushState.busy ? 'מפעילים…' : 'קבלת עדכונים על התורים שלי'}
+                      {appointmentPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
                   </>
