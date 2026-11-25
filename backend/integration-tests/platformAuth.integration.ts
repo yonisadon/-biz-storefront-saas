@@ -261,6 +261,12 @@ test('platform account lifecycle and independent marketing consents', async () =
         assert.equal(pushConfig.statusCode, 200);
         assert.equal(pushConfig.json().enabled, true, 'fresh tenant Push must be available immediately after provisioning');
 
+        const manageHeaders = { cookie: sessionCookie };
+        const initialPushSettings = await app.inject({ method: 'GET', url: `/api/manage/${permanentToken}/push/settings`, headers: manageHeaders });
+        assert.equal(initialPushSettings.statusCode, 200);
+        assert.equal(initialPushSettings.json().seller_effective, true);
+        assert.equal(initialPushSettings.json().customer_effective, true);
+
         let pushTargetCounter = 0;
         const createPushTarget = async () => {
           pushTargetCounter += 1;
