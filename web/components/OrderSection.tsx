@@ -289,7 +289,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const needsAppointment = calendarEnabled && appointmentLines.length > 0;
   const reservedAppointmentLines = appointmentLines;
   const reservedAppointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
-  const canOrder = whatsappEnabled || crmEnabled || calendarEnabled;
+  const canOrder = kind === 'product' ? (whatsappEnabled || crmEnabled) : (whatsappEnabled || calendarEnabled);
   const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
