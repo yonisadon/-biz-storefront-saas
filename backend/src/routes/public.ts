@@ -15,7 +15,7 @@ import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscripti
 import { dispatchPushEventAfterCommit, enqueuePushEvent, issuePushCapability, savePushSubscription } from '../pushService';
 import { publicWaitlistRoutes } from './waitlist';
 
-const DEFAULT_WA_INTRO = 'שלום, אני מעוניין/ת להזמין את הפריטים הבאים:';
+const DEFAULT_WA_INTRO = 'שלום, אשמח לקבל פרטים נוספים לגבי המוצרים או השירותים הבאים:';
 const DEFAULT_QUOTE_LABEL = 'להצעת מחיר';
 
 const PUBLIC_CATALOG_PAGE_SIZE = 12;
