@@ -496,14 +496,57 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         status: 'active',
       });
     } catch (err) {
-      // Provisioning is all-or-nothing from the user's perspective. Clean up a
-      // partially created DB/business so a retry doesn't leave orphan resources.
-      if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-      if (databaseCreated && databaseName && databaseAdmin) {
-        await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`).catch(() => {});
+      // Provisioning uses compensating cleanup across two databases, so a
+      // failure cannot be globally atomic. Never hide a failed compensation:
+      // keep the registry business suspended and mapped so an operator can
+      // safely retry deletion instead of leaving an invisible orphan database.
+      if (tenantAdmin) {
+        await tenantAdmin.end().catch((cleanupErr) => {
+          req.log.error({ err: cleanupErr, tenantId }, 'tenant connection close failed during provisioning rollback');
+        });
+        tenantAdmin = undefined;
       }
+
+      let cleanupFailed = false;
+      if (databaseName && databaseAdmin) {
+        try {
+          // Try even when CREATE DATABASE returned an ambiguous network error:
+          // the generated name belongs only to the UUID created in this request.
+          await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
+          databaseCreated = false;
+        } catch (cleanupErr) {
+          cleanupFailed = true;
+          req.log.error({ err: cleanupErr, tenantId, databaseName }, 'tenant database cleanup failed; preserving suspended registry record');
+        }
+      }
+
       if (tenantId && registry) {
-        await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]).catch(() => {});
+        if (cleanupFailed && databaseName) {
+          try {
+            await registry.query(
+              'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+              [tenantId, databaseName],
+            );
+            await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]);
+          } catch (cleanupErr) {
+            req.log.error({ err: cleanupErr, tenantId, databaseName }, 'could not preserve failed provisioning record for operator recovery');
+          }
+        } else {
+          try {
+            await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]);
+          } catch (cleanupErr) {
+            cleanupFailed = true;
+            req.log.error({ err: cleanupErr, tenantId }, 'registry cleanup failed during provisioning rollback');
+            await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]).catch((preserveErr) => {
+              req.log.error({ err: preserveErr, tenantId }, 'could not suspend partially provisioned business');
+            });
+          }
+        }
+      }
+
+      if (cleanupFailed) {
+        throw new HttpError(500, 'business_provisioning_cleanup_pending',
+          'Business setup failed and automatic cleanup could not be completed. The business was kept suspended for safe recovery.');
       }
       if ((err as { code?: string }).code === '23505') {
         throw new HttpError(409, 'slug_already_exists');
