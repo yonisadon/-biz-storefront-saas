@@ -266,16 +266,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           [ids],
         )).rows;
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
+        if (rows.some((item) => item.kind !== 'service')) throw new HttpError(400, 'mixed_catalog_types');
+        const legacyCalendar = rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
-        const services = rows.filter((item) => item.kind === 'service')
-          .map((item) => ({ ...item, mode: item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none') }))
-          .filter((item) => item.mode !== 'none');
-        const reserved = services.filter((item) => item.mode === 'availability');
-        const freeDatetime = services.filter((item) => item.mode === 'free_datetime');
-        const mode = reserved.length ? 'availability' : freeDatetime.length ? 'free_datetime' : 'none';
-        if (mode === 'none') throw new HttpError(400, 'appointment_not_applicable');
-        const durationServices = reserved.length ? reserved : freeDatetime;
-        const duration = durationServices.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
         if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
 
         const days = biz.config?.opening_hours?.days;
@@ -305,9 +301,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               }
             }
           }
-        }
-        if (mode === 'free_datetime') {
-          return { month: query.month, available_dates: [...new Set(candidates.map((item) => item.date))] };
         }
         if (!candidates.length) return { month: query.month, available_dates: [] };
         const candidateSlots = candidates.map((item) => `${item.date}T${item.slot}`);
@@ -359,17 +352,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           [ids],
         )).rows : [];
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
+        if (rows.some((item) => item.kind !== 'service')) throw new HttpError(400, 'mixed_catalog_types');
+        const legacyCalendar = rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
-        const services = rows.filter((item) => item.kind === 'service')
-          .map((item) => ({ ...item, mode: item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none') }))
-          .filter((item) => item.mode !== 'none');
-        const reservedServices = services.filter((item) => item.mode === 'availability');
-        const freeDatetimeServices = services.filter((item) => item.mode === 'free_datetime');
-        const mode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
-        if (mode === 'none') throw new HttpError(400, 'appointment_not_applicable');
-        // Only reserved services consume calendar time when booking modes are mixed.
-        const durationServices = reservedServices.length ? reservedServices : freeDatetimeServices;
-        const duration = durationServices.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
+        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
         if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
 
         const days = biz.config?.opening_hours?.days;
@@ -379,7 +367,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         }
         const dayKey = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][date.getUTCDay()];
         const ranges = days && typeof days === 'object' ? days[dayKey] : undefined;
-        if (!Array.isArray(ranges)) return { date: query.date, mode, duration_minutes: duration, slots: [] };
+        if (!Array.isArray(ranges)) return { date: query.date, duration_minutes: duration, slots: [] };
 
         const toMinutes = (value: unknown) => {
           if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return Number.NaN;
@@ -399,7 +387,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               needsAppointment: true, appointmentAt: slot, durationMinutes: duration,
               openingHoursDays: days, timezone: biz.timezone,
             })) continue;
-            if (mode === 'availability') {
+            {
               const availability = await db.query(
                 `SELECT NOT EXISTS (
                    SELECT 1 FROM appointments a
@@ -420,7 +408,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             slots.push(slot.slice(11));
           }
         }
-        return { date: query.date, mode, duration_minutes: duration, slots };
+        return { date: query.date, duration_minutes: duration, slots };
       });
     });
 
