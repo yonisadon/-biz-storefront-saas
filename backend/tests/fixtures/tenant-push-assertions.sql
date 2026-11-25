@@ -15,7 +15,7 @@ BEGIN
   END IF;
   FOREACH v_table IN ARRAY ARRAY[
     'push_settings', 'push_subscriptions', 'push_booking_capabilities',
-    'push_consents', 'push_outbox', 'push_deliveries'
+    'push_consents', 'push_device_consents', 'push_outbox', 'push_deliveries'
   ]
   LOOP
     IF NOT EXISTS (
@@ -39,6 +39,14 @@ BEGIN
        AND confrelid = 'public.push_subscriptions'::regclass
   ) THEN
     RAISE EXCEPTION 'a booking capability must bind to at most one Push subscription';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conrelid = 'public.push_device_consents'::regclass
+       AND contype = 'f'
+       AND confrelid = 'public.push_subscriptions'::regclass
+  ) THEN
+    RAISE EXCEPTION 'device consent must be scoped to a subscription in the same tenant';
   END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_indexes
