@@ -461,6 +461,15 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
          b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
       );
 
+      // tenant-schema and migration 013 run before the tenant business row exists,
+      // so their initial backfill cannot create this tenant's Push defaults.
+      // Create them only after the tenant row is present; do not rely on a later
+      // seller settings page request to initialize public customer Push config.
+      await tenantAdmin.query(
+        'INSERT INTO public.push_settings (tenant_id) VALUES ($1) ON CONFLICT (tenant_id) DO NOTHING',
+        [tenantId],
+      );
+
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.
       const managementToken = createManagementToken();
