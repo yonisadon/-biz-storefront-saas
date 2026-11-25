@@ -493,6 +493,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const openContinuation = () => {
     setError(null);
     setDone(null);
+    setWaitlistDone(false);
+    setWaitlistError(null);
+    setWaitlistPushCapability(null);
     setStep(kind === 'product' && crmEnabled && !whatsappEnabled ? 'site' : 'choose');
     dlg.current?.showModal();
   };
