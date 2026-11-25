@@ -69,7 +69,7 @@ export default async function StorefrontPage({ params }: Props) {
   // Legacy tenants may still have the retired grid setting saved; render them with safe classic cards.
   const productLayout = ['grid', 'gallery'].includes(data.branding?.product_layout ?? '') ? 'cards' : data.branding?.product_layout ?? 'cards';
   const serviceLayout = ['grid', 'gallery'].includes(data.branding?.service_layout ?? '') ? 'cards' : data.branding?.service_layout ?? 'cards';
-  const waNumber = data.order_flow?.whatsapp_enabled && b?.whatsapp_number
+  const waNumber = (data.contact_options.products.whatsapp_enabled || data.contact_options.services.whatsapp_enabled) && b?.whatsapp_number
     ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')
     : '';
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
