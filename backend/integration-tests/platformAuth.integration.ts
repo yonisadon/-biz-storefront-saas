@@ -246,6 +246,103 @@ test('platform account lifecycle and independent marketing consents', async () =
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_expires_at'",
         );
         assert.equal(oldDeadlineColumn.rowCount, 0, 'legacy hard-coded retention deadline must be removed');
+
+        const pushConfig = await app.inject({ method: 'GET', url: `/api/biz/${provisioned.slug}/push/config` });
+        assert.equal(pushConfig.statusCode, 200);
+        assert.equal(pushConfig.json().enabled, true, 'fresh tenant Push must be available immediately after provisioning');
+
+        const createPushTarget = async () => {
+          const startAt = new Date(Date.now() + 60 * 60 * 1000);
+          const endAt = new Date(startAt.getTime() + 30 * 60 * 1000);
+          const appointment = await tenantDb.query(
+            `INSERT INTO public.appointments
+               (tenant_id, service_name, customer_phone, start_at, end_at, source, status)
+             VALUES ($1, 'Push integration service', '+972501234567', $2, $3, 'website', 'reserved')
+             RETURNING id`,
+            [provisioned!.id, startAt, endAt],
+          );
+          const targetId = appointment.rows[0].id as string;
+          const capabilityId = randomUUID();
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const token = derivePushCapabilityToken(
+            provisioned!.id, 'appointment', targetId, capabilityId, expiresAt, process.env.PUSH_CAPABILITY_HMAC_KEY!,
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (id, tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, 'appointment', $3, $4, $5)`,
+            [capabilityId, provisioned!.id, targetId, hashPushCapability(token), expiresAt],
+          );
+          return token;
+        };
+
+        const clientEcdh = createECDH('prime256v1');
+        clientEcdh.generateKeys();
+        const customerSubscription = {
+          endpoint: `https://fcm.googleapis.com/fcm/send/integration-${randomUUID()}`,
+          keys: {
+            p256dh: clientEcdh.getPublicKey(undefined, 'uncompressed').toString('base64url'),
+            auth: randomBytes(16).toString('base64url'),
+          },
+        };
+        const firstCapability = await createPushTarget();
+        const firstConsent = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: true, subscription: customerSubscription },
+        });
+        assert.equal(firstConsent.statusCode, 200, firstConsent.body);
+        assert.equal(firstConsent.json().already_enabled, false);
+
+        const activeStatus = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(activeStatus.json().active, true);
+
+        const secondCapability = await createPushTarget();
+        const silentLink = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: secondCapability, explicit_consent: false, subscription: customerSubscription },
+        });
+        assert.equal(silentLink.statusCode, 200, silentLink.body);
+        assert.equal(silentLink.json().already_enabled, true, 'same browser and tenant must reuse its active consent');
+        const consentCounts = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $1 AND revoked_at IS NULL) AS devices, ' +
+          '(SELECT count(*)::int FROM public.push_subscription_targets WHERE tenant_id = $1 AND revoked_at IS NULL) AS targets',
+          [provisioned.id],
+        );
+        assert.equal(consentCounts.rows[0].devices, 1, 'one persistent device consent must cover multiple targets');
+        assert.equal(consentCounts.rows[0].targets, 2, 'each booking still needs its own target link');
+
+        const revoked = await app.inject({
+          method: 'DELETE',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(revoked.statusCode, 200);
+        const revokedStatus = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(revokedStatus.json().active, false);
+
+        const reenabled = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: true, subscription: customerSubscription },
+        });
+        assert.equal(reenabled.statusCode, 200, reenabled.body);
+        assert.equal(reenabled.json().already_enabled, false, 'explicit consent must reactivate a revoked device');
+        const activeAgain = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(activeAgain.json().active, true);
       } finally {
         await tenantDb.end();
       }
