@@ -90,17 +90,9 @@ export default async function StorefrontPage({ params }: Props) {
   const profile = data.business_profile ?? {};
   const announcement = data.business_announcement;
   const publicAddress = profile.show_address ? [profile.city, profile.street_address].filter(Boolean).join(', ') : '';
-  const serviceMode = data.site_mode === 'services_whatsapp';
   // Legacy tenants may still have the retired grid setting saved; render them with safe classic cards.
   const productLayout = ['grid', 'gallery'].includes(data.branding?.product_layout ?? '') ? 'cards' : data.branding?.product_layout ?? 'cards';
   const serviceLayout = ['grid', 'gallery'].includes(data.branding?.service_layout ?? '') ? 'cards' : data.branding?.service_layout ?? 'cards';
-  const whatsappItems = data.catalog?.items ?? [];
-  const hasProducts = whatsappItems.some((item) => item.kind === 'product');
-  const hasServices = whatsappItems.some((item) => item.kind === 'service');
-  const itemKinds = ['product', 'service'] as const;
-  const whatsappItemsHeading = hasProducts && hasServices
-    ? 'המוצרים והשירותים שלנו'
-    : hasProducts ? 'המוצרים שלנו' : 'השירותים שלנו';
   const waNumber = data.order_flow?.whatsapp_enabled && b?.whatsapp_number
     ? b.whatsapp_number.replace(/\D/g, '').replace(/^0/, '972')
     : '';
@@ -131,44 +123,18 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const servicesSlot = (
     <>
-          {serviceMode && whatsappItems.length > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
-            <div className="mb-5">
-              <h2 id="services-heading" className="text-2xl font-extrabold tracking-tight sm:text-3xl">{whatsappItemsHeading}</h2>
-              <p className="mt-2 text-sm leading-6 text-ink/65">לחצו על הפריט שמעניין אתכם כדי לקבל עליו פרטים ולפנות לעסק ישירות ב-WhatsApp.</p>
-            </div>
-            <div className="space-y-8">
-              {itemKinds.map((kind) => {
-                const groupItems = whatsappItems.filter((item) => item.kind === kind);
-                if (!groupItems.length) return null;
-                const layout = kind === 'product' ? productLayout : serviceLayout;
-                return <div key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind}>
-                  {hasProducts && hasServices && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
-                  <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
-              {groupItems.map((item) => (
-                <StorefrontCatalogItem
-                  key={item.id}
-                  itemId={`item-${item.id}`}
-                  focusableTarget
-                  product={item}
-                  quoteLabel={data.catalog?.quote_label ?? 'לפי הצעת מחיר'}
-                  action={{
-                    type: 'whatsapp',
-                    href: waNumber ? itemWhatsAppHref(waNumber, data.order_flow.whatsapp_intro ?? 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:', item, publicItemUrl(ctx.origin, ctx.base, item.id)) : undefined,
-                  }}
-                />
-              ))}
-                  </ul>
-                </div>;
-              })}
-            </div>
-          </section>}
-    
+      {data.catalog.services.total > 0 && <section id="services-section" aria-labelledby="services-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
+        <h2 id="services-heading" className="mb-4 text-2xl font-extrabold tracking-tight sm:text-3xl">השירותים שלנו</h2>
+        <OrderSection apiBase={ctx.path} items={data.catalog.services.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="service" openingHours={oh?.days ?? null} catalogTotal={data.catalog.services.total} hasMore={data.catalog.services.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
+      </section>}
     </>
   );
   const catalogSlot = (
     <>
-          {!serviceMode && data.catalog?.items?.length ? <section id="catalog-section" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8"><OrderSection apiBase={ctx.path} items={data.catalog.items} quoteLabel={data.catalog.quote_label} flow={data.order_flow} openingHours={oh?.days ?? null} catalogTotal={data.catalog.total} hasMore={data.catalog.has_more} productLayout={productLayout} serviceLayout={serviceLayout} /></section> : null}
-    
+      {data.catalog.products.total > 0 && <section id="catalog-section" aria-labelledby="products-heading" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
+        <h2 id="products-heading" className="mb-4 text-2xl font-extrabold tracking-tight sm:text-3xl">המוצרים שלנו</h2>
+        <OrderSection apiBase={ctx.path} items={data.catalog.products.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="product" openingHours={oh?.days ?? null} catalogTotal={data.catalog.products.total} hasMore={data.catalog.products.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
+      </section>}
     </>
   );
   const contactSlot = (
