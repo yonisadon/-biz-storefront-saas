@@ -146,6 +146,14 @@ async function finishEvent(tenantId: string, eventId: string): Promise<void> {
 }
 
 export async function processPushOutboxEvent(tenantId: string, eventId: string): Promise<void> {
+  // A suspended tenant (including one approved for deletion) must not emit
+  // delayed notifications while its resources are being frozen or removed.
+  const business = await queryRegistryWithRetry(
+    'SELECT status FROM public.businesses WHERE id = $1',
+    [tenantId],
+  );
+  if (business.rows[0]?.status !== 'active') return;
+
   const entitlement = await queryRegistryWithRetry(
     "SELECT enabled FROM public.platform_channel_entitlements WHERE tenant_id = $1 AND channel = 'push'",
     [tenantId],
