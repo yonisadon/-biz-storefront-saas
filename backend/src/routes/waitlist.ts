@@ -157,8 +157,14 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     const input = z.object({ status: z.enum(['waiting', 'rejected', 'scheduled_without_booking']) }).strict().parse(req.body);
     return withTenant(req.tenantId, async (db) => {
-      const exists = await db.query('SELECT 1 FROM waitlist_entries WHERE id = $1 FOR UPDATE', [id]);
+      const exists = await db.query(
+        'SELECT status, appointment_id FROM waitlist_entries WHERE id = $1 FOR UPDATE',
+        [id],
+      );
       if (!exists.rowCount) throw new HttpError(404, 'not_found');
+      if (exists.rows[0].status === 'closed' || exists.rows[0].appointment_id) {
+        throw new HttpError(409, 'waitlist_already_scheduled', 'בקשה שכבר שובצה ביומן מנוהלת דרך התור עצמו.');
+      }
       const updated = await db.query(
         'UPDATE waitlist_entries SET status = $1, updated_at = now() WHERE id = $2 RETURNING id, status, appointment_id, updated_at',
         [input.status, id],
