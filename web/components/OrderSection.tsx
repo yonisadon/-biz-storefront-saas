@@ -103,6 +103,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
+  const [pushRevoked, setPushRevoked] = useState({ appointment: false, waitlist: false });
   const pushAttemptRef = useRef({ appointment: 0, waitlist: 0 });
   const pushAbortRef = useRef<{ appointment: AbortController | null; waitlist: AbortController | null }>({ appointment: null, waitlist: null });
   const [waitlistBusy, setWaitlistBusy] = useState(false);
@@ -135,10 +136,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
   useEffect(() => {
     setAppointmentPushState({ busy: false, success: false, status: null });
+    setPushRevoked((current) => ({ ...current, appointment: false }));
   }, [done?.pushCapabilityToken]);
 
   useEffect(() => {
     setWaitlistPushState({ busy: false, success: false, status: null });
+    setPushRevoked((current) => ({ ...current, waitlist: false }));
   }, [waitlistPushCapability]);
 
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
@@ -244,6 +247,27 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
       if (pushAbortRef.current[target] === controller) pushAbortRef.current[target] = null;
       if (isCurrent()) setTargetState((current) => ({ ...current, busy: false }));
+    }
+  }
+
+  async function cancelPushForBusiness(target: 'appointment' | 'waitlist') {
+    const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
+    setTargetState({ busy: true, success: false, status: null });
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) throw new Error('push_subscription_missing');
+      const response = await fetch(`${apiBase}/push/subscriptions/customer`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      if (!response.ok) throw new Error('push_revoke_failed');
+      setPushRevoked((current) => ({ ...current, [target]: true }));
+      setTargetState({ busy: false, success: false, status: 'ההתראות בוטלו לעסק הזה. לא יישלחו עוד עדכונים למכשיר הזה מהעסק.' });
+    } catch {
+      setTargetState((current) => ({ ...current, busy: false, status: 'לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.' }));
     }
   }
 
