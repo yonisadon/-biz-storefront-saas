@@ -323,8 +323,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       });
     });
 
-    // Return candidate times for the selected cart. Reserved availability-mode slots
-    // are checked against both appointments and seller time blocks on the server.
+    // Return candidate times for the selected service cart, checking appointments and seller time blocks.
     app.get('/availability', async (req) => {
       const query = z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -354,7 +353,6 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
         const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
-        if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
         if (duration <= 0 || duration > 480) throw new HttpError(400, 'invalid_appointment_time');
 
         const days = biz.config?.opening_hours?.days;
