@@ -100,14 +100,14 @@ export default async function StorefrontPage({ params }: Props) {
   const servicesSlot = (
     <>
       {data.catalog.services.total > 0 && <section id="services-section" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
-        <OrderSection apiBase={ctx.path} items={data.catalog.services.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="service" openingHours={oh?.days ?? null} catalogTotal={data.catalog.services.total} hasMore={data.catalog.services.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
+        <OrderSection apiBase={ctx.path} items={data.catalog.services.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="service" businessTimezone={b?.timezone ?? "Asia/Jerusalem"} openingHours={oh?.days ?? null} catalogTotal={data.catalog.services.total} hasMore={data.catalog.services.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
       </section>}
     </>
   );
   const catalogSlot = (
     <>
       {data.catalog.products.total > 0 && <section id="catalog-section" className="mt-3 scroll-mt-24 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-5 sm:p-6 lg:p-8">
-        <OrderSection apiBase={ctx.path} items={data.catalog.products.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="product" openingHours={oh?.days ?? null} catalogTotal={data.catalog.products.total} hasMore={data.catalog.products.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
+        <OrderSection apiBase={ctx.path} items={data.catalog.products.items} quoteLabel={data.catalog.quote_label} contactOptions={data.contact_options} kind="product" businessTimezone={b?.timezone ?? "Asia/Jerusalem"} openingHours={oh?.days ?? null} catalogTotal={data.catalog.products.total} hasMore={data.catalog.products.has_more} productLayout={productLayout} serviceLayout={serviceLayout} />
       </section>}
     </>
   );
