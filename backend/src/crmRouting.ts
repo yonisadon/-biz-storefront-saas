@@ -86,7 +86,7 @@ export function resolveLeadRoute(
   const settings = options[domain];
   const routeEnabled = domain === 'products'
     ? (route === 'whatsapp' ? settings.whatsapp_enabled : route === 'site' && settings.crm_enabled)
-    : (route === 'whatsapp' ? settings.whatsapp_enabled : route === 'reserve' && settings.calendar_enabled);
+    : (route === 'whatsapp' ? settings.whatsapp_enabled : route === 'reserve' && options.services.calendar_enabled);
   return {
     options,
     routeEnabled,
