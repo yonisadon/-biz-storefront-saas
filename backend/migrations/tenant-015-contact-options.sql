@@ -12,18 +12,21 @@ UPDATE public.businesses b
        ),
        'services', jsonb_build_object(
          'calendar_enabled',
-           COALESCE(b.config ->> 'site_mode', 'catalog_order') <> 'services_whatsapp'
-           AND (
-             EXISTS (
-               SELECT 1 FROM public.products p
-                WHERE p.tenant_id = b.id AND p.kind = 'service'
-                  AND COALESCE(p.booking_mode, CASE WHEN p.requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none'
+           (
+             COALESCE(b.config ->> 'site_mode', 'catalog_order') <> 'services_whatsapp'
+             AND (
+               EXISTS (
+                 SELECT 1 FROM public.products p
+                  WHERE p.tenant_id = b.id AND p.kind = 'service'
+                    AND COALESCE(p.booking_mode, CASE WHEN p.requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none'
+               )
+               OR (
+                 COALESCE((b.config #>> '{order_flow,site_inquiry_enabled}')::boolean, false)
+                 AND EXISTS (SELECT 1 FROM public.products p WHERE p.tenant_id = b.id AND p.kind = 'service' AND p.is_active)
+               )
              )
-             OR (
-               COALESCE((b.config #>> '{order_flow,site_inquiry_enabled}')::boolean, false)
-               AND EXISTS (SELECT 1 FROM public.products p WHERE p.tenant_id = b.id AND p.kind = 'service' AND p.is_active)
-             )
-           ),
+           )
+           OR NOT COALESCE((b.config #>> '{order_flow,whatsapp_enabled}')::boolean, false),
          'whatsapp_enabled', COALESCE((b.config #>> '{order_flow,whatsapp_enabled}')::boolean, false),
          'crm_enabled', COALESCE((b.config ->> 'crm_enabled')::boolean, true)
        )
