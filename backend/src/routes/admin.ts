@@ -13,6 +13,7 @@ import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 import { sendBrevoEmail } from '../email';
+import { decryptGoogleToken, isGoogleCalendarConfigured } from '../googleCalendarService';
 import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 
 const CreateBusiness = z.object({
@@ -1007,7 +1008,7 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       if (!databaseName && request.tenant_id) {
         databaseName = await getTenantDatabase(registry, request.tenant_id);
       }
-      if (databaseName && !request.database_name) {
+      if (databaseName) {
         // A failed provisioning rollback may have left a Registry mapping after
         // successfully dropping the tenant DB. Treat that as an empty tenant,
         // not as an unconnectable database that blocks recovery forever.
@@ -1017,22 +1018,59 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         );
         if (databaseExists.rows[0]?.exists === true) {
           tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-          const mediaAssetsTable = await tenant.query(
-            "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
-          );
-          if (mediaAssetsTable.rows[0]?.exists === true) {
-            const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
-            storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+          try {
+            if (!request.database_name) {
+              const mediaAssetsTable = await tenant.query(
+                "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+              );
+              if (mediaAssetsTable.rows[0]?.exists === true) {
+                const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+                storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
+              }
+            }
+
+            // Revoke Google OAuth before dropping the tenant database. Match the
+            // existing disconnect policy: revoke BTime access, but leave events
+            // already created in the user's Google Calendar untouched.
+            const googleTable = await tenant.query(
+              "SELECT to_regclass('public.google_calendar_connections') IS NOT NULL AS exists",
+            );
+            if (googleTable.rows[0]?.exists === true) {
+              const googleConnection = await tenant.query(
+                'SELECT refresh_token_encrypted FROM public.google_calendar_connections WHERE tenant_id = $1',
+                [request.tenant_id],
+              );
+              if (googleConnection.rows[0]) {
+                if (!isGoogleCalendarConfigured()) {
+                  throw new HttpError(503, 'google_calendar_revocation_not_configured',
+                    'לעסק יש חיבור Google Calendar פעיל, אך הגדרות הביטול אינן זמינות. המחיקה נעצרה כדי לא להשאיר הרשאה חיצונית פעילה.');
+                }
+                const refreshToken = decryptGoogleToken(googleConnection.rows[0].refresh_token_encrypted as string);
+                const revokeResponse = await fetch('https://oauth2.googleapis.com/revoke', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                  body: new URLSearchParams({ token: refreshToken }),
+                  signal: AbortSignal.timeout(12_000),
+                });
+                if (!revokeResponse.ok && revokeResponse.status !== 400) {
+                  throw new HttpError(502, 'google_calendar_revocation_failed',
+                    'לא הצלחנו לבטל את הרשאת Google Calendar. אפשר לנסות שוב; העסק עדיין לא נמחק.');
+                }
+              }
+            }
+          } finally {
+            await tenant.end();
+            tenant = undefined;
           }
-          await tenant.end();
-          tenant = undefined;
         }
-        // Persist the cleanup manifest before touching storage or dropping the DB,
-        // so an interrupted deletion can be retried safely.
-        await registry.query(
-          'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
-          [requestId, databaseName, JSON.stringify(storageKeys)],
-        );
+        if (!request.database_name) {
+          // Persist the cleanup manifest before touching storage or dropping the DB,
+          // so an interrupted deletion can be retried safely.
+          await registry.query(
+            'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
+            [requestId, databaseName, JSON.stringify(storageKeys)],
+          );
+        }
       }
 
       if (!databaseName || !/^biz_[a-f0-9]{24}$/.test(databaseName)) {
