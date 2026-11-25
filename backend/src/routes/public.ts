@@ -412,86 +412,72 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       });
     });
 
-    // Submit a lead: Route A (whatsapp) or Route B (site)
+    // Submit one product inquiry, service WhatsApp request, or service reservation.
     app.post(
       '/leads',
       { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
       async (req, reply) => {
         const body = LeadInput.parse(req.body);
-
-        // Honeypot: pretend success, store nothing
         if (body.company_website) return reply.code(201).send({ ok: true });
 
         const result = await withTenant(req.tenantId, async (db) => {
           const biz = await loadBusiness(db);
           const flow = biz.config?.order_flow ?? {};
-
-          // Merge duplicate lines; prices/names come from the DB, never the client
           const qty = new Map<string, number>();
-          for (const it of body.items) {
-            qty.set(it.product_id, Math.min(9999, (qty.get(it.product_id) ?? 0) + it.quantity));
+          for (const item of body.items) {
+            qty.set(item.product_id, Math.min(9999, (qty.get(item.product_id) ?? 0) + item.quantity));
           }
           const ids = [...qty.keys()];
-          const found = ids.length
-            ? (await db.query(
-                'SELECT id, kind, name, price_agorot, requires_appointment, booking_mode, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
-                [ids],
-              )).rows
-            : [];
+          const found = ids.length ? (await db.query(
+            'SELECT id, kind, name, price_agorot, booking_mode, requires_appointment, appointment_duration_minutes ' +
+            'FROM products WHERE is_active AND id = ANY($1::uuid[])',
+            [ids],
+          )).rows : [];
           if (found.length !== ids.length) throw new HttpError(400, 'unknown_product');
+          const kinds = new Set(found.map((item) => item.kind));
+          if (kinds.size > 1) throw new HttpError(400, 'mixed_catalog_types');
+
+          const domain = found[0]?.kind === 'service' ? 'services' : 'products';
+          if ((body.route === 'reserve' || (body.route === 'whatsapp' && domain === 'services')) && domain !== 'services') {
+            throw new HttpError(400, 'invalid_contact_flow');
+          }
+          if (body.route === 'site' && domain !== 'products') throw new HttpError(400, 'invalid_contact_flow');
+          if (body.route !== 'reserve' && body.appointment_at) throw new HttpError(400, 'invalid_contact_flow');
+
+          const legacyCalendarServices = found.some((item) => item.kind === 'service' &&
+            (item.booking_mode ?? (item.requires_appointment === true ? 'free_datetime' : 'none')) !== 'none');
+          const routeSettings = resolveLeadRoute(biz.config, body.route, domain, legacyCalendarServices);
+          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
+          if (body.route === 'whatsapp' && !biz.whatsapp_number) throw new HttpError(409, 'whatsapp_not_configured');
 
           let total = 0, priced = 0, hasQuote = false;
-          for (const p of found) {
-            const q = qty.get(p.id)!;
-            if (p.price_agorot === null) hasQuote = true;
-            else { total += p.price_agorot * q; priced++; }
+          for (const item of found) {
+            const quantity = qty.get(item.id)!;
+            if (item.price_agorot === null) hasQuote = true;
+            else { total += item.price_agorot * quantity; priced++; }
           }
           if (total > 2_000_000_000) throw new HttpError(400, 'total_too_large');
           const estimated = priced > 0 ? total : null;
 
-          const appointmentServices = found.filter((p) => p.kind === 'service')
-            .map((p) => ({ ...p, mode: p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none') }))
-            .filter((p) => p.mode !== 'none');
-          const selectedModes = [...new Set(appointmentServices.map((p) => p.mode))];
-          const reservedServices = appointmentServices.filter((p) => p.mode === 'availability');
-          const freeDatetimeServices = appointmentServices.filter((p) => p.mode === 'free_datetime');
-          const bookingMode = reservedServices.length ? 'availability' : freeDatetimeServices.length ? 'free_datetime' : 'none';
-          const routeSettings = resolveLeadRoute(biz.config, body.route, { bookingMode });
-          if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
-          const calendarOnlyBooking = body.route === 'site' && !routeSettings.siteInquiryEnabled &&
-            bookingMode === 'availability';
-          if (calendarOnlyBooking && found.some((p) => {
-            const itemMode = p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none');
-            return p.kind !== 'service' || itemMode !== 'availability';
-          })) {
-            // A calendar-only booking cannot silently discard products or
-            // free-datetime requests that require a separate contact route.
-            throw new HttpError(403, 'route_disabled');
+          const serviceDurationMinutes = domain === 'services'
+            ? found.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0)
+            : 0;
+          if (body.route === 'reserve') {
+            if (!body.customer_phone) throw new HttpError(400, 'contact_required');
+            if (!body.appointment_at) throw new HttpError(400, 'appointment_required');
+            if (serviceDurationMinutes <= 0 || serviceDurationMinutes > 480) throw new HttpError(400, 'invalid_appointment_time');
+            const appointmentError = validateAppointmentSelection({
+              needsAppointment: true,
+              appointmentAt: body.appointment_at,
+              durationMinutes: serviceDurationMinutes,
+              openingHoursDays: biz.config?.opening_hours?.days,
+              timezone: biz.timezone,
+            });
+            if (appointmentError === 'appointment_required') throw new HttpError(400, 'appointment_required');
+            if (appointmentError) throw new HttpError(400, 'invalid_appointment_time');
           }
-          // Calendar-only website reservations are permitted without opening a
-          // general site-inquiry route; they never create a CRM lead.
+
           const shouldCreateLead = routeSettings.createLead;
-          const needsAppointment = appointmentServices.length > 0;
-          const appointmentAt = body.appointment_at;
-          const reservedDurationMinutes = reservedServices
-            .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
-          const freeDatetimeDurationMinutes = freeDatetimeServices
-            .reduce((sum, p) => sum + (p.appointment_duration_minutes ?? 30) * (qty.get(p.id) ?? 1), 0);
-          // A mixed order reserves only the availability-mode services. Free-datetime
-          // services remain visible in the lead/WhatsApp message but do not block time.
-          const appointmentDurationMinutes = reservedServices.length ? reservedDurationMinutes : freeDatetimeDurationMinutes;
-          if (bookingMode === 'availability' && !body.customer_phone) throw new HttpError(400, 'contact_required');
-          if (bookingMode === 'availability' && !appointmentAt) throw new HttpError(400, 'appointment_required');
-          const appointmentError = validateAppointmentSelection({
-            needsAppointment,
-            appointmentAt,
-            durationMinutes: appointmentDurationMinutes,
-            openingHoursDays: biz.config?.opening_hours?.days,
-            timezone: biz.timezone,
-          });
-          if (appointmentError === 'appointment_required') throw new HttpError(400, 'appointment_required');
-          if (appointmentError === 'appointment_not_applicable') throw new HttpError(400, 'appointment_not_applicable');
-          if (appointmentError) throw new HttpError(400, 'invalid_appointment_time');
           const status = body.route === 'whatsapp' ? 'whatsapp_initiated' : 'pending_approval';
           let leadId: string | null = null;
           if (shouldCreateLead) {
@@ -502,19 +488,14 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                ON CONFLICT DO NOTHING
                RETURNING id`,
               [body.customer_name ?? null, body.customer_phone ?? null, body.customer_email ?? null,
-               body.message ?? null, body.route, status, estimated,
+               body.message ?? null, body.route === 'whatsapp' ? 'whatsapp' : 'site', status, estimated,
                JSON.stringify({
+                 domain,
+                 action: body.route,
                  has_quote_items: hasQuote,
-                 ...(needsAppointment ? {
-                   booking_mode: bookingMode,
-                   booking_modes: selectedModes,
-                   appointment_duration_minutes: appointmentDurationMinutes,
-                   ...(freeDatetimeServices.length && reservedServices.length ? {
-                     unreserved_service_duration_minutes: freeDatetimeDurationMinutes,
-                     unreserved_service_names: freeDatetimeServices.map((p) => p.name),
-                   } : {}),
-                   appointment_needs_coordination: !appointmentAt,
-                   ...(appointmentAt ? { appointment_at: appointmentAt } : {}),
+                 ...(body.route === 'reserve' ? {
+                   appointment_duration_minutes: serviceDurationMinutes,
+                   appointment_at: body.appointment_at,
                  } : {}),
                }), body.idempotency_key ?? null],
             );
@@ -524,7 +505,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 [body.idempotency_key],
               )).rows[0] : null;
               if (!existing) throw new HttpError(409, 'duplicate_request');
-              const duplicateAppointment = body.idempotency_key ? (await db.query(
+              const duplicateAppointment = body.route === 'reserve' ? (await db.query(
                 "SELECT id, status FROM appointments WHERE tenant_id = app.current_tenant_id() AND idempotency_key = $1",
                 [body.idempotency_key],
               )).rows[0] : null;
@@ -537,12 +518,12 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 estimated_total_agorot: existing.estimated_total_agorot,
                 has_quote_items: existing.metadata?.has_quote_items === true,
                 duplicate: true,
-                success_message: existing.metadata?.booking_mode === 'availability'
+                appointment_reserved: duplicateAppointment?.status === 'reserved',
+                crm_record_created: true,
+                success_message: body.route === 'reserve'
                   ? 'התור כבר נשמר ביומן. לשינוי או לביטול יש לפנות לעסק ישירות.'
-                  : existing.metadata?.booking_mode === 'free_datetime'
-                    ? (existing.metadata?.appointment_at
-                      ? 'הבקשה כבר נשמרה. התאריך והשעה המבוקשים אינם משוריינים ביומן.'
-                      : 'הבקשה כבר נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
+                  : body.route === 'whatsapp'
+                    ? 'הפנייה כבר תועדה. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
                     : 'הפנייה כבר נשמרה בהצלחה.',
               };
             }
@@ -552,18 +533,16 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                 `INSERT INTO lead_items (tenant_id, lead_id, product_id, item_name, unit_price_agorot, quantity)
                  SELECT app.current_tenant_id(), $1, x.pid, x.nm, x.pr, x.q
                    FROM unnest($2::uuid[], $3::text[], $4::int[], $5::int[]) AS x(pid, nm, pr, q)`,
-                [leadId, found.map((p) => p.id), found.map((p) => p.name),
-                 found.map((p) => p.price_agorot), found.map((p) => qty.get(p.id)!)],
+                [leadId, found.map((item) => item.id), found.map((item) => item.name),
+                 found.map((item) => item.price_agorot), found.map((item) => qty.get(item.id)!)],
               );
             }
           }
 
-          let appointmentReserved = false;
           let appointmentId: string | null = null;
           let appointmentCreated = false;
-          if (reservedServices.length && appointmentAt) {
+          if (body.route === 'reserve') {
             try {
-              if (!body.idempotency_key) throw new HttpError(400, 'idempotency_key_required');
               const inserted = await db.query(
                 `INSERT INTO appointments
                    (tenant_id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status, idempotency_key)
@@ -574,24 +553,20 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
                     'website', 'reserved', $8::uuid)
                  ON CONFLICT (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL DO NOTHING
                  RETURNING id`,
-                [leadId, reservedServices.length === 1 ? reservedServices[0].id : null,
-                 reservedServices.map((p) => p.name).join(' + '), body.customer_phone,
-                 appointmentAt, biz.timezone, reservedDurationMinutes, body.idempotency_key],
+                [leadId, found.length === 1 ? found[0].id : null,
+                 found.map((item) => item.name).join(' + '), body.customer_phone,
+                 body.appointment_at, biz.timezone, serviceDurationMinutes, body.idempotency_key],
               );
               if (inserted.rows[0]) {
                 appointmentId = inserted.rows[0].id as string;
                 appointmentCreated = true;
-                appointmentReserved = true;
               } else {
                 const existingAppointment = (await db.query(
                   "SELECT id, status FROM appointments WHERE tenant_id = app.current_tenant_id() AND idempotency_key = $1",
                   [body.idempotency_key],
                 )).rows[0];
-                if (!existingAppointment || existingAppointment.status !== 'reserved') {
-                  throw new HttpError(409, 'duplicate_request');
-                }
+                if (!existingAppointment || existingAppointment.status !== 'reserved') throw new HttpError(409, 'duplicate_request');
                 appointmentId = existingAppointment.id as string;
-                appointmentReserved = true;
               }
             } catch (error) {
               if ((error as { code?: string }).code === '23P01' || (error as { code?: string }).code === '23505') {
@@ -622,88 +597,42 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             ...(leadId ? { lead_id: leadId, status } : {}),
             route: body.route,
             ...(shouldCreateLead ? { estimated_total_agorot: estimated, has_quote_items: hasQuote } : {}),
-            appointment_reserved: appointmentReserved,
+            appointment_reserved: Boolean(appointmentId),
             crm_record_created: Boolean(leadId),
           };
 
-          if (body.route === 'site') {
-            out.success_message = calendarOnlyBooking && appointmentReserved
-              ? 'התור נקבע ונשמר ביומן העסק בהצלחה. אין צורך לשלוח הודעת WhatsApp כדי להשלים את קביעת התור. לשינוי או לביטול יש לפנות ישירות לעסק; לא ניתן לבטל דרך האתר.'
-              : appointmentReserved
-                ? 'התור נקבע ונשמר בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק בטלפון או ב־WhatsApp. לא ניתן לבטל דרך האתר.'
-                : bookingMode === 'free_datetime'
-                ? (appointmentAt
-                  ? 'הבקשה נשמרה. התאריך והשעה שבחרתם הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
-                  : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
-                : flow.site_success_message ?? 'הפנייה נשלחה בהצלחה, נחזור אליך בהקדם.';
+          if (body.route === 'reserve') {
+            out.success_message = 'התור נקבע ונשמר ביומן העסק בהצלחה. לשינוי או לביטול יש לפנות ישירות לעסק; לא ניתן לבטל דרך האתר.';
+          } else if (body.route === 'site') {
+            out.success_message = 'הפנייה נשלחה בהצלחה, נחזור אליך בהקדם.';
           } else {
             const quoteLabel = biz.config?.catalog?.quote_label ?? DEFAULT_QUOTE_LABEL;
-            const itemsText = found.map((p) => {
-              const q = qty.get(p.id)!;
-              const price = p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q);
-              const itemMode = p.booking_mode ?? (p.requires_appointment === true ? 'free_datetime' : 'none');
-              const itemDuration = (p.appointment_duration_minutes ?? 30) * q;
-              const duration = p.kind !== 'service' || itemMode === 'none' ? ''
-                : itemMode === 'availability' ? ` · תור ביומן ${itemDuration} דקות`
-                  : ` · מועד מבוקש בלבד ${itemDuration} דקות`;
-              return `• ${p.name} × ${q}${duration} — ${price}`;
-            }).join('\n');
-            const totalText = estimated === null ? quoteLabel
-              : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
-            // The seller edits only the opening line. The order details are always built here.
-            const intro = String(flow.whatsapp_intro ?? '').trim() || DEFAULT_WA_INTRO;
-            const messageLines = [
-              intro,
-              '',
-              'פריטים שנבחרו:',
-              itemsText || '-',
-            ];
+            const itemsText = found.map((item) => {
+              const quantity = qty.get(item.id)!;
+              const price = item.price_agorot === null ? quoteLabel : ils(item.price_agorot * quantity);
+              const duration = item.kind === 'service' ? ` · משך השירות: ${(item.appointment_duration_minutes ?? 30) * quantity} דקות` : '';
+              return `• ${item.name} × ${quantity}${duration} — ${price}`;
+            }).join('\\n');
+            const totalText = estimated === null ? quoteLabel : hasQuote ? `${ils(estimated)} + ${quoteLabel}` : ils(estimated);
+            const intro = String(flow.whatsapp_intro ?? '').trim() || (domain === 'services' ? 'שלום, אשמח לקבל פרטים נוספים לגבי השירות:' : DEFAULT_WA_INTRO);
+            const messageLines = [intro, '', domain === 'services' ? 'שירותים שנבחרו:' : 'פריטים שנבחרו:', itemsText || '-'];
             if (body.customer_name) messageLines.push(`שם: ${body.customer_name}`);
             if (body.customer_phone) messageLines.push(`טלפון: ${toLocalPhone(body.customer_phone)}`);
             messageLines.push('', `סכום משוער: ${totalText}`);
             if (body.message) messageLines.push('', `הערה: ${body.message}`);
-            if (needsAppointment) {
-              if (appointmentAt) {
-                messageLines.push(
-                  `שעת תור מבוקשת: ${appointmentAt.replace('T', ' ')}`,
-                  reservedServices.length
-                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
-                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
-                );
-              } else {
-                messageLines.push(
-                  'מועד התור יתואם מול המוכר',
-                  reservedServices.length
-                    ? `משך הזמן המשוריין ביומן: ${reservedDurationMinutes} דקות`
-                    : `משך השירותים המבוקשים ללא שריון: ${freeDatetimeDurationMinutes} דקות`,
-                );
-              }
-              if (reservedServices.length && freeDatetimeServices.length) {
-                messageLines.push(
-                  `שירותים נוספים ללא שריון ביומן: ${freeDatetimeServices.map((p) => p.name).join(', ')}`,
-                  'שירותים אלה נכללים בפנייה אך אינם מוסיפים זמן לשריון ביומן.',
-                );
-              }
-            }
-            const text = messageLines.join('\n');
-            out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).slice(1)}?text=${encodeURIComponent(text)}`;
-            out.success_message = appointmentReserved
-              ? (found.some((p) => p.kind === 'product') || freeDatetimeServices.length > 0
-                ? 'התור נקבע ונשמר ביומן העסק, ללא תלות בשליחת הודעת WhatsApp. כדי שהעסק יקבל גם את פרטי המוצרים והשירותים הנוספים שבחרתם, שלחו את ההודעה. גם אם תסגרו את החלון או לא תשלחו אותה, התור יישאר שמור.'
-                : 'התור נשמר ביומן העסק. שליחת הודעת WhatsApp היא אפשרות נוספת בלבד ואינה נדרשת להשלמת קביעת התור.')
-              : shouldCreateLead && bookingMode === 'free_datetime'
-                ? (appointmentAt
-                  ? 'הבקשה נשמרה. התאריך והשעה הם מועד מבוקש בלבד ואינם שומרים מקום ביומן.'
-                  : 'הבקשה נשמרה. העסק יתאם איתכם מועד; אין שריון ביומן.')
-                : shouldCreateLead
-                  ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
-                  : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
+            out.whatsapp_url = `https://wa.me/${String(biz.whatsapp_number).replace(/\\D/g, '').replace(/^0/, '')}?text=${encodeURIComponent(messageLines.join('\\n'))}`;
+            out.success_message = shouldCreateLead
+              ? 'הפנייה תועדה במערכת. יש לשלוח את הודעת WhatsApp כדי להשלים את הפנייה.'
+              : 'הודעת WhatsApp מוכנה. יש לשלוח אותה כדי לפנות לעסק.';
           }
           return out;
         });
 
-        void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after public booking failed'));
         const response = result as Record<string, unknown>;
+        if (response.appointment_reserved === true) {
+          void processGoogleCalendarJobs(req.tenantId, 5).catch((error) =>
+            req.log.warn({ err: error }, 'Google Calendar sync after public reservation failed'));
+        }
         const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
         delete response.push_event_id;
         if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
