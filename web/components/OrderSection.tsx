@@ -477,6 +477,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setWaitlistPushCapability(data?.push_capability_token ?? null);
       setWaitlistDone(true);
       setWaitlistOpen(false);
+      setCart({});
+      setSelectedProducts({});
+      setIdempotencyKey('');
+      setAppointmentDate('');
+      setAppointmentTime('');
     } catch {
       setWaitlistError('שגיאת רשת. נסו שוב.');
     } finally {
@@ -559,9 +564,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       )}
 
       {/* Order Modal */}
-      <dialog ref={dlg} aria-labelledby="order-dialog-title" onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+      <dialog ref={dlg} aria-labelledby={`order-dialog-title-${kind}`} onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
-          <h3 id="order-dialog-title" className="min-w-0 text-xl font-bold">{kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}</h3>
+          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
@@ -635,15 +640,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </fieldset>
         )}
 
-        {!done && step === 'choose' && needsAppointment && (
-          <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-sm leading-6">אפשר לבחור בקשת המתנה ולציין תאריך מועדף ושעה אם רוצים. בקשת המתנה אינה שומרת מקום ביומן.</p>
-            <button type="button" onClick={() => { setWaitlistPreferredDate(appointmentDate); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setWaitlistPushState({ busy: false, success: false, status: null }); }}
-              className="mt-2 min-h-10 rounded-full px-4 py-2 text-sm font-medium text-primary underline underline-offset-2 hover:bg-primary/5">
-הצטרפות לרשימת המתנה
-            </button>
-          </div>
-        )}
 
         {waitlistDone && (
           <div role="status" className="mb-4 rounded-xl bg-green-50 p-3 text-sm text-green-900">
@@ -719,7 +715,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               </div>
             )}
           </div>
-        ) : step === 'choose' ? (
+        ) : step === 'choose' && !waitlistOpen && !waitlistDone ? (
           <div className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             {kind === 'service' ? (
@@ -764,16 +760,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
             <div>
-              <label htmlFor="lead-name" className="block text-sm font-medium">שם (רשות)</label>
-              <input id="lead-name" name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
+              <label htmlFor={`${kind}-lead-name`} className="block text-sm font-medium">שם (רשות)</label>
+              <input id={`${kind}-lead-name`} name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
             </div>
             <div>
-              <label htmlFor="lead-phone" className="block text-sm font-medium">מספר טלפון *</label>
-              <input id="lead-phone" name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
+              <label htmlFor={`${kind}-lead-phone`} className="block text-sm font-medium">מספר טלפון *</label>
+              <input id={`${kind}-lead-phone`} name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
             <div>
-              <label htmlFor="lead-email" className="block text-sm font-medium">אימייל (רשות)</label>
-              <input id="lead-email" name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
+              <label htmlFor={`${kind}-lead-email`} className="block text-sm font-medium">אימייל (רשות)</label>
+              <input id={`${kind}-lead-email`} name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
             </div>
             <div className="flex gap-2 pt-2">
               {whatsappEnabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
