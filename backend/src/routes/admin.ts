@@ -386,7 +386,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     let tenantAdmin: pg.Client | undefined;
     let tenantId: string | undefined;
     let databaseName: string | undefined;
-    let databaseCreated = false;
 
     try {
       // Both connections can race PostgreSQL's wake-up after a quiet period.
@@ -431,7 +430,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       // Database identifiers are generated from the server-created UUID, never user input.
       databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
       await databaseAdmin.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
-      databaseCreated = true;
       await databaseAdmin.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(databaseName)} TO app_runtime, app_superadmin`);
 
       tenantAdmin = await connectClientWithRetry(
@@ -513,7 +511,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
           // Try even when CREATE DATABASE returned an ambiguous network error:
           // the generated name belongs only to the UUID created in this request.
           await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
-          databaseCreated = false;
         } catch (cleanupErr) {
           cleanupFailed = true;
           req.log.error({ err: cleanupErr, tenantId, databaseName }, 'tenant database cleanup failed; preserving suspended registry record');
@@ -537,6 +534,14 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
           } catch (cleanupErr) {
             cleanupFailed = true;
             req.log.error({ err: cleanupErr, tenantId }, 'registry cleanup failed during provisioning rollback');
+            if (databaseName) {
+              await registry.query(
+                'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+                [tenantId, databaseName],
+              ).catch((preserveErr) => {
+                req.log.error({ err: preserveErr, tenantId, databaseName }, 'could not preserve tenant database mapping for recovery');
+              });
+            }
             await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]).catch((preserveErr) => {
               req.log.error({ err: preserveErr, tenantId }, 'could not suspend partially provisioned business');
             });
