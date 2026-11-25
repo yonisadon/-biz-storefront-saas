@@ -2,40 +2,16 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import StorefrontGallery from '@/components/StorefrontGallery';
-import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
 import { getCtx, getStorefront } from '@/lib/api';
-import { ils, toLocalPhone } from '@/lib/format';
+import { toLocalPhone } from '@/lib/format';
 import { themeVars } from '@/lib/theme';
-import type { Product } from '@/lib/types';
 
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
-
-function itemWhatsAppHref(number: string, intro: string, item: Product, itemUrl: string): string {
-  const label = item.kind === 'service' ? 'שירות' : 'מוצר';
-  const lines = [
-    intro.trim() || 'שלום, אשמח לקבל פרטים נוספים לגבי העסק:',
-    '',
-    `סוג פריט: ${label}`,
-    `שם הפריט: ${item.name}`,
-    ...(item.description?.trim() ? [`תיאור: ${item.description.trim()}`] : []),
-    ...(item.price_agorot !== null ? [`מחיר: ${ils(item.price_agorot)}`] : []),
-    `קישור ישיר לפריט: ${itemUrl}`,
-    '',
-    'אשמח לקבל פרטים נוספים לגבי זמינות ואפשרויות רכישה.',
-  ];
-  return 'https://wa.me/' + number + '?text=' + encodeURIComponent(lines.join('\n'));
-}
-
-function publicItemUrl(origin: string, base: string, itemId: string): string {
-  const url = new URL(base || '/', origin);
-  url.hash = `item-${itemId}`;
-  return url.toString();
-}
 
 function safeSocialHref(value: string | undefined, network: 'instagram' | 'facebook'): string | undefined {
   if (!value) return undefined;
