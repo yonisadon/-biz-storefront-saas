@@ -260,12 +260,12 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           [appointment.id, id],
         );
         await db.query(
-          "UPDATE public.push_booking_capabilities SET target_type = 'appointment', target_id = $1 " +
+          "UPDATE public.push_target_link_capabilities SET target_type = 'appointment', target_id = $1 " +
           "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $2",
           [appointment.id, id],
         );
         await db.query(
-          "UPDATE public.push_consents SET target_type = 'appointment', target_id = $1 " +
+          "UPDATE public.push_subscription_targets SET target_type = 'appointment', target_id = $1 " +
           "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $2",
           [appointment.id, id],
         );
@@ -298,12 +298,12 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
     const id = idFrom(req);
     return withTenant(req.tenantId, async (db) => {
       await db.query(
-        "UPDATE public.push_booking_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
+        "UPDATE public.push_target_link_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
         "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
         [id],
       );
       await db.query(
-        "UPDATE public.push_consents SET revoked_at = COALESCE(revoked_at, now()) " +
+        "UPDATE public.push_subscription_targets SET revoked_at = COALESCE(revoked_at, now()) " +
         "WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = $1",
         [id],
       );
