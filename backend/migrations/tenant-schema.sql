@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, lead_id),
   FOREIGN KEY (tenant_id, lead_id)
-    REFERENCES public.leads (tenant_id, id) ON DELETE CASCADE,
+    REFERENCES public.leads (tenant_id, id) ON DELETE SET NULL (lead_id),
   FOREIGN KEY (tenant_id, service_id)
     REFERENCES public.products (tenant_id, id) ON DELETE SET NULL (service_id),
   CONSTRAINT appointments_no_reserved_overlap
