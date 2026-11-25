@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createECDH, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 import { derivePushCapabilityToken, generateVapidKeys, hashPushCapability } from '../src/pushCrypto';
 
