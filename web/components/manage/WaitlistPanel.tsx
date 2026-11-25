@@ -168,7 +168,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <label className="text-xs text-gray-600">עדכון סטטוס
-                <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
+                <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy || entry.status === 'closed' || Boolean(entry.appointment_id)} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
                   {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'closed'}>{labels[status]}</option>)}
                 </select>
               </label>
