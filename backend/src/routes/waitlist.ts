@@ -61,7 +61,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
         if (services.length !== input.service_ids.length || services.some((service) => service.kind !== 'service')) {
           throw new HttpError(400, 'invalid_waitlist_services');
         }
-        const legacyCalendar = services.some((service) =>
+        const legacyCalendar = !business.config?.contact_options && services.some((service) =>
           (service.booking_mode ?? (service.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
         const contactOptions = resolveContactOptions(business.config, legacyCalendar);
         if (!contactOptions.services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
