@@ -286,16 +286,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const appointmentLines = kind === 'service' ? lines : [];
   const needsAppointment = calendarEnabled && appointmentLines.length > 0;
   const reservedAppointmentLines = appointmentLines;
-  const needsReservedAppointment = needsAppointment;
   const reservedAppointmentDurationMinutes = appointmentLines.reduce((sum, { p, q }) => sum + p.appointment_duration_minutes * q, 0);
-  const appointmentDurationMinutes = reservedAppointmentDurationMinutes;
   const canOrder = whatsappEnabled || crmEnabled || calendarEnabled;
   const cartSignature = useMemo(() => Object.entries(cart).sort(([a], [b]) => a.localeCompare(b)).map(([id, quantity]) => `${id}:${quantity}`).join(','), [cart]);
   const hasAppointmentHours = useMemo(
     () => Object.values(openingHours ?? {}).some((ranges) => Array.isArray(ranges) && ranges.length > 0),
     [openingHours],
   );
-  const appointmentTimeRequired = needsAppointment && step === 'reserve';
   useEffect(() => {
     if (!needsAppointment || step !== 'reserve' || !cartSignature || !hasAppointmentHours) {
       setMonthAvailableDates([]);
@@ -493,16 +490,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   };
 
   return (
-    <section aria-labelledby="catalog-h" className={count ? 'pb-24' : ''}>
+    <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 ref={sectionHeadingRef} id="catalog-h" tabIndex={-1} className="text-2xl font-bold">{items.length || search.trim() ? 'מוצרים ושירותים' : 'יצירת קשר'}</h2>
+        <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
       </div>
       {(items.length > 0 || search.trim()) && <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות כדי להוסיף אותו להזמנה.</p>}
 
       {catalogTotal >= 5 && (
         <div className="mt-4">
-          <label htmlFor="storefront-product-search" className="sr-only">חיפוש מוצרים ושירותים</label>
-          <input id="storefront-product-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או תיאור…" className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+          <label htmlFor={`storefront-${kind}-search`} className="sr-only">חיפוש {kind === 'product' ? 'חיפוש מוצרים' : 'חיפוש שירותים'}</label>
+          <input id={`storefront-${kind}-search`} type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או תיאור…" className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
         </div>
       )}
       {searching && <p role="status" className="mt-3 text-sm text-ink/65">מחפשים פריטים…</p>}
@@ -546,14 +543,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
       {/* Sticky bar on bottom when cart has items */}
       {count > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4">
+        <div className={`fixed inset-x-0 ${kind === 'service' ? 'bottom-16 sm:bottom-20' : 'bottom-0'} z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4`}>
           <div>
-            <div className="text-xs text-ink/70">{count} פריטים נבחרו</div>
+            <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
             className="min-h-11 rounded-full border-0 bg-primary/10 px-6 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            המשך להזמנה
+            {kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}
           </button>
         </div>
       )}
