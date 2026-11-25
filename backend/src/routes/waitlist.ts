@@ -191,7 +191,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         if (!business) throw new HttpError(404, 'not_found');
 
         const services = (await db.query(
-          `SELECT id, name, kind, booking_mode, requires_appointment, appointment_duration_minutes
+          `SELECT id, name, kind, appointment_duration_minutes
              FROM products
             WHERE id = ANY($1::uuid[]) AND is_active = true
             ORDER BY id
@@ -199,8 +199,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           [entry.service_ids],
         )).rows;
         if (services.length !== entry.service_ids.length ||
-            services.some((service) => service.kind !== 'service' ||
-              (service.booking_mode ?? (service.requires_appointment ? 'free_datetime' : 'none')) !== 'availability')) {
+            services.some((service) => service.kind !== 'service')) {
           throw new HttpError(409, 'waitlist_services_unavailable', 'אחד השירותים בבקשה אינו זמין עוד לשיבוץ.');
         }
 
