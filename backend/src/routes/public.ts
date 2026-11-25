@@ -192,7 +192,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         )).rows[0];
         if (customerSettings?.customer_enabled !== true) throw new HttpError(403, 'customer_push_disabled');
         const capability = (await db.query(
-          "SELECT id, target_type, target_id, opted_in_at, subscription_id FROM public.push_booking_capabilities " +
+          "SELECT id, target_type, target_id, linked_at, subscription_id FROM public.push_target_link_capabilities " +
           "WHERE tenant_id = app.current_tenant_id() AND token_hash = $1 AND expires_at > now() AND revoked_at IS NULL FOR UPDATE",
           [hashPushCapability(input.token)],
         )).rows[0];
@@ -225,18 +225,18 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           );
         }
 
-        if (capability.opted_in_at && capability.subscription_id !== subscriptionId) {
+        if (capability.linked_at && capability.subscription_id !== subscriptionId) {
           throw new HttpError(409, 'push_target_already_linked');
         }
         await db.query(
-          "INSERT INTO public.push_consents (tenant_id, target_type, target_id, subscription_id, revoked_at) " +
+          "INSERT INTO public.push_subscription_targets (tenant_id, target_type, target_id, subscription_id, revoked_at) " +
           "VALUES (app.current_tenant_id(), $1, $2, $3, NULL) " +
           "ON CONFLICT (tenant_id, target_type, target_id, subscription_id) " +
           "DO UPDATE SET revoked_at = NULL, consented_at = now()",
           [capability.target_type, capability.target_id, subscriptionId],
         );
         await db.query(
-          "UPDATE public.push_booking_capabilities SET opted_in_at = COALESCE(opted_in_at, now()), subscription_id = $1 WHERE id = $2",
+          "UPDATE public.push_target_link_capabilities SET linked_at = COALESCE(linked_at, now()), subscription_id = $1 WHERE id = $2",
           [subscriptionId, capability.id],
         );
         return {
@@ -280,7 +280,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           [subscription.id],
         );
         await db.query(
-          "UPDATE public.push_consents SET revoked_at = COALESCE(revoked_at, now()) " +
+          "UPDATE public.push_subscription_targets SET revoked_at = COALESCE(revoked_at, now()) " +
           "WHERE tenant_id = app.current_tenant_id() AND subscription_id = $1 AND revoked_at IS NULL",
           [subscription.id],
         );
