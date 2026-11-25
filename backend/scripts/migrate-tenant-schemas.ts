@@ -342,6 +342,18 @@ async function main() {
         if (obsoleteOrderRouteConstraint.rowCount) {
           throw new Error(`Postflight failed for ${tenant.database_name}: obsolete mandatory-contact-route constraint is still present.`);
         }
+        const obsoleteBookingModeTrigger = await db.query(
+          `SELECT 1 FROM pg_trigger
+            WHERE tgrelid = 'public.products'::regclass
+              AND tgname = 'trg_products_booking_mode'
+              AND NOT tgisinternal`,
+        );
+        const obsoleteBookingModeFunction = await db.query(
+          `SELECT to_regprocedure('app.sync_product_booking_mode()') AS function_name`,
+        );
+        if (obsoleteBookingModeTrigger.rowCount || obsoleteBookingModeFunction.rows[0]?.function_name) {
+          throw new Error(`Postflight failed for ${tenant.database_name}: legacy per-service booking synchronization is still active.`);
+        }
         const overlapConstraint = await db.query(
           `SELECT 1 FROM pg_constraint
             WHERE conrelid = 'public.appointments'::regclass
