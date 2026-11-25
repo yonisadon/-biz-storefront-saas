@@ -149,7 +149,7 @@ async function main() {
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
-              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
+              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
@@ -223,7 +223,7 @@ async function main() {
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
-          'Related records are preserved; foreign keys only detach links to deleted records.');
+          'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error('CRM cleanup deletion failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
