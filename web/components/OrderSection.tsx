@@ -141,7 +141,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     setWaitlistPushState({ busy: false, success: false, status: null });
   }, [waitlistPushCapability]);
 
-  async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
+  async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey) return;
     const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
     if (currentState.busy || currentState.success || pushAbortRef.current[target]) return;
@@ -158,6 +158,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         throw new Error('push_not_supported');
       }
       if (Notification.permission === 'denied') throw new Error('push_permission_blocked');
+      if (!explicitConsent && Notification.permission !== 'granted') return;
       const permission = Notification.permission === 'granted'
         ? 'granted'
         : await withTimeout(Notification.requestPermission(), 45000);
@@ -195,6 +196,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           token: capabilityToken,
+          explicit_consent: explicitConsent,
           subscription: { endpoint: json.endpoint, keys: json.keys },
         }),
         signal: controller.signal,
@@ -204,7 +206,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok || data?.ok !== true) {
         throw new Error(data?.error ?? 'push_consent_failed');
       }
-      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לבקשה הזו.' });
+      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.' });
     } catch (error) {
       if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
@@ -244,6 +246,38 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (isCurrent()) setTargetState((current) => ({ ...current, busy: false }));
     }
   }
+
+  async function autoLinkExistingPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+        !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) return;
+      const statusResponse = await fetch(`${apiBase}/push/subscriptions/customer/status`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      const status = await statusResponse.json().catch(() => null) as { active?: boolean } | null;
+      if (statusResponse.ok && status?.active) {
+        await optInForPush(capabilityToken, target, false);
+      }
+    } catch {
+      // A failed background link must never block the booking or show a new permission prompt.
+    }
+  }
+
+  useEffect(() => {
+    const token = done?.pushCapabilityToken;
+    if (!token || !pushPublicKey) return;
+    void autoLinkExistingPush(token, 'appointment');
+  }, [done?.pushCapabilityToken, pushPublicKey, apiBase]);
+
+  useEffect(() => {
+    if (!waitlistPushCapability || !waitlistDone || !pushPublicKey) return;
+    void autoLinkExistingPush(waitlistPushCapability, 'waitlist');
+  }, [waitlistPushCapability, waitlistDone, pushPublicKey, apiBase]);
 
   useEffect(() => {
     const term = search.trim();
@@ -661,13 +695,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
                 {waitlistPushState.success ? (
-                  <p role="status" className="text-sm">ההתראות הופעלו לבקשת ההמתנה הזו.</p>
+                  <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
                 ) : (
                   <>
-                    <p className="mb-1 text-xs text-green-900/75">עדכונים לבקשת ההמתנה הזו בלבד.</p>
+                    <p className="mb-1 text-xs text-green-900/75">עדכונים על התורים ובקשות ההמתנה שלכם בעסק הזה בלבד.</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
-                      {waitlistPushState.busy ? 'מפעילים…' : 'עדכנו אותי אם יימצא לי תור'}
+                      {waitlistPushState.busy ? 'מפעילים…' : 'קבלת עדכונים על התורים שלי'}
                     </button>
                     {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
                   </>
@@ -718,10 +752,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 ) : (
                   <>
                     <p className="font-semibold">לקבל עדכונים על התור?</p>
-                    <p className="mt-1 text-xs text-ink/65">עדכונים על התור הזה בלבד.</p>
+                    <p className="mt-1 text-xs text-ink/65">עדכונים על התורים ובקשות ההמתנה שלכם בעסק הזה בלבד.</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
-                      {appointmentPushState.busy ? 'מפעילים…' : 'הפעלת עדכונים'}
+                      {appointmentPushState.busy ? 'מפעילים…' : 'קבלת עדכונים על התורים שלי'}
                     </button>
                     {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
                   </>
