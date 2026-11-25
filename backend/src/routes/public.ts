@@ -260,12 +260,15 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const biz = await loadBusiness(db);
         const ids = selected.map((item) => item.id);
         const rows = (await db.query(
-          'SELECT id, kind, booking_mode, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+          'SELECT id, kind, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
           [ids],
         )).rows;
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
         if (rows.some((item) => item.kind !== 'service')) throw new HttpError(400, 'mixed_catalog_types');
-        const legacyCalendar = !biz.config?.contact_options && rows.some((item) => (item.booking_mode ?? (item.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        const legacyCalendar = !biz.config?.contact_options && Boolean((await db.query(
+          "SELECT EXISTS (SELECT 1 FROM products WHERE id = ANY($1::uuid[]) AND kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+          [ids],
+        )).rows[0]?.enabled);
         if (!resolveContactOptions(biz.config, legacyCalendar).services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
         const qty = new Map(selected.map((item) => [item.id, item.quantity]));
         const duration = rows.reduce((sum, item) => sum + (item.appointment_duration_minutes ?? 30) * (qty.get(item.id) ?? 1), 0);
@@ -344,7 +347,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         const biz = await loadBusiness(db);
         const ids = selected.map((item) => item.id);
         const rows = ids.length ? (await db.query(
-          'SELECT id, kind, name, booking_mode, requires_appointment, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
+          'SELECT id, kind, name, appointment_duration_minutes FROM products WHERE is_active AND id = ANY($1::uuid[])',
           [ids],
         )).rows : [];
         if (rows.length !== ids.length) throw new HttpError(400, 'unknown_product');
@@ -424,7 +427,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           }
           const ids = [...qty.keys()];
           const found = ids.length ? (await db.query(
-            'SELECT id, kind, name, price_agorot, booking_mode, requires_appointment, appointment_duration_minutes ' +
+            'SELECT id, kind, name, price_agorot, appointment_duration_minutes ' +
             'FROM products WHERE is_active AND id = ANY($1::uuid[])',
             [ids],
           )).rows : [];
@@ -439,8 +442,10 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (body.route === 'site' && domain !== 'products') throw new HttpError(400, 'invalid_contact_flow');
           if (body.route !== 'reserve' && body.appointment_at) throw new HttpError(400, 'invalid_contact_flow');
 
-          const legacyCalendarServices = !biz.config?.contact_options && found.some((item) => item.kind === 'service' &&
-            (item.booking_mode ?? (item.requires_appointment === true ? 'free_datetime' : 'none')) !== 'none');
+          const legacyCalendarServices = !biz.config?.contact_options && domain === 'services' && Boolean((await db.query(
+            "SELECT EXISTS (SELECT 1 FROM products WHERE id = ANY($1::uuid[]) AND kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+            [ids],
+          )).rows[0]?.enabled);
           const routeSettings = resolveLeadRoute(biz.config, body.route, domain, legacyCalendarServices);
           if (!routeSettings.routeEnabled) throw new HttpError(403, 'route_disabled');
           if (body.route === 'whatsapp' && !biz.whatsapp_number) throw new HttpError(409, 'whatsapp_not_configured');
