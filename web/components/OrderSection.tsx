@@ -789,7 +789,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   </div>
                 ) : (
                   <>
-                    <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על התורים ובקשות ההמתנה שתיצרו בעתיד דרך המכשיר הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה בלבד, וניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
+                    <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על תורים ובקשות המתנה שתיצרו בעתיד דרך הדפדפן הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה; אם הוא משותף, גם משתמשים אחרים בו עשויים לראות אותן. ניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
                       {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
