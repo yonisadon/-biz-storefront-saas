@@ -943,14 +943,14 @@ test('platform account lifecycle and independent marketing consents', async () =
 
       const originalFetch = globalThis.fetch;
       let revokedGoogleToken: string | null = null;
-      globalThis.fetch = (async (input, init) => {
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
         if (String(input) === 'https://oauth2.googleapis.com/revoke') {
           revokedGoogleToken = new URLSearchParams(String(init?.body ?? '')).get('token');
           return new Response(null, { status: 200 });
         }
         return originalFetch(input, init);
       }) as typeof fetch;
-      let executedDeletion;
+      let executedDeletion: Awaited<ReturnType<typeof app.inject>>;
       try {
         executedDeletion = await app.inject({
           method: 'POST',
