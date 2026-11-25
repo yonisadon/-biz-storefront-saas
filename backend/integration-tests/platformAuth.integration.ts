@@ -266,6 +266,26 @@ test('platform account lifecycle and independent marketing consents', async () =
         assert.equal(initialPushSettings.statusCode, 200);
         assert.equal(initialPushSettings.json().seller_effective, true);
         assert.equal(initialPushSettings.json().customer_effective, true);
+        const sellerOff = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { seller_enabled: false },
+        });
+        assert.equal(sellerOff.statusCode, 200);
+        const sellerDisabledAttempt = await app.inject({
+          method: 'POST', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { subscription: customerSubscription },
+        });
+        assert.equal(sellerDisabledAttempt.statusCode, 403);
+        const sellerOn = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { seller_enabled: true },
+        });
+        assert.equal(sellerOn.statusCode, 200);
+        const sellerRegistered = await app.inject({
+          method: 'POST', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { subscription: customerSubscription },
+        });
+        assert.equal(sellerRegistered.statusCode, 200, sellerRegistered.body);
 
         let pushTargetCounter = 0;
         const createPushTarget = async () => {
