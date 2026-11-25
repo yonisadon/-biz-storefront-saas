@@ -549,6 +549,28 @@ test('platform account lifecycle and independent marketing consents', async () =
       });
       assert.equal(approval.statusCode, 200);
 
+      const deletionLockClient = new pgModule.default.Client({ connectionString: databaseUrl });
+      await deletionLockClient.connect();
+      try {
+        await deletionLockClient.query(
+          'SELECT pg_advisory_lock(hashtextextended($1::text, 93003))',
+          [deletionRequestId],
+        );
+        const concurrentDeletion = await app.inject({
+          method: 'POST',
+          url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { backupVerified: true, backupReference: 'railway-backup-integration-lock' },
+        });
+        assert.equal(concurrentDeletion.statusCode, 409, 'only one execution may own a deletion request at a time');
+      } finally {
+        await deletionLockClient.query(
+          'SELECT pg_advisory_unlock(hashtextextended($1::text, 93003))',
+          [deletionRequestId],
+        );
+        await deletionLockClient.end();
+      }
+
       const blockedDeletion = await app.inject({
         method: 'POST',
         url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
@@ -586,6 +608,54 @@ test('platform account lifecycle and independent marketing consents', async () =
         await pool.query('DELETE FROM public.businesses WHERE id = $1', [manualBusinessId]).catch(() => {});
         await pool.query('DELETE FROM public.platform_users WHERE email = $1', [claimEmail]).catch(() => {});
       }
+    }
+
+    // A provisioning rollback can leave a Registry mapping after the tenant
+    // database has already been dropped. The deletion workflow must also handle
+    // an existing but only partially initialized tenant database.
+    const partialSlug = `partial-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const partialCreated = await pool.query(
+      'SELECT app.create_business($1, $2, NULL, $3::jsonb) AS id',
+      [partialSlug, 'Partial Tenant Integration Business', JSON.stringify({})],
+    );
+    const partialBusinessId = partialCreated.rows[0].id as string;
+    const partialDatabase = `biz_${partialBusinessId.replace(/-/g, '').slice(0, 24)}`;
+    try {
+      await pool.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [partialBusinessId]);
+      await pool.query(`CREATE DATABASE "${partialDatabase}"`);
+      await pool.query(
+        'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
+        [partialBusinessId, partialDatabase],
+      );
+      const partialRequest = await app.inject({
+        method: 'POST',
+        url: `/api/admin/businesses/${partialBusinessId}/deletion-request`,
+        headers: adminHeaders,
+      });
+      assert.equal(partialRequest.statusCode, 201);
+      const partialRequestId = partialRequest.json().request.id as string;
+      const partialApproval = await app.inject({
+        method: 'PATCH',
+        url: `/api/admin/deletion-requests/${partialRequestId}/review`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { decision: 'approve', note: 'partial tenant integration test' },
+      });
+      assert.equal(partialApproval.statusCode, 200);
+      const partialDeletion = await app.inject({
+        method: 'POST',
+        url: `/api/admin/deletion-requests/${partialRequestId}/execute`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { backupVerified: true, backupReference: 'railway-backup-partial-tenant-001' },
+      });
+      assert.equal(partialDeletion.statusCode, 200, partialDeletion.body);
+      const partialDbAfter = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [partialDatabase]);
+      assert.equal(partialDbAfter.rowCount, 0, 'partially initialized tenant database must be dropped');
+      const partialBusinessAfter = await pool.query('SELECT 1 FROM public.businesses WHERE id = $1', [partialBusinessId]);
+      assert.equal(partialBusinessAfter.rowCount, 0, 'partially initialized business registry row must be removed');
+    } finally {
+      await pool.query(`DROP DATABASE IF EXISTS "${partialDatabase}" WITH (FORCE)`).catch(() => {});
+      await pool.query('DELETE FROM public.business_deletion_requests WHERE business_slug = $1', [partialSlug]).catch(() => {});
+      await pool.query('DELETE FROM public.businesses WHERE id = $1', [partialBusinessId]).catch(() => {});
     }
 
     const rejectedEmail = `no-consent-${randomUUID()}@example.test`;
