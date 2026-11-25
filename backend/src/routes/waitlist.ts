@@ -52,7 +52,7 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
         if (!business) throw new HttpError(404, 'not_found');
         if (input.preferred_date < business.today) throw new HttpError(400, 'preferred_date_in_past');
         const services = (await db.query(
-          `SELECT id, name, kind, booking_mode, requires_appointment, price_agorot, appointment_duration_minutes
+          `SELECT id, name, kind, price_agorot, appointment_duration_minutes
              FROM products
             WHERE id = ANY($1::uuid[]) AND is_active = true
             ORDER BY id`,
@@ -61,8 +61,10 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
         if (services.length !== input.service_ids.length || services.some((service) => service.kind !== 'service')) {
           throw new HttpError(400, 'invalid_waitlist_services');
         }
-        const legacyCalendar = !business.config?.contact_options && services.some((service) =>
-          (service.booking_mode ?? (service.requires_appointment ? 'free_datetime' : 'none')) !== 'none');
+        const legacyCalendar = !business.config?.contact_options && Boolean((await db.query(
+          "SELECT EXISTS (SELECT 1 FROM products WHERE id = ANY($1::uuid[]) AND kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+          [input.service_ids],
+        )).rows[0]?.enabled);
         const contactOptions = resolveContactOptions(business.config, legacyCalendar);
         if (!contactOptions.services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
 
