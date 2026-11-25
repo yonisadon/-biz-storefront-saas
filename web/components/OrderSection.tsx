@@ -794,7 +794,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
                   </div>
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
-                  <p className="text-sm leading-6 text-green-900">כדי לקבל התראות ב-iPhone או iPad, יש להוסיף את האתר למסך הבית לפני ביצוע ההזמנה: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה או בקשת ההמתנה. רק כך ניתן לקשר את ההתראות להזמנה הזו. נדרש iOS/iPadOS 16.4 ומעלה.</p>
+                  <p className="text-sm leading-6 text-green-900">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
                 ) : pushEnvironment === 'checking' ? (
                   <p className="text-sm text-green-900">בודקים תמיכה בהתראות במכשיר…</p>
                 ) : pushEnvironment === 'unsupported' ? (
@@ -863,7 +863,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
                   </div>
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
-                  <p className="text-sm leading-6 text-ink/75">כדי לקבל התראות ב-iPhone או iPad, יש להוסיף את האתר למסך הבית לפני ביצוע ההזמנה: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה או בקשת ההמתנה. רק כך ניתן לקשר את ההתראות להזמנה הזו. נדרש iOS/iPadOS 16.4 ומעלה.</p>
+                  <p className="text-sm leading-6 text-ink/75">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
                 ) : pushEnvironment === 'checking' ? (
                   <p className="text-sm text-ink/75">בודקים תמיכה בהתראות במכשיר…</p>
                 ) : pushEnvironment === 'unsupported' ? (
