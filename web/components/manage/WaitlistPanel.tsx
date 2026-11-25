@@ -112,7 +112,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
         : errorCode === 'invalid_appointment_time'
           ? 'אי אפשר לשבץ תור לתאריך או לשעה שכבר עברו. בחרו מועד מהיום והלאה.'
           : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
-            ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
+            ? 'המועד מתנגש עם תור קיים. בחרו מועד אחר.'
             : err instanceof ApiError && err.status === 400
               ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
               : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
