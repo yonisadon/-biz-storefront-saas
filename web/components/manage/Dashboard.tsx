@@ -299,7 +299,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           </section>
         )}
 
-        {!onboardingVisible && (
+        {!onboardingVisible && !onboardingCompleted && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink/10 bg-white px-4 py-3">
             <p className="text-sm text-ink/70">{onboardingCompleted ? 'רוצים לעבור שוב על שלבי ההקמה?' : 'אפשר להמשיך את הקמת העסק מהמקום שבו עצרתם.'}</p>
             <button type="button" onClick={() => { setOnboardingVisible(true); setOnboardingMessage(''); setOnboardingError(''); }}
