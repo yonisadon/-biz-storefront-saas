@@ -32,6 +32,19 @@ BEGIN
       RAISE EXCEPTION 'app_runtime privileges are incomplete on %', v_table;
     END IF;
   END LOOP;
+  IF to_regclass('public.push_booking_capabilities') IS NOT NULL
+     OR to_regclass('public.push_consents') IS NOT NULL THEN
+    RAISE EXCEPTION 'legacy per-booking consent table names must be retired';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'push_target_link_capabilities' AND column_name = 'linked_at'
+  ) OR EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'push_target_link_capabilities' AND column_name = 'opted_in_at'
+  ) THEN
+    RAISE EXCEPTION 'target-link capability must use linked_at rather than per-booking consent terminology';
+  END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
      WHERE conrelid = 'public.push_target_link_capabilities'::regclass
