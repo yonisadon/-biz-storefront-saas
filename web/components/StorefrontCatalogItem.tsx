@@ -1,5 +1,5 @@
 import StorefrontItemImage from '@/components/StorefrontItemImage';
-import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
+import { useStorefrontDirection, useStorefrontLocale, useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 import type { StorefrontMessageKey } from '@/lib/storefrontI18n';
 import { ils } from '@/lib/format';
 import type { Product } from '@/lib/types';
@@ -30,6 +30,8 @@ function QuantityStepper({ quantity, onChange, label, canRemove, t }: { quantity
 /** Shared product/service presentation. Actions stay owned by the calling flow. */
 export default function StorefrontCatalogItem({ product, quoteLabel, action, itemId, focusableTarget = false }: Props) {
   const t = useStorefrontTranslation();
+  const locale = useStorefrontLocale();
+  const direction = useStorefrontDirection();
   const catalogAction = action.type === 'catalog' ? action : null;
   const canSelect = catalogAction && catalogAction.canOrder;
   const serviceLabel = `${t('serviceDuration')} · ${product.appointment_duration_minutes} ${t('minutes')}`;
@@ -60,20 +62,20 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
       <StorefrontItemImage product={product} />
       <div className="flex min-w-0 flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{product.name}</h3>
+          <h3 dir="auto" className="min-w-0 flex-1 break-words [writing-mode:horizontal-tb] font-semibold">{product.name}</h3>
           {product.kind === 'service' && (
             <span className="shrink-0 rounded-full bg-secondary/30 px-2 py-0.5 text-xs">{serviceLabel}</span>
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot)}</span>
+          <span className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot, locale)}</span>
           {catalogAction && canSelect && (catalogAction.quantity > 0 ? (
             <QuantityStepper quantity={catalogAction.quantity} label={`${t('itemQuantity')}: ${product.name}`} canRemove={catalogAction.canRemove} onChange={catalogAction.onQuantityChange} t={t} />
           ) : (
             <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
               className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
               <span>{product.kind === 'service' ? t('selectService') : t('selectProduct')}</span>
-              <span aria-hidden="true" className="text-base leading-none">←</span>
+              <span aria-hidden="true" className="text-base leading-none">{direction === 'rtl' ? '←' : '→'}</span>
             </button>
           ))}
           {action.type === 'whatsapp' && action.href && (
@@ -85,7 +87,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
             <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">{t('moreDetails')} ({product.details.length})</summary>
             <dl className="mt-2">
               {product.details.map((detail, index) => <div key={index} className="flex min-w-0 items-start gap-2 py-1.5">
-                <dt className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
+                <dt dir="auto" className="w-2/5 shrink-0 break-words text-ink/60">{detail.label}</dt><dd dir="auto" className="min-w-0 flex-1 break-words font-medium">{detail.value}</dd>
               </div>)}
             </dl>
           </details>
@@ -93,7 +95,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
         {product.description && (
           <details className="storefront-item-accordion text-sm">
             <summary className="storefront-item-accordion-summary cursor-pointer font-semibold text-primary underline underline-offset-2">{product.kind === 'service' ? t('serviceDescription') : t('productDescription')}</summary>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{product.description}</p>
+            <p dir="auto" className="mt-2 whitespace-pre-line text-sm leading-6 text-ink/75">{product.description}</p>
           </details>
         )}
       </div>
