@@ -42,7 +42,7 @@ export default function PwaInstallButton({ label, translate }: { label: string; 
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onInstalled);
     };
-  }, []);
+  }, [translate]);
 
   async function install() {
     if (installPrompt) {
