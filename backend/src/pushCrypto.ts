@@ -29,9 +29,15 @@ function hkdfExpand(prk: Buffer, info: Buffer, length: number): Buffer {
 }
 
 function vapidPrivateKey(rawPrivateKey: Buffer) {
-  if (rawPrivateKey.length !== 32) throw new Error('Invalid VAPID private key.');
+  // P-256 private scalars are 32 bytes, but some OpenSSL/Node builds return
+  // a shorter Buffer when the scalar has leading zero bytes. Left-pad it back
+  // to the fixed-width representation required by the JWK/ES256 signer.
+  if (rawPrivateKey.length < 1 || rawPrivateKey.length > 32) throw new Error('Invalid VAPID private key.');
+  const normalizedPrivateKey = rawPrivateKey.length === 32
+    ? rawPrivateKey
+    : Buffer.concat([Buffer.alloc(32 - rawPrivateKey.length), rawPrivateKey]);
   const ecdh = createECDH('prime256v1');
-  ecdh.setPrivateKey(rawPrivateKey);
+  ecdh.setPrivateKey(normalizedPrivateKey);
   const publicKey = ecdh.getPublicKey(undefined, 'uncompressed');
   return createPrivateKey({
     key: {
@@ -39,7 +45,7 @@ function vapidPrivateKey(rawPrivateKey: Buffer) {
       crv: 'P-256',
       x: base64url(publicKey.subarray(1, 33)),
       y: base64url(publicKey.subarray(33, 65)),
-      d: base64url(rawPrivateKey),
+      d: base64url(normalizedPrivateKey),
     },
     format: 'jwk',
   });
@@ -52,7 +58,7 @@ export function generateVapidKeys(): VapidKeys {
   ecdh.generateKeys();
   return {
     publicKey: base64url(ecdh.getPublicKey(undefined, 'uncompressed')),
-    privateKey: base64url(ecdh.getPrivateKey()),
+    privateKey: base64url(Buffer.concat([Buffer.alloc(Math.max(0, 32 - ecdh.getPrivateKey().length)), ecdh.getPrivateKey()])),
   };
 }
 
