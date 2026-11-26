@@ -8,7 +8,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-export default function PwaInstallButton({ label, translate }: { label: string; translate?: (key: StorefrontMessageKey) => string }) {
+export default function PwaInstallButton({ label, translate, compact = false }: { label: string; translate?: (key: StorefrontMessageKey) => string; compact?: boolean }) {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [help, setHelp] = useState('');
@@ -65,7 +65,7 @@ export default function PwaInstallButton({ label, translate }: { label: string; 
   return (
     <div className="flex flex-col items-center gap-1">
       <button type="button" onClick={install}
-        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-current/20 bg-white/90 px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        className={compact ? "inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full border border-current/15 bg-white/75 px-3 py-1 text-xs font-medium text-ink/75 transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" : "inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-current/20 bg-white/90 px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"}>
         <span aria-hidden="true">＋</span>{label}
       </button>
       {help && <p role="status" className="max-w-sm text-center text-xs leading-5 text-ink/70">{help}</p>}
