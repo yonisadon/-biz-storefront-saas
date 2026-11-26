@@ -198,7 +198,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                   </div>}
                   {l.customer_email && <div dir="ltr" className="text-start text-gray-600">{l.customer_email}</div>}
                   {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">{t('appointmentBooked')}: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
-                  {l.metadata?.action === 'waitlist' && l.metadata.preferred_date && <p className="mt-1 text-sm font-medium text-blue-800">תאריך מועדף להמתנה: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>}
+                  {l.metadata?.action === 'waitlist' && l.metadata.preferred_date && <p className="mt-1 text-sm font-medium text-blue-800" >{t('preferredWaitlistDate')}: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>}
                   {l.message && <p className="mt-1 whitespace-pre-line text-gray-600">{l.message}</p>}
                   <LeadNotes token={token} leadId={l.id} />
                 </td>
@@ -207,12 +207,12 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                 </td>
                 <td className="whitespace-nowrap px-3 py-2">
                   {l.estimated_total_agorot === null
-                    ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '—')
+                    ? (l.metadata?.has_quote_items ? t('quote') : '—')
                     : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}
                 </td>
                 <td className="px-3 py-2">{l.submission_channel === 'whatsapp' ? t('whatsapp') : t('website')}</td>
                 <td className="px-3 py-2">
-                  <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name || 'פנייה ב־WhatsApp'}`}
+                  <select value={l.status} aria-label={`${t('leadStatusFor')} ${l.customer_name || t('continueOnWhatsapp')}`}
                     onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)}
                     className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
                     {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
