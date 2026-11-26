@@ -68,7 +68,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
           )}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot, locale)}</span>
+          <span dir="auto" className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot, locale)}</span>
           {catalogAction && canSelect && (catalogAction.quantity > 0 ? (
             <QuantityStepper quantity={catalogAction.quantity} label={`${t('itemQuantity')}: ${product.name}`} canRemove={catalogAction.canRemove} onChange={catalogAction.onQuantityChange} t={t} />
           ) : (
@@ -79,7 +79,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
             </button>
           ))}
           {action.type === 'whatsapp' && action.href && (
-            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5"><span>{t('itemWhatsAppDetails')}</span><span aria-hidden="true" className="text-base leading-none">←</span></a>
+            <a href={action.href} target="_blank" rel="noopener noreferrer" className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5"><span>{t('itemWhatsAppDetails')}</span><span aria-hidden="true" className="text-base leading-none">{direction === 'rtl' ? '←' : '→'}</span></a>
           )}
         </div>
         {product.details?.length > 0 && (
