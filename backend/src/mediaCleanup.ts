@@ -5,7 +5,7 @@ const LOCK_NAMESPACE = 74122;
 const LOCK_KEY = 93004;
 const MEDIA_BATCH_SIZE = 50;
 const MEDIA_MIN_AGE_MINUTES = 15;
-const RUN_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const RUN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 async function runPendingMediaCleanup(): Promise<void> {
   let lockClient: Awaited<ReturnType<typeof connectRegistryWithRetry>> | null = null;
@@ -85,7 +85,7 @@ async function runPendingMediaCleanup(): Promise<void> {
 }
 
 export function startMediaCleanupScheduler(): NodeJS.Timeout {
-  console.info('Media cleanup scheduler enabled in API process; interval: 2 hours.');
+  console.info('Media cleanup scheduler enabled in API process; interval: 24 hours.');
   const timer = setInterval(() => {
     void runPendingMediaCleanup().catch((error) => {
       console.error('Media cleanup scheduler run failed:', error instanceof Error ? error.message : 'unknown error');
