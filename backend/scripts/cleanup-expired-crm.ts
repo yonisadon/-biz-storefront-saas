@@ -292,7 +292,8 @@ async function main() {
     console.log('Retention cleanup complete. Mode: ' + (apply ? 'APPLY' : 'DRY_RUN') +
       '; tenants: ' + tenants.length + '; leads deleted/found: ' + leadsDeleted + '/' + leadsFound +
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
-      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound + '.');
+      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
+      '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound + '.');
   } finally {
     await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {
