@@ -16,33 +16,33 @@ type Step = 'choose' | 'site' | 'reserve';
 
 type ApiErrorPayload = { issues?: { message: string }[]; error?: string; route?: string; whatsapp_url?: string; success_message?: string; push_capability_token?: string };
 
-function errorText(status: number, d: ApiErrorPayload | null): string {
-  if (status === 429) return 'בוצעו יותר מדי ניסיונות. נסו שוב בעוד דקה.';
-  if (status === 403) return 'הגדרות העסק השתנו מאז פתיחת האתר. רעננו את הדף ונסו שוב.';
-  if (d?.error === 'appointment_required') return 'בחרו תאריך ושעה לשירות שסימנתם.';
-  if (d?.error === 'invalid_appointment_time') return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
-  if (d?.error === 'contact_required') return 'כדי לקבוע תור ביומן, יש להזין מספר טלפון.';
-  if (d?.error === 'calendar_booking_disabled' || d?.error === 'route_disabled') return 'מסלול הפנייה הזה אינו פעיל בעסק. רעננו את הדף ונסו שוב.';
-  if (d?.error === 'mixed_catalog_types' || d?.error === 'invalid_contact_flow') return 'יש לבחור מוצרים או שירותים בתהליך נפרד.';
-  if (d?.error === 'whatsapp_not_configured') return 'מספר ה-WhatsApp של העסק אינו מוגדר כרגע.';
+function errorText(status: number, d: ApiErrorPayload | null, t: (key: StorefrontMessageKey) => string): string {
+  if (status === 429) return t('tooManyAttempts');
+  if (status === 403) return t('businessSettingsChanged');
+  if (d?.error === 'appointment_required') return t('chooseAppointment');
+  if (d?.error === 'invalid_appointment_time') return t('appointmentUnavailable');
+  if (d?.error === 'contact_required') return t('phoneForBooking');
+  if (d?.error === 'calendar_booking_disabled' || d?.error === 'route_disabled') return t('routeDisabled');
+  if (d?.error === 'mixed_catalog_types' || d?.error === 'invalid_contact_flow') return t('separateCatalogFlows');
+  if (d?.error === 'whatsapp_not_configured') return t('whatsappNotConfigured');
   const msgs: string[] = (d?.issues ?? []).map((i) => i.message);
-  if (msgs.includes('invalid_il_phone')) return 'מספר הטלפון אינו תקין.';
-  if (msgs.includes('items_or_message_required')) return 'בחרו פריט או כתבו הודעה.';
-  if (msgs.includes('contact_required')) return 'נא להזין מספר טלפון תקין.';
-  if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
-  if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
-  if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
-  if (d?.error === 'slot_taken' || d?.error === 'slot_blocked') return 'המועד כבר אינו זמין. בחרו מועד פנוי אחר.';
-  return 'לא הצלחנו לשלוח. נסו שוב.';
+  if (msgs.includes('invalid_il_phone')) return t('invalidPhone');
+  if (msgs.includes('items_or_message_required')) return t('chooseItemOrMessage');
+  if (msgs.includes('contact_required')) return t('validPhoneRequired');
+  if (msgs.includes('appointment_required')) return t('chooseAppointment');
+  if (msgs.includes('invalid_appointment_time')) return t('appointmentUnavailable');
+  if (d?.error === 'unknown_product') return t('itemUnavailable');
+  if (d?.error === 'slot_taken' || d?.error === 'slot_blocked') return t('slotUnavailable');
+  return t('sendFailed');
 }
 
 function Stepper({ q, onChange, label, canRemove }: { q: number; onChange: (n: number) => void; label: string; canRemove: boolean }) {
   const btn = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" disabled={q <= 1 && !canRemove} className={btn} aria-label="הפחתת כמות" onClick={() => onChange(q - 1)}>−</button>
+      <button type="button" disabled={q <= 1 && !canRemove} className={btn} aria-label={t('removeQuantity')} onClick={() => onChange(q - 1)}>−</button>
       <span className="w-8 text-center font-semibold" aria-live="polite">{q}</span>
-      <button type="button" className={btn} aria-label="הוספת כמות" onClick={() => onChange(q + 1)}>+</button>
+      <button type="button" className={btn} aria-label={t('addQuantity')} onClick={() => onChange(q + 1)}>+</button>
     </div>
   );
 }
@@ -395,7 +395,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         setHasMore(page.has_more);
         setSearchTotal(page.total);
       })
-      .catch(() => { if (!cancelled) setCatalogError('לא הצלחנו לחפש כרגע. נסו שוב.'); })
+      .catch(() => { if (!cancelled) setCatalogError(t('searchFailed')); })
       .finally(() => { if (!cancelled) setSearching(false); });
     return () => { cancelled = true; };
   }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal, kind]);
@@ -411,7 +411,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const page = await response.json() as PublicCatalogPage;
       setItems((current) => { const known = new Set(current.map((item) => item.id)); return [...current, ...page.items.filter((item) => !known.has(item.id))]; });
       setNextOffset(page.offset + page.items.length); setHasMore(page.has_more); setSearchTotal(page.total);
-    } catch { setCatalogError('לא הצלחנו לטעון מוצרים נוספים. נסו שוב.'); }
+    } catch { setCatalogError(t('loadMoreFailed')); }
     finally { setLoadingMore(false); }
   }
   const byId = useMemo(() => new Map(items.map((p) => [p.id, p])), [items]);
@@ -544,10 +544,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function submit(route: Route) {
     setError(null);
     const phone = normalizeILPhone(form.phone);
-    if (count === 0) return setError(kind === 'product' ? 'יש לבחור לפחות מוצר אחד.' : 'יש לבחור לפחות שירות אחד.');
-    if (route === 'reserve' && !hasAppointmentHours) return setError('לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר להצטרף לרשימת המתנה.');
-    if (route === 'reserve' && (!appointmentDate || !appointmentTime)) return setError('בחרו תאריך ושעה לשירות.');
-    if ((route === 'site' || route === 'reserve') && !phone) return setError('נא להזין מספר טלפון ישראלי תקין.');
+    if (count === 0) return setError(kind === 'product' ? t('chooseProduct') : t('chooseService'));
+    if (route === 'reserve' && !hasAppointmentHours) return setError(t('noBookingHours'));
+    if (route === 'reserve' && (!appointmentDate || !appointmentTime)) return setError(t('chooseDateTime'));
+    if ((route === 'site' || route === 'reserve') && !phone) return setError(t('israelPhoneRequired'));
 
     setBusy(route);
     try {
@@ -570,7 +570,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         signal: submitController.signal,
       }), 30000, () => submitController.abort());
       const data = await res.json().catch(() => null) as ApiErrorPayload | null;
-      if (!res.ok) return setError(errorText(res.status, data));
+      if (!res.ok) return setError(errorText(res.status, data, t));
 
       // The server has confirmed persistence. Clear the order immediately so
       // returning from WhatsApp cannot accidentally submit the same cart again.
@@ -580,13 +580,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setAppointmentTime('');
       setServerAppointmentSlots([]);
       if (route === 'whatsapp') {
-        if (!data?.whatsapp_url) return setError('לא הצלחנו להכין קישור WhatsApp. נסו שוב.');
-        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? 'הפנייה נשמרה. יש לשלוח את ההודעה כדי להשלים את הפנייה.', pushCapabilityToken: data.push_capability_token });
+        if (!data?.whatsapp_url) return setError(t('whatsappLinkFailed'));
+        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? t('inquirySavedWhatsapp'), pushCapabilityToken: data.push_capability_token });
       } else {
-        setDone({ route, message: data?.success_message ?? (route === 'reserve' ? 'התור נשמר ביומן.' : 'הפנייה נשלחה בהצלחה.'), pushCapabilityToken: data?.push_capability_token });
+        setDone({ route, message: data?.success_message ?? (route === 'reserve' ? t('appointmentSaved') : t('inquirySent')), pushCapabilityToken: data?.push_capability_token });
       }
     } catch {
-      setError('שגיאת רשת. נסו שוב.');
+      setError(t('networkError'));
     } finally {
       setBusy(null);
     }
@@ -595,9 +595,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   async function submitWaitlist(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setWaitlistError(null);
-    if (!waitlistPreferredDate) return setWaitlistError('בחרו תאריך מועדף.');
+    if (!waitlistPreferredDate) return setWaitlistError(t('choosePreferredDate'));
     const phone = normalizeILPhone(form.phone);
-    if (!phone) return setWaitlistError('נא להזין מספר טלפון ישראלי תקין.');
+    if (!phone) return setWaitlistError(t('israelPhoneRequired'));
     setWaitlistBusy(true);
     try {
       const waitlistController = new AbortController();
@@ -618,15 +618,15 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       const data = await response.json().catch(() => null) as { error?: string; push_capability_token?: string } | null;
       if (!response.ok) {
         if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
-          setWaitlistError('כבר קיימת בקשת המתנה פעילה עם אותם פרטים.');
+          setWaitlistError(t('duplicateWaitlist'));
         } else if (data?.error === 'preferred_date_in_past') {
-          setWaitlistError('התאריך שנבחר כבר עבר. בחרו תאריך אחר.');
+          setWaitlistError(t('preferredDatePast'));
         } else if (data?.error === 'invalid_waitlist_services' || data?.error === 'calendar_booking_disabled') {
-          setWaitlistError('לא ניתן להצטרף כרגע לרשימת ההמתנה לשירותים שנבחרו. רעננו את הדף ונסו שוב.');
+          setWaitlistError(t('waitlistUnavailable'));
         } else if (response.status === 429) {
-          setWaitlistError('נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.');
+          setWaitlistError(t('tooManyWaitlist'));
         } else {
-          setWaitlistError('לא הצלחנו להצטרף לרשימת ההמתנה. בדקו את הפרטים ונסו שוב.');
+          setWaitlistError(t('waitlistFailed'));
         }
         return;
       }
@@ -639,7 +639,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setAppointmentDate('');
       setAppointmentTime('');
     } catch {
-      setWaitlistError('שגיאת רשת. נסו שוב.');
+      setWaitlistError(t('networkError'));
     } finally {
       setWaitlistBusy(false);
     }
@@ -758,40 +758,40 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           <div className="mb-4 rounded-xl bg-gray-50 p-3">
             <ul className="space-y-1.5 text-sm">
               {lines.map(({ p, q }) => {
-                const durationLabel = p.kind === 'service' ? 'משך השירות' : '';
+                const durationLabel = p.kind === 'service' ? t('durationLabel') : '';
                 return <li key={`${p.kind}:${p.id}`} data-cart-item-id={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0">
                   <span className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
                   <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
                   {!done && (
                     <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 border-t border-gray-200 pt-2">
-                      <Stepper q={q} label={`כמות: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} />
-                       {lines.length > 1 && <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>}
+                      <Stepper q={q} label={`${t('quantityLabel')}: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} />
+                       {lines.length > 1 && <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">{t('removeItem')}</button>}
                     </div>
                   )}
                 </li>;
               })}
             </ul>
-            {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>סכום משוער</span><span>{totalText}</span></div>}
+            {totalText && <div className="mt-3 flex justify-between border-t border-gray-200 pt-2 font-bold"><span>{t('estimatedTotal')}</span><span>{totalText}</span></div>}
           </div>
         )}
 
         {!done && !waitlistOpen && !waitlistDone && step === 'reserve' && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
-            <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
+            <legend className="px-1 text-sm font-semibold">{t('appointmentCoordination')}</legend>
             {hasAppointmentHours ? (
               <>
-                <p className="text-xs leading-5 text-ink/65">{`משך התור ביומן לכל השירותים שנבחרו: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר אישור הבקשה.`}</p>
+                <p className="text-xs leading-5 text-ink/65">{t('appointmentDurationInfo').replace('{minutes}', String(reservedAppointmentDurationMinutes))}</p>
                 <div className="space-y-3">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">בחירת תאריך</span>
+                    <span className="text-sm font-semibold">{t('selectDate')}</span>
                     <div className="flex min-w-0 items-center gap-1">
-                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label="חודש קודם" className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
+                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label={t('previousMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
                       <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize">{appointmentMonthLabel}</span>
-                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label="חודש הבא" className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
+                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label={t('nextMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
                       <button type="button" onClick={() => { const month = todayDate.slice(0, 7); setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{[t('weekdaySundayShort'), t('weekdayMondayShort'), t('weekdayTuesdayShort'), t('weekdayWednesdayShort'), t('weekdayThursdayShort'), t('weekdayFridayShort'), t('weekdaySaturdayShort')].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
                   <div role="group" aria-label="בחירת יום בחודש" className="grid min-w-0 grid-cols-7 gap-1">
                     {monthCells.map((date, index) => {
                       if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
@@ -799,7 +799,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       const disabled = date < todayDate || !available || monthLoading || monthError;
                       const selected = appointmentDate === date;
                       return <button key={date} type="button" disabled={disabled} aria-pressed={selected} onClick={() => { setIdempotencyKey(''); setAppointmentDate(date); setAppointmentTime(''); }}
-                        aria-label={`יום ${Number(date.slice(-2))}${available ? ', יש שעות פנויות' : ', לא זמין'}`} className={`min-h-11 rounded-xl text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : available ? 'bg-primary/5 text-ink hover:bg-primary/10' : 'text-ink/35'}`}>
+                        aria-label={`${Number(date.slice(-2))}${available ? `, ${t('dayAvailable')}` : `, ${t('dayUnavailable')}`}`} className={`min-h-11 rounded-xl text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : available ? 'bg-primary/5 text-ink hover:bg-primary/10' : 'text-ink/35'}`}>
                         {Number(date.slice(-2))}{available && <span className="mx-auto mt-0.5 block h-1 w-1 rounded-full bg-current" aria-hidden="true" />}
                       </button>;
                     })}
@@ -816,7 +816,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">אין כרגע שעות פנויות ביום זה.</p>}
                   {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime((current) => current === slot ? '' : slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
-                {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
+                {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat(storefrontLocale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">{t('appointmentDuration')}: {reservedAppointmentDurationMinutes} {storefrontLocale === 'he-IL' ? 'דקות' : storefrontLocale === 'ru-RU' ? 'мин' : 'min'} · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
                 {!appointmentTime && !monthLoading && !monthError && !slotsLoading && !slotsError && (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                     <p className="text-sm font-semibold">לא מצאתם מועד שמתאים לכם?</p>
