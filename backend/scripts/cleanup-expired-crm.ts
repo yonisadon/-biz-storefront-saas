@@ -186,7 +186,7 @@ async function main() {
     for (const tenant of tenants) {
       const p = policies.get(tenant.plan_code);
       if (!p) throw new Error('No retention policy for tenant plan; refusing cleanup.');
-      const db = await connectWithRetry(databaseUrl(tenant.database_name), 'cleanup for ' + tenant.database_name);
+      const db = await connectReadyWithRetry(databaseUrl(tenant.database_name), 'cleanup for ' + tenant.database_name);
       try {
         await db.query('BEGIN');
         await db.query("SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)", [tenant.tenant_id]);
@@ -324,6 +324,7 @@ async function main() {
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
           (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
+          (apply ? 'deleted ' + tenantMediaObjectsDeleted : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
