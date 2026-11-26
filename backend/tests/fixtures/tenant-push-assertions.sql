@@ -76,6 +76,70 @@ BEGIN
 END
 $push_schema$;
 
+-- Completed events older than retention are removed with their deliveries;
+-- pending events and events with a pending/processing delivery are preserved.
+DO $push_retention$
+DECLARE
+  v_tenant uuid := '00000000-0000-0000-0000-000000000101';
+  v_subscription uuid;
+  v_expired_done uuid;
+  v_expired_pending uuid;
+  v_expired_with_pending_delivery uuid;
+  v_deleted integer;
+BEGIN
+  INSERT INTO public.push_subscriptions
+    (tenant_id, audience, endpoint_hash, endpoint_ciphertext, p256dh_ciphertext, auth_ciphertext)
+  VALUES
+    (v_tenant, 'customer', decode(repeat('a', 64), 'hex'), 'endpoint', 'p256dh', 'auth')
+  RETURNING id INTO v_subscription;
+
+  INSERT INTO public.push_outbox
+    (tenant_id, audience, event_type, target_type, target_id, status, processed_at)
+  VALUES
+    (v_tenant, 'customer', 'customer.appointment_updated', 'appointment',
+     '00000000-0000-0000-0000-000000000201', 'done', now() - interval '31 days')
+  RETURNING id INTO v_expired_done;
+
+  INSERT INTO public.push_outbox
+    (tenant_id, audience, event_type, target_type, target_id, status, processed_at)
+  VALUES
+    (v_tenant, 'customer', 'customer.appointment_updated', 'appointment',
+     '00000000-0000-0000-0000-000000000202', 'pending', now() - interval '31 days')
+  RETURNING id INTO v_expired_pending;
+
+  INSERT INTO public.push_outbox
+    (tenant_id, audience, event_type, target_type, target_id, status, processed_at)
+  VALUES
+    (v_tenant, 'customer', 'customer.appointment_updated', 'appointment',
+     '00000000-0000-0000-0000-000000000203', 'done', now() - interval '31 days')
+  RETURNING id INTO v_expired_with_pending_delivery;
+
+  INSERT INTO public.push_deliveries
+    (tenant_id, outbox_id, subscription_id, status)
+  VALUES
+    (v_tenant, v_expired_with_pending_delivery, v_subscription, 'pending');
+
+  DELETE FROM public.push_outbox o
+   WHERE o.tenant_id = v_tenant
+     AND o.status = 'done'
+     AND o.processed_at <= now() - interval '30 days'
+     AND NOT EXISTS (
+       SELECT 1 FROM public.push_deliveries d
+        WHERE d.tenant_id = o.tenant_id AND d.outbox_id = o.id
+          AND d.status IN ('pending', 'processing')
+     );
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+  IF v_deleted <> 1
+     OR EXISTS (SELECT 1 FROM public.push_outbox WHERE id = v_expired_done)
+     OR NOT EXISTS (SELECT 1 FROM public.push_outbox WHERE id = v_expired_pending)
+     OR NOT EXISTS (SELECT 1 FROM public.push_outbox WHERE id = v_expired_with_pending_delivery)
+     OR EXISTS (SELECT 1 FROM public.push_deliveries WHERE outbox_id = v_expired_done) THEN
+    RAISE EXCEPTION 'Push retention must delete only expired completed events and cascade their delivery history';
+  END IF;
+END
+$push_retention$;
+
 -- Verify tenant-local visibility using the same setting contract as withTenant.
 BEGIN;
 SET ROLE app_runtime;
