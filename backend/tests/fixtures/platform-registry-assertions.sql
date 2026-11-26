@@ -14,8 +14,8 @@ BEGIN
     RAISE EXCEPTION 'app_runtime must execute tenant resolver';
   END IF;
 
-  IF (SELECT count(*) FROM public.platform_retention_policies) <> 16 THEN
-    RAISE EXCEPTION 'expected 16 default retention policy rows';
+  IF (SELECT count(*) FROM public.platform_retention_policies) <> 18 THEN
+    RAISE EXCEPTION 'expected 18 default retention policy rows';
   END IF;
   IF NOT has_table_privilege('app_runtime', 'public.platform_retention_policies', 'SELECT') THEN
     RAISE EXCEPTION 'app_runtime must read retention policies';
@@ -30,8 +30,13 @@ BEGIN
     RAISE EXCEPTION 'legacy businesses without a subscription must use standard retention policy';
   END IF;
   IF (SELECT count(*) FROM public.platform_retention_policies
-       WHERE plan_code = 'plus' AND delete_enabled) <> 0 THEN
-    RAISE EXCEPTION 'Plus defaults must not automatically delete records';
+       WHERE plan_code = 'plus' AND record_type <> 'push' AND delete_enabled) <> 0 THEN
+    RAISE EXCEPTION 'Plus CRM and calendar defaults must not automatically delete records';
+  END IF;
+  IF (SELECT count(*) FROM public.platform_retention_policies
+       WHERE record_type = 'push' AND record_status = 'completed'
+         AND delete_enabled = true AND retention_days = 30) <> 2 THEN
+    RAISE EXCEPTION 'Basic and Plus Push history must each default to 30 days';
   END IF;
 
   INSERT INTO public.businesses (id, slug, name, status)

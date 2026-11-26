@@ -242,6 +242,8 @@ test('platform account lifecycle and independent marketing consents', async () =
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
       await tenantDb.connect();
       try {
+        const { assertTenantRlsSecurity } = await import('../src/tenantRlsPostflight');
+        await assertTenantRlsSecurity(tenantDb, provisioned.database);
         const pushSettings = await tenantDb.query(
           'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
           [provisioned.id],
@@ -426,7 +428,8 @@ test('platform account lifecycle and independent marketing consents', async () =
               SET delete_enabled = true, retention_days = 1
             WHERE plan_code = 'standard' AND
               ((record_type = 'appointment' AND record_status = 'cancelled') OR
-               (record_type = 'waitlist' AND record_status = 'closed'))`,
+               (record_type = 'waitlist' AND record_status = 'closed') OR
+               (record_type = 'push' AND record_status = 'completed'))`,
         );
         const subscriptionRow = await tenantDb.query(
           'SELECT id FROM public.push_subscriptions WHERE tenant_id = $1 AND audience = $2 AND endpoint_hash = $3',
@@ -495,7 +498,7 @@ test('platform account lifecycle and independent marketing consents', async () =
         assert.equal(retainedTargets.rows[0].waitlist_count, 1, 'pending waitlist Push must defer waitlist retention');
 
         await tenantDb.query(
-          `UPDATE public.push_outbox SET status = 'done', processed_at = now()
+          `UPDATE public.push_outbox SET status = 'done', processed_at = now() - interval '3 days'
             WHERE tenant_id = $1 AND target_id = ANY($2::uuid[])`,
           [provisioned.id, [expiredAppointmentId, expiredWaitlistId]],
         );
@@ -518,6 +521,16 @@ test('platform account lifecycle and independent marketing consents', async () =
           'a pending delivery must defer appointment retention even after its outbox event is marked done');
         assert.equal(deliveryDeferredTargets.rows[0].waitlist_count, 0,
           'a completed waitlist event may be cleaned independently');
+        const partiallyCleanedPushHistory = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.push_outbox WHERE tenant_id = $1 AND target_id = $2) AS appointment_events, ' +
+          '(SELECT count(*)::int FROM public.push_outbox WHERE tenant_id = $1 AND target_id = $3) AS waitlist_events',
+          [provisioned.id, expiredAppointmentId, expiredWaitlistId],
+        );
+        assert.equal(partiallyCleanedPushHistory.rows[0].appointment_events, 1,
+          'an expired outbox event with a pending delivery must be retained');
+        assert.equal(partiallyCleanedPushHistory.rows[0].waitlist_events, 0,
+          'expired completed Push history must be removed with its target');
+
         await tenantDb.query(
           "UPDATE public.push_deliveries SET status = 'sent', sent_at = now() WHERE id = $1",
           [pendingDelivery.rows[0].id],
@@ -528,7 +541,9 @@ test('platform account lifecycle and independent marketing consents', async () =
           '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count, ' +
           '(SELECT count(*)::int FROM public.push_subscription_targets WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS links, ' +
           '(SELECT count(*)::int FROM public.push_target_link_capabilities WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS capabilities, ' +
-          '(SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $3 AND subscription_id = $5 AND revoked_at IS NULL) AS device_consents',
+          '(SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $3 AND subscription_id = $5 AND revoked_at IS NULL) AS device_consents, ' +
+          '(SELECT count(*)::int FROM public.push_outbox WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS push_events, ' +
+          '(SELECT count(*)::int FROM public.push_deliveries d JOIN public.push_outbox o ON o.tenant_id = d.tenant_id AND o.id = d.outbox_id WHERE o.tenant_id = $3 AND o.target_id = ANY($4::uuid[])) AS push_deliveries',
           [expiredAppointmentId, expiredWaitlistId, provisioned.id, [expiredAppointmentId, expiredWaitlistId], subscriptionId],
         );
         assert.equal(cleanedTargets.rows[0].appointment_count, 0);
@@ -536,6 +551,8 @@ test('platform account lifecycle and independent marketing consents', async () =
         assert.equal(cleanedTargets.rows[0].links, 0, 'completed targets must not leave Push subscription links behind');
         assert.equal(cleanedTargets.rows[0].capabilities, 0, 'completed targets must not leave link capabilities behind');
         assert.equal(cleanedTargets.rows[0].device_consents, 1, 'target cleanup must preserve device-level consent');
+        assert.equal(cleanedTargets.rows[0].push_events, 0, 'expired completed Push history must be removed');
+        assert.equal(cleanedTargets.rows[0].push_deliveries, 0, 'deleting Push history must cascade to delivery history');
       } finally {
         await tenantDb.end();
       }

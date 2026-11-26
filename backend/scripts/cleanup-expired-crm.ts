@@ -6,7 +6,7 @@ if (!registryUrl) throw new Error('APP_DATABASE_URL is required');
 
 type PlanCode = 'standard' | 'plus';
 type PolicyRow = {
-  plan_code: PlanCode; record_type: 'lead' | 'appointment' | 'waitlist';
+  plan_code: PlanCode; record_type: 'lead' | 'appointment' | 'waitlist' | 'push';
   record_status: string; delete_enabled: boolean; retention_days: number | null;
 };
 type Tenant = { tenant_id: string; database_name: string; plan_code: PlanCode };
@@ -14,7 +14,7 @@ type TenantPolicy = Record<string, number | null>;
 
 const statuses = [
   'lead:open', 'lead:closed', 'appointment:reserved', 'appointment:cancelled',
-  'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking',
+  'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking', 'push:completed',
 ];
 
 function databaseUrl(name: string): string {
@@ -88,6 +88,7 @@ function policyFor(plan: PlanCode, rows: PolicyRow[]): TenantPolicy {
     appointmentReserved: getDays(get('appointment:reserved')), appointmentCancelled: getDays(get('appointment:cancelled')),
     waitlistWaiting: getDays(get('waitlist:waiting')), waitlistRejected: getDays(get('waitlist:rejected')),
     waitlistClosed: getDays(get('waitlist:closed')), waitlistScheduled: getDays(get('waitlist:scheduled_without_booking')),
+    pushHistory: getDays(get('push:completed')),
   };
 }
 
@@ -106,10 +107,11 @@ async function main() {
 
   const apply = process.argv.includes('--apply');
   const registry = await connectReadyWithRetry(registryUrl!, 'tenant registry');
-  const tenantConnections = new Map<string, pg.Client>();
   let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
+  let pushHistoryDeleted = 0, pushHistoryFound = 0;
+  let mediaObjectsDeleted = 0, mediaObjectsFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -135,10 +137,10 @@ async function main() {
       if (tenant.plan_code !== 'standard' && tenant.plan_code !== 'plus') throw new Error('Unsupported tenant plan; refusing cleanup.');
       let preflightPassed = false;
       for (let preflightAttempt = 1; preflightAttempt <= 3; preflightAttempt++) {
-        const db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
-        tenantConnections.set(tenant.database_name, db);
+        let db: pg.Client | undefined;
         try {
-  const check = await db.query(
+          db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
+          const check = await db.query(
             "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
             "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
@@ -152,19 +154,20 @@ async function main() {
             "to_regclass('public.push_outbox') IS NOT NULL AS has_push_outbox, " +
             "to_regclass('public.push_deliveries') IS NOT NULL AS has_push_deliveries, " +
             "to_regclass('public.push_subscription_targets') IS NOT NULL AS has_push_targets, " +
-            "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities"
+            "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities, " +
+            "to_regclass('public.idx_push_outbox_processed_at') IS NOT NULL AS has_push_retention_index, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='media_assets' AND column_name='deleted_at') AS has_media_deletion_tracking, " +
+            "to_regclass('public.idx_media_assets_pending_deletion') IS NOT NULL AS has_media_deletion_index"
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
               !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads ||
-              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities) {
+              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities || !c?.has_push_retention_index || !c?.has_media_deletion_tracking || !c?.has_media_deletion_index) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
           break;
         } catch (error) {
-          await db.end().catch(() => {});
-          tenantConnections.delete(tenant.database_name);
           const code = (error as { code?: string }).code;
           if (!code || !TRANSIENT_DB_CODES.has(code) || preflightAttempt === 3) {
             throw new Error('CRM cleanup preflight failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
@@ -172,6 +175,8 @@ async function main() {
           const delayMs = Math.min(1000 * preflightAttempt, 3000);
           console.warn('Transient preflight failure for ' + tenant.database_name + ' (attempt ' + preflightAttempt + '/3; code ' + code + '); reconnecting in ' + delayMs + 'ms.');
           await sleep(delayMs);
+        } finally {
+          if (db) await db.end().catch(() => {});
         }
       }
       if (!preflightPassed) throw new Error('CRM cleanup preflight did not complete for ' + tenant.database_name + '.');
@@ -181,8 +186,7 @@ async function main() {
     for (const tenant of tenants) {
       const p = policies.get(tenant.plan_code);
       if (!p) throw new Error('No retention policy for tenant plan; refusing cleanup.');
-      const db = tenantConnections.get(tenant.database_name);
-      if (!db) throw new Error('CRM cleanup connection missing after successful preflight for ' + tenant.database_name + '.');
+      const db = await connectReadyWithRetry(databaseUrl(tenant.database_name), 'cleanup for ' + tenant.database_name);
       try {
         await db.query('BEGIN');
         await db.query("SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)", [tenant.tenant_id]);
@@ -211,8 +215,54 @@ async function main() {
         const waitlistFrom = 'public.waitlist_entries w JOIN public.businesses b ON b.id = w.tenant_id WHERE w.tenant_id = app.current_tenant_id() AND (' + waitlistWhere + ')';
         const waitlistCount = await db.query('SELECT count(*)::int AS n FROM ' + waitlistFrom, waitlistParams);
 
-        let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0;
+        // Keep completed Push history for the configured period. The explicit delivery guard
+        // protects retries even if an event's outbox status is unexpectedly inconsistent.
+        const pushHistoryWhere = "o.tenant_id = app.current_tenant_id() AND o.status = 'done' AND o.processed_at IS NOT NULL " +
+          "AND $1::int IS NOT NULL AND o.processed_at <= now() - ($1::int * interval '1 day') " +
+          "AND NOT EXISTS (SELECT 1 FROM public.push_deliveries d WHERE d.tenant_id = o.tenant_id " +
+          "AND d.outbox_id = o.id AND d.status IN ('pending','processing'))";
+        const pushHistoryCount = await db.query('SELECT count(*)::int AS n FROM public.push_outbox o WHERE ' + pushHistoryWhere, [p.pushHistory]);
+
+        const mediaDeletionCount = await db.query(
+          `SELECT count(*)::int AS n FROM public.media_assets m
+            WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
+              AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+              AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+              AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)`
+        );
+        let tenantMediaObjectsDeleted = 0;
+        let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
+          // Bound each run. Keep the DB row until object storage confirms deletion.
+          const pendingMedia = await db.query(
+            `SELECT m.id, m.storage_key FROM public.media_assets m
+              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
+                AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+                AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+                AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
+              ORDER BY m.deleted_at, m.id LIMIT 50 FOR UPDATE SKIP LOCKED`
+          );
+          if (pendingMedia.rows.length) {
+            try {
+              // Fail closed: do not let the storage module's local-driver default
+              // finalize DB rows when the cleanup service lacks its storage config.
+              if (!process.env.STORAGE_DRIVER) throw new Error('STORAGE_DRIVER must be explicitly configured for media deletion retries.');
+              const { storage, variantKeys } = await import('../src/storage');
+              await storage.remove(pendingMedia.rows.flatMap((asset: { storage_key: string }) => variantKeys(asset.storage_key)));
+              const finalized = await db.query(
+                `DELETE FROM public.media_assets m
+                  WHERE m.id = ANY($1::uuid[]) AND m.deleted_at IS NOT NULL
+                    AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
+                  RETURNING m.id`,
+                [pendingMedia.rows.map((asset: { id: string }) => asset.id)]
+              );
+              tenantMediaObjectsDeleted = finalized.rowCount ?? 0;
+            } catch (error) {
+              console.warn('Media storage deletion deferred for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+            }
+          }
           const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
@@ -252,6 +302,8 @@ async function main() {
               [deletedAppointmentIds],
             );
           }
+          const deletedPushHistory = await db.query('DELETE FROM public.push_outbox o WHERE ' + pushHistoryWhere + ' RETURNING o.id', [p.pushHistory]);
+          tenantPushHistoryDeleted = deletedPushHistory.rowCount ?? 0;
           const deletedLeads = await db.query('DELETE FROM public.leads WHERE ' + leadWhere + ' RETURNING id', leadParams);
           tenantLeadsDeleted = deletedLeads.rowCount ?? 0;
         }
@@ -260,25 +312,34 @@ async function main() {
         const foundLeads = Number(leadCount.rows[0]?.n ?? 0);
         const foundAppointments = Number(appointmentCount.rows[0]?.n ?? 0);
         const foundWaitlist = Number(waitlistCount.rows[0]?.n ?? 0);
+        const foundPushHistory = Number(pushHistoryCount.rows[0]?.n ?? 0);
+        const foundMediaObjects = Number(mediaDeletionCount.rows[0]?.n ?? 0);
         leadsDeleted += tenantLeadsDeleted; leadsFound += foundLeads;
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
+        pushHistoryDeleted += tenantPushHistoryDeleted; pushHistoryFound += foundPushHistory;
+        mediaObjectsDeleted += tenantMediaObjectsDeleted; mediaObjectsFound += foundMediaObjects;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
+          (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
+          (apply ? 'deleted ' + tenantMediaObjectsDeleted : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error('CRM cleanup deletion failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+      } finally {
+        await db.end().catch(() => {});
       }
     }
     console.log('Retention cleanup complete. Mode: ' + (apply ? 'APPLY' : 'DRY_RUN') +
       '; tenants: ' + tenants.length + '; leads deleted/found: ' + leadsDeleted + '/' + leadsFound +
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
-      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound + '.');
+      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
+      '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound +
+      '; media assets deleted/found: ' + mediaObjectsDeleted + '/' + mediaObjectsFound + '.');
   } finally {
-    await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {
       await registry.query('SELECT pg_advisory_unlock($1, $2)', [74122, 93002]).catch(() => {});
     }

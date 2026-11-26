@@ -1,9 +1,10 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
+import { useStorefrontPushManagement } from '@/components/StorefrontPushManagement';
 import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
@@ -176,7 +177,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     return () => { cancelled = true; };
   }, [apiBase, pushPublicKey, pushEnvironment]);
 
-  async function cancelCustomerPush() {
+  const cancelCustomerPush = useCallback(async () => {
     setCustomerPushManageStatus(null);
     try {
       if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
@@ -195,7 +196,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     } catch {
       setCustomerPushManageStatus('לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.');
     }
-  }
+  }, [apiBase]);
+
+  useStorefrontPushManagement(kind === 'service', customerPushActive, customerPushManageStatus, cancelCustomerPush);
 
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey || pushEnvironment !== 'supported') return;
@@ -663,13 +666,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? (otherCartCount > 0 ? 'pb-40' : 'pb-24') : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
-        {kind === 'service' && customerPushActive && (
-          <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/65 underline">
-            ביטול התראות מהעסק
-          </button>
-        )}
       </div>
-      {kind === 'service' && customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/65">{customerPushManageStatus}</p>}
       {(items.length > 0 || search.trim()) && <p className="mt-1 text-sm leading-5 text-ink/65">{kind === 'product' ? 'בחרו מוצר כדי להוסיף אותו להזמנה.' : 'בחרו שירות כדי להוסיף אותו להזמנה.'}</p>}
 
       {catalogTotal >= 5 && (
@@ -741,7 +738,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
             className="min-h-11 shrink-0 rounded-full border-0 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-6">
-            {kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}
+            {kind === 'product' ? 'המשך לשליחת פנייה' : 'בחירת דרך תיאום'}
           </button>
         </div>
       )}
@@ -749,7 +746,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {/* Order Modal */}
       <dialog ref={dlg} aria-labelledby={`order-dialog-title-${kind}`} onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
-          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}</h3>
+          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'שליחת פנייה לגבי המוצרים' : 'בחירת דרך תיאום'}</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 

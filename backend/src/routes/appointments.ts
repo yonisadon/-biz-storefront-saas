@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { withTenant } from '../db';
 import { HttpError } from '../errors';
 import { normalizeILPhone } from '../util';
-import { validateAppointmentSelection } from '../appointmentRules';
+import { validateAppointmentSelection, validateCalendarDateRange } from '../appointmentRules';
 import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { dispatchPushEventAfterCommit, enqueuePushEvent } from '../pushService';
 
@@ -68,6 +68,10 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     const from = query.date ?? query.from!;
     const to = query.date ?? query.to!;
     if (!query.date && (!query.from || !query.to)) throw new HttpError(400, 'invalid_date_range');
+
+    // The calendar's month view requests a maximum 42-day grid.
+    const rangeError = validateCalendarDateRange(from, to, 42);
+    if (rangeError) throw new HttpError(400, rangeError);
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');

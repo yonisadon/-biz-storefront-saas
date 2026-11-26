@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { applyTenantMigrations, getPendingTenantMigrations } from '../src/tenantMigrations';
 import { isTenantMigrationAuthorizedWithoutBackup } from '../src/tenantMigrationPolicy';
+import { assertTenantRlsSecurity } from '../src/tenantRlsPostflight';
 
 const adminUrl = process.env.DATABASE_ADMIN_URL;
 const registryUrl = process.env.SUPERADMIN_DATABASE_URL;
@@ -343,6 +344,8 @@ async function main() {
         if (!googleCalendarTrigger.rowCount) {
           throw new Error(`Postflight failed for ${tenant.database_name}: Google Calendar appointment outbox trigger is missing.`);
         }
+
+        await assertTenantRlsSecurity(db, tenant.database_name);
 
         const obsoleteOrderRouteConstraint = await db.query(
           `SELECT 1 FROM pg_constraint

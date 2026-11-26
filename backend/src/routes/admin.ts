@@ -67,8 +67,8 @@ const ManagementLinkAssociationInput = z.object({ management_url: z.string().url
 
 const RetentionPolicyRowInput = z.object({
   plan_code: z.enum(['standard', 'plus']),
-  record_type: z.enum(['lead', 'appointment', 'waitlist']),
-  record_status: z.enum(['open', 'closed', 'reserved', 'cancelled', 'waiting', 'rejected', 'scheduled_without_booking']),
+  record_type: z.enum(['lead', 'appointment', 'waitlist', 'push']),
+  record_status: z.enum(['open', 'closed', 'reserved', 'cancelled', 'waiting', 'rejected', 'scheduled_without_booking', 'completed']),
   delete_enabled: z.boolean(),
   retention_days: z.number().int().min(1).max(3650).nullable(),
 }).strict().refine(
@@ -77,10 +77,10 @@ const RetentionPolicyRowInput = z.object({
 );
 
 const RetentionPoliciesInput = z.object({
-  policies: z.array(RetentionPolicyRowInput).length(16),
+  policies: z.array(RetentionPolicyRowInput).length(18),
 }).strict().superRefine(({ policies }, ctx) => {
   const expected = ['lead:open', 'lead:closed', 'appointment:reserved', 'appointment:cancelled',
-    'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking'];
+    'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking', 'push:completed'];
   const seen = new Set<string>();
   for (const policy of policies) {
     const key = policy.plan_code + ':' + policy.record_type + ':' + policy.record_status;

@@ -138,6 +138,10 @@ function eventId(appointmentId: string): string {
   return `btime${appointmentId.replace(/-/g, '').toLowerCase()}`;
 }
 
+export function isCurrentGoogleCalendarJobVersion(current: { status: string; version: string } | null | undefined, claimedVersion: string): boolean {
+  return current?.status === 'processing' && current.version === claimedVersion;
+}
+
 export function buildGoogleCalendarEvent(job: SyncJob) {
   const start = new Date(job.payload.start_at);
   const end = new Date(job.payload.end_at);
@@ -224,42 +228,63 @@ export async function processGoogleCalendarJobs(tenantId: string, limit = 10) {
     if (!task) break;
     try {
       const token = await accessTokenFor(tenantId, task.connection);
-      await applyGoogleEvent(token, task.connection.calendar_id, task.job);
-      await withTenant(tenantId, async (db) => {
-        const completed = await db.query(
-          `UPDATE google_calendar_sync_jobs
-              SET status = 'synced', attempts = attempts + 1, last_error = NULL,
-                  last_synced_at = now(), updated_at = now()
+      const outcome = await withTenant(tenantId, async (db) => {
+        // Hold the job row lock while applying the external side effect. Appointment
+        // triggers that enqueue a newer version wait here; after this commit they
+        // replace the row with the newest payload. If a newer version was already
+        // queued, the version check skips this stale task before touching Google.
+        const current = (await db.query(
+          `SELECT status, updated_at::text AS version
+             FROM google_calendar_sync_jobs
             WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
-              AND status = 'processing' AND updated_at = $2::timestamptz`,
-          [task.job.appointment_id, task.version],
-        );
-        if (completed.rowCount) {
-          await db.query(
-            'UPDATE google_calendar_connections SET last_sync_at = now(), last_error = NULL WHERE tenant_id = app.current_tenant_id()',
+            FOR UPDATE`,
+          [task.job.appointment_id],
+        )).rows[0] as { status: string; version: string } | undefined;
+        if (!isCurrentGoogleCalendarJobVersion(current, task.version)) return 'stale' as const;
+
+        try {
+          await applyGoogleEvent(token, task.connection.calendar_id, task.job);
+          const completed = await db.query(
+            `UPDATE google_calendar_sync_jobs
+                SET status = 'synced', attempts = attempts + 1, last_error = NULL,
+                    last_synced_at = now(), updated_at = now()
+              WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
+                AND status = 'processing' AND updated_at = $2::timestamptz`,
+            [task.job.appointment_id, task.version],
           );
+          if (completed.rowCount) {
+            await db.query(
+              'UPDATE google_calendar_connections SET last_sync_at = now(), last_error = NULL WHERE tenant_id = app.current_tenant_id()',
+            );
+            return 'processed' as const;
+          }
+          return 'stale' as const;
+        } catch (error) {
+          const message = (error instanceof Error ? error.message : 'google_calendar_sync_failed').slice(0, 300);
+          const markedFailed = await db.query(
+            `UPDATE google_calendar_sync_jobs
+                SET status = 'failed', attempts = attempts + 1, last_error = $2,
+                    next_attempt_at = now() + make_interval(mins => LEAST(60, (power(2, attempts))::int)),
+                    updated_at = now()
+              WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
+                AND status = 'processing' AND updated_at = $3::timestamptz`,
+            [task.job.appointment_id, message, task.version],
+          );
+          if (markedFailed.rowCount) {
+            await db.query(
+              'UPDATE google_calendar_connections SET last_error = $1 WHERE tenant_id = app.current_tenant_id()',
+              [message],
+            );
+            return 'failed' as const;
+          }
+          return 'stale' as const;
         }
       });
-      processed++;
+      if (outcome === 'processed') processed++;
+      else if (outcome === 'failed') failed++;
     } catch (error) {
-      const message = (error instanceof Error ? error.message : 'google_calendar_sync_failed').slice(0, 300);
-      await withTenant(tenantId, async (db) => {
-        const markedFailed = await db.query(
-          `UPDATE google_calendar_sync_jobs
-              SET status = 'failed', attempts = attempts + 1, last_error = $2,
-                  next_attempt_at = now() + make_interval(mins => LEAST(60, (power(2, attempts))::int)),
-                  updated_at = now()
-            WHERE tenant_id = app.current_tenant_id() AND appointment_id = $1
-              AND status = 'processing' AND updated_at = $3::timestamptz`,
-          [task.job.appointment_id, message, task.version],
-        );
-        if (markedFailed.rowCount) {
-          await db.query(
-            'UPDATE google_calendar_connections SET last_error = $1 WHERE tenant_id = app.current_tenant_id()',
-            [message],
-          );
-        }
-      });
+      // If Google accepted the request but the DB commit failed, the deterministic
+      // event ID makes the next retry idempotent. The stale processing lease recovers it.
       failed++;
     }
   }

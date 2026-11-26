@@ -48,7 +48,28 @@ export function queryRegistryWithRetry(queryText: string, values: any[] = []) {
   return retryTransientConnection(() => pool.query(queryText, values), 'registry database query');
 }
 
-const tenantPools = new Map<string, pg.Pool>();
+type TenantPoolEntry = { pool: pg.Pool; lastUsedAt: number; inUse: number };
+const tenantPools = new Map<string, TenantPoolEntry>();
+const MAX_TENANT_POOLS = 100;
+
+// Keep the pool cache bounded without interrupting requests. Entries are marked
+// in-use before being returned to callers; only fully idle, unreferenced pools
+// are eligible for least-recently-used eviction.
+function evictIdleTenantPools() {
+  if (tenantPools.size <= MAX_TENANT_POOLS) return;
+  const candidates = [...tenantPools.entries()]
+    .filter(([, entry]) => entry.inUse === 0 &&
+      entry.pool.totalCount === entry.pool.idleCount &&
+      entry.pool.waitingCount === 0)
+    .sort((a, b) => a[1].lastUsedAt - b[1].lastUsedAt);
+  for (const [databaseName, entry] of candidates) {
+    if (tenantPools.size <= MAX_TENANT_POOLS) break;
+    if (tenantPools.get(databaseName) !== entry || entry.inUse !== 0 ||
+        entry.pool.totalCount !== entry.pool.idleCount || entry.pool.waitingCount !== 0) continue;
+    tenantPools.delete(databaseName);
+    void entry.pool.end().catch((err) => console.warn('pg idle tenant pool eviction failed', err));
+  }
+}
 
 function connectionStringForDatabase(databaseName: string) {
   const url = new URL(env.APP_DATABASE_URL);
@@ -61,7 +82,7 @@ function connectionStringForDatabase(databaseName: string) {
  * registry table/schema, or an invalid database name are fatal: tenant data
  * must never be served from the central registry or another tenant database.
  */
-async function poolForTenant(tenantId: string): Promise<pg.Pool> {
+async function poolForTenant(tenantId: string): Promise<TenantPoolEntry> {
   let databaseName: string | undefined;
   try {
     const result = await retryTransientConnection(
@@ -87,7 +108,11 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
   }
 
   const existing = tenantPools.get(databaseName);
-  if (existing) return existing;
+  if (existing) {
+    existing.inUse++;
+    existing.lastUsedAt = Date.now();
+    return existing;
+  }
 
   const tenantPool = new pg.Pool({
     connectionString: connectionStringForDatabase(databaseName),
@@ -97,12 +122,14 @@ async function poolForTenant(tenantId: string): Promise<pg.Pool> {
     ssl: env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
   });
   tenantPool.on('error', (err) => console.error('pg tenant pool error', err));
-  tenantPools.set(databaseName, tenantPool);
-  return tenantPool;
+  const entry: TenantPoolEntry = { pool: tenantPool, lastUsedAt: Date.now(), inUse: 1 };
+  tenantPools.set(databaseName, entry);
+  evictIdleTenantPools();
+  return entry;
 }
 
 export async function closeTenantPools(): Promise<void> {
-  await Promise.all([...tenantPools.values()].map((tenantPool) => tenantPool.end()));
+  await Promise.all([...tenantPools.values()].map((entry) => entry.pool.end()));
   tenantPools.clear();
 }
 
@@ -115,34 +142,41 @@ export async function withTenant<T>(
   tenantId: string,
   fn: (db: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  const selectedPool = await poolForTenant(tenantId);
-  // A sleeping PostgreSQL service can accept a pool connection before it is
-  // ready to execute the first statement. Retry transaction initialization,
-  // but never replay the caller's transaction after its callback has started.
-  const client = await retryTransientConnection(async () => {
-    const connectedClient = await selectedPool.connect();
-    try {
-      await connectedClient.query('BEGIN');
-      await connectedClient.query(
-        "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '5000', true)",
-        [tenantId],
-      );
-      return connectedClient;
-    } catch (error) {
-      // Destroy a connection whose transaction setup failed; it may be in an
-      // aborted or uncertain transaction state and must not return to the pool.
-      connectedClient.release(true);
-      throw error;
-    }
-  }, 'tenant transaction initialization');
+  const selectedEntry = await poolForTenant(tenantId);
+  const selectedPool = selectedEntry.pool;
   try {
-    const result = await fn(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (err) {
-    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
-    throw err;
+    // A sleeping PostgreSQL service can accept a pool connection before it is
+    // ready to execute the first statement. Retry transaction initialization,
+    // but never replay the caller's transaction after its callback has started.
+    const client = await retryTransientConnection(async () => {
+      const connectedClient = await selectedPool.connect();
+      try {
+        await connectedClient.query('BEGIN');
+        await connectedClient.query(
+          "SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '5000', true)",
+          [tenantId],
+        );
+        return connectedClient;
+      } catch (error) {
+        // Destroy a connection whose transaction setup failed; it may be in an
+        // aborted or uncertain transaction state and must not return to the pool.
+        connectedClient.release(true);
+        throw error;
+      }
+    }, 'tenant transaction initialization');
+    try {
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
+      throw err;
+    } finally {
+      client.release();
+    }
   } finally {
-    client.release();
+    selectedEntry.inUse--;
+    selectedEntry.lastUsedAt = Date.now();
+    evictIdleTenantPools();
   }
 }

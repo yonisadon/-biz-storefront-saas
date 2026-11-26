@@ -65,7 +65,8 @@ jobs:
             backend/migrations/003_platform_retention_policies.sql \
             backend/migrations/004_management_access_and_encrypted_tokens.sql \
             backend/migrations/005_seller_onboarding_state.sql \
-            backend/migrations/006_platform_channel_entitlements.sql; do
+            backend/migrations/006_platform_channel_entitlements.sql \
+            backend/migrations/007_platform_push_retention.sql; do
             psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f "$migration"
           done
       - name: Run end-to-end provisioning and deletion integration test

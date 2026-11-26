@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.media_assets (
   width             integer CHECK (width  IS NULL OR width  > 0),
   height            integer CHECK (height IS NULL OR height > 0),
   created_at        timestamptz NOT NULL DEFAULT now(),
+  deleted_at        timestamptz,
   UNIQUE (tenant_id, id),
   -- Object key must live under this tenant's prefix: "<tenant_id>/..."
   CONSTRAINT chk_storage_key_tenant_prefix
@@ -266,6 +267,8 @@ CREATE INDEX IF NOT EXISTS idx_appointments_tenant_lead
   ON public.appointments (tenant_id, lead_id) WHERE lead_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_appointment_blocks_tenant_start
   ON public.appointment_blocks (tenant_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointment_blocks_time_range
+  ON public.appointment_blocks USING gist (tstzrange(start_at, end_at, '[)'));
 
 -- 3.8 Seller notes on leads (spec 2.2 lists "notes" as isolated data)
 CREATE TABLE IF NOT EXISTS public.lead_notes (
@@ -322,6 +325,8 @@ CREATE INDEX IF NOT EXISTS idx_lead_notes_tenant_lead
   ON public.lead_notes (tenant_id, lead_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_media_assets_tenant
   ON public.media_assets (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_media_assets_pending_deletion
+  ON public.media_assets (deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_access_tokens_tenant
   ON public.access_tokens (tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_access_tokens_one_permanent_link

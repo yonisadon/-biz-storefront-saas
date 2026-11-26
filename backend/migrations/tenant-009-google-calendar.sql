@@ -52,7 +52,7 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', table_name);
     EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON public.%I', table_name);
     EXECUTE format(
-      'CREATE POLICY tenant_isolation ON public.%I USING (tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())',
+      'CREATE POLICY tenant_isolation ON public.%I FOR ALL TO app_runtime USING (tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())',
       table_name
     );
   END LOOP;

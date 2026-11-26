@@ -73,6 +73,7 @@ test('Push endpoint allowlist accepts known providers and rejects arbitrary or l
 
 test('VAPID JWT uses the endpoint origin and a verifiable ES256 signature', () => {
   const keys = generateVapidKeys();
+  assert.equal(fromB64u(keys.privateKey).length, 32);
   const endpoint = 'https://push.example.test/send/abc';
   const jwt = createVapidJwt(endpoint, 'mailto:push@example.test', keys.publicKey, keys.privateKey, 1_800_000_000);
   const [header, payload, signature] = jwt.split('.');
@@ -96,6 +97,35 @@ test('VAPID JWT uses the endpoint origin and a verifiable ES256 signature', () =
     exp: 1_800_043_200,
     sub: 'mailto:push@example.test',
   });
+});
+
+test('VAPID signing normalizes private scalars with omitted leading zero bytes', () => {
+  const scalar = Buffer.from([1]);
+  const ecdh = createECDH('prime256v1');
+  ecdh.setPrivateKey(scalar);
+  const publicKey = b64u(ecdh.getPublicKey(undefined, 'uncompressed'));
+  const jwt = createVapidJwt(
+    'https://push.example.test/send/short-scalar',
+    'mailto:push@example.test',
+    publicKey,
+    b64u(scalar),
+    1_800_000_000,
+  );
+  const [header, payload, signature] = jwt.split('.');
+  const publicBytes = fromB64u(publicKey);
+  const key = createPublicKey({
+    key: {
+      kty: 'EC',
+      crv: 'P-256',
+      x: b64u(publicBytes.subarray(1, 33)),
+      y: b64u(publicBytes.subarray(33, 65)),
+    },
+    format: 'jwk',
+  });
+  const verifier = createVerify('SHA256');
+  verifier.update(header + '.' + payload);
+  verifier.end();
+  assert.equal(verifier.verify({ key, dsaEncoding: 'ieee-p1363' }, fromB64u(signature)), true);
 });
 
 test('Web Push payload is encrypted using aes128gcm and can be decrypted by the subscriber', () => {

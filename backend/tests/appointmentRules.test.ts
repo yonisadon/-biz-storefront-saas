@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasConfiguredOpeningHours, quarterHourStartMinutes, validateAppointmentSelection } from '../src/appointmentRules';
+import { hasConfiguredOpeningHours, quarterHourStartMinutes, validateAppointmentSelection, validateCalendarDateRange } from '../src/appointmentRules';
 
 const mondayHours = { mon: [{ open: '12:00', close: '16:00' }] };
 const futureNow = new Date('2026-10-18T00:00:00.000Z');
@@ -204,4 +204,12 @@ test('seller waitlist scheduling allows outside hours but still rejects past tim
   assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T22:13' }), null);
   assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T08:45' }), 'invalid_appointment_time');
   assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-18T22:13' }), 'invalid_appointment_time');
+});
+
+test('seller calendar date ranges are valid, inclusive and capped to the 42-day month grid', () => {
+  assert.equal(validateCalendarDateRange('2026-11-26', '2026-11-26'), null);
+  assert.equal(validateCalendarDateRange('2026-11-01', '2026-12-12'), null);
+  assert.equal(validateCalendarDateRange('2026-11-01', '2026-12-13'), 'date_range_too_large');
+  assert.equal(validateCalendarDateRange('2026-11-02', '2026-11-01'), 'invalid_date_range');
+  assert.equal(validateCalendarDateRange('2026-02-31', '2026-03-01'), 'invalid_date_range');
 });

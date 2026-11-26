@@ -38,6 +38,7 @@ ALTER TABLE public.waitlist_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.waitlist_entries FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON public.waitlist_entries;
 CREATE POLICY tenant_isolation ON public.waitlist_entries
+  FOR ALL TO app_runtime
   USING (tenant_id = app.current_tenant_id())
   WITH CHECK (tenant_id = app.current_tenant_id());
 
