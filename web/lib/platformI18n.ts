@@ -244,6 +244,18 @@ export const PLATFORM_MESSAGES = {
         hideInternalNotes: 'הסתר הערות פנימיות', internalNotes: 'הערות פנימיות ל-CRM', notesLoadFailed: 'לא ניתן לטעון הערות כרגע.', noteSaveFailed: 'שמירת ההערה נכשלה.',
     noInternalNotes: 'אין הערות פנימיות עדיין.', addInternalNote: 'הוספת הערה (גלויה למוכר בלבד)', notePlaceholder: 'למשל: לחזור ללקוח ביום ראשון', saveNote: 'שמירת הערה',
 
+        accessibilityDoc: 'הצהרת נגישות', accessibilityHint: 'תארו את התאמות הנגישות באתר העסק, מגבלות ידועות ודרך יצירת קשר בנושא נגישות.',
+    accessibilityPlaceholder: 'לדוגמה: התאמות שבוצעו באתר, מגבלות שידועות לכם, ואיך ניתן לפנות אליכם בנושא נגישות.',
+    termsDoc: 'תנאי שימוש / תקנון', termsBusinessHint: 'הוסיפו את התנאים המסחריים של העסק, בהתאם לאופן הפעילות שלו.',
+    termsBusinessPlaceholder: 'לדוגמה: אופן הזמנה, תשלום, אספקה או קבלת השירות, ביטולים, החזרות, אחריות ותנאים מיוחדים.',
+    privacyDoc: 'מדיניות פרטיות', privacyBusinessHint: 'פרטו מידע נוסף שהעסק אוסף או שומר, מטרות השימוש בו וגורמים שעשויים לקבל אותו.',
+    privacyBusinessPlaceholder: 'לדוגמה: מידע שנאסף מחוץ לטופס באתר, שימושים נוספים במידע, העברה לספקים או לגורמים אחרים, תקופות שמירה ודרך לפנות לעסק בנושא פרטיות.',
+    legalFixedTitle: 'החלק הקבוע של Biz Storefront – לקריאה בלבד', legalBusinessAdditions: 'השלמות מטעם העסק',
+    legalIntro: 'שלושת המסמכים מורכבים משני חלקים: נוסח קבוע של Biz Storefront, שמופיע אוטומטית ואינו ניתן לעריכה, והשלמות שהעסק מוסיף בהתאם לפעילות שלו. רק ההשלמות נשמרות בהגדרות העסק. נוסחי הפלטפורמה מתעדכנים מעת לעת עם שינויים במערכת ובמדיניות; מועד העדכון מוצג במסמך הציבורי.',
+    legalUpdatedAt: 'מועד עדכון נוסח הפלטפורמה:', legalAdvice: 'מומלץ לקבל ייעוץ מתאים לפני פרסום נוסח משפטי; המערכת אינה מספקת ייעוץ משפטי.',
+    legalDuplicateWarning: 'אם כבר הזנתם בעבר מסמך מלא, עברו על הטקסט שהזנתם והתאימו אותו כך שיכלול רק את המידע הנוסף של העסק, כדי למנוע כפילויות.',
+    legalSaved: 'מסמכי האתר נשמרו.', legalSaveFailed: 'שמירת המסמכים נכשלה. בדקו את החיבור ונסו שוב.', legalDocuments: 'מסמכי האתר',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -489,6 +501,18 @@ export const PLATFORM_MESSAGES = {
         hideInternalNotes: 'Hide internal notes', internalNotes: 'CRM internal notes', notesLoadFailed: 'Unable to load notes right now.', noteSaveFailed: 'Could not save the note.',
     noInternalNotes: 'There are no internal notes yet.', addInternalNote: 'Add a note (visible only to the seller)', notePlaceholder: 'For example: follow up with the customer on Sunday', saveNote: 'Save note',
 
+        accessibilityDoc: 'Accessibility statement', accessibilityHint: 'Describe the accessibility adjustments on your business website, known limitations and how to contact you about accessibility.',
+    accessibilityPlaceholder: 'For example: adjustments made to the website, known limitations and how visitors can contact you about accessibility.',
+    termsDoc: 'Terms of use / Business policy', termsBusinessHint: 'Add the commercial terms of your business according to how it operates.',
+    termsBusinessPlaceholder: 'For example: ordering, payment, delivery or service fulfillment, cancellations, returns, warranties and special conditions.',
+    privacyDoc: 'Privacy policy', privacyBusinessHint: 'Describe additional information your business collects or stores, the purposes of use and parties that may receive it.',
+    privacyBusinessPlaceholder: 'For example: information collected outside the website form, additional uses, sharing with providers or other parties, retention periods and how to contact your business about privacy.',
+    legalFixedTitle: 'Fixed Biz Storefront text – read only', legalBusinessAdditions: 'Business-specific additions',
+    legalIntro: 'Each document has two parts: fixed Biz Storefront wording, displayed automatically and not editable, and additions provided by the business. Only the additions are saved in business settings. Platform wording may be updated as the system and policies change; the update date appears in the public document.',
+    legalUpdatedAt: 'Platform wording last updated:', legalAdvice: 'Consider obtaining appropriate advice before publishing legal text; the system does not provide legal advice.',
+    legalDuplicateWarning: 'If you previously entered a complete document, review it and adjust it to include only business-specific information to avoid duplication.',
+    legalSaved: 'Website documents saved.', legalSaveFailed: 'Could not save the documents. Check your connection and try again.', legalDocuments: 'Website documents',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -733,6 +757,18 @@ export const PLATFORM_MESSAGES = {
 
         hideInternalNotes: 'Скрыть внутренние заметки', internalNotes: 'Внутренние заметки CRM', notesLoadFailed: 'Сейчас не удалось загрузить заметки.', noteSaveFailed: 'Не удалось сохранить заметку.',
     noInternalNotes: 'Внутренних заметок пока нет.', addInternalNote: 'Добавить заметку (видна только продавцу)', notePlaceholder: 'Например: связаться с клиентом в воскресенье', saveNote: 'Сохранить заметку',
+
+        accessibilityDoc: 'Заявление о доступности', accessibilityHint: 'Опишите меры доступности на сайте бизнеса, известные ограничения и способ связи по вопросам доступности.',
+    accessibilityPlaceholder: 'Например: реализованные улучшения доступности, известные ограничения и способы связаться с вами по этому вопросу.',
+    termsDoc: 'Условия использования / Правила бизнеса', termsBusinessHint: 'Добавьте коммерческие условия вашего бизнеса с учётом особенностей его работы.',
+    termsBusinessPlaceholder: 'Например: оформление заказа, оплата, доставка или оказание услуги, отмена, возврат, гарантия и особые условия.',
+    privacyDoc: 'Политика конфиденциальности', privacyBusinessHint: 'Опишите дополнительные данные, которые бизнес собирает или хранит, цели использования и возможных получателей.',
+    privacyBusinessPlaceholder: 'Например: данные, собираемые вне формы сайта, дополнительные способы использования, передача поставщикам или другим сторонам, сроки хранения и способ связи по вопросам конфиденциальности.',
+    legalFixedTitle: 'Фиксированный текст Biz Storefront — только для чтения', legalBusinessAdditions: 'Дополнения бизнеса',
+    legalIntro: 'Каждый документ состоит из двух частей: фиксированный текст Biz Storefront, который отображается автоматически и не редактируется, и дополнения бизнеса. В настройках сохраняются только дополнения. Текст платформы может обновляться вместе с системой и политиками; дата обновления отображается в публичном документе.',
+    legalUpdatedAt: 'Дата обновления текста платформы:', legalAdvice: 'Перед публикацией юридического текста рекомендуется получить соответствующую консультацию; система не предоставляет юридических консультаций.',
+    legalDuplicateWarning: 'Если ранее вы добавили полный документ, проверьте его и оставьте только дополнительную информацию о бизнесе, чтобы избежать дублирования.',
+    legalSaved: 'Документы сайта сохранены.', legalSaveFailed: 'Не удалось сохранить документы. Проверьте соединение и попробуйте снова.', legalDocuments: 'Документы сайта',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
