@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import GlobalAccessibilityToolbar from "@/components/GlobalAccessibilityToolbar";
+import PlatformLanguageProvider from "@/components/PlatformLanguageProvider";
 
 export const metadata: Metadata = {
   title: "BTime — נוכחות דיגיטלית וניהול פשוט לעסק",
@@ -14,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body>{children}<GlobalAccessibilityToolbar /></body>
+      <body><PlatformLanguageProvider>{children}<GlobalAccessibilityToolbar /></PlatformLanguageProvider></body>
     </html>
   );
 }
