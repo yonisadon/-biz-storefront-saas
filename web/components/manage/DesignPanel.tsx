@@ -84,13 +84,13 @@ export default function DesignPanel({ token, biz, onSaved }: {
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
             <legend className="px-1 text-sm font-semibold">{t('fontStyleTitle')}</legend>
-            <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות את הבחירה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
+            <p className="text-xs leading-5 text-gray-500">{t('fontStyleHint')}</p>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { id: 'modern', title: 'מודרני', sample: 'נקי וברור', family: '"Heebo", Arial, sans-serif', note: 'חד ומאוזן' },
-                { id: 'rounded', title: 'מעוגל', sample: 'נעים וחברותי', family: '"Rubik", Arial, sans-serif', note: 'רך ונגיש' },
-                { id: 'elegant', title: 'אלגנטי', sample: 'יופי בפרטים', family: '"Frank Ruhl Libre", serif', note: 'כותרות עם אופי' },
-                { id: 'warm', title: 'חמים', sample: 'עסק עם לב', family: '"Assistant", Arial, sans-serif', note: 'אישי ומזמין' },
+                { id: 'modern', title: t('modern'), sample: t('cleanClear'), family: '"Heebo", Arial, sans-serif', note: t('sharpBalanced') },
+                { id: 'rounded', title: t('rounded'), sample: t('friendly'), family: '"Rubik", Arial, sans-serif', note: t('softAccessible') },
+                { id: 'elegant', title: t('elegant'), sample: t('beautyDetails'), family: '"Frank Ruhl Libre", serif', note: t('characterHeadings') },
+                { id: 'warm', title: t('warm'), sample: t('businessWithHeart'), family: '"Assistant", Arial, sans-serif', note: t('personalInviting') },
               ] as const).map((option) => (
                 <label key={option.id} className={`relative flex min-h-24 cursor-pointer flex-col justify-center rounded-xl border p-3 transition ${fontStyle === option.id ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-400'}`}>
                   <input className="absolute end-2 top-2" type="radio" name="fontStyle" value={option.id} checked={fontStyle === option.id} onChange={() => setFontStyle(option.id)} />
@@ -103,7 +103,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
           </fieldset>
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
             <legend className="px-1 text-sm font-semibold">{t('businessNameColor')}</legend>
-            <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר. אפשר לשנות אותה בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
+            <p className="text-xs leading-5 text-gray-500">{t('businessNameColorHint')}</p>
             <div className="grid grid-cols-2 gap-2">
               <label className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${businessTitleColor === 'brand' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200'}`}>
                 <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'brand'} onChange={() => setBusinessTitleColor('brand')} />
