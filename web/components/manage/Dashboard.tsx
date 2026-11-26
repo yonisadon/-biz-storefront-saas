@@ -245,11 +245,11 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           <div className="mt-4 rounded-xl bg-surface p-3">
             <div className="flex items-center justify-between gap-3 text-sm">
               <span className="font-semibold">{t('progress')}</span>
-              <span className="tabular-nums text-ink/65">{onboardingCounts === null ? (onboardingCountsError ? t('unableLoad') : t('loading')) : `${onboardingDoneCount} מתוך ${onboardingSteps.length} שלבים`}</span>
+              <span className="tabular-nums text-ink/65">{onboardingCounts === null ? (onboardingCountsError ? t('unableLoad') : t('loading')) : `${onboardingDoneCount} ${t('progressOf')} ${onboardingSteps.length} ${t('steps')}`}</span>
             </div>
             {onboardingCountsError
               ? <p className="mt-2 text-xs text-ink/55">{t('onboardingLoadError')}</p>
-              : <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-label="התקדמות הקמת העסק" aria-valuemin={0} aria-valuemax={onboardingSteps.length} aria-valuenow={onboardingDoneCount}>
+              : <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/10" role="progressbar" aria-label={t("progressAria")} aria-valuemin={0} aria-valuemax={onboardingSteps.length} aria-valuenow={onboardingDoneCount}>
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(onboardingDoneCount / onboardingSteps.length) * 100}%` }} />
                 </div>}
           </div>
@@ -294,9 +294,9 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
         {(initialRetention.due_within_7_days > 0 || initialRetention.overdue > 0) && (
           <section role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
             <p className="font-bold">{t('retentionReminder')}</p>
-            {initialRetention.overdue > 0 && <p className="mt-1">{initialRetention.overdue} פניות עברו את תקופת השמירה וממתינות לניקוי המתוזמן.</p>}
-            {initialRetention.overdue === 0 && initialRetention.due_within_24_hours > 0 && <p className="mt-1">{initialRetention.due_within_24_hours} פניות צפויות להימחק בתוך 24 שעות.</p>}
-            {initialRetention.overdue === 0 && initialRetention.due_within_24_hours === 0 && initialRetention.due_within_7_days > 0 && <p className="mt-1">{initialRetention.due_within_7_days} פניות צפויות להימחק בתוך 7 ימים.</p>}
+            {initialRetention.overdue > 0 && <p className="mt-1">{initialRetention.overdue} {t('retentionOverdue')}</p>}
+            {initialRetention.overdue === 0 && initialRetention.due_within_24_hours > 0 && <p className="mt-1">{initialRetention.due_within_24_hours} {t('retention24Hours')}</p>}
+            {initialRetention.overdue === 0 && initialRetention.due_within_24_hours === 0 && initialRetention.due_within_7_days > 0 && <p className="mt-1">{initialRetention.due_within_7_days} {t('retention7Days')}</p>}
             <p className="mt-1">{t('exportBeforeDelete')}</p>
             <button type="button" onClick={() => setTab('leads')} className="mt-2 rounded-full border border-amber-700 px-3 py-1.5 font-semibold">{t('goToLeads')}</button>
           </section>
