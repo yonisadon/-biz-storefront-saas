@@ -37,7 +37,7 @@ function errorText(status: number, d: ApiErrorPayload | null, t: (key: Storefron
   return t('sendFailed');
 }
 
-function Stepper({ q, onChange, label, canRemove }: { q: number; onChange: (n: number) => void; label: string; canRemove: boolean }) {
+function Stepper({ q, onChange, label, canRemove, t }: { q: number; onChange: (n: number) => void; label: string; canRemove: boolean; t: (key: StorefrontMessageKey) => string }) {
   const btn = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
@@ -399,7 +399,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       .catch(() => { if (!cancelled) setCatalogError(t('searchFailed')); })
       .finally(() => { if (!cancelled) setSearching(false); });
     return () => { cancelled = true; };
-  }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal, kind]);
+  }, [apiBase, search, initialItems, initiallyHasMore, catalogTotal, kind, t]);
 
   async function loadMore() {
     if (loadingMore || !hasMore) return;
@@ -765,7 +765,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
                   {!done && (
                     <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 border-t border-gray-200 pt-2">
-                      <Stepper q={q} label={`${t('quantityLabel')}: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} />
+                      <Stepper q={q} label={`${t('quantityLabel')}: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} t={t} />
                        {lines.length > 1 && <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">{t('removeItem')}</button>}
                     </div>
                   )}
