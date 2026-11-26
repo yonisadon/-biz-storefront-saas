@@ -1,7 +1,7 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
+import { useStorefrontTranslation, useStorefrontLocale } from '@/components/StorefrontLanguageProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
@@ -71,6 +71,8 @@ function dateInTimezone(timezone: string): string {
 
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, businessTimezone, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const t = useStorefrontTranslation();
+  const storefrontLocale = useStorefrontLocale();
+
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -476,13 +478,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     const next = new Date(Date.UTC(year, month - 1 + delta, 1, 12));
     setAppointmentMonth(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`);
   };
-  const appointmentMonthLabel = new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${appointmentMonth}-01T12:00:00Z`));
+  const appointmentMonthLabel = new Intl.DateTimeFormat(storefrontLocale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${appointmentMonth}-01T12:00:00Z`));
   const todayDate = dateInTimezone(businessTimezone);
   const appointmentSlots = serverAppointmentSlots;
   const appointmentTimeGroups = [
-    { label: 'בוקר', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) < 12) },
-    { label: 'צהריים', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 12 && Number(slot.slice(0, 2)) < 17) },
-    { label: 'ערב', slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 17) },
+    { label: t('morning'), slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) < 12) },
+    { label: t('afternoon'), slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 12 && Number(slot.slice(0, 2)) < 17) },
+    { label: t('evening'), slots: appointmentSlots.filter((slot) => Number(slot.slice(0, 2)) >= 17) },
   ];
   useEffect(() => {
     if (!needsAppointment || step !== 'reserve' || !appointmentDate || !cartSignature) {
@@ -891,9 +893,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <textarea maxLength={500} rows={3} value={waitlistNote} onChange={(e) => setWaitlistNote(e.target.value)} className={input}/>
             </label>
             <div className="flex gap-2">
-              <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">{hasAppointmentHours ? 'חזרה ליומן' : 'חזרה'}</button>
+              <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">{hasAppointmentHours ? t('backToCalendar') : t('back')}</button>
               <button type="submit" disabled={waitlistBusy} className="min-h-11 flex-1 rounded-xl bg-primary/10 px-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
-                {waitlistBusy ? 'שולחים…' : 'שליחת בקשת המתנה'}
+                {waitlistBusy ? t('sending') : t('sendWaitlist')}
               </button>
             </div>
           </form>
@@ -951,20 +953,20 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">בקשת הצטרפות לרשימת המתנה</button>}
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'מכין הודעה…' : 'פנייה ב-WhatsApp'}
+                  {busy === 'whatsapp' ? 'מכין הודעה…' : t('whatsappContact')}
                 </button>}
               </>
             ) : (
               <>
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'מכין הודעה…' : 'המשך ל־WhatsApp'}
+                  {busy === 'whatsapp' ? 'מכין הודעה…' : t('continueWhatsApp')}
                 </button>}
                 {crmEnabled && <button type="button" onClick={() => { setError(null); setStep('site'); }}
                   className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary">השארת פנייה באתר</button>}
               </>
             )}
-            <p className="text-center text-xs leading-5 text-ink/60">{kind === 'service' ? 'בחרו דרך אחת להמשך עבור כל השירותים שנבחרו.' : 'הפריטים שבחרתם יצורפו לפנייה. מעבר ל־WhatsApp אינו שולח את ההודעה במקומכם.'}</p>
+            <p className="text-center text-xs leading-5 text-ink/60">{kind === 'service' ? t('chooseOneMethod') : t('productsInquiryNote')}</p>
           </div>
         ) : step === 'reserve' ? (
           <form onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
@@ -975,7 +977,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <div className="flex gap-2">
               <button type="button" onClick={() => { setError(null); setStep('choose'); }} className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3">חזרה</button>
               <button type="submit" disabled={busy !== null || !appointmentDate || !appointmentTime || !hasAppointmentHours} className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
-                {busy === 'reserve' ? 'שומר תור…' : 'אישור וקביעת התור'}
+                {busy === 'reserve' ? t('savingAppointment') : t('confirmAppointment')}
               </button>
             </div>
           </form>
@@ -1000,7 +1002,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 className="min-h-12 flex-1 rounded-xl px-4 py-3 font-medium text-ink/70 transition hover:bg-ink/5">חזרה</button>}
               <button type="submit" disabled={busy !== null}
                 className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
-                {busy === 'site' ? 'שומר…' : 'שליחת הפנייה'}
+                {busy === 'site' ? t('saving') : t('sendInquiry')}
               </button>
             </div>
           </form>
