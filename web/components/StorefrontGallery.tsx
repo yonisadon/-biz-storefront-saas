@@ -3,10 +3,11 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { GalleryImage } from '@/lib/types';
-import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
+import { useStorefrontDirection, useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 
 export default function StorefrontGallery({ images, heroId, layout = 'slider' }: { images: GalleryImage[]; heroId?: string; layout?: 'slider' | 'thumbnails' }) {
   const t = useStorefrontTranslation();
+  const direction = useStorefrontDirection();
   const slides = images.slice(0, 7);
   const heroIndex = Math.max(0, slides.findIndex((image) => image.id === heroId));
   const [active, setActive] = useState(heroIndex);
@@ -63,8 +64,11 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
   const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     if (touchStart.current === null) return;
     const delta = (event.changedTouches[0]?.clientX ?? touchStart.current) - touchStart.current;
-    // RTL: swipe left advances to the next image.
-    if (Math.abs(delta) > 45) setActive((current) => (current + (delta < 0 ? 1 : -1) + slides.length) % slides.length);
+    // The swipe direction follows the visitor's selected reading direction.
+    if (Math.abs(delta) > 45) {
+      const advances = direction === 'rtl' ? delta < 0 : delta > 0;
+      setActive((current) => (current + (advances ? 1 : -1) + slides.length) % slides.length);
+    }
     touchStart.current = null;
   };
 
