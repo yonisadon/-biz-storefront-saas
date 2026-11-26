@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
+import { translateStorefront, type StorefrontMessageKey } from '@/lib/storefrontI18n';
 
 type Prefs = {
   fontScale: 0 | 1 | 2 | 3;
@@ -52,8 +52,8 @@ function apply(p: Prefs) {
   c.toggle('a11y-reduce-motion', p.reduceMotion);
 }
 
-export default function AccessibilityToolbar({ statementHref }: { statementHref?: string }) {
-  const t = useStorefrontTranslation();
+export default function AccessibilityToolbar({ statementHref, translate }: { statementHref?: string; translate?: (key: StorefrontMessageKey) => string }) {
+  const t = translate ?? ((key: StorefrontMessageKey) => translateStorefront('he', key));
   const [open, setOpen] = useState(false);
   const [p, setP] = useState<Prefs>(OFF);
   const triggerRef = useRef<HTMLButtonElement>(null);
