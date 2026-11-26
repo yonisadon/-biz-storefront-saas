@@ -11,6 +11,7 @@ import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
 import { getCtx, getStorefront } from '@/lib/api';
 import { themeVars } from '@/lib/theme';
+import { getStorefrontLocale, normalizeStorefrontLanguage } from '@/lib/storefrontI18n';
 
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
@@ -37,6 +38,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try { data = await getStorefront(ctx); } catch { /* backend down: fall through */ }
   if (!data) return { title: 'העסק לא נמצא', robots: { index: false } };
   const { og, business } = data;
+  const storefrontLanguage = normalizeStorefrontLanguage(business?.locale);
+  const storefrontLocale = getStorefrontLocale(storefrontLanguage);
+  const openGraphLocale = storefrontLanguage === 'en' ? 'en_US' : storefrontLanguage === 'ru' ? 'ru_RU' : 'he_IL';
   const description = og?.description ?? undefined;
   const images = og?.image_url ? [{ url: og.image_url, alt: og?.title || '' }] : undefined;
   const appIcon = data.gallery.find((image) => image.id === data.branding?.icon_gallery_image_id)?.url
@@ -47,11 +51,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   let metadataBase: URL | undefined;
   try { if (ctx.origin) metadataBase = new URL(ctx.origin); } catch { /* invalid origin */ }
   return {
-    metadataBase, title: og?.title || business?.name || 'עסק', description,
+    metadataBase, title: og?.title || business?.name || (storefrontLanguage === 'en' ? 'Business' : storefrontLanguage === 'ru' ? 'Компания' : 'עסק'), description,
     manifest: ctx.base ? `${ctx.base}/manifest.webmanifest` : '/biz/_site/manifest.webmanifest',
     icons: appIcon ? { icon: appIcon, apple: appIcon } : undefined,
     alternates: { canonical: ctx.base || '/' },
-    openGraph: { type: 'website', locale: 'he_IL', siteName: business?.name, title: og?.title || business?.name, description, url: ctx.base || '/', images },
+    openGraph: { type: 'website', locale: openGraphLocale, siteName: business?.name, title: og?.title || business?.name, description, url: ctx.base || '/', images },
     twitter: { card: images ? 'summary_large_image' : 'summary', title: og?.title || business?.name, description, images: images?.map(i => i.url) },
   };
 }
