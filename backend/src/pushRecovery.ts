@@ -4,7 +4,7 @@ import { processPushOutboxForTenant } from './pushService';
 const LOCK_NAMESPACE = 74122;
 const LOCK_KEY = 93003;
 const EVENTS_PER_TENANT_PER_RUN = 20;
-const RUN_INTERVAL_MS = 2 * 60 * 60 * 1000;
+const RUN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export type PushRecoveryResult = {
   processed: number;
@@ -62,7 +62,7 @@ export async function runPushRecovery(): Promise<PushRecoveryResult> {
 }
 
 export function startPushRecoveryScheduler(): NodeJS.Timeout {
-  console.info('Push recovery scheduler enabled in API process; interval: 2 hours.');
+  console.info('Push recovery scheduler enabled in API process; interval: 24 hours.');
   const timer = setInterval(() => {
     void runPushRecovery().catch((error) => {
       console.error('Push recovery scheduler run failed:', error instanceof Error ? error.message : 'unknown error');
