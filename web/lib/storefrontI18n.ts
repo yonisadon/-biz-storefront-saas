@@ -17,6 +17,13 @@ const LANGUAGE_LOCALES: Record<StorefrontLanguage, string> = {
   ru: "ru-RU",
 };
 
+// Keep writing direction explicit so future RTL languages can be added safely.
+const LANGUAGE_DIRECTIONS: Record<StorefrontLanguage, StorefrontDirection> = {
+  he: "rtl",
+  en: "ltr",
+  ru: "ltr",
+};
+
 const STORAGE_PREFIX = "btime:storefront-language:";
 
 const messages = {
@@ -838,7 +845,7 @@ export function getStorefrontLocale(language: StorefrontLanguage): string {
 }
 
 export function getStorefrontDirection(language: StorefrontLanguage): StorefrontDirection {
-  return language === "he" ? "rtl" : "ltr";
+  return LANGUAGE_DIRECTIONS[language];
 }
 
 export function translateStorefront(
