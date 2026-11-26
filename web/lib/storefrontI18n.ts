@@ -21,6 +21,8 @@ const STORAGE_PREFIX = "btime:storefront-language:";
 
 const messages = {
   he: {
+    readMore: "קרא עוד",
+    readLess: "קרא פחות",
     contact: "יצירת קשר",
     businessDetails: "פרטי העסק",
     openNow: "פתוח עכשיו",
@@ -264,6 +266,8 @@ const messages = {
     daySaturday: "שבת",
   },
   en: {
+    readMore: "Read more",
+    readLess: "Read less",
     contact: "Contact",
     businessDetails: "Business details",
     openNow: "Open now",
@@ -507,6 +511,8 @@ const messages = {
     daySaturday: "Saturday",
   },
   ru: {
+    readMore: "Читать далее",
+    readLess: "Свернуть",
     contact: "Связаться",
     businessDetails: "Информация о компании",
     openNow: "Сейчас открыто",
