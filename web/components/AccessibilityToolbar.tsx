@@ -137,9 +137,9 @@ export default function AccessibilityToolbar({ statementHref, translate }: { sta
           <div className="space-y-2">
             <p className="text-sm font-semibold">{t('a11yTextSize')}</p>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.max(0, p.fontScale - 1) as Prefs['fontScale'] })} disabled={p.fontScale === 0} aria-label={t('a11yDecrease')}>א−</button>
+              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.max(0, p.fontScale - 1) as Prefs['fontScale'] })} disabled={p.fontScale === 0} aria-label={t('a11yDecrease')}>{t('a11yFontMinus')}</button>
               <span className="min-w-16 text-center text-sm" aria-live="polite">{[t('a11yNormal'), t('a11yLarge'), t('a11yLarger'), t('a11yLargest')][p.fontScale]}</span>
-              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.min(3, p.fontScale + 1) as Prefs['fontScale'] })} disabled={p.fontScale === 3} aria-label={t('a11yIncrease')}>א+</button>
+              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.min(3, p.fontScale + 1) as Prefs['fontScale'] })} disabled={p.fontScale === 3} aria-label={t('a11yIncrease')}>{t('a11yFontPlus')}</button>
             </div>
           </div>
           <div className="space-y-2">
