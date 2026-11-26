@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mcall } from '@/lib/manageApi';
 import { getWebPushEnvironment } from '@/lib/pushPlatform';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Settings = {
   entitled: boolean;
@@ -33,6 +34,7 @@ function withPushTimeout<T>(promise: Promise<T>, milliseconds: number, onTimeout
 }
 
 export default function PushSettingsPanel({ token }: { token: string }) {
+  const { t } = usePlatformLanguage();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,11 +87,11 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       setSettings(value);
       await refreshDeviceState();
     } catch {
-      setMessage('לא הצלחנו לטעון את הגדרות ההתראות.');
+      setMessage(t('pushLoadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [token, refreshDeviceState]);
+  }, [token, refreshDeviceState, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -99,7 +101,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       // Do not invalidate an active permission/registration/subscription flow
       // just because the browser or app became visible again.
       void refreshDeviceState().catch(() => {
-        setMessage('לא הצלחנו לבדוק את הרשאת ההתראות. אפשר לנסות שוב.');
+        setMessage(t('pushPermissionCheckFailed'));
       });
     };
     document.addEventListener('visibilitychange', refreshAfterSettings);
@@ -108,7 +110,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       document.removeEventListener('visibilitychange', refreshAfterSettings);
       window.removeEventListener('pageshow', refreshAfterSettings);
     };
-  }, [refreshDeviceState]);
+  }, [refreshDeviceState, t]);
 
   async function updatePreference(field: 'seller_enabled' | 'customer_enabled', enabled: boolean) {
     if (!settings || saving) return;
@@ -127,9 +129,9 @@ export default function PushSettingsPanel({ token }: { token: string }) {
         seller_effective: next.entitled && next.configured && next.seller_enabled,
         customer_effective: next.entitled && next.configured && next.customer_enabled,
       });
-      setMessage('ההעדפה נשמרה.');
+      setMessage(t('preferenceSaved'));
     } catch {
-      setMessage('לא הצלחנו לשמור את ההעדפה. נסו שוב.');
+      setMessage(t('preferenceSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -181,21 +183,21 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       if (!isCurrent()) return;
       setDeviceSubscribed(true);
       setPermission('granted');
-      setMessage('ההתראות למוכר הופעלו במכשיר הזה.');
+      setMessage(t('sellerPushEnabled'));
     } catch (error) {
       if (!isCurrent()) return;
       const reason = error instanceof Error ? error.message : '';
       setMessage(reason === 'ios_home_screen_required'
-        ? 'כדי לקבל התראות ב-iPhone או iPad, הוסיפו את אזור הניהול למסך הבית: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. פתחו את הסמל החדש והפעילו התראות. נדרש iOS/iPadOS 16.4 ומעלה.'
+        ? t('iosPushSetup')
         : reason === 'permission'
-          ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
+          ? t('pushPermissionDenied')
           : reason === 'unsupported'
-          ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
+          ? t('pushUnsupported')
           : reason === 'service_worker_inactive'
-            ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+            ? t('pushStillLoading')
             : reason === 'push_timeout'
-              ? 'התהליך התעכב. אפשר לנסות שוב.'
-              : 'לא הצלחנו לרשום את המכשיר. אפשר לנסות שוב.');
+              ? t('pushDelayed')
+              : t('pushRegisterFailed'));
       void refreshDeviceState().catch(() => undefined);
     } finally {
       if (isCurrent()) {
@@ -221,29 +223,29 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       }
       // Keep the browser subscription: customer consent may use this same endpoint.
       setDeviceSubscribed(false);
-      setMessage('התראות למוכר כובו במכשיר הזה. הרשמת הדפדפן נשארת זמינה ללקוחות שאישרו בנפרד.');
+      setMessage(t('sellerPushDisabled'));
     } catch {
-      setMessage('לא הצלחנו להסיר את המכשיר. אפשר לנסות שוב.');
+      setMessage(t('pushUnsubscribeFailed'));
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <p role="status" className="rounded-xl border border-ink/10 bg-white p-4 text-sm text-ink/60">טוען הגדרות התראות…</p>;
-  if (!settings) return <p role="alert" className="rounded-xl border border-ink/10 bg-white p-4 text-sm text-ink/70">{message || 'הגדרות ההתראות אינן זמינות כרגע.'}</p>;
+  if (loading) return <p role="status" className="rounded-xl border border-ink/10 bg-white p-4 text-sm text-ink/60">{t('loadingPushSettings')}</p>;
+  if (!settings) return <p role="alert" className="rounded-xl border border-ink/10 bg-white p-4 text-sm text-ink/70">{message || t('pushSettingsUnavailable')}</p>;
 
   return (
     <section className="space-y-4 rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
       <div>
-        <p className="text-xs font-bold tracking-wide text-primary">התראות Push</p>
-        <h2 className="mt-1 text-xl font-bold text-ink">התראות העסק</h2>
+        <p className="text-xs font-bold tracking-wide text-primary">Push</p>
+        <h2 className="mt-1 text-xl font-bold text-ink">{t('pushBusinessTitle')}</h2>
       </div>
 
       {!settings.entitled && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">התראות Push אינן זמינות לעסק כרגע.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t('pushUnavailableForBusiness')}</p>
       )}
       {settings.entitled && !settings.configured && (
-        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">שירות ההתראות עדיין לא הוגדר.</p>
+        <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t('pushServiceNotConfigured')}</p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -251,31 +253,31 @@ export default function PushSettingsPanel({ token }: { token: string }) {
           <input type="checkbox" checked={settings.seller_enabled} disabled={saving || (!settings.entitled && !settings.seller_enabled)}
             onChange={(event) => void updatePreference('seller_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
-            <span className="block text-sm font-bold">התראות למוכר</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">תורים חדשים ובקשות הצטרפות לרשימת המתנה.</span>
+            <span className="block text-sm font-bold">{t('pushSeller')}</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">{t('pushSellerDescription')}</span>
           </span>
         </label>
         <label className="flex items-start gap-3 rounded-xl border border-ink/10 p-3">
           <input type="checkbox" checked={settings.customer_enabled} disabled={saving || (!settings.entitled && !settings.customer_enabled)}
             onChange={(event) => void updatePreference('customer_enabled', event.target.checked)} className="mt-1 h-4 w-4 accent-primary" />
           <span>
-            <span className="block text-sm font-bold">התראות ללקוחות</span>
-            <span className="mt-1 block text-xs leading-5 text-ink/60">עדכונים ללקוחות שנתנו הסכמה.</span>
+            <span className="block text-sm font-bold">{t('pushCustomers')}</span>
+            <span className="mt-1 block text-xs leading-5 text-ink/60">{t('pushCustomerDescription')}</span>
           </span>
         </label>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/10 p-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold">התראות למוכר במכשיר הזה</p>
-          <p className="mt-1 text-xs leading-5 text-ink/60">{permission === 'denied' ? 'ההרשאה חסומה בדפדפן. יש לאפשר התראות בהגדרות האתר.' : permission === 'ios-home-screen-required' ? 'ב-iPhone/iPad יש להוסיף את אזור הניהול למסך הבית כדי להפעיל Push.' : permission === 'unsupported' ? 'הדפדפן או גרסת מערכת ההפעלה אינם תומכים בהתראות Push.' : deviceSubscribed ? 'המכשיר הזה רשום לקבלת התראות.' : 'אפשר להפעיל התראות במכשיר הזה.'}</p>
+          <p className="text-sm font-bold">{t('pushThisDevice')}</p>
+          <p className="mt-1 text-xs leading-5 text-ink/60">{permission === 'denied' ? t('permissionBlockedHint') : permission === 'ios-home-screen-required' ? t('iosHomeScreenHint') : permission === 'unsupported' ? t('pushUnsupportedHint') : deviceSubscribed ? t('deviceSubscribedHint') : t('enableDeviceHint')}</p>
         </div>
         {deviceSubscribed ? (
           <button type="button" onClick={() => void disableThisDevice()} disabled={saving}
-            className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">כיבוי במכשיר הזה</button>
+            className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">{t('disableOnDevice')}</button>
         ) : permission === 'unsupported' || permission === 'denied' || permission === 'ios-home-screen-required' ? null : (
           <button type="button" onClick={() => void enableThisDevice()} disabled={saving || !settings.seller_effective}
-            className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">הפעלת התראות במכשיר הזה</button>
+            className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{t('enableOnDevice')}</button>
         )}
       </div>
       {message && <p role="status" className="text-sm text-ink/70">{message}</p>}
