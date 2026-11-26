@@ -1,7 +1,7 @@
-export const ils = (agorot: number) => {
+export const ils = (agorot: number, locale = 'he-IL') => {
   const whole = Number.isInteger(agorot / 100);
-  return new Intl.NumberFormat('he-IL', {
-    style: 'currency', currency: 'ILS',
+  return new Intl.NumberFormat(locale, {
+    style: 'currency', currency: 'ILS', currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2,
   }).format(agorot / 100);
 };
