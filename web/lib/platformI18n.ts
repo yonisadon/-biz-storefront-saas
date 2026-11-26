@@ -166,6 +166,9 @@ export const PLATFORM_MESSAGES = {
     elegant: 'אלגנטי', beautyDetails: 'יופי בפרטים', characterHeadings: 'כותרות עם אופי', warm: 'חמים', businessWithHeart: 'עסק עם לב', personalInviting: 'אישי ומזמין',
     businessNameColorHint: 'הבחירה משפיעה רק על שם העסק בראש האתר. אפשר לשנות אותה בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.',
 
+        deleteImageConfirm: 'למחוק את התמונה?', heroImageSaved: 'התמונה הראשית נשמרה.', pwaIconSaved: 'אייקון ה-PWA נשמר. האייקון יתעדכן לאחר רענון או התקנה מחדש לפי הדפדפן.',
+    saveFailed: 'השמירה נכשלה. נסו שוב.', uploading: 'מעלה', filesNotUploaded: 'קבצים לא הועלו: הגלריה מוגבלת ל-',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -333,6 +336,9 @@ export const PLATFORM_MESSAGES = {
     elegant: 'Elegant', beautyDetails: 'Beauty in the details', characterHeadings: 'Distinctive headings', warm: 'Warm', businessWithHeart: 'A business with heart', personalInviting: 'Personal and welcoming',
     businessNameColorHint: 'This choice affects only the business name at the top of the website. You can change it at any time in the Website design tab of the management link.',
 
+        deleteImageConfirm: 'Delete this image?', heroImageSaved: 'Main image saved.', pwaIconSaved: 'PWA icon saved. The icon will update after a browser refresh or reinstall, depending on the browser.',
+    saveFailed: 'Could not save. Please try again.', uploading: 'Uploading', filesNotUploaded: 'files were not uploaded. Gallery limit: ',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -499,6 +505,9 @@ export const PLATFORM_MESSAGES = {
     modern: 'Современный', cleanClear: 'Чистый и понятный', sharpBalanced: 'Чёткий и сбалансированный', rounded: 'Округлый', friendly: 'Дружелюбный', softAccessible: 'Мягкий и доступный',
     elegant: 'Элегантный', beautyDetails: 'Красота в деталях', characterHeadings: 'Выразительные заголовки', warm: 'Тёплый', businessWithHeart: 'Бизнес с душой', personalInviting: 'Личный и гостеприимный',
     businessNameColorHint: 'Этот выбор влияет только на название бизнеса в верхней части сайта. Его можно изменить в любое время во вкладке «Дизайн сайта» панели управления.',
+
+        deleteImageConfirm: 'Удалить изображение?', heroImageSaved: 'Главное изображение сохранено.', pwaIconSaved: 'Значок PWA сохранён. Он обновится после обновления страницы или повторной установки в зависимости от браузера.',
+    saveFailed: 'Не удалось сохранить. Попробуйте снова.', uploading: 'Загрузка', filesNotUploaded: 'файлов не загружено. Ограничение галереи: ',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
