@@ -156,7 +156,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
           if (cancelled.rows[0]) {
             const waitlistOrigin = await db.query(
               "SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE appointment_id = $1) OR " +
-              "EXISTS (SELECT 1 FROM public.push_booking_capabilities WHERE tenant_id = app.current_tenant_id() " +
+              "EXISTS (SELECT 1 FROM public.push_target_link_capabilities WHERE tenant_id = app.current_tenant_id() " +
               "AND target_type = 'appointment' AND target_id = $1) AS found",
               [id],
             );
@@ -206,7 +206,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         if (shouldNotifyCustomer) {
           const waitlistOrigin = await db.query(
             "SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE appointment_id = $1) OR " +
-            "EXISTS (SELECT 1 FROM public.push_booking_capabilities WHERE tenant_id = app.current_tenant_id() " +
+            "EXISTS (SELECT 1 FROM public.push_target_link_capabilities WHERE tenant_id = app.current_tenant_id() " +
             "AND target_type = 'appointment' AND target_id = $1) AS found",
             [id],
           );
@@ -242,7 +242,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
       if (!current) throw new HttpError(404, 'not_found');
       const waitlistOrigin = await db.query(
         "SELECT EXISTS (SELECT 1 FROM waitlist_entries WHERE appointment_id = $1) OR " +
-        "EXISTS (SELECT 1 FROM public.push_booking_capabilities WHERE tenant_id = app.current_tenant_id() " +
+        "EXISTS (SELECT 1 FROM public.push_target_link_capabilities WHERE tenant_id = app.current_tenant_id() " +
         "AND target_type = 'appointment' AND target_id = $1) AS found",
         [id],
       );
@@ -257,7 +257,7 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
         });
       }
       await db.query(
-        "UPDATE public.push_booking_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
+        "UPDATE public.push_target_link_capabilities SET revoked_at = COALESCE(revoked_at, now()) " +
         "WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = $1",
         [id],
       );

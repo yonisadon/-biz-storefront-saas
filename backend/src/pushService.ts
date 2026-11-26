@@ -33,12 +33,12 @@ export async function issuePushCapability(
   if (!signingKey) return null;
 
   const existing = (await db.query(
-    "SELECT id, token_hash, expires_at, opted_in_at, revoked_at FROM public.push_booking_capabilities " +
+    "SELECT id, token_hash, expires_at, linked_at, revoked_at FROM public.push_target_link_capabilities " +
     "WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 FOR UPDATE",
     [tenantId, targetType, targetId],
   )).rows[0];
 
-  if (existing?.opted_in_at || existing?.revoked_at) return null;
+  if (existing?.linked_at || existing?.revoked_at) return null;
   if (existing) {
     const expiresAt = new Date(existing.expires_at as string | Date);
     if (expiresAt.getTime() > Date.now()) {
@@ -52,8 +52,8 @@ export async function issuePushCapability(
     const nextExpiry = new Date(Date.now() + CAPABILITY_TTL_DAYS * 24 * 60 * 60 * 1000);
     const token = derivePushCapabilityToken(tenantId, targetType, targetId, existing.id, nextExpiry, signingKey);
     await db.query(
-      "UPDATE public.push_booking_capabilities SET token_hash = $1, expires_at = $2, created_at = now() " +
-      "WHERE id = $3 AND opted_in_at IS NULL AND revoked_at IS NULL",
+      "UPDATE public.push_target_link_capabilities SET token_hash = $1, expires_at = $2, created_at = now() " +
+      "WHERE id = $3 AND linked_at IS NULL AND revoked_at IS NULL",
       [hashPushCapability(token), nextExpiry, existing.id],
     );
     return token;
@@ -63,7 +63,7 @@ export async function issuePushCapability(
   const expiresAt = new Date(Date.now() + CAPABILITY_TTL_DAYS * 24 * 60 * 60 * 1000);
   const token = derivePushCapabilityToken(tenantId, targetType, targetId, id, expiresAt, signingKey);
   const saved = await db.query(
-    "INSERT INTO public.push_booking_capabilities (id, tenant_id, target_type, target_id, token_hash, expires_at) " +
+    "INSERT INTO public.push_target_link_capabilities (id, tenant_id, target_type, target_id, token_hash, expires_at) " +
     "VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (tenant_id, target_type, target_id) DO NOTHING RETURNING id",
     [id, tenantId, targetType, targetId, hashPushCapability(token), expiresAt],
   );
@@ -71,11 +71,11 @@ export async function issuePushCapability(
 
   // A concurrent idempotent request may have inserted the capability first.
   const raced = (await db.query(
-    "SELECT id, token_hash, expires_at, opted_in_at, revoked_at FROM public.push_booking_capabilities " +
+    "SELECT id, token_hash, expires_at, linked_at, revoked_at FROM public.push_target_link_capabilities " +
     "WHERE tenant_id = $1 AND target_type = $2 AND target_id = $3 FOR UPDATE",
     [tenantId, targetType, targetId],
   )).rows[0];
-  if (!raced || raced.opted_in_at || raced.revoked_at) return null;
+  if (!raced || raced.linked_at || raced.revoked_at) return null;
   const racedExpiry = new Date(raced.expires_at as string | Date);
   if (racedExpiry.getTime() <= Date.now()) return null;
   const racedToken = derivePushCapabilityToken(tenantId, targetType, targetId, raced.id, racedExpiry, signingKey);
@@ -194,7 +194,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
         "UPDATE public.push_deliveries d SET status = 'invalid', locked_until = NULL, last_error = 'consent_revoked' " +
         "FROM public.push_subscriptions s WHERE d.tenant_id = app.current_tenant_id() AND d.outbox_id = $1 " +
         "AND d.subscription_id = s.id AND s.tenant_id = d.tenant_id AND d.status IN ('pending', 'processing') AND NOT EXISTS (" +
-        "SELECT 1 FROM public.push_consents c WHERE c.tenant_id = d.tenant_id AND c.subscription_id = d.subscription_id " +
+        "SELECT 1 FROM public.push_subscription_targets c WHERE c.tenant_id = d.tenant_id AND c.subscription_id = d.subscription_id " +
         "AND c.target_type = $2 AND c.target_id = $3 AND c.revoked_at IS NULL)",
         [eventId, event.target_type, event.target_id],
       );
@@ -204,19 +204,22 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
           "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() AND audience = 'seller' AND disabled_at IS NULL",
         )).rows
       : (await db.query(
-          "SELECT s.id FROM public.push_subscriptions s JOIN public.push_consents c " +
+          "SELECT s.id FROM public.push_subscriptions s JOIN public.push_subscription_targets c " +
           "ON c.tenant_id = s.tenant_id AND c.subscription_id = s.id " +
           "WHERE s.tenant_id = app.current_tenant_id() AND s.audience = 'customer' AND s.disabled_at IS NULL " +
-          "AND c.target_type = $1 AND c.target_id = $2 AND c.revoked_at IS NULL",
+          "AND c.target_type = $1 AND c.target_id = $2 AND c.revoked_at IS NULL " +
+          "AND (EXISTS (SELECT 1 FROM public.push_device_consents dc WHERE dc.tenant_id = s.tenant_id " +
+          "AND dc.subscription_id = s.id AND dc.revoked_at IS NULL) OR NOT EXISTS (" +
+          "SELECT 1 FROM public.push_device_consents dc WHERE dc.tenant_id = s.tenant_id AND dc.subscription_id = s.id))",
           [event.target_type, event.target_id],
         )).rows;
 
     if (!subscriptions.length) {
       if (event.audience === 'customer' && event.event_type === 'customer.waitlist_scheduled' && runtimeConfigured()) {
         const capability = (await db.query(
-          "SELECT expires_at FROM public.push_booking_capabilities " +
+          "SELECT expires_at FROM public.push_target_link_capabilities " +
           "WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = $1 " +
-          "AND opted_in_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
+          "AND linked_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
           [event.target_id],
         )).rows[0];
         if (capability) {

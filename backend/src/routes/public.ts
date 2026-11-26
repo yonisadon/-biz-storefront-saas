@@ -151,9 +151,25 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
       return { enabled, public_key: enabled ? env.WEB_PUSH_VAPID_PUBLIC_KEY : null };
     });
 
+    app.post('/push/subscriptions/customer/status', async (req) => {
+      const input = z.object({ endpoint: z.string().url().max(2048) }).strict().parse(req.body);
+      if (!isSupportedPushEndpoint(input.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+      return withTenant(req.tenantId, async (db) => {
+        const result = await db.query(
+          "SELECT s.id FROM public.push_subscriptions s " +
+          "JOIN public.push_device_consents c ON c.tenant_id = s.tenant_id AND c.subscription_id = s.id " +
+          "WHERE s.tenant_id = app.current_tenant_id() AND s.audience = 'customer' " +
+          "AND s.endpoint_hash = $1 AND s.disabled_at IS NULL AND c.revoked_at IS NULL",
+          [hashPushCapability(input.endpoint)],
+        );
+        return { active: result.rows.length > 0 };
+      });
+    });
+
     app.post('/push/consent', async (req) => {
       const input = z.object({
         token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+        explicit_consent: z.boolean().default(false),
         subscription: z.object({
           endpoint: z.string().url().max(2048),
           keys: z.object({ p256dh: z.string().min(80).max(120), auth: z.string().min(20).max(40) }).strict(),
@@ -176,36 +192,58 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         )).rows[0];
         if (customerSettings?.customer_enabled !== true) throw new HttpError(403, 'customer_push_disabled');
         const capability = (await db.query(
-          "SELECT id, target_type, target_id, opted_in_at, subscription_id FROM public.push_booking_capabilities " +
+          "SELECT id, target_type, target_id, linked_at, subscription_id FROM public.push_target_link_capabilities " +
           "WHERE tenant_id = app.current_tenant_id() AND token_hash = $1 AND expires_at > now() AND revoked_at IS NULL FOR UPDATE",
           [hashPushCapability(input.token)],
         )).rows[0];
         if (!capability) throw new HttpError(404, 'push_consent_expired');
-        if (capability.opted_in_at) {
-          const existingSubscription = (await db.query(
-            "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() " +
-            "AND audience = 'customer' AND endpoint_hash = $1",
-            [hashPushCapability(input.subscription.endpoint)],
-          )).rows[0];
-          if (existingSubscription?.id === capability.subscription_id) {
-            await savePushSubscription(db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription);
-            return { ok: true, already_enabled: true, target_type: capability.target_type, target_id: capability.target_id };
-          }
-          throw new HttpError(409, 'push_consent_already_used');
-        }
+
         const subscriptionId = await savePushSubscription(
           db, req.tenantId, 'customer', input.subscription as BrowserPushSubscription,
         );
+        const deviceConsent = (await db.query(
+          "SELECT id, revoked_at FROM public.push_device_consents " +
+          "WHERE tenant_id = app.current_tenant_id() AND subscription_id = $1 FOR UPDATE",
+          [subscriptionId],
+        )).rows[0];
+        const hasActiveConsent = Boolean(deviceConsent && !deviceConsent.revoked_at);
+        if (!hasActiveConsent && !input.explicit_consent) {
+          throw new HttpError(403, 'push_device_consent_required');
+        }
+        if (deviceConsent) {
+          if (deviceConsent.revoked_at && input.explicit_consent) {
+            await db.query(
+              "UPDATE public.push_device_consents SET consented_at = now(), revoked_at = NULL, updated_at = now() WHERE id = $1",
+              [deviceConsent.id],
+            );
+          }
+        } else {
+          await db.query(
+            "INSERT INTO public.push_device_consents (tenant_id, subscription_id, purpose) " +
+            "VALUES (app.current_tenant_id(), $1, 'operational')",
+            [subscriptionId],
+          );
+        }
+
+        if (capability.linked_at && capability.subscription_id !== subscriptionId) {
+          throw new HttpError(409, 'push_target_already_linked');
+        }
         await db.query(
-          "INSERT INTO public.push_consents (tenant_id, target_type, target_id, subscription_id) " +
-          "VALUES (app.current_tenant_id(), $1, $2, $3) ON CONFLICT (tenant_id, target_type, target_id, subscription_id) DO NOTHING",
+          "INSERT INTO public.push_subscription_targets (tenant_id, target_type, target_id, subscription_id, revoked_at) " +
+          "VALUES (app.current_tenant_id(), $1, $2, $3, NULL) " +
+          "ON CONFLICT (tenant_id, target_type, target_id, subscription_id) " +
+          "DO UPDATE SET revoked_at = NULL, consented_at = now()",
           [capability.target_type, capability.target_id, subscriptionId],
         );
         await db.query(
-          "UPDATE public.push_booking_capabilities SET opted_in_at = now(), subscription_id = $1 WHERE id = $2",
+          "UPDATE public.push_target_link_capabilities SET linked_at = COALESCE(linked_at, now()), subscription_id = $1 WHERE id = $2",
           [subscriptionId, capability.id],
         );
-        return { ok: true, already_enabled: false, target_type: capability.target_type, target_id: capability.target_id };
+        return {
+          target_type: capability.target_type as 'appointment' | 'waitlist',
+          target_id: capability.target_id as string,
+          already_enabled: hasActiveConsent,
+        };
       });
 
       if (consentResult.target_type === 'appointment') {
@@ -220,6 +258,34 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
         }
       }
       return { ok: true, already_enabled: consentResult.already_enabled };
+    });
+
+    app.delete('/push/subscriptions/customer', async (req) => {
+      const input = z.object({ endpoint: z.string().url().max(2048) }).strict().parse(req.body);
+      if (!isSupportedPushEndpoint(input.endpoint)) throw new HttpError(400, 'invalid_push_subscription');
+      return withTenant(req.tenantId, async (db) => {
+        const subscription = (await db.query(
+          "SELECT id FROM public.push_subscriptions WHERE tenant_id = app.current_tenant_id() " +
+          "AND audience = 'customer' AND endpoint_hash = $1 FOR UPDATE",
+          [hashPushCapability(input.endpoint)],
+        )).rows[0];
+        if (!subscription) return { ok: true };
+        await db.query(
+          "UPDATE public.push_subscriptions SET disabled_at = COALESCE(disabled_at, now()), updated_at = now() WHERE id = $1",
+          [subscription.id],
+        );
+        await db.query(
+          "UPDATE public.push_device_consents SET revoked_at = COALESCE(revoked_at, now()), updated_at = now() " +
+          "WHERE tenant_id = app.current_tenant_id() AND subscription_id = $1",
+          [subscription.id],
+        );
+        await db.query(
+          "UPDATE public.push_subscription_targets SET revoked_at = COALESCE(revoked_at, now()) " +
+          "WHERE tenant_id = app.current_tenant_id() AND subscription_id = $1 AND revoked_at IS NULL",
+          [subscription.id],
+        );
+        return { ok: true };
+      });
     });
 
     // Business config + first catalog page + gallery in one round trip.

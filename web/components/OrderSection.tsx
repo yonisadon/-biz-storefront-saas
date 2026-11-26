@@ -101,8 +101,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushCapability, setWaitlistPushCapability] = useState<string | null>(null);
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
+  const [customerPushActive, setCustomerPushActive] = useState(false);
+  const [customerPushManageStatus, setCustomerPushManageStatus] = useState<string | null>(null);
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
   const [waitlistPushState, setWaitlistPushState] = useState({ busy: false, success: false, status: null as string | null });
+  const [pushRevoked, setPushRevoked] = useState({ appointment: false, waitlist: false });
   const pushAttemptRef = useRef({ appointment: 0, waitlist: 0 });
   const pushAbortRef = useRef<{ appointment: AbortController | null; waitlist: AbortController | null }>({ appointment: null, waitlist: null });
   const [waitlistBusy, setWaitlistBusy] = useState(false);
@@ -135,16 +138,62 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
   useEffect(() => {
     setAppointmentPushState({ busy: false, success: false, status: null });
+    setPushRevoked((current) => ({ ...current, appointment: false }));
   }, [done?.pushCapabilityToken]);
 
   useEffect(() => {
     setWaitlistPushState({ busy: false, success: false, status: null });
+    setPushRevoked((current) => ({ ...current, waitlist: false }));
   }, [waitlistPushCapability]);
 
-  async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
+  useEffect(() => {
+    let cancelled = false;
+    if (!pushPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+        !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    void (async () => {
+      try {
+        const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+        const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+        if (!subscription) return;
+        const response = await fetch(`${apiBase}/push/subscriptions/customer/status`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+        const status = await response.json().catch(() => null) as { active?: boolean } | null;
+        if (!cancelled && response.ok) setCustomerPushActive(status?.active === true);
+      } catch {
+        if (!cancelled) setCustomerPushActive(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [apiBase, pushPublicKey]);
+
+  async function cancelCustomerPush() {
+    setCustomerPushManageStatus(null);
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) throw new Error('push_subscription_missing');
+      const response = await fetch(`${apiBase}/push/subscriptions/customer`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      if (!response.ok) throw new Error('push_revoke_failed');
+      setCustomerPushActive(false);
+      setPushRevoked({ appointment: true, waitlist: true });
+      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
+    } catch {
+      setCustomerPushManageStatus('לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.');
+    }
+  }
+
+  async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey) return;
     const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
-    if (currentState.busy || currentState.success || pushAbortRef.current[target]) return;
+    if (currentState.busy || pushAbortRef.current[target]) return;
     const attempt = ++pushAttemptRef.current[target];
     const isCurrent = () => pushAttemptRef.current[target] === attempt;
     const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
@@ -158,6 +207,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         throw new Error('push_not_supported');
       }
       if (Notification.permission === 'denied') throw new Error('push_permission_blocked');
+      if (!explicitConsent && Notification.permission !== 'granted') return;
       const permission = Notification.permission === 'granted'
         ? 'granted'
         : await withTimeout(Notification.requestPermission(), 45000);
@@ -195,6 +245,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           token: capabilityToken,
+          explicit_consent: explicitConsent,
           subscription: { endpoint: json.endpoint, keys: json.keys },
         }),
         signal: controller.signal,
@@ -204,7 +255,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok || data?.ok !== true) {
         throw new Error(data?.error ?? 'push_consent_failed');
       }
-      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לבקשה הזו.' });
+      setPushRevoked((current) => ({ ...current, [target]: false }));
+      setCustomerPushActive(true);
+      setCustomerPushManageStatus(null);
+      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.' });
     } catch (error) {
       if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
@@ -244,6 +298,61 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (isCurrent()) setTargetState((current) => ({ ...current, busy: false }));
     }
   }
+
+  async function cancelPushForBusiness(target: 'appointment' | 'waitlist') {
+    const setTargetState = target === 'appointment' ? setAppointmentPushState : setWaitlistPushState;
+    setTargetState({ busy: true, success: false, status: null });
+    try {
+      if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) throw new Error('push_subscription_missing');
+      const response = await fetch(`${apiBase}/push/subscriptions/customer`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      if (!response.ok) throw new Error('push_revoke_failed');
+      setPushRevoked((current) => ({ ...current, [target]: true }));
+      setCustomerPushActive(false);
+      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
+      setTargetState({ busy: false, success: false, status: 'ההתראות בוטלו לעסק הזה. לא יישלחו עוד עדכונים למכשיר הזה מהעסק.' });
+    } catch {
+      setTargetState((current) => ({ ...current, busy: false, status: 'לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.' }));
+    }
+  }
+
+  async function autoLinkExistingPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+        !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
+      const subscription = await withTimeout(registration.pushManager.getSubscription(), 10000);
+      if (!subscription) return;
+      const statusResponse = await fetch(`${apiBase}/push/subscriptions/customer/status`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+      const status = await statusResponse.json().catch(() => null) as { active?: boolean } | null;
+      if (statusResponse.ok && status?.active) {
+        await optInForPush(capabilityToken, target, false);
+      }
+    } catch {
+      // A failed background link must never block the booking or show a new permission prompt.
+    }
+  }
+
+  useEffect(() => {
+    const token = done?.pushCapabilityToken;
+    if (!token || !pushPublicKey) return;
+    void autoLinkExistingPush(token, 'appointment');
+  }, [done?.pushCapabilityToken, pushPublicKey, apiBase]);
+
+  useEffect(() => {
+    if (!waitlistPushCapability || !waitlistDone || !pushPublicKey) return;
+    void autoLinkExistingPush(waitlistPushCapability, 'waitlist');
+  }, [waitlistPushCapability, waitlistDone, pushPublicKey, apiBase]);
 
   useEffect(() => {
     const term = search.trim();
@@ -515,7 +624,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? 'pb-24' : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
+        {kind === 'service' && customerPushActive && (
+          <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/65 underline">
+            ביטול התראות מהעסק
+          </button>
+        )}
       </div>
+      {kind === 'service' && customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/65">{customerPushManageStatus}</p>}
       {(items.length > 0 || search.trim()) && <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות כדי להוסיף אותו להזמנה.</p>}
 
       {catalogTotal >= 5 && (
@@ -660,14 +775,24 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p>הבקשה נוספה לרשימת ההמתנה. העסק יוכל ליצור איתכם קשר; לא נשמר תור ביומן.</p>
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
-                {waitlistPushState.success ? (
-                  <p role="status" className="text-sm">ההתראות הופעלו לבקשת ההמתנה הזו.</p>
+                {pushRevoked.waitlist ? (
+                  <div>
+                    <p role="status" className="text-sm">{waitlistPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist', true)}
+                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                  </div>
+                ) : waitlistPushState.success ? (
+                  <div>
+                    <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
+                    <button type="button" disabled={waitlistPushState.busy} onClick={() => void cancelPushForBusiness('waitlist')}
+                      className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                  </div>
                 ) : (
                   <>
-                    <p className="mb-1 text-xs text-green-900/75">עדכונים לבקשת ההמתנה הזו בלבד.</p>
+                    <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על תורים ובקשות המתנה שתיצרו בעתיד דרך הדפדפן הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה; אם הוא משותף, גם משתמשים אחרים בו עשויים לראות אותן. ניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
-                      {waitlistPushState.busy ? 'מפעילים…' : 'עדכנו אותי אם יימצא לי תור'}
+                      {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
                   </>
@@ -713,15 +838,25 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
             {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
-                {appointmentPushState.success ? (
-                  <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
+                {pushRevoked.appointment ? (
+                  <div>
+                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment', true)}
+                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                  </div>
+                ) : appointmentPushState.success ? (
+                  <div>
+                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
+                    <button type="button" disabled={appointmentPushState.busy} onClick={() => void cancelPushForBusiness('appointment')}
+                      className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                  </div>
                 ) : (
                   <>
-                    <p className="font-semibold">לקבל עדכונים על התור?</p>
-                    <p className="mt-1 text-xs text-ink/65">עדכונים על התור הזה בלבד.</p>
+                    <p className="font-semibold">לקבל עדכונים על התורים שלך בעסק הזה?</p>
+                    <p className="mt-1 text-xs text-ink/65">ההסכמה תחול על התורים ובקשות ההמתנה שתיצרו בעתיד דרך המכשיר הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה בלבד, וניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
-                      {appointmentPushState.busy ? 'מפעילים…' : 'הפעלת עדכונים'}
+                      {appointmentPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
                   </>
