@@ -169,6 +169,17 @@ export const PLATFORM_MESSAGES = {
         deleteImageConfirm: 'למחוק את התמונה?', heroImageSaved: 'התמונה הראשית נשמרה.', pwaIconSaved: 'אייקון ה-PWA נשמר. האייקון יתעדכן לאחר רענון או התקנה מחדש לפי הדפדפן.',
     saveFailed: 'השמירה נכשלה. נסו שוב.', uploading: 'מעלה', filesNotUploaded: 'קבצים לא הועלו: הגלריה מוגבלת ל-',
 
+        googleCalendarDescription: 'סנכרון חד-כיווני: תורים ב-BTime יוצרים, מעדכנים ומוחקים אירועים ביומן Google. ההרשאה ש-Google מבקשת מאפשרת צפייה ועריכה באירועים ביומנים שבבעלות החשבון; BTime עצמה משתמשת בה רק לאירועים המקושרים לתורים שלה ואינה מייבאת אירועים או משנה זמינות.',
+    connected: 'מחובר', loadingConnection: 'טוען מצב חיבור…', googleNotConfigured: 'החיבור עדיין לא הוגדר בשרת. נדרשים פרטי Google OAuth ומפתח הצפנה לפני שבעלי עסקים יוכלו להתחבר.',
+    googleNotConnected: 'לא מחובר חשבון Google. החיבור אופציונלי ומתבצע בהרשאת בעל העסק. Google תציג את היקף ההרשאה לפני האישור.',
+    connecting: 'פותחים חיבור…', connectGoogle: 'חיבור חשבון Google', account: 'חשבון', waiting: 'ממתינים', failed: 'נכשלו',
+    lastSync: 'סנכרון אחרון', lastSyncError: 'שגיאת סנכרון אחרונה', syncNow: 'סנכרון עכשיו / ניסיון חוזר', syncing: 'מסנכרנים…',
+    disconnectGoogle: 'ניתוק חשבון', disconnectGoogleConfirm: 'לנתק את Google Calendar? אירועים שכבר נוצרו ביומן Google יישארו שם ולא יימחקו.',
+    googleSyncSuccess: 'הסנכרון הסתיים', eventsUpdated: 'אירועים עודכנו', eventsFailed: 'נכשלו', eventsPending: 'ממתינים',
+    googleSyncPending: 'חלק מהאירועים ממתינים לסנכרון. אפשר לנסות שוב באופן ידני.', googleStatusFailed: 'לא הצלחנו לטעון את מצב Google Calendar. ייתכן שהמיגרציה עדיין לא הותקנה בשרת העסק.',
+    googleConnectFailed: 'לא ניתן להתחיל חיבור ל-Google Calendar. בדקו שהוגדרו פרטי OAuth בשרת.', googleSyncFailed: 'הסנכרון נכשל. התורים ב-BTime נשארים שמורים; אפשר לנסות שוב.',
+    googleDisconnected: 'החיבור נותק וההרשאה בוטלה ככל שפרטי OAuth זמינים. אירועים קיימים נשארים ביומן Google.', googleDisconnectFailed: 'ניתוק Google Calendar נכשל. החיבור נשאר פעיל.',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -339,6 +350,17 @@ export const PLATFORM_MESSAGES = {
         deleteImageConfirm: 'Delete this image?', heroImageSaved: 'Main image saved.', pwaIconSaved: 'PWA icon saved. The icon will update after a browser refresh or reinstall, depending on the browser.',
     saveFailed: 'Could not save. Please try again.', uploading: 'Uploading', filesNotUploaded: 'files were not uploaded. Gallery limit: ',
 
+        googleCalendarDescription: 'One-way sync: BTime appointments create, update and delete events in Google Calendar. The permission requested by Google allows viewing and editing events in calendars owned by the account; BTime uses it only for events linked to its appointments and does not import events or change availability.',
+    connected: 'Connected', loadingConnection: 'Loading connection status…', googleNotConfigured: 'The connection is not configured on the server yet. Google OAuth credentials and an encryption key are required before business owners can connect.',
+    googleNotConnected: 'No Google account is connected. Connection is optional and requires the business owner’s authorization. Google will show the permission scope before approval.',
+    connecting: 'Opening connection…', connectGoogle: 'Connect Google account', account: 'Account', waiting: 'Pending', failed: 'Failed',
+    lastSync: 'Last sync', lastSyncError: 'Last sync error', syncNow: 'Sync now / retry', syncing: 'Syncing…',
+    disconnectGoogle: 'Disconnect account', disconnectGoogleConfirm: 'Disconnect Google Calendar? Events already created in Google Calendar will remain there and will not be deleted.',
+    googleSyncSuccess: 'Sync completed', eventsUpdated: 'events updated', eventsFailed: 'failed', eventsPending: 'pending',
+    googleSyncPending: 'Some events are waiting to sync. You can retry manually.', googleStatusFailed: 'We could not load Google Calendar status. The business database migration may not have been installed.',
+    googleConnectFailed: 'Unable to start Google Calendar connection. Check that OAuth credentials are configured on the server.', googleSyncFailed: 'Sync failed. BTime appointments remain saved; you can try again.',
+    googleDisconnected: 'The connection was disconnected and authorization revoked if OAuth details were available. Existing events remain in Google Calendar.', googleDisconnectFailed: 'Could not disconnect Google Calendar. The connection remains active.',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -508,6 +530,17 @@ export const PLATFORM_MESSAGES = {
 
         deleteImageConfirm: 'Удалить изображение?', heroImageSaved: 'Главное изображение сохранено.', pwaIconSaved: 'Значок PWA сохранён. Он обновится после обновления страницы или повторной установки в зависимости от браузера.',
     saveFailed: 'Не удалось сохранить. Попробуйте снова.', uploading: 'Загрузка', filesNotUploaded: 'файлов не загружено. Ограничение галереи: ',
+
+        googleCalendarDescription: 'Односторонняя синхронизация: записи BTime создают, обновляют и удаляют события в Google Calendar. Запрашиваемое Google разрешение позволяет просматривать и редактировать события в календарях аккаунта; BTime использует его только для событий, связанных с её записями, не импортируя события и не меняя доступность.',
+    connected: 'Подключено', loadingConnection: 'Загрузка состояния подключения…', googleNotConfigured: 'Подключение ещё не настроено на сервере. Для подключения владельцам бизнеса нужны данные Google OAuth и ключ шифрования.',
+    googleNotConnected: 'Аккаунт Google не подключён. Подключение необязательно и выполняется с разрешения владельца бизнеса. Перед подтверждением Google покажет запрашиваемые разрешения.',
+    connecting: 'Открываем подключение…', connectGoogle: 'Подключить аккаунт Google', account: 'Аккаунт', waiting: 'Ожидают', failed: 'Ошибки',
+    lastSync: 'Последняя синхронизация', lastSyncError: 'Последняя ошибка синхронизации', syncNow: 'Синхронизировать / повторить', syncing: 'Синхронизация…',
+    disconnectGoogle: 'Отключить аккаунт', disconnectGoogleConfirm: 'Отключить Google Calendar? Уже созданные события останутся в Google Calendar и не будут удалены.',
+    googleSyncSuccess: 'Синхронизация завершена', eventsUpdated: 'событий обновлено', eventsFailed: 'ошибок', eventsPending: 'ожидают',
+    googleSyncPending: 'Некоторые события ожидают синхронизации. Можно повторить вручную.', googleStatusFailed: 'Не удалось загрузить состояние Google Calendar. Возможно, миграция базы данных бизнеса ещё не установлена.',
+    googleConnectFailed: 'Не удалось начать подключение Google Calendar. Проверьте настройки OAuth на сервере.', googleSyncFailed: 'Синхронизация не удалась. Записи BTime сохранены; можно попробовать снова.',
+    googleDisconnected: 'Подключение отключено, разрешение отозвано, если данные OAuth доступны. Существующие события остаются в Google Calendar.', googleDisconnectFailed: 'Не удалось отключить Google Calendar. Подключение остаётся активным.',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
