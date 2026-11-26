@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Status = 'waiting' | 'rejected' | 'closed' | 'scheduled_without_booking';
 type Entry = {
@@ -42,16 +43,18 @@ function dateTimeInTimezone(timezone: string): string {
   return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
 }
 
-function formatPreferredDate(value: string): string {
+function formatPreferredDate(value: string, locale: string): string {
   // PostgreSQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp,
   // depending on the driver/serialization path. Keep the calendar day stable.
   const dateOnly = value.slice(0, 10);
   const parsed = dateOnly ? new Date(`${dateOnly}T12:00:00Z`) : new Date(value);
   if (!Number.isFinite(parsed.getTime())) return 'תאריך לא זמין';
-  return new Intl.DateTimeFormat('he-IL', { timeZone: 'UTC' }).format(parsed);
+  return new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(parsed);
 }
 
 export default function WaitlistPanel({ token }: { token: string }) {
+  const { language } = usePlatformLanguage();
+  const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
   const [entries, setEntries] = useState<Entry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -144,7 +147,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
   }
 
   return (
-    <section dir="rtl" className="space-y-4">
+    <section dir={language === "he" ? "rtl" : "ltr"} className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold">רשימת המתנה</h2>
@@ -174,11 +177,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
                 <p className="mt-1 text-sm" dir="ltr">{entry.customer_phone}</p>
                 <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
-                  {formatPreferredDate(entry.preferred_date)}
+                  {formatPreferredDate(entry.preferred_date, locale)}
                   {entry.preferred_time ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · ללא שעה מועדפת'}
                 </p>
                 {entry.note && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{entry.note}</p>}
-                <p className="mt-2 text-xs text-gray-500">נשלח: {new Date(entry.created_at).toLocaleString('he-IL')}</p>
+                <p className="mt-2 text-xs text-gray-500">נשלח: {new Date(entry.created_at).toLocaleString(locale)}</p>
               </div>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium">{labels[entry.status]}</span>
             </div>
