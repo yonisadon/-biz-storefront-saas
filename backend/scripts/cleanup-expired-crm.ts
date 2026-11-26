@@ -294,7 +294,6 @@ async function main() {
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
       '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
       '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound + '.');
-      '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound + '.');
   } finally {
     await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {
