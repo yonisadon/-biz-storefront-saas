@@ -107,7 +107,7 @@ export default function LegalPanel({ token, biz, onSaved }: {
             placeholder={placeholder}
             className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm leading-6 text-gray-900"
           />
-          <span className="mt-1 block text-end text-xs text-gray-500">{values[key].length}/20,000 תווים</span>
+          <span className="mt-1 block text-end text-xs text-gray-500">{values[key].length}/20,000 {t('characters')}</span>
         </section>
       );
       })}
