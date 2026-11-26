@@ -46,7 +46,7 @@ export function StorefrontPushManagementFooter() {
     <div className="mt-6 border-t border-ink/10 pt-3 text-center">
       {entry.active && (
         <button type="button" onClick={entry.onCancel} className="text-xs text-ink/55 underline underline-offset-2">
-          ניהול התראות מהעסק
+          ביטול התראות מהעסק
         </button>
       )}
       {entry.status && <p role="status" className="mt-2 text-xs text-ink/55">{entry.status}</p>}
