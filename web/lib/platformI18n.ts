@@ -241,6 +241,9 @@ export const PLATFORM_MESSAGES = {
     statusPendingApproval: 'ממתין לאישור', statusWhatsappOpened: 'וואטסאפ נפתח', statusApproved: 'אושר', statusCompleted: 'הושלם', statusRejected: 'נדחה', statusCanceled: 'בוטל',
     leadStatusFor: 'סטטוס עבור', previousPage: 'הקודם', nextPage: 'הבא', notesInternal: 'הערות פנימיות',
 
+        hideInternalNotes: 'הסתר הערות פנימיות', internalNotes: 'הערות פנימיות ל-CRM', notesLoadFailed: 'לא ניתן לטעון הערות כרגע.', noteSaveFailed: 'שמירת ההערה נכשלה.',
+    noInternalNotes: 'אין הערות פנימיות עדיין.', addInternalNote: 'הוספת הערה (גלויה למוכר בלבד)', notePlaceholder: 'למשל: לחזור ללקוח ביום ראשון', saveNote: 'שמירת הערה',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -483,6 +486,9 @@ export const PLATFORM_MESSAGES = {
     statusPendingApproval: 'Pending approval', statusWhatsappOpened: 'WhatsApp opened', statusApproved: 'Approved', statusCompleted: 'Completed', statusRejected: 'Rejected', statusCanceled: 'Canceled',
     leadStatusFor: 'Status for', previousPage: 'Previous', nextPage: 'Next', notesInternal: 'Internal notes',
 
+        hideInternalNotes: 'Hide internal notes', internalNotes: 'CRM internal notes', notesLoadFailed: 'Unable to load notes right now.', noteSaveFailed: 'Could not save the note.',
+    noInternalNotes: 'There are no internal notes yet.', addInternalNote: 'Add a note (visible only to the seller)', notePlaceholder: 'For example: follow up with the customer on Sunday', saveNote: 'Save note',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -724,6 +730,9 @@ export const PLATFORM_MESSAGES = {
     deleteLead: 'Удалить обращение', treatmentStatus: 'Статус обработки', choose: 'Выбрать', actions: 'Действия', whatsapp: 'WhatsApp', website: 'Сайт',
     statusPendingApproval: 'Ожидает подтверждения', statusWhatsappOpened: 'WhatsApp открыт', statusApproved: 'Одобрено', statusCompleted: 'Завершено', statusRejected: 'Отклонено', statusCanceled: 'Отменено',
     leadStatusFor: 'Статус для', previousPage: 'Назад', nextPage: 'Далее', notesInternal: 'Внутренние заметки',
+
+        hideInternalNotes: 'Скрыть внутренние заметки', internalNotes: 'Внутренние заметки CRM', notesLoadFailed: 'Сейчас не удалось загрузить заметки.', noteSaveFailed: 'Не удалось сохранить заметку.',
+    noInternalNotes: 'Внутренних заметок пока нет.', addInternalNote: 'Добавить заметку (видна только продавцу)', notePlaceholder: 'Например: связаться с клиентом в воскресенье', saveNote: 'Сохранить заметку',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
