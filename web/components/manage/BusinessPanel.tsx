@@ -198,7 +198,7 @@ export default function BusinessPanel({ token, biz, onSaved }: {
           </label>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={f.serviceWa} onChange={(e) => set('serviceWa', e.target.checked)} />
-            <span><strong>פנייה ב-WhatsApp</strong><span className="block text-xs leading-5 text-gray-500">{t('whatsappServiceHint')}</span></span>
+            <span><strong>{t('whatsappContact')}</strong><span className="block text-xs leading-5 text-gray-500">{t('whatsappServiceHint')}</span></span>
           </label>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={f.serviceCrm} onChange={(e) => set('serviceCrm', e.target.checked)} />
