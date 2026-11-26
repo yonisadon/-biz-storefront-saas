@@ -761,7 +761,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {lines.map(({ p, q }) => {
                 const durationLabel = p.kind === 'service' ? t('durationLabel') : '';
                 return <li key={`${p.kind}:${p.id}`} data-cart-item-id={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0">
-                  <span className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} דקות</span> : null}</span>
+                  <span className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} {t('minutes')}</span> : null}</span>
                   <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
                   {!done && (
                     <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 border-t border-gray-200 pt-2">
@@ -949,7 +949,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <>
                 {calendarEnabled && hasAppointmentHours && <button type="button" disabled={busy !== null} onClick={() => { setError(null); setStep('reserve'); }}
                   className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">{t('appointmentBooking')}</button>}
-                {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">העסק עדיין לא הגדיר שעות פעילות. אפשר להשאיר בקשת המתנה או לפנות ב-WhatsApp.</p>}
+                {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t('businessNoHours')}</p>}
                 {calendarEnabled && !hasAppointmentHours && <button type="button" onClick={openWaitlist}
                   className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">{t('waitlistRequest')}</button>}
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
