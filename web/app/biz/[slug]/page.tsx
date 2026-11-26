@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import AccessibilityToolbar from '@/components/AccessibilityToolbar';
-import PwaInstallButton from '@/components/PwaInstallButton';
+import StorefrontPwaInstallButton from '@/components/StorefrontPwaInstallButton';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import StorefrontPageComposition from '@/components/StorefrontPageComposition';
 import StorefrontLanguageProvider, { StorefrontLanguageSwitcher, StorefrontText } from '@/components/StorefrontLanguageProvider';
@@ -153,7 +153,7 @@ export default async function StorefrontPage({ params }: Props) {
     <StorefrontLanguageSwitcher />
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
-      <PwaInstallButton label="הוספת האתר למסך הבית לקבלת התראות" />
+      <StorefrontPwaInstallButton />
     </div>
     {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="עדכון מטעם העסק" role="status"><p>{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
