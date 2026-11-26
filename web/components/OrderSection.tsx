@@ -197,9 +197,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok) throw new Error('push_revoke_failed');
       setCustomerPushActive(false);
       setPushRevoked({ appointment: true, waitlist: true });
-      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
+      setCustomerPushManageStatus(t('pushCanceled'));
     } catch {
-      setCustomerPushManageStatus('לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.');
+      setCustomerPushManageStatus(t('pushCancelFailed'));
     }
   }, [apiBase]);
 
@@ -273,7 +273,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setPushRevoked((current) => ({ ...current, [target]: false }));
       setCustomerPushActive(true);
       setCustomerPushManageStatus(null);
-      setTargetState({ busy: false, success: true, status: 'ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.' });
+      setTargetState({ busy: false, success: true, status: t('pushEnabled') });
     } catch (error) {
       if (!isCurrent()) return;
       const code = error instanceof Error ? error.message : '';
@@ -282,30 +282,30 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         busy: false,
         success: false,
         status: code === 'push_permission_blocked' || code === 'push_permission_denied'
-          ? 'כדי להפעיל התראות, אשרו אותן בהגדרות הדפדפן וחזרו לכאן.'
+          ? t('pushBlocked')
           : code === 'push_not_supported'
-            ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.'
+            ? t('pushUnsupported')
             : code === 'customer_push_disabled' || code === 'push_not_available'
-              ? 'ההתראות אינן זמינות כרגע בעסק הזה.'
+              ? t('pushUnavailable')
               : code === 'push_consent_expired'
-                ? 'תוקף בקשת ההרשמה להתראות הסתיים. רעננו את הדף ונסו שוב.'
+                ? t('pushConsentExpired')
                 : code === 'push_consent_already_used'
-                  ? 'בקשת ההתראות הזו כבר קושרה למכשיר אחר.'
+                  ? t('pushConsentUsed')
                   : code === 'push_not_configured'
-                    ? 'שירות ההתראות עדיין לא הוגדר בעסק.'
+                    ? t('pushNotConfigured')
                     : code === 'push_timeout'
                       ? pushStage === 'service_worker'
-                        ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
+                        ? t('pushWorkerLoading')
                         : pushStage === 'subscription'
-                          ? 'הדפדפן מתעכב ביצירת הרשמת ההתראות. אפשר לנסות שוב.'
+                          ? t('pushSubscriptionSlow')
                           : pushStage === 'consent'
-                            ? 'שמירת ההסכמה בשרת התעכבה. אפשר לנסות שוב.'
-                            : 'בקשת ההרשאה לא הושלמה. אפשר לנסות שוב.'
+                            ? t('pushConsentSlow')
+                            : t('pushPermissionIncomplete')
                       : aborted || code === 'AbortError'
-                        ? 'שמירת ההסכמה בשרת התעכבה. אפשר לנסות שוב.'
+                        ? t('pushConsentSlow')
                       : code === 'push_service_worker_inactive'
-                        ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
-                        : 'לא הצלחנו להפעיל התראות כרגע. אפשר לנסות שוב.',
+                        ? t('pushWorkerLoading')
+                        : t('pushEnableFailed'),
       });
     } finally {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
@@ -330,10 +330,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok) throw new Error('push_revoke_failed');
       setPushRevoked((current) => ({ ...current, [target]: true }));
       setCustomerPushActive(false);
-      setCustomerPushManageStatus('ההתראות בוטלו לעסק הזה בלבד.');
-      setTargetState({ busy: false, success: false, status: 'ההתראות בוטלו לעסק הזה. לא יישלחו עוד עדכונים למכשיר הזה מהעסק.' });
+      setCustomerPushManageStatus(t('pushCanceled'));
+      setTargetState({ busy: false, success: false, status: t('pushCanceled') });
     } catch {
-      setTargetState((current) => ({ ...current, busy: false, status: 'לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.' }));
+      setTargetState((current) => ({ ...current, busy: false, status: t('pushCancelFailed') }));
     }
   }
 
@@ -842,9 +842,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <div className="mt-3">
                 {pushRevoked.waitlist ? (
                   <div>
-                    <p role="status" className="text-sm">{waitlistPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <p role="status" className="text-sm">{waitlistPushState.status ?? t('pushRevoked')}</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist', true)}
-                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                      className="mt-2 text-xs underline disabled:opacity-50">{t('pushReactivate')}</button>
                   </div>
                 ) : waitlistPushState.success ? (
                   <div>
@@ -855,13 +855,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
                   <p className="text-sm leading-6 text-green-900">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
                 ) : pushEnvironment === 'checking' ? (
-                  <p className="text-sm text-green-900">בודקים תמיכה בהתראות במכשיר…</p>
+                  <p className="text-sm text-green-900">{t('pushChecking')}</p>
                 ) : pushEnvironment === 'unsupported' ? (
-                  <p className="text-sm text-green-900">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
+                  <p className="text-sm text-green-900">{t('pushBrowserUnsupported')}</p>
                 ) : (
                   <>
-                    <p className="font-semibold text-green-950">לקבל עדכונים על התורים שלכם בעסק הזה?</p>
-                    <p className="mt-1 text-xs leading-5 text-green-900/75">באישור חד־פעמי, המכשיר הזה יקבל עדכונים על כל התורים ובקשות ההמתנה שתיצרו בעתיד מאותו מכשיר אצל העסק הזה. אם המכשיר משותף, גם אנשים אחרים שמשתמשים בו עשויים לראות את ההתראות. אפשר לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
+                    <p className="font-semibold text-green-950">{t('pushAsk')}</p>
+                    <p className="mt-1 text-xs leading-5 text-green-900/75">{t('pushConsentInfo')}</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="mt-3 min-h-11 rounded-full border border-primary/25 bg-white px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
                       {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
@@ -907,14 +907,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p ref={successRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               {done.message}
             </p>
-            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label="פתיחת WhatsApp עם פרטי ההזמנה" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">שליחת פרטי ההזמנה ב־WhatsApp</a>}
+            {done.route === 'whatsapp' && <a href={done.url} onClick={() => dlg.current?.close()} aria-label={t('pushWhatsAppAria')} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#168A52]/10 px-5 py-2 font-medium text-[#168A52] transition hover:bg-[#168A52]/10">{t('pushWhatsAppSend')}</a>}
             {done.pushCapabilityToken && pushPublicKey && (
               <div className="mx-auto mt-4 max-w-md rounded-xl border border-primary/20 bg-primary/5 p-3 text-start">
                 {pushRevoked.appointment ? (
                   <div>
-                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? 'ההתראות בוטלו לעסק הזה.'}</p>
+                    <p role="status" className="text-sm text-ink/75">{appointmentPushState.status ?? t('pushRevoked')}</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment', true)}
-                      className="mt-2 text-xs underline disabled:opacity-50">הפעלת התראות מחדש</button>
+                      className="mt-2 text-xs underline disabled:opacity-50">{t('pushReactivate')}</button>
                   </div>
                 ) : appointmentPushState.success ? (
                   <div>
@@ -925,13 +925,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
                   <p className="text-sm leading-6 text-ink/75">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
                 ) : pushEnvironment === 'checking' ? (
-                  <p className="text-sm text-ink/75">בודקים תמיכה בהתראות במכשיר…</p>
+                  <p className="text-sm text-ink/75">{t('pushChecking')}</p>
                 ) : pushEnvironment === 'unsupported' ? (
-                  <p className="text-sm text-ink/75">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
+                  <p className="text-sm text-ink/75">{t('pushBrowserUnsupported')}</p>
                 ) : (
                   <>
-                    <p className="font-semibold">לקבל עדכונים על התורים שלכם בעסק הזה?</p>
-                    <p className="mt-1 text-xs leading-5 text-ink/65">באישור חד־פעמי, המכשיר הזה יקבל עדכונים על כל התורים ובקשות ההמתנה שתיצרו בעתיד מאותו מכשיר אצל העסק הזה. אם המכשיר משותף, גם אנשים אחרים שמשתמשים בו עשויים לראות את ההתראות. אפשר לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
+                    <p className="font-semibold">{t('pushAsk')}</p>
+                    <p className="mt-1 text-xs leading-5 text-ink/65">{t('pushConsentInfo')}</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full border border-primary/25 bg-surface px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
                       {appointmentPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
