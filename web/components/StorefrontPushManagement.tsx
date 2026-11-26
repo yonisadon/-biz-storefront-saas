@@ -1,5 +1,6 @@
 'use client';
 
+import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 type PushManagementEntry = {
@@ -39,6 +40,7 @@ export function useStorefrontPushManagement(
 }
 
 export function StorefrontPushManagementFooter() {
+  const t = useStorefrontTranslation();
   const entry = useContext(PushManagementContext)?.entry;
   if (!entry || (!entry.active && !entry.status)) return null;
 
@@ -46,7 +48,7 @@ export function StorefrontPushManagementFooter() {
     <div className="mt-6 border-t border-ink/10 pt-3 text-center">
       {entry.active && (
         <button type="button" onClick={entry.onCancel} className="text-xs text-ink/55 underline underline-offset-2">
-          ביטול התראות מהעסק
+          {t('pushCancel')}
         </button>
       )}
       {entry.status && <p role="status" className="mt-2 text-xs text-ink/55">{entry.status}</p>}
