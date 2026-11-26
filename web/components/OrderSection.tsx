@@ -719,7 +719,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         <div
           data-stacked={stackedOrderBar ? 'true' : 'false'}
           className="storefront-order-bar fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4"
-          style={{ bottom: stackedOrderBar ? '4.5rem' : '0' }}
+          style={{ bottom: stackedOrderBar ? '5rem' : '0' }}
         >
           <div>
             <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
