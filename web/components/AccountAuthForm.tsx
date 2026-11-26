@@ -19,7 +19,7 @@ function PasswordField({ id, label, value, onChange, autoComplete, minLength = 1
     <div className="relative">
       <input id={id} type={visible ? 'text' : 'password'} required minLength={minLength} maxLength={128}
         autoComplete={autoComplete} value={value} onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-xl border border-slate-300 px-3 py-3 ps-12 outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" dir="ltr" />
+        className={`w-full rounded-xl border border-slate-300 px-3 py-3 ${language === 'he' ? 'pl-12' : 'pr-12'} outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100`} dir="ltr" />
       <button type="button" onClick={() => setVisible((current) => !current)}
         aria-label={visible ? t('hidePassword') : t('showPassword')} aria-pressed={visible}
         className={`absolute ${language === 'he' ? 'left-2' : 'right-2'} top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500`}>
