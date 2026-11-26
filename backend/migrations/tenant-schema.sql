@@ -267,6 +267,8 @@ CREATE INDEX IF NOT EXISTS idx_appointments_tenant_lead
   ON public.appointments (tenant_id, lead_id) WHERE lead_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_appointment_blocks_tenant_start
   ON public.appointment_blocks (tenant_id, start_at);
+CREATE INDEX IF NOT EXISTS idx_appointment_blocks_time_range
+  ON public.appointment_blocks USING gist (tstzrange(start_at, end_at, '[)'));
 
 -- 3.8 Seller notes on leads (spec 2.2 lists "notes" as isolated data)
 CREATE TABLE IF NOT EXISTS public.lead_notes (
