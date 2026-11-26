@@ -87,8 +87,8 @@ export default async function StorefrontPage({ params }: Props) {
   const identitySlot = (
           <header className="storefront-hero mx-auto mb-0 max-w-4xl px-4 py-4 text-center sm:px-10 sm:py-6">
             <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
-            <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
-            {data.about?.trim() && <ReadMoreText text={data.about.trim()} moreLabel={<StorefrontText message="readMore" />} lessLabel={<StorefrontText message="readLess" />} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
+            <h1 dir="auto" className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
+            {data.about?.trim() && <div dir="auto"><ReadMoreText text={data.about.trim()} moreLabel={<StorefrontText message="readMore" />} lessLabel={<StorefrontText message="readLess" />} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" /></div>}
             {hasBusinessInfo && <div className="storefront-hero-actions mt-4"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"><StorefrontText message="contact" /></a></div>}
           </header>
     
@@ -125,7 +125,7 @@ export default async function StorefrontPage({ params }: Props) {
               {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={null} embedded={true} multilingual={true} /></div>}
               {publicAddress && <div className={hasContact ? 'mb-3 border-b border-ink/10 pb-3 sm:mb-0 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}>
                 <h3 className="mb-2 text-base font-bold"><StorefrontText message="businessAddress" /></h3>
-                <p className="text-sm leading-6 text-ink/75">{publicAddress}</p>
+                <p dir="auto" className="text-sm leading-6 text-ink/75">{publicAddress}</p>
                 {addressHref && <a href={addressHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"><span aria-hidden="true">↗</span><StorefrontText message="directions" /></a>}
               </div>}
               {hasContact && <div className="min-w-0"><h3 className="mb-2 text-base font-bold"><StorefrontText message="contactMethods" /></h3>
@@ -150,7 +150,7 @@ export default async function StorefrontPage({ params }: Props) {
     <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
       <StorefrontPwaInstallButton />
     </div>
-    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" role="status"><p>{announcement.message.trim()}</p></aside>}
+    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" role="status"><p dir="auto">{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
       hasGallery={data.gallery.length > 0}
       identity={identitySlot}
