@@ -7,6 +7,7 @@ on:
       - 'backend/migrations/tenant-013-web-push.sql'
       - 'backend/migrations/tenant-018-customer-device-push-consent.sql'
       - 'backend/migrations/tenant-019-push-retention-index.sql'
+      - 'backend/migrations/tenant-020-media-deletion-tracking.sql'
       - 'backend/migrations/tenant-schema.sql'
       - 'backend/tests/fixtures/tenant-push-prerequisites.sql'
       - 'backend/tests/fixtures/tenant-push-assertions.sql'
@@ -62,6 +63,14 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-019-push-retention-index.sql
+      - name: Apply durable media deletion tracking migration
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-020-media-deletion-tracking.sql
+      - name: Re-run durable media deletion tracking migration to verify idempotence
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d btime_tenant_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-020-media-deletion-tracking.sql
       - name: Verify tenant isolation, defaults, and indexes
         env:
           PGPASSWORD: postgres
