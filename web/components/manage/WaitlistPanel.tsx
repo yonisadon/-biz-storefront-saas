@@ -22,10 +22,6 @@ type Entry = {
 };
 type Response = { total: number; limit: number; offset: number; entries: Entry[]; timezone: string };
 const PAGE_SIZE = 50;
-const statusTranslationKeys: Record<Status, import('@/lib/platformI18n').PlatformMessageKey> = {
-  waiting: 'statusWaiting', rejected: 'statusRejected', closed: 'statusClosed', scheduled_without_booking: 'statusScheduledNoBooking',
-};
-
 function dateTimeInTimezone(timezone: string): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
@@ -199,11 +195,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <label className="text-xs text-gray-600">{t('updateStatus')}
-                <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy || entry.status === 'closed' || Boolean(entry.appointment_id)} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
+                <select aria-label={t('updateStatus') + ': ' + (entry.customer_name || entry.customer_phone)} disabled={busy || entry.status === 'closed' || Boolean(entry.appointment_id)} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
                   {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'closed'}>{labels[status]}</option>)}
                 </select>
               </label>
-              <button type="button" disabled={busy} onClick={() => void remove(entry)} className="min-h-9 rounded-full border border-red-200 px-3 text-xs text-red-700">מחיקה</button>
+              <button type="button" disabled={busy} onClick={() => void remove(entry)} className="min-h-9 rounded-full border border-red-200 px-3 text-xs text-red-700">{t('delete')}</button>
             </div>
           </article>
         ))}
