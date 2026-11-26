@@ -27,3 +27,11 @@ CREATE TABLE public.media_assets (
   storage_key text NOT NULL UNIQUE,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE public.appointment_blocks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+  start_at timestamptz NOT NULL,
+  end_at timestamptz NOT NULL,
+  CHECK (end_at > start_at)
+);
