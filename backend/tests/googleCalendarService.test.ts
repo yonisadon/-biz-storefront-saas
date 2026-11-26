@@ -13,7 +13,6 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   const {
     buildGoogleCalendarEvent,
     isCurrentGoogleCalendarJobVersion,
-    isCurrentGoogleCalendarJobVersion,
     createGoogleOAuthState,
     decryptGoogleToken,
     encryptGoogleToken,
