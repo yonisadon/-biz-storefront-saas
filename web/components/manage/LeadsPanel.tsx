@@ -63,7 +63,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
         l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', ({ pending_approval: t('statusPendingApproval'), whatsapp_initiated: t('statusWhatsappOpened'), approved: t('statusApproved'), completed: t('statusCompleted'), rejected: t('statusRejected'), cancelled: t('statusCanceled') } as Record<LeadStatus, string>)[l.status], l.message,
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
-        l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
+        l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? t('quote') : '') : (l.estimated_total_agorot / 100).toFixed(2),
         l.metadata?.action === 'waitlist' && l.metadata.preferred_date ? `${l.metadata.preferred_date}${l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}` : l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : '',
         l.metadata?.appointment_duration_minutes ?? '',
         (l.notes ?? []).map((note) => `[${fmtDate(note.created_at)}] ${note.body}`).join(' | '),
@@ -155,7 +155,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               {l.metadata.action === 'waitlist' && l.metadata.preferred_date
                 ? <p>{t('preferredWaitlistDate')}: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>
                 : <p>{t('appointmentBooked')}: <span dir="ltr">{l.metadata.appointment_at?.replace('T', ' ')}</span></p>}
-              {l.metadata.appointment_duration_minutes && <p className="mt-1">{t('appointmentDurationLabel')}: {l.metadata.appointment_duration_minutes} דקות</p>}
+              {l.metadata.appointment_duration_minutes && <p className="mt-1">{t('appointmentDurationLabel')}: {l.metadata.appointment_duration_minutes} {t('minutes')}</p>}
             </div>}
             {l.message && <p className="mt-3 whitespace-pre-line rounded-xl bg-gray-50 p-3 text-sm leading-6 text-gray-700">{l.message}</p>}
             <div className="mt-3 border-t border-gray-100 pt-3">
@@ -166,7 +166,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
             <LeadNotes token={token} leadId={l.id} />
             <button type="button" onClick={() => deleteLead(l.id)} className="mt-3 min-h-10 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">{t('deleteLead')}</button>
             <label className="mt-4 block text-sm font-semibold text-gray-700">{t('treatmentStatus')}
-              <select value={l.status} aria-label={`סטטוס עבור ${l.customer_name || 'פנייה ב־WhatsApp'}`} onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
+              <select value={l.status} aria-label={`${t('leadStatusFor')} ${l.customer_name || t('continueOnWhatsapp')}`} onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
                 {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
               </select>
             </label>
@@ -191,13 +191,13 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                 <td className="px-3 py-2"><input type="checkbox" aria-label={t('selectLeadExport')} checked={selectedIds.has(l.id)} onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); if (e.target.checked) next.add(l.id); else next.delete(l.id); return next; })} /></td>
                 <td className="whitespace-nowrap px-3 py-2" suppressHydrationWarning>{fmtDate(l.created_at)}</td>
                 <td className="px-3 py-2">
-                  <div className="font-medium">{l.customer_name || (l.submission_channel === 'whatsapp' ? 'המשך ב־WhatsApp' : 'פנייה חדשה')}</div>
+                  <div className="font-medium">{l.customer_name || (l.submission_channel === 'whatsapp' ? t('continueOnWhatsapp') : t('newInquiry'))}</div>
                   {l.customer_phone && <div className="flex flex-wrap gap-x-3">
                     <a dir="ltr" className="text-blue-700 underline" href={`tel:${toLocalPhone(l.customer_phone)}`}>{toLocalPhone(l.customer_phone)}</a>
                     <a className="text-blue-700 underline" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">{t('whatsapp')}</a>
                   </div>}
                   {l.customer_email && <div dir="ltr" className="text-start text-gray-600">{l.customer_email}</div>}
-                  {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">תור ששוריין ביומן: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
+                  {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">{t('appointmentBooked')}: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
                   {l.metadata?.action === 'waitlist' && l.metadata.preferred_date && <p className="mt-1 text-sm font-medium text-blue-800">תאריך מועדף להמתנה: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>}
                   {l.message && <p className="mt-1 whitespace-pre-line text-gray-600">{l.message}</p>}
                   <LeadNotes token={token} leadId={l.id} />
