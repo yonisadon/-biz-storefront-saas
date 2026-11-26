@@ -81,6 +81,11 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'durable media deletion tracking column/index is missing';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_appointment_blocks_time_range'
+  ) THEN
+    RAISE EXCEPTION 'appointment block range overlap index is missing';
+  END IF;
 END
 $push_schema$;
 
