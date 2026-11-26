@@ -1,9 +1,12 @@
-export const ils = (agorot: number, locale = 'he-IL') => {
+export const ils = (agorot: number, locale?: string) => {
   const whole = Number.isInteger(agorot / 100);
-  return new Intl.NumberFormat(locale, {
-    style: 'currency', currency: 'ILS', currencyDisplay: 'narrowSymbol',
+  const options: Intl.NumberFormatOptions = {
+    style: 'currency', currency: 'ILS',
     minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2,
-  }).format(agorot / 100);
+  };
+  // Preserve the legacy formatting for every existing caller; use a narrow shekel symbol only when the storefront passes its visitor locale.
+  if (locale) options.currencyDisplay = 'narrowSymbol';
+  return new Intl.NumberFormat(locale ?? 'he-IL', options).format(agorot / 100);
 };
 export const toLocalPhone = (e164: string | null) => (e164 ? '0' + e164.slice(4) : '');
 export const waLink = (e164: string) => `https://wa.me/${e164.slice(1)}`;
