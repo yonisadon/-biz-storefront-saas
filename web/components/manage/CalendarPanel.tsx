@@ -274,7 +274,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
         <h3 className="font-bold">{t('manualAppointment')}</h3>
         <p className="mt-1 text-xs text-gray-500">{t('manualAppointmentHint')}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">{t('serviceLabel')}<select className={`${field} mt-1 w-full`} value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartTime(''); }}><option value="">{t('chooseService')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
+          <label className="text-sm">{t('serviceLabel')}<select className={`${field} mt-1 w-full`} value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartTime(''); }}><option value="">{t('chooseService')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} {t('minutesAbbr')}</option>)}</select></label>
           <label className="text-sm">{t('customerPhone')}<input className={`${field} mt-1 w-full`} dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05X-XXXXXXX"/></label>
         </div>
         <div className="mt-3"><p className="text-sm font-medium">{t('availableHours')}</p>
