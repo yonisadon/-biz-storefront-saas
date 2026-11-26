@@ -4,6 +4,7 @@ import { getCtx, getLegal, getStorefront } from '@/lib/api';
 import { LEGAL_DOCS, LEGAL_DEFAULTS, LEGAL_LAST_UPDATED } from '@/lib/legalDefaults';
 import { themeVars } from '@/lib/theme';
 import StorefrontLanguageProvider, { StorefrontLanguageSwitcher, StorefrontText } from '@/components/StorefrontLanguageProvider';
+import { normalizeStorefrontLanguage } from '@/lib/storefrontI18n';
 
 export const revalidate = 60;
 type Props = { params: Promise<{ slug: string }> };
@@ -12,7 +13,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const ctx = await getCtx(slug);
   const biz = await getStorefront(ctx);
-  return { title: biz?.business?.name ? `מידע משפטי ונגישות | ${biz.business.name}` : 'מידע משפטי ונגישות', robots: { index: false } };
+  const language = normalizeStorefrontLanguage(biz?.business?.locale);
+  const title = language === 'en' ? 'Legal & Accessibility Information' : language === 'ru' ? 'Юридическая информация и доступность' : 'מידע משפטי ונגישות';
+  return { title: biz?.business?.name ? `${title} | ${biz.business.name}` : title, robots: { index: false } };
 }
 
 export default async function LegalPage({ params }: Props) {
