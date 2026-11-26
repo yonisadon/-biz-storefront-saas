@@ -721,12 +721,23 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           className="storefront-order-bar fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4"
           style={{ bottom: stackedOrderBar ? '5rem' : '0' }}
         >
-          <div>
-            <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
-            <div className="font-bold text-lg">{totalText}</div>
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => { setCart({}); setStep('choose'); setError(null); }}
+              aria-label={kind === 'product' ? 'ביטול בחירת המוצרים וניקוי ההזמנה' : 'ביטול בחירת השירותים וניקוי ההזמנה'}
+              title={kind === 'product' ? 'ניקוי בחירת המוצרים' : 'ניקוי בחירת השירותים'}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink/20 text-xl text-ink/65 transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+            <div className="min-w-0">
+              <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
+              <div className="font-bold text-lg">{totalText}</div>
+            </div>
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
-            className="min-h-11 rounded-full border-0 bg-primary/10 px-6 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+            className="min-h-11 shrink-0 rounded-full border-0 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-6">
             {kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}
           </button>
         </div>
