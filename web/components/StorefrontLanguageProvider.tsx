@@ -57,6 +57,11 @@ function useStorefrontLanguage() {
   return context;
 }
 
+export function useStorefrontLocale() {
+  const { language } = useStorefrontLanguage();
+  return getStorefrontLocale(language);
+}
+
 export function useStorefrontTranslation() {
   const { language } = useStorefrontLanguage();
   return (message: StorefrontMessageKey) => translateStorefront(language, message);
