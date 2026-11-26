@@ -154,6 +154,12 @@ export const PLATFORM_MESSAGES = {
     extraImageLimit: 'אפשר להוסיף עד 2 תמונות נוספות (3 תמונות בסך הכול).', imageUploadFailed: 'העלאת התמונה נכשלה.',
 
         of: 'מתוך', minutesAbbr: 'דק׳', productDeleteConfirm: 'למחוק את הפריט הזה? הפעולה אינה הפיכה.', productDeleteNamedConfirm: 'למחוק את הפריט',
+        daySun: 'ראשון', dayMon: 'שני', dayTue: 'שלישי', dayWed: 'רביעי', dayThu: 'חמישי', dayFri: 'שישי', daySat: 'שבת',
+    openingTime: 'שעת פתיחה', closingTime: 'שעת סגירה', showOutOfHoursBanner: 'להציג באנר באתר מחוץ לשעות הפעילות',
+    bannerMessage: 'הודעת הבאנר', bannerPlaceholder: 'אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות.',
+    nightShiftUnsupported: 'שעת הסיום חייבת להיות אחרי שעת ההתחלה (משמרת לילה אינה נתמכת).', timeRangesOverlap: 'טווחי השעות חופפים.',
+    hoursSavedWithBookings: 'שעות הפעילות נשמרו. קיימים תורים משוריינים עתידיים; הם נשארו בתוקף. בדקו ידנית אם הם מתנגשים עם השעות החדשות.',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -309,6 +315,12 @@ export const PLATFORM_MESSAGES = {
     extraImageLimit: 'You can add up to 2 additional images (3 images total).', imageUploadFailed: 'Image upload failed.',
 
         of: 'of', minutesAbbr: 'min', productDeleteConfirm: 'Delete this item? This action cannot be undone.', productDeleteNamedConfirm: 'Delete item',
+        daySun: 'Sunday', dayMon: 'Monday', dayTue: 'Tuesday', dayWed: 'Wednesday', dayThu: 'Thursday', dayFri: 'Friday', daySat: 'Saturday',
+    openingTime: 'Opening time', closingTime: 'Closing time', showOutOfHoursBanner: 'Show a banner on the website outside business hours',
+    bannerMessage: 'Banner message', bannerPlaceholder: 'We are currently closed. Leave a message and we will get back to you during business hours.',
+    nightShiftUnsupported: 'The end time must be after the start time (overnight shifts are not supported).', timeRangesOverlap: 'Time ranges overlap.',
+    hoursSavedWithBookings: 'Business hours saved. Existing future appointments remain booked. Please check manually whether they conflict with the new hours.',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -464,6 +476,12 @@ export const PLATFORM_MESSAGES = {
     extraImageLimit: 'Можно добавить до 2 дополнительных изображений (всего 3).', imageUploadFailed: 'Не удалось загрузить изображение.',
 
         of: 'из', minutesAbbr: 'мин', productDeleteConfirm: 'Удалить этот элемент? Это действие необратимо.', productDeleteNamedConfirm: 'Удалить элемент',
+        daySun: 'Воскресенье', dayMon: 'Понедельник', dayTue: 'Вторник', dayWed: 'Среда', dayThu: 'Четверг', dayFri: 'Пятница', daySat: 'Суббота',
+    openingTime: 'Время открытия', closingTime: 'Время закрытия', showOutOfHoursBanner: 'Показывать баннер на сайте вне рабочих часов',
+    bannerMessage: 'Текст баннера', bannerPlaceholder: 'Сейчас мы закрыты. Оставьте сообщение, и мы ответим в рабочее время.',
+    nightShiftUnsupported: 'Время окончания должно быть позже времени начала (ночные смены не поддерживаются).', timeRangesOverlap: 'Временные интервалы пересекаются.',
+    hoursSavedWithBookings: 'Часы работы сохранены. Существующие будущие записи остаются действительными. Проверьте вручную, не конфликтуют ли они с новым расписанием.',
+
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
 } as const;
