@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 type PlanCode = 'standard' | 'plus';
-type RecordType = 'lead' | 'appointment' | 'waitlist';
+type RecordType = 'lead' | 'appointment' | 'waitlist' | 'push';
 type Policy = {
   plan_code: PlanCode;
   record_type: RecordType;
@@ -26,6 +26,9 @@ const groups: { type: RecordType; title: string; rows: { status: string; label: 
     { status: 'rejected', label: 'בקשות שנדחו', description: 'תקופת השמירה מתחילה בעדכון הסטטוס' },
     { status: 'closed', label: 'בקשות שנסגרו / שובצו', description: 'בקשה ששובצה נשמרת ביחס למועד הפגישה המקושרת' },
     { status: 'scheduled_without_booking', label: 'בקשות שטופלו ללא קביעת תור', description: 'תקופת השמירה מתחילה בעדכון הסטטוס' },
+  ] },
+  { type: 'push', title: 'היסטוריית התראות Push', rows: [
+    { status: 'completed', label: 'אירועי התראות שהסתיימו', description: 'תקופת השמירה מתחילה לאחר סיום הטיפול באירוע. אירועים שממתינים לשליחה או לניסיון חוזר לא יימחקו.' },
   ] },
 ];
 
@@ -49,7 +52,7 @@ export default function RetentionAdminPage() {
     return () => { active = false; };
   }, []);
 
-  const complete = useMemo(() => policies.length === 16, [policies]);
+  const complete = useMemo(() => policies.length === 18, [policies]);
   function update(plan: PlanCode, type: RecordType, status: string, patch: Partial<Policy>) {
     setPolicies((current) => current.map((item) =>
       item.plan_code === plan && item.record_type === type && item.record_status === status
@@ -106,8 +109,8 @@ export default function RetentionAdminPage() {
               <h2 className="text-xl font-bold">{plan === 'standard' ? 'מנוי רגיל (Basic)' : 'מנוי Plus'}</h2>
               <p className="mt-1 text-sm text-slate-600">
                 {plan === 'standard'
-                  ? 'ברירת המחדל: פניות פתוחות 60 יום, פניות סגורות 30 יום; פגישות ובקשות המתנה יום אחד.'
-                  : 'ברירת המחדל: אין מחיקה אוטומטית. ניתן להפעיל מחיקה ולבחור תקופה לכל סוג רשומה בנפרד.'}
+                  ? 'ברירת המחדל: פניות פתוחות 60 יום, פניות סגורות 30 יום; פגישות ובקשות המתנה יום אחד; היסטוריית Push 30 יום.'
+                  : 'ברירת המחדל: אין מחיקה אוטומטית לרשומות CRM ויומן; היסטוריית Push נשמרת 30 יום. ניתן לשנות כל הגדרה בנפרד.'}
               </p>
             </div>
             {groups.map((group) => (
