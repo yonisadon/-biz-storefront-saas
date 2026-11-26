@@ -93,9 +93,9 @@ export default function CalendarTimeline({
         <h3 className="font-bold">{mode === 'day' ? t('calendarDayBoard') : t('calendarWeekBoard')}</h3>
         {mode === 'week' && <p className="text-xs text-gray-500 sm:hidden">{t('scrollHorizontally')}</p>}
         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-blue-200"/> נקבע באתר</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-violet-200"/> תור ידני</span>
-          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-gray-300"/> חסימה</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-blue-200"/> {t('fromWebsite')}</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-violet-200"/> {t('manualAppointmentTag')}</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-gray-300"/> {t('timeBlock')}</span>
         </div>
       </div>
       <div className="overflow-x-auto">
