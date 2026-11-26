@@ -21,6 +21,7 @@ const STORAGE_PREFIX = "btime:storefront-language:";
 
 const messages = {
   he: {
+    whatsappGreeting: "שלום, אשמח לקבל פרטים נוספים לגבי העסק.",
     readMore: "קרא עוד",
     readLess: "קרא פחות",
     contact: "יצירת קשר",
@@ -266,6 +267,7 @@ const messages = {
     daySaturday: "שבת",
   },
   en: {
+    whatsappGreeting: "Hello, I would like to get more information about your business.",
     readMore: "Read more",
     readLess: "Read less",
     contact: "Contact",
@@ -511,6 +513,7 @@ const messages = {
     daySaturday: "Saturday",
   },
   ru: {
+    whatsappGreeting: "Здравствуйте! Хотел(а) бы получить дополнительную информацию о вашей компании.",
     readMore: "Читать далее",
     readLess: "Свернуть",
     contact: "Связаться",
