@@ -103,7 +103,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       setMsg(null);
       onChanged();
     } catch (err) {
-      setMsg(`החלפת התמונה הנוספת נכשלה: ${uploadErrorText(err)}`);
+      setMsg(`${t('imageUploadFailed')} ${uploadErrorText(err)}`);
     }
   }
 
@@ -214,9 +214,9 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
           <legend className="px-1 text-sm font-medium">{t('extraDetails')}</legend>
           {details.map((item, index) => (
             <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <input className={input + ' min-w-0'} aria-label={`שם מאפיין ${index + 1}`} maxLength={50} placeholder={t('attribute')} value={item.label}
+              <input className={input + ' min-w-0'} aria-label={`${t('attribute')} ${index + 1}`} maxLength={50} placeholder={t('attribute')} value={item.label}
                 onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, label: e.target.value } : row))} />
-              <input className={input + ' min-w-0'} aria-label={`ערך מאפיין ${index + 1}`} maxLength={250} placeholder={t('attributeValue')} value={item.value}
+              <input className={input + ' min-w-0'} aria-label={`${t('attributeValue')} ${index + 1}`} maxLength={250} placeholder={t('attributeValue')} value={item.value}
                 onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, value: e.target.value } : row))} />
               <button type="button" onClick={() => setDetails((items) => items.filter((_, i) => i !== index))} className="px-2 text-sm text-red-700" aria-label={t('removeRange')}>✕</button>
             </div>
@@ -281,7 +281,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
           </div>
           {(current?.additional_images.length ?? 0) + extraFiles.length < 2 && (
             <label className="mt-2 inline-flex cursor-pointer rounded-full bg-white px-3 py-1.5 text-sm ring-1 ring-gray-300">
-              + הוספת תמונה נוספת
+              + {t('addExtraImage')}
               <input type="file" accept={ACCEPT} multiple className="sr-only" onChange={pickAdditional} />
             </label>
           )}
