@@ -121,7 +121,7 @@ export default async function StorefrontPage({ params }: Props) {
               {oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /><StorefrontText message="closedNow" /></span>}
             </div>
             <div className={oh?.days && hasContact ? 'grid gap-3 sm:grid-cols-2 sm:gap-6' : ''}>
-              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={null} embedded={true} /></div>}
+              {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={null} embedded={true} multilingual={true} /></div>}
               {publicAddress && <div className={hasContact ? 'mb-3 border-b border-ink/10 pb-3 sm:mb-0 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}>
                 <h3 className="mb-2 text-base font-bold"><StorefrontText message="businessAddress" /></h3>
                 <p className="text-sm leading-6 text-ink/75">{publicAddress}</p>
