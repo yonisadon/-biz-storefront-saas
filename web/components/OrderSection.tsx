@@ -769,8 +769,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               {lines.map(({ p, q }) => {
                 const durationLabel = p.kind === 'service' ? t('durationLabel') : '';
                 return <li key={`${p.kind}:${p.id}`} data-cart-item-id={p.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-gray-200 pb-3 last:border-b-0 last:pb-0">
-                  <span className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} {t('minutes')}</span> : null}</span>
-                  <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q, storefrontLocale)}</span>
+                  <span dir="auto" className="min-w-0 break-words font-medium">{p.name} × {q}{durationLabel ? <span className="block text-xs font-normal text-ink/60">{durationLabel}: {p.appointment_duration_minutes * q} {t('minutes')}</span> : null}</span>
+                  <span dir="auto" className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q, storefrontLocale)}</span>
                   {!done && (
                     <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 border-t border-gray-200 pt-2">
                       <Stepper q={q} label={`${t('quantityLabel')}: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} t={t} />
