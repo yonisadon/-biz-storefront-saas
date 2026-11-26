@@ -1,4 +1,7 @@
+'use client';
+
 import type { ReactNode } from 'react';
+import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 import { StorefrontPushManagementFooter, StorefrontPushManagementProvider } from '@/components/StorefrontPushManagement';
 
 type Props = {
@@ -13,10 +16,11 @@ type Props = {
 
 /** One shared storefront composition for every business category. */
 export default function StorefrontPageComposition({ hasGallery, identity, gallery, services, catalog, contact, footer }: Props) {
+  const t = useStorefrontTranslation();
   return (
     <StorefrontPushManagementProvider>
     <main id="storefront-main" tabIndex={-1} className="mx-auto max-w-6xl px-3 pb-28 pt-2 sm:px-6 sm:pb-10 sm:pt-4">
-      <section className="storefront-universal-hero" data-has-gallery={hasGallery ? "true" : "false"} aria-label="פרטי העסק ותמונות העסק">
+      <section className="storefront-universal-hero" data-has-gallery={hasGallery ? "true" : "false"} aria-label={t('pushFooterAria')}>
         {hasGallery && <div className="storefront-universal-hero-media">{gallery}</div>}
         <div className="storefront-universal-hero-copy">{identity}</div>
       </section>
