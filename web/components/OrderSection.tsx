@@ -663,13 +663,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? (otherCartCount > 0 ? 'pb-40' : 'pb-24') : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
-        {kind === 'service' && customerPushActive && (
-          <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/65 underline">
-            ביטול התראות מהעסק
-          </button>
-        )}
       </div>
-      {kind === 'service' && customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/65">{customerPushManageStatus}</p>}
       {(items.length > 0 || search.trim()) && <p className="mt-1 text-sm leading-5 text-ink/65">{kind === 'product' ? 'בחרו מוצר כדי להוסיף אותו להזמנה.' : 'בחרו שירות כדי להוסיף אותו להזמנה.'}</p>}
 
       {catalogTotal >= 5 && (
@@ -1007,6 +1001,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </form>
         )}
       </dialog>
+      {kind === 'service' && (customerPushActive || customerPushManageStatus) && (
+        <div className="mt-8 border-t border-ink/10 pt-3 text-center">
+          {customerPushActive && (
+            <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/55 underline underline-offset-2">
+              ניהול התראות מהעסק
+            </button>
+          )}
+          {customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/55">{customerPushManageStatus}</p>}
+        </div>
+      )}
     </section>
   );
 }
