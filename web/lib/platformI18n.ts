@@ -153,6 +153,7 @@ export const PLATFORM_MESSAGES = {
     productSaveFailed: 'שמירת המוצר נכשלה.', productSavedImageRemoveFailed: 'פרטי המוצר נשמרו, אבל הסרת התמונה נכשלה. נסו שוב.',
     extraImageLimit: 'אפשר להוסיף עד 2 תמונות נוספות (3 תמונות בסך הכול).', imageUploadFailed: 'העלאת התמונה נכשלה.',
 
+        of: 'מתוך', minutesAbbr: 'דק׳', productDeleteConfirm: 'למחוק את הפריט הזה? הפעולה אינה הפיכה.', productDeleteNamedConfirm: 'למחוק את הפריט',
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -307,6 +308,7 @@ export const PLATFORM_MESSAGES = {
     productSaveFailed: 'Could not save the product.', productSavedImageRemoveFailed: 'Product details were saved, but the image could not be removed. Try again.',
     extraImageLimit: 'You can add up to 2 additional images (3 images total).', imageUploadFailed: 'Image upload failed.',
 
+        of: 'of', minutesAbbr: 'min', productDeleteConfirm: 'Delete this item? This action cannot be undone.', productDeleteNamedConfirm: 'Delete item',
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -461,6 +463,7 @@ export const PLATFORM_MESSAGES = {
     productSaveFailed: 'Не удалось сохранить товар.', productSavedImageRemoveFailed: 'Данные товара сохранены, но изображение удалить не удалось. Попробуйте снова.',
     extraImageLimit: 'Можно добавить до 2 дополнительных изображений (всего 3).', imageUploadFailed: 'Не удалось загрузить изображение.',
 
+        of: 'из', minutesAbbr: 'мин', productDeleteConfirm: 'Удалить этот элемент? Это действие необратимо.', productDeleteNamedConfirm: 'Удалить элемент',
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
 } as const;
