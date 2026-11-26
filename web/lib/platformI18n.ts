@@ -265,6 +265,8 @@ export const PLATFORM_MESSAGES = {
     mainImage: 'תמונה ראשית', pwaIcon: 'אייקון PWA',
 
         accessibility: 'הצהרת נגישות', otherAccountLogin: 'התחברות לחשבון אחר', characters: 'תווים',
+        backToBtime: 'חזרה ל-BTime', legalFixedLanguageNote: 'נוסחי המסמכים המשפטיים הקבועים של הפלטפורמה מוצגים כרגע בעברית בלבד. תרגום משפטי לשפות נוספות יתווסף רק לאחר בדיקה ואישור מתאימים.',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -531,6 +533,8 @@ export const PLATFORM_MESSAGES = {
     mainImage: 'Main image', pwaIcon: 'PWA icon',
 
         accessibility: 'Accessibility statement', otherAccountLogin: 'Sign in to another account', characters: 'characters',
+        backToBtime: 'Back to BTime', legalFixedLanguageNote: 'The platform’s fixed legal documents are currently available in Hebrew only. Legal translations into additional languages will be added only after appropriate review and approval.',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -797,6 +801,8 @@ export const PLATFORM_MESSAGES = {
     mainImage: 'Главное изображение', pwaIcon: 'Значок PWA',
 
         accessibility: 'Заявление о доступности', otherAccountLogin: 'Войти в другой аккаунт', characters: 'символов',
+        backToBtime: 'Вернуться в BTime', legalFixedLanguageNote: 'Фиксированные юридические документы платформы пока доступны только на иврите. Переводы на другие языки будут добавлены только после соответствующей проверки и утверждения.',
+
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
 } as const;
