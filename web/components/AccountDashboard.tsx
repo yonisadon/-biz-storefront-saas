@@ -178,7 +178,7 @@ export default function AccountDashboard() {
       await loadAccount();
       setMessage(t('createBusinessSuccess'));
       setName('');setSlug('');setWhatsapp('');
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -195,7 +195,7 @@ export default function AccountDashboard() {
       if(!response.ok)throw new Error(response.status===403?t('trialInactive'):t('managementLinkUnavailable'));
       setManagementUrl(data.management_url);
       setManagementLinkNeedsAssociation(false);
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -212,10 +212,10 @@ export default function AccountDashboard() {
       }
       if(!response.ok)throw new Error(response.status===403?t('trialInactiveContact'):t('managementLinkUnavailable'));
       const path=sameOriginManagementPath(data.management_url);
-      if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');
+      if(!path)throw new Error(t('invalidManagementLink'));
       setManagementUrl(data.management_url);
       window.location.assign(path);
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -232,7 +232,7 @@ export default function AccountDashboard() {
       setManagementLinkNeedsAssociation(false);
       setMessage(t('accountLinkAssociated'));
       await loadManagementLink();
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -251,7 +251,7 @@ export default function AccountDashboard() {
       if(!response.ok)throw new Error(t('genericError'));
       setMessage(t('subscriptionCanceled'));
       await loadAccount();
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -264,7 +264,7 @@ export default function AccountDashboard() {
       setMessage(t('deletionSent'));
       setReason('');
       await loadAccount();
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -413,11 +413,11 @@ export default function AccountDashboard() {
         </form>}
       </section>}
       <p className="mt-6 text-center text-xs text-slate-500">{t('dataRetentionNote')}</p>
-      <nav aria-label="מסמכי BTime" className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-slate-500">
-        <Link href="/platform-legal?returnTo=%2Faccount#terms_of_use" className="underline">תנאי שימוש</Link>
-        <Link href="/platform-legal?returnTo=%2Faccount#privacy_policy" className="underline">מדיניות פרטיות</Link>
-        <Link href="/platform-legal?returnTo=%2Faccount#accessibility_statement" className="underline">הצהרת נגישות</Link>
-        <Link href="/login" className="underline">התחברות לחשבון אחר</Link>
+      <nav aria-label={t("legalDocuments")} className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-slate-500">
+        <Link href="/platform-legal?returnTo=%2Faccount#terms_of_use" className="underline">{t("terms")}</Link>
+        <Link href="/platform-legal?returnTo=%2Faccount#privacy_policy" className="underline">{t("privacy")}</Link>
+        <Link href="/platform-legal?returnTo=%2Faccount#accessibility_statement" className="underline">{t("accessibility")}</Link>
+        <Link href="/login" className="underline">{t("otherAccountLogin")}</Link>
       </nav>
     </div>
   </main>;
