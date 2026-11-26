@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { fmtDate, ils, toLocalPhone, waLink } from '@/lib/format';
-import { LEAD_STATUSES, STATUS_LABEL } from '@/lib/labels';
+import { LEAD_STATUSES } from '@/lib/labels';
 import { mcallWithTimeout } from '@/lib/manageApi';
 import type { Lead, LeadStatus, LeadsResponse } from '@/lib/types';
 import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
@@ -61,7 +61,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
       const headers = [t('leadDate'), t('customerName'), t('phoneLabel'), t('emailAddress'), t('channel'), t('status'), t('customerMessage'), t('items'), t('estimatedAmount'), t('appointmentTime'), t('appointmentDuration'), t('sellerNotes')];
       const rows = exportRows.map((l) => [
         fmtDate(l.created_at), l.customer_name, l.customer_phone, l.customer_email,
-        l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', ({ pending_approval: t('statusPendingApproval'), whatsapp_initiated: t('statusWhatsappOpened'), approved: t('statusApproved'), completed: t('statusCompleted'), rejected: t('statusRejected'), cancelled: t('statusCanceled') } as Record<LeadStatus, string>)[l.status], l.message,
+        l.submission_channel === 'whatsapp' ? t('whatsapp') : t('website'), ({ pending_approval: t('statusPendingApproval'), whatsapp_initiated: t('statusWhatsappOpened'), approved: t('statusApproved'), completed: t('statusCompleted'), rejected: t('statusRejected'), cancelled: t('statusCanceled') } as Record<LeadStatus, string>)[l.status], l.message,
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
         l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? t('quote') : '') : (l.estimated_total_agorot / 100).toFixed(2),
         l.metadata?.action === 'waitlist' && l.metadata.preferred_date ? `${l.metadata.preferred_date}${l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}` : l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : '',
@@ -123,7 +123,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
             onChange={(e) => { const v = e.target.value as LeadStatus | ''; setFilter(v); setSelectedIds(new Set()); load(v, 0, search); }}
             className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
             <option value="">{t('all')}</option>
-            {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            {LEAD_STATUSES.map((s) => <option key={s} value={s}>{({ pending_approval: t('statusPendingApproval'), whatsapp_initiated: t('statusWhatsappOpened'), approved: t('statusApproved'), completed: t('statusCompleted'), rejected: t('statusRejected'), cancelled: t('statusCanceled') } as Record<LeadStatus, string>)[s]}</option>)}
           </select>
         </label>
         <span className="text-sm text-gray-500">{data.total} {t('inquiriesCount')}</span>
@@ -208,7 +208,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                 <td className="whitespace-nowrap px-3 py-2">
                   {l.estimated_total_agorot === null
                     ? (l.metadata?.has_quote_items ? t('quote') : '—')
-                    : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + הצעת מחיר' : '')}
+                    : ils(l.estimated_total_agorot) + (l.metadata?.has_quote_items ? ' + ' + t('quote') : '')}
                 </td>
                 <td className="px-3 py-2">{l.submission_channel === 'whatsapp' ? t('whatsapp') : t('website')}</td>
                 <td className="px-3 py-2">
