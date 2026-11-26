@@ -1,6 +1,21 @@
 export type OpeningRange = { open: string; close: string };
 export type OpeningDays = Record<string, unknown> | null | undefined;
 
+/** Validate an inclusive ISO calendar-date range before querying seller calendar data. */
+export function validateCalendarDateRange(from: string, to: string, maxDays = 42): string | null {
+  const fromMs = Date.parse(`${from}T00:00:00.000Z`);
+  const toMs = Date.parse(`${to}T00:00:00.000Z`);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) ||
+      new Date(fromMs).toISOString().slice(0, 10) !== from ||
+      new Date(toMs).toISOString().slice(0, 10) !== to) {
+    return 'invalid_date_range';
+  }
+  const rangeDays = Math.floor((toMs - fromMs) / 86_400_000) + 1;
+  if (rangeDays < 1) return 'invalid_date_range';
+  if (rangeDays > maxDays) return 'date_range_too_large';
+  return null;
+}
+
 export function hasConfiguredOpeningHours(days: OpeningDays): boolean {
   if (!days || typeof days !== 'object') return false;
   return Object.values(days).some((ranges) => Array.isArray(ranges) && ranges.length > 0);
