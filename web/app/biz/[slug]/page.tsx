@@ -127,7 +127,7 @@ export default async function StorefrontPage({ params }: Props) {
                 {addressHref && <a href={addressHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"><span aria-hidden="true">↗</span><StorefrontText message="directions" /></a>}
               </div>}
               {hasContact && <div className="min-w-0"><h3 className="mb-2 text-base font-bold"><StorefrontText message="contactMethods" /></h3>
-                <StorefrontContactLinks whatsappHref={whatsappHref} instagramHref={instagramHref} facebookHref={facebookHref} phone={b?.phone} email={b?.email} />
+                <StorefrontContactLinks whatsappHref={whatsappHref} instagramHref={instagramHref} facebookHref={facebookHref} phone={b?.phone ?? undefined} email={b?.email ?? undefined} />
               </div>}
             </div>
           </section>}
