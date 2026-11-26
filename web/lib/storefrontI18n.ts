@@ -102,8 +102,11 @@ export function getStoredStorefrontLanguage(slug: string): StorefrontLanguage | 
   try {
     const stored = window.localStorage.getItem(STORAGE_PREFIX + slug);
     if (!stored) return null;
-    const normalized = normalizeStorefrontLanguage(stored);
-    return STOREFRONT_LANGUAGES.includes(normalized) ? normalized : null;
+    const rawLanguage = stored.trim().toLowerCase().split(/[-_]/, 1)[0];
+    if (!STOREFRONT_LANGUAGES.includes(rawLanguage as StorefrontLanguage) && rawLanguage !== "iw") {
+      return null;
+    }
+    return normalizeStorefrontLanguage(stored);
   } catch {
     // Storage may be unavailable in private browsing or restricted contexts.
     return null;
