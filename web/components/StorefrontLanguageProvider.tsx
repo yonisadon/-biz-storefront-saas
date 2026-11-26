@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   getStoredStorefrontLanguage,
   getStorefrontDirection,
@@ -64,7 +64,7 @@ export function useStorefrontLocale() {
 
 export function useStorefrontTranslation() {
   const { language } = useStorefrontLanguage();
-  return (message: StorefrontMessageKey) => translateStorefront(language, message);
+  return useCallback((message: StorefrontMessageKey) => translateStorefront(language, message), [language]);
 }
 
 export function StorefrontText({ message }: { message: StorefrontMessageKey }) {
