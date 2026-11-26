@@ -2,6 +2,7 @@
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import { useStorefrontTranslation, useStorefrontLocale } from '@/components/StorefrontLanguageProvider';
+import type { StorefrontMessageKey } from '@/lib/storefrontI18n';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
