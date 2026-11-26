@@ -4,6 +4,7 @@ import AccessibilityToolbar from '@/components/AccessibilityToolbar';
 import PwaInstallButton from '@/components/PwaInstallButton';
 import StorefrontGallery from '@/components/StorefrontGallery';
 import StorefrontPageComposition from '@/components/StorefrontPageComposition';
+import StorefrontLanguageProvider, { StorefrontLanguageSwitcher, StorefrontText } from '@/components/StorefrontLanguageProvider';
 import Hours from '@/components/Hours';
 import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
@@ -87,7 +88,7 @@ export default async function StorefrontPage({ params }: Props) {
             <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
             <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
             {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
-            {hasBusinessInfo && <div className="storefront-hero-actions mt-4"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">יצירת קשר</a></div>}
+            {hasBusinessInfo && <div className="storefront-hero-actions mt-4"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"><StorefrontText message="contact" /></a></div>}
           </header>
     
   );
@@ -115,18 +116,18 @@ export default async function StorefrontPage({ params }: Props) {
   const contactSlot = (
     <>
           {hasBusinessInfo && <section id="contact-section" aria-labelledby="business-info-h" className="mt-5 scroll-mt-5 rounded-[1.75rem] border border-ink/10 bg-white p-4 shadow-sm sm:mt-7 sm:p-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl">פרטי העסק</h2>
-              {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /> פתוח עכשיו</span>}
-              {oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /> סגור עכשיו</span>}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="business-info-h" className="text-xl font-extrabold tracking-tight sm:text-2xl"><StorefrontText message="businessDetails" /></h2>
+              {oh?.open_now === true && <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-500" /><StorefrontText message="openNow" /></span>}
+              {oh?.open_now === false && <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-slate-400" /><StorefrontText message="closedNow" /></span>}
             </div>
             <div className={oh?.days && hasContact ? 'grid gap-3 sm:grid-cols-2 sm:gap-6' : ''}>
               {oh?.days && <div className={hasContact ? 'border-b border-ink/10 pb-5 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}><Hours days={oh.days} openNow={null} embedded={true} /></div>}
               {publicAddress && <div className={hasContact ? 'mb-3 border-b border-ink/10 pb-3 sm:mb-0 sm:border-b-0 sm:border-e sm:pb-0 sm:pe-7' : ''}>
-                <h3 className="mb-2 text-base font-bold">כתובת העסק</h3>
+                <h3 className="mb-2 text-base font-bold"><StorefrontText message="businessAddress" /></h3>
                 <p className="text-sm leading-6 text-ink/75">{publicAddress}</p>
-                {addressHref && <a href={addressHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"><span aria-hidden="true">↗</span> ניווט למקום</a>}
+                {addressHref && <a href={addressHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"><span aria-hidden="true">↗</span><StorefrontText message="directions" /></a>}
               </div>}
-              {hasContact && <div className="min-w-0"><h3 className="mb-2 text-base font-bold">דרכי התקשרות</h3>
+              {hasContact && <div className="min-w-0"><h3 className="mb-2 text-base font-bold"><StorefrontText message="contactMethods" /></h3>
                 <div className="flex flex-wrap items-center gap-3">
                   {whatsappHref && <a href={whatsappHref} target="_blank" rel="noopener noreferrer" aria-label="פתיחת WhatsApp" title="WhatsApp" className="flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.8 11.8 0 0 0 12.12 0C5.58 0 .25 5.33.25 11.87c0 2.1.55 4.15 1.6 5.96L.15 24l6.32-1.66a11.9 11.9 0 0 0 5.65 1.44h.01c6.54 0 11.87-5.33 11.87-11.87 0-3.17-1.23-6.15-3.48-8.43ZM12.13 21.76a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.75.98 1-3.65-.24-.38a9.84 9.84 0 0 1-1.51-5.25c0-5.46 4.45-9.91 9.92-9.91 2.65 0 5.14 1.03 7.01 2.9a9.86 9.86 0 0 1 2.9 7.01c0 5.47-4.45 9.89-9.92 9.89Zm5.44-7.42c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.77-1.67-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.03-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.48-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.31 1.27.5 1.7.64.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.07-.13-.27-.2-.57-.35Z"/></svg></a>}
                   {instagramHref && <a href={instagramHref} target="_blank" rel="noopener noreferrer" aria-label="פתיחת Instagram" title="Instagram" className="flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 bg-white text-ink shadow-sm transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>}
@@ -142,13 +143,14 @@ export default async function StorefrontPage({ params }: Props) {
   );
   const footerSlot = (
           <footer className="mt-8 border-t border-ink/10 px-2 py-6 text-center text-sm text-ink/65">
-            <a className="inline-flex min-h-11 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold underline-offset-4 transition hover:border-primary/40 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}>מידע משפטי ונגישות</a>
+            <a className="inline-flex min-h-11 items-center rounded-full border border-ink/15 bg-white px-4 py-2 font-semibold underline-offset-4 transition hover:border-primary/40 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" href={ctx.base ? `${ctx.base}/legal` : '/biz/_site/legal'}><StorefrontText message="legalAndAccessibility" /></a>
           </footer>
     
   );
 
-  return <div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
-    <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black">דילוג לתוכן המרכזי</a>
+  return <StorefrontLanguageProvider slug={resolvedParams.slug} businessLocale={b?.locale}><div className="brand-root min-h-screen overflow-x-clip bg-surface text-ink" data-font-style={data.branding?.font_style ?? 'modern'} data-storefront-theme={data.branding?.storefront_theme ?? 'soft'} data-business-title-color={data.branding?.business_title_color === 'black' ? 'black' : 'brand'} data-storefront-profile="default" style={themeVars(data.branding?.colors)}>
+    <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black"><StorefrontText message="skipToMainContent" /></a>
+    <StorefrontLanguageSwitcher />
     <AccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
     <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
       <PwaInstallButton label="הוספת האתר למסך הבית לקבלת התראות" />
@@ -163,5 +165,5 @@ export default async function StorefrontPage({ params }: Props) {
       contact={contactSlot}
       footer={footerSlot}
     />
-  </div>;
+  </div></StorefrontLanguageProvider>;
 }
