@@ -789,11 +789,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label={t('previousMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
                       <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize">{appointmentMonthLabel}</span>
                       <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label={t('nextMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
-                      <button type="button" onClick={() => { const month = todayDate.slice(0, 7); setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">החודש</button>
+                      <button type="button" onClick={() => { const month = todayDate.slice(0, 7); setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">{t('monthNow')}</button>
                     </div>
                   </div>
                   <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{[t('weekdaySundayShort'), t('weekdayMondayShort'), t('weekdayTuesdayShort'), t('weekdayWednesdayShort'), t('weekdayThursdayShort'), t('weekdayFridayShort'), t('weekdaySaturdayShort')].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
-                  <div role="group" aria-label="בחירת יום בחודש" className="grid min-w-0 grid-cols-7 gap-1">
+                  <div role="group" aria-label={t('chooseDay')} className="grid min-w-0 grid-cols-7 gap-1">
                     {monthCells.map((date, index) => {
                       if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
                       const available = monthAvailableDates.includes(date);
@@ -805,19 +805,19 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       </button>;
                     })}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink/60"><span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-primary"/> יש שעות פנויות</span><span>ימים אפורים אינם זמינים</span></div>
-                  {monthLoading && <p role="status" className="text-xs text-ink/60">בודקים זמינות לחודש…</p>}
-                  {monthError && <p role="alert" className="text-xs text-red-700">לא הצלחנו לטעון את זמינות החודש. נסו לרענן את הדף.</p>}
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink/60"><span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-primary"/> {t('availableSlots')}</span><span>{t('unavailableDays')}</span></div>
+                  {monthLoading && <p role="status" className="text-xs text-ink/60">{t('checkingMonth')}</p>}
+                  {monthError && <p role="alert" className="text-xs text-red-700">{t('monthLoadError')}</p>}
                 </div>
                 <div className="space-y-2">
-                  <span className="text-sm font-semibold">שעות פנויות</span>
-                  {!appointmentDate && <p className="text-sm text-ink/55">בחרו יום שבו מופיע סימון של זמינות.</p>}
-                  {appointmentDate && slotsLoading && <p role="status" className="text-sm text-ink/55">בודקים שעות פנויות ליום שנבחר…</p>}
-                  {appointmentDate && slotsError && <p role="alert" className="text-sm text-red-700">לא הצלחנו לבדוק את השעות. נסו לבחור את היום מחדש.</p>}
-                  {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">אין כרגע שעות פנויות ביום זה.</p>}
+                  <span className="text-sm font-semibold">{t('availableTimes')}</span>
+                  {!appointmentDate && <p className="text-sm text-ink/55">{t('chooseAvailableDay')}</p>}
+                  {appointmentDate && slotsLoading && <p role="status" className="text-sm text-ink/55">{t('checkingDaySlots')}</p>}
+                  {appointmentDate && slotsError && <p role="alert" className="text-sm text-red-700">{t('slotsLoadError')}</p>}
+                  {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">{t('noSlotsToday')}</p>}
                   {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime((current) => current === slot ? '' : slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
-                {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat(storefrontLocale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">{t('appointmentDuration')}: {reservedAppointmentDurationMinutes} {storefrontLocale === 'he-IL' ? 'דקות' : storefrontLocale === 'ru-RU' ? 'мин' : 'min'} · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
+                {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">{t('appointmentSummary')}</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat(storefrontLocale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">{t('appointmentDuration')}: {reservedAppointmentDurationMinutes} {t('minutes')} · {t('priceLabel')}: {totalText || t('quotePrice')}</p></div>}
                 {!appointmentTime && !monthLoading && !monthError && !slotsLoading && !slotsError && (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                     <p className="text-sm font-semibold">{t('noSuitableTime')}</p>
@@ -954,17 +954,17 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">{t('waitlistRequest')}</button>}
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'מכין הודעה…' : t('whatsappContact')}
+                  {busy === 'whatsapp' ? t('prepareWhatsApp') : t('whatsappContact')}
                 </button>}
               </>
             ) : (
               <>
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
-                  {busy === 'whatsapp' ? 'מכין הודעה…' : t('continueWhatsApp')}
+                  {busy === 'whatsapp' ? t('prepareWhatsApp') : t('continueWhatsApp')}
                 </button>}
                 {crmEnabled && <button type="button" onClick={() => { setError(null); setStep('site'); }}
-                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary">השארת פנייה באתר</button>}
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary">{t('siteInquiry')}</button>}
               </>
             )}
             <p className="text-center text-xs leading-5 text-ink/60">{kind === 'service' ? t('chooseOneMethod') : t('productsInquiryNote')}</p>
@@ -972,11 +972,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         ) : step === 'reserve' ? (
           <form onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <label className="block text-sm font-medium">מספר טלפון לקביעת התור *
+            <label className="block text-sm font-medium">{t('bookingPhone')}
               <input name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </label>
             <div className="flex gap-2">
-              <button type="button" onClick={() => { setError(null); setStep('choose'); }} className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3">חזרה</button>
+              <button type="button" onClick={() => { setError(null); setStep('choose'); }} className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3">{t('back')}</button>
               <button type="submit" disabled={busy !== null || !appointmentDate || !appointmentTime || !hasAppointmentHours} className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
                 {busy === 'reserve' ? t('savingAppointment') : t('confirmAppointment')}
               </button>
@@ -987,20 +987,20 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
             <div>
-              <label htmlFor={`${kind}-lead-name`} className="block text-sm font-medium">שם (רשות)</label>
+              <label htmlFor={`${kind}-lead-name`} className="block text-sm font-medium">{t('customerNameOptional')}</label>
               <input id={`${kind}-lead-name`} name="name" autoComplete="name" type="text" className={input} value={form.name} onChange={setField('name')} />
             </div>
             <div>
-              <label htmlFor={`${kind}-lead-phone`} className="block text-sm font-medium">מספר טלפון *</label>
+              <label htmlFor={`${kind}-lead-phone`} className="block text-sm font-medium">{t('phoneRequired')}</label>
               <input id={`${kind}-lead-phone`} name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </div>
             <div>
-              <label htmlFor={`${kind}-lead-email`} className="block text-sm font-medium">אימייל (רשות)</label>
+              <label htmlFor={`${kind}-lead-email`} className="block text-sm font-medium">{t('emailOptional')}</label>
               <input id={`${kind}-lead-email`} name="email" autoComplete="email" dir="ltr" type="email" className={input} value={form.email} onChange={setField('email')} />
             </div>
             <div className="flex gap-2 pt-2">
               {whatsappEnabled && <button type="button" onClick={() => { setError(null); setStep('choose'); }}
-                className="min-h-12 flex-1 rounded-xl px-4 py-3 font-medium text-ink/70 transition hover:bg-ink/5">חזרה</button>}
+                className="min-h-12 flex-1 rounded-xl px-4 py-3 font-medium text-ink/70 transition hover:bg-ink/5">{t('back')}</button>}
               <button type="submit" disabled={busy !== null}
                 className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
                 {busy === 'site' ? t('saving') : t('sendInquiry')}
