@@ -35,3 +35,18 @@ CREATE TABLE public.appointment_blocks (
   end_at timestamptz NOT NULL,
   CHECK (end_at > start_at)
 );
+
+-- Model the legacy broad-role policies so tenant-022 proves it narrows them.
+CREATE TABLE public.waitlist_entries (id uuid PRIMARY KEY, tenant_id uuid NOT NULL);
+CREATE TABLE public.google_calendar_connections (tenant_id uuid PRIMARY KEY);
+CREATE TABLE public.google_calendar_oauth_states (state_hash text PRIMARY KEY, tenant_id uuid NOT NULL);
+CREATE TABLE public.google_calendar_sync_jobs (tenant_id uuid NOT NULL, appointment_id uuid NOT NULL, PRIMARY KEY (tenant_id, appointment_id));
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['waitlist_entries','google_calendar_connections','google_calendar_oauth_states','google_calendar_sync_jobs'] LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY tenant_isolation ON public.%I USING (tenant_id = app.current_tenant_id()) WITH CHECK (tenant_id = app.current_tenant_id())', t);
+  END LOOP;
+END $$;
