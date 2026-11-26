@@ -235,7 +235,7 @@ async function main() {
         // never use its own local filesystem to finalize API media records.
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
-          const deletedWaitlist = await db.query(`
+          const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
             'WHERE w2.tenant_id = app.current_tenant_id() AND (' + waitlistWhere.replaceAll('w.', 'w2.') + ')) RETURNING w.id',
@@ -296,7 +296,7 @@ async function main() {
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
           (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
-          (apply ? 'deleted ' + tenantMediaObjectsDeleted : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
+          (apply ? 'deleted ' + foundMediaObjects : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
