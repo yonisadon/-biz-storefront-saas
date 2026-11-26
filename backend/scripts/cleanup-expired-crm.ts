@@ -1,3 +1,4 @@
+import { storage, variantKeys } from '../src/storage';
 import pg from 'pg';
 
 const registryUrl = process.env.APP_DATABASE_URL;
@@ -112,6 +113,7 @@ async function main() {
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
   let pushHistoryDeleted = 0, pushHistoryFound = 0;
+  let mediaObjectsDeleted = 0, mediaObjectsFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -155,12 +157,14 @@ async function main() {
             "to_regclass('public.push_deliveries') IS NOT NULL AS has_push_deliveries, " +
             "to_regclass('public.push_subscription_targets') IS NOT NULL AS has_push_targets, " +
             "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities, " +
-            "to_regclass('public.idx_push_outbox_processed_at') IS NOT NULL AS has_push_retention_index"
+            "to_regclass('public.idx_push_outbox_processed_at') IS NOT NULL AS has_push_retention_index, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='media_assets' AND column_name='deleted_at') AS has_media_deletion_tracking, " +
+            "to_regclass('public.idx_media_assets_pending_deletion') IS NOT NULL AS has_media_deletion_index"
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
               !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads ||
-              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities || !c?.has_push_retention_index) {
+              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities || !c?.has_push_retention_index || !c?.has_media_deletion_tracking || !c?.has_media_deletion_index) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
@@ -222,8 +226,42 @@ async function main() {
           "AND d.outbox_id = o.id AND d.status IN ('pending','processing'))";
         const pushHistoryCount = await db.query('SELECT count(*)::int AS n FROM public.push_outbox o WHERE ' + pushHistoryWhere, [p.pushHistory]);
 
+        const mediaDeletionCount = await db.query(
+          `SELECT count(*)::int AS n FROM public.media_assets m
+            WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+              AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+              AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)`
+        );
+        let tenantMediaObjectsDeleted = 0;
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
+          // Bound each run. Keep the DB row until object storage confirms deletion.
+          const pendingMedia = await db.query(
+            `SELECT m.id, m.storage_key FROM public.media_assets m
+              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+                AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+                AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
+              ORDER BY m.deleted_at, m.id LIMIT 50 FOR UPDATE SKIP LOCKED`
+          );
+          if (pendingMedia.rows.length) {
+            try {
+              await storage.remove(pendingMedia.rows.flatMap((asset: { storage_key: string }) => variantKeys(asset.storage_key)));
+              const finalized = await db.query(
+                `DELETE FROM public.media_assets m
+                  WHERE m.id = ANY($1::uuid[]) AND m.deleted_at IS NOT NULL
+                    AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
+                    AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
+                  RETURNING m.id`,
+                [pendingMedia.rows.map((asset: { id: string }) => asset.id)]
+              );
+              tenantMediaObjectsDeleted = finalized.rowCount ?? 0;
+            } catch (error) {
+              console.warn('Media storage deletion deferred for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+            }
+          }
           const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
@@ -274,10 +312,12 @@ async function main() {
         const foundAppointments = Number(appointmentCount.rows[0]?.n ?? 0);
         const foundWaitlist = Number(waitlistCount.rows[0]?.n ?? 0);
         const foundPushHistory = Number(pushHistoryCount.rows[0]?.n ?? 0);
+        const foundMediaObjects = Number(mediaDeletionCount.rows[0]?.n ?? 0);
         leadsDeleted += tenantLeadsDeleted; leadsFound += foundLeads;
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
         pushHistoryDeleted += tenantPushHistoryDeleted; pushHistoryFound += foundPushHistory;
+        mediaObjectsDeleted += tenantMediaObjectsDeleted; mediaObjectsFound += foundMediaObjects;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
@@ -293,7 +333,8 @@ async function main() {
       '; tenants: ' + tenants.length + '; leads deleted/found: ' + leadsDeleted + '/' + leadsFound +
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
       '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
-      '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound + '.');
+      '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound +
+      '; media assets deleted/found: ' + mediaObjectsDeleted + '/' + mediaObjectsFound + '.');
   } finally {
     await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {
