@@ -131,7 +131,7 @@ export default function GalleryPanel({ token }: { token: string }) {
                   className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
               </label>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-sm text-gray-500">#{i + 1}{heroId === img.id ? " · תמונה ראשית" : ""}{iconId === img.id ? " · אייקון PWA" : ""}</span>
+                <span className="text-sm text-gray-500">#{i + 1}{heroId === img.id ? " · " + t("mainImage") : ""}{iconId === img.id ? " · " + t("pwaIcon") : ""}</span>
                 <button type="button" className={btn} onClick={() => setHero(img)} disabled={heroId === img.id}>{t('setHero')}</button>
                 <button type="button" className={btn} onClick={() => setIcon(img)} disabled={iconId === img.id}>{t('setAppIcon')}</button>
                 <button type="button" className={btn} onClick={() => move(i, -1)} disabled={i === 0}>{t('moveUp')}</button>
