@@ -5,5 +5,5 @@ import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvide
 
 export default function StorefrontPwaInstallButton() {
   const t = useStorefrontTranslation();
-  return <PwaInstallButton label={t('pwaInstall')} translate={t} />;
+  return <PwaInstallButton label={t('pwaInstall')} translate={t} compact />;
 }
