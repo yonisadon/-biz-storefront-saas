@@ -86,7 +86,7 @@ export default async function StorefrontPage({ params }: Props) {
           <header className="storefront-hero mx-auto mb-0 max-w-4xl px-4 py-4 text-center sm:px-10 sm:py-6">
             <div aria-hidden="true" className="mx-auto mb-3 h-1 w-14 rounded-full" style={{ background: 'var(--brand-accent)' }} />
             <h1 className="business-title text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{b?.name}</h1>
-            {data.about?.trim() && <ReadMoreText text={data.about.trim()} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
+            {data.about?.trim() && <ReadMoreText text={data.about.trim()} moreLabel={<StorefrontText message="readMore" />} lessLabel={<StorefrontText message="readLess" />} className="storefront-description mx-auto mt-3 max-w-2xl text-base font-medium leading-7 text-ink/80 sm:mt-4 sm:text-lg sm:leading-8" />}
             {hasBusinessInfo && <div className="storefront-hero-actions mt-4"><a href="#contact-section" className="storefront-hero-action text-sm font-semibold text-black underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"><StorefrontText message="contact" /></a></div>}
           </header>
     
