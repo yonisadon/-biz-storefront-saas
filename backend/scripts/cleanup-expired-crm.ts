@@ -107,7 +107,6 @@ async function main() {
 
   const apply = process.argv.includes('--apply');
   const registry = await connectReadyWithRetry(registryUrl!, 'tenant registry');
-  const tenantConnections = new Map<string, pg.Client>();
   let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
@@ -138,10 +137,10 @@ async function main() {
       if (tenant.plan_code !== 'standard' && tenant.plan_code !== 'plus') throw new Error('Unsupported tenant plan; refusing cleanup.');
       let preflightPassed = false;
       for (let preflightAttempt = 1; preflightAttempt <= 3; preflightAttempt++) {
-        const db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
-        tenantConnections.set(tenant.database_name, db);
+        let db: pg.Client | undefined;
         try {
-  const check = await db.query(
+          db = await connectWithRetry(databaseUrl(tenant.database_name), 'preflight for ' + tenant.database_name);
+          const check = await db.query(
             "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
             "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
@@ -169,8 +168,6 @@ async function main() {
           preflightPassed = true;
           break;
         } catch (error) {
-          await db.end().catch(() => {});
-          tenantConnections.delete(tenant.database_name);
           const code = (error as { code?: string }).code;
           if (!code || !TRANSIENT_DB_CODES.has(code) || preflightAttempt === 3) {
             throw new Error('CRM cleanup preflight failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
@@ -178,6 +175,8 @@ async function main() {
           const delayMs = Math.min(1000 * preflightAttempt, 3000);
           console.warn('Transient preflight failure for ' + tenant.database_name + ' (attempt ' + preflightAttempt + '/3; code ' + code + '); reconnecting in ' + delayMs + 'ms.');
           await sleep(delayMs);
+        } finally {
+          if (db) await db.end().catch(() => {});
         }
       }
       if (!preflightPassed) throw new Error('CRM cleanup preflight did not complete for ' + tenant.database_name + '.');
@@ -187,8 +186,7 @@ async function main() {
     for (const tenant of tenants) {
       const p = policies.get(tenant.plan_code);
       if (!p) throw new Error('No retention policy for tenant plan; refusing cleanup.');
-      const db = tenantConnections.get(tenant.database_name);
-      if (!db) throw new Error('CRM cleanup connection missing after successful preflight for ' + tenant.database_name + '.');
+      const db = await connectWithRetry(databaseUrl(tenant.database_name), 'cleanup for ' + tenant.database_name);
       try {
         await db.query('BEGIN');
         await db.query("SELECT set_config('app.current_tenant', $1, true), set_config('statement_timeout', '30000', true)", [tenant.tenant_id]);
@@ -330,6 +328,8 @@ async function main() {
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error('CRM cleanup deletion failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
+      } finally {
+        await db.end().catch(() => {});
       }
     }
     console.log('Retention cleanup complete. Mode: ' + (apply ? 'APPLY' : 'DRY_RUN') +
@@ -339,7 +339,6 @@ async function main() {
       '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound +
       '; media assets deleted/found: ' + mediaObjectsDeleted + '/' + mediaObjectsFound + '.');
   } finally {
-    await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {
       await registry.query('SELECT pg_advisory_unlock($1, $2)', [74122, 93002]).catch(() => {});
     }
