@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
+import type React from 'react';
 import { sameOriginManagementPath } from '@/lib/managementUrl';
 import Link from 'next/link';
 import { PlatformLanguageSwitcher, usePlatformLanguage } from '@/components/PlatformLanguageProvider';
@@ -143,6 +144,22 @@ export default function AccountDashboard() {
     };
   },[]);
 
+  function localizeInvalidField(event: React.InvalidEvent<HTMLFormElement>) {
+    const field = event.target as HTMLInputElement;
+    if (!field || typeof field.setCustomValidity !== 'function') return;
+    const validity = field.validity;
+    const message = validity.valueMissing ? t('requiredField')
+      : field.type === 'email' && validity.typeMismatch ? t('invalidEmail')
+      : validity.tooShort ? t('fieldTooShort')
+      : validity.patternMismatch ? t('invalidPattern')
+      : validity.typeMismatch || validity.badInput ? t('invalidField') : '';
+    if (message) field.setCustomValidity(message);
+  }
+  function clearFieldValidity(event: React.FormEvent<HTMLFormElement>) {
+    const field = event.target as HTMLInputElement;
+    if (field && typeof field.setCustomValidity === 'function') field.setCustomValidity('');
+  }
+
   async function createBusiness(event:FormEvent<HTMLFormElement>){
     event.preventDefault();setSaving(true);setError('');setMessage('');
     try{
@@ -210,7 +227,7 @@ export default function AccountDashboard() {
         body:JSON.stringify({management_url:legacyManagementUrl.trim()}),cache:'no-store',credentials:'same-origin',
       });
       const data=await response.json().catch(()=>null);
-      if(!response.ok)throw new Error(data?.error==='management_link_not_found'?'הקישור אינו שייך לעסק שמחובר לחשבון הזה. בדוק שהדבקת את הקישור הנכון.':data?.message??'לא ניתן לשייך את הקישור.');
+      if(!response.ok)throw new Error(data?.error==='management_link_not_found'?t('invalidManagementLink'):t('genericError'));
       setLegacyManagementUrl('');
       setManagementLinkNeedsAssociation(false);
       setMessage(t('accountLinkAssociated'));
@@ -328,7 +345,7 @@ export default function AccountDashboard() {
       {user&&!user.business_id&&<section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-lg font-bold">{t('businessSetup')}</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">{t('businessSetupIntro')}</p>
-        <form onSubmit={createBusiness} className="mt-5 space-y-4">
+        <form onSubmit={createBusiness} onInvalid={localizeInvalidField} onInput={clearFieldValidity} className="mt-5 space-y-4">
           <div><label htmlFor="owner-business-name" className="mb-1.5 block text-sm font-semibold">{t('businessName')}</label>
             <input id="owner-business-name" required minLength={2} maxLength={120} value={name} onChange={e=>setName(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-3" /></div>
           <div><label htmlFor="owner-business-slug" className="mb-1.5 block text-sm font-semibold">{t('businessAddressEnglish')}</label>
@@ -387,7 +404,7 @@ export default function AccountDashboard() {
           </div>}
         </>:<p className="mt-5 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">{t('blockedAccess')}</p>}
         {user.subscription_status==='trialing'||user.subscription_status==='active'?<button type="button" onClick={cancelSubscription} disabled={saving} className="mt-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold disabled:opacity-50">{t('cancelSubscription')}</button>:null}
-        {user.deletion_request_status!=='pending'&&<form onSubmit={requestDeletion} className="mt-6 border-t border-slate-200 pt-5">
+        {user.deletion_request_status!=='pending'&&<form onSubmit={requestDeletion} onInvalid={localizeInvalidField} onInput={clearFieldValidity} className="mt-6 border-t border-slate-200 pt-5">
           <h3 className="font-bold">{t('deletionTitle')}</h3>
           <p className="mt-1 text-sm leading-6 text-slate-600">{t('deletionIntro')}</p>
           <label htmlFor="deletion-reason" className="mb-1.5 mt-3 block text-sm font-semibold">{t('deletionReason')}</label>
