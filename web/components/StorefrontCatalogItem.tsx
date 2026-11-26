@@ -3,7 +3,7 @@ import { ils } from '@/lib/format';
 import type { Product } from '@/lib/types';
 
 type Action =
-  | { type: 'catalog'; quantity: number; canOrder: boolean; onQuantityChange: (quantity: number) => void }
+  | { type: 'catalog'; quantity: number; canOrder: boolean; canRemove: boolean; onQuantityChange: (quantity: number) => void }
   | { type: 'whatsapp'; href?: string };
 
 type Props = {
@@ -14,11 +14,11 @@ type Props = {
   focusableTarget?: boolean;
 };
 
-function QuantityStepper({ quantity, onChange, label }: { quantity: number; onChange: (quantity: number) => void; label: string }) {
-  const buttonClass = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+function QuantityStepper({ quantity, onChange, label, canRemove }: { quantity: number; onChange: (quantity: number) => void; label: string; canRemove: boolean }) {
+  const buttonClass = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" className={buttonClass} aria-label="הפחתת כמות" onClick={() => onChange(quantity - 1)}>−</button>
+      <button type="button" disabled={quantity <= 1 && !canRemove} className={buttonClass} aria-label="הפחתת כמות" onClick={() => onChange(quantity - 1)}>−</button>
       <span className="w-8 text-center font-semibold" aria-live="polite">{quantity}</span>
       <button type="button" className={buttonClass} aria-label="הוספת כמות" onClick={() => onChange(quantity + 1)}>+</button>
     </div>
@@ -65,7 +65,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="storefront-card-price text-lg font-extrabold">{product.price_agorot === null ? quoteLabel : ils(product.price_agorot)}</span>
           {catalogAction && canSelect && (catalogAction.quantity > 0 ? (
-            <QuantityStepper quantity={catalogAction.quantity} label={`כמות: ${product.name}`} onChange={catalogAction.onQuantityChange} />
+            <QuantityStepper quantity={catalogAction.quantity} label={`כמות: ${product.name}`} canRemove={catalogAction.canRemove} onChange={catalogAction.onQuantityChange} />
           ) : (
             <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
               className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">

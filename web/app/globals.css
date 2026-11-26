@@ -2094,3 +2094,18 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 .brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="false"] {
   max-width: 34rem;
 }
+
+
+/* Final customer feedback: remove visual gaps in the storefront ordering UI. */
+.brand-root .storefront-universal-content #catalog-h,
+.brand-root .storefront-universal-content #services-heading {
+  margin-bottom: 0 !important;
+}
+.brand-root .storefront-universal-content #services-section > div:first-child,
+.brand-root .storefront-universal-content #catalog-section > div:first-child {
+  margin-bottom: 0 !important;
+}
+.brand-root .storefront-universal-content #catalog-section > div:first-child p,
+.brand-root .storefront-universal-content #services-section > div:first-child p {
+  margin-top: 0 !important;
+}

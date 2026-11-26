@@ -34,11 +34,11 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   return 'לא הצלחנו לשלוח. נסו שוב.';
 }
 
-function Stepper({ q, onChange, label }: { q: number; onChange: (n: number) => void; label: string }) {
-  const btn = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
+function Stepper({ q, onChange, label, canRemove }: { q: number; onChange: (n: number) => void; label: string; canRemove: boolean }) {
+  const btn = 'h-9 w-9 rounded-full border-0 text-lg leading-none flex items-center justify-center text-primary transition hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" className={btn} aria-label="הפחתת כמות" onClick={() => onChange(q - 1)}>−</button>
+      <button type="button" disabled={q <= 1 && !canRemove} className={btn} aria-label="הפחתת כמות" onClick={() => onChange(q - 1)}>−</button>
       <span className="w-8 text-center font-semibold" aria-live="polite">{q}</span>
       <button type="button" className={btn} aria-label="הוספת כמות" onClick={() => onChange(q + 1)}>+</button>
     </div>
@@ -510,6 +510,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     : hasQuote ? `${ils(total)} + ${quoteLabel}` : ils(total);
 
   const setQty = (product: Product, q: number) => {
+    // Keep at least one distinct item in the order so the quantity control
+    // cannot accidentally empty the flow.
+    if (q <= 0 && Object.keys(cart).length <= 1) return;
     const id = product.id;
     setIdempotencyKey('');
     setAppointmentTime('');
@@ -695,8 +698,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               action={{
                 type: 'catalog',
                 quantity: cart[p.id] ?? 0,
-                canOrder,
-                onQuantityChange: (quantity) => setQty(p, quantity),
+                 canOrder,
+                 canRemove: Object.keys(cart).length > 1,
+                 onQuantityChange: (quantity) => setQty(p, quantity),
               }}
             />
           ))}
@@ -718,8 +722,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {count > 0 && (
         <div
           data-stacked={stackedOrderBar ? 'true' : 'false'}
-          className="storefront-order-bar fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4"
-          style={{ bottom: stackedOrderBar ? '5rem' : '0' }}
+          className={`storefront-order-bar fixed inset-x-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4 ${stackedOrderBar ? 'bottom-[4.3125rem] sm:bottom-[4.8125rem]' : 'bottom-0'}`}
         >
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -727,7 +730,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               onClick={() => { setCart({}); setStep('choose'); setError(null); }}
               aria-label={kind === 'product' ? 'ביטול בחירת המוצרים וניקוי ההזמנה' : 'ביטול בחירת השירותים וניקוי ההזמנה'}
               title={kind === 'product' ? 'ניקוי בחירת המוצרים' : 'ניקוי בחירת השירותים'}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-ink/20 text-xl text-ink/65 transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink/65 transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <span aria-hidden="true">×</span>
             </button>
@@ -760,8 +763,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <span className="shrink-0 text-end font-medium">{p.price_agorot === null ? quoteLabel : ils(p.price_agorot * q)}</span>
                   {!done && (
                     <div className="col-span-2 flex min-w-0 items-center justify-between gap-3 border-t border-gray-200 pt-2">
-                      <Stepper q={q} label={`כמות: ${p.name}`} onChange={(next) => setQty(p, next)} />
-                      <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>
+                      <Stepper q={q} label={`כמות: ${p.name}`} canRemove={lines.length > 1} onChange={(next) => setQty(p, next)} />
+                       {lines.length > 1 && <button type="button" onClick={() => setQty(p, 0)} className="min-h-9 rounded-lg px-3 text-sm font-medium text-red-700 underline underline-offset-2">הסרת הפריט</button>}
                     </div>
                   )}
                 </li>;
@@ -810,7 +813,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {appointmentDate && slotsLoading && <p role="status" className="text-sm text-ink/55">בודקים שעות פנויות ליום שנבחר…</p>}
                   {appointmentDate && slotsError && <p role="alert" className="text-sm text-red-700">לא הצלחנו לבדוק את השעות. נסו לבחור את היום מחדש.</p>}
                   {appointmentDate && !slotsLoading && !slotsError && appointmentSlots.length === 0 && <p className="text-sm text-ink/55">אין כרגע שעות פנויות ביום זה.</p>}
-                  {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
+                  {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime((current) => current === slot ? '' : slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
                 {!appointmentTime && !monthLoading && !monthError && !slotsLoading && !slotsError && (
@@ -889,7 +892,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
               <textarea maxLength={500} rows={3} value={waitlistNote} onChange={(e) => setWaitlistNote(e.target.value)} className={input}/>
             </label>
             <div className="flex gap-2">
-              <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">ביטול</button>
+              <button type="button" disabled={waitlistBusy} onClick={() => { setWaitlistOpen(false); setWaitlistError(null); }} className="min-h-11 flex-1 rounded-xl border border-ink/20 px-3">{hasAppointmentHours ? 'חזרה ליומן' : 'חזרה'}</button>
               <button type="submit" disabled={waitlistBusy} className="min-h-11 flex-1 rounded-xl bg-primary/10 px-3 font-medium text-primary transition hover:bg-primary/10 disabled:opacity-50">
                 {waitlistBusy ? 'שולחים…' : 'שליחת בקשת המתנה'}
               </button>
