@@ -327,7 +327,7 @@ export default function AccountDashboard() {
               <div className="min-w-0">
                 <h3 className="font-semibold text-slate-800">{item.title}</h3>
                 <p className="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{item.body}</p>
-                <p className="mt-2 text-xs text-slate-400">{dateLabel(item.created_at)}</p>
+                <p className="mt-2 text-xs text-slate-400">{dateLabel(item.created_at, language)}</p>
               </div>
               {!item.in_app_read_at&&<button type="button" onClick={()=>markNotificationRead(item.id)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">{t('markRead')}</button>}
             </div>
