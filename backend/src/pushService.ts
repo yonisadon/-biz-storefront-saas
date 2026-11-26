@@ -247,13 +247,13 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       return null;
     }
     await db.query("UPDATE public.push_outbox SET status = 'processing', attempts = attempts + 1, locked_until = now() + interval '1 minute' WHERE id = $1", [eventId]);
-    for (const sub of subscriptions) {
-      await db.query(
-        "INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id) " +
-        "VALUES (app.current_tenant_id(), $1, $2) ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING",
-        [eventId, sub.id],
-      );
-    }
+    await db.query(
+      "INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id) " +
+      "SELECT app.current_tenant_id(), $1, selected.subscription_id " +
+      "FROM (SELECT DISTINCT unnest($2::uuid[]) AS subscription_id) selected " +
+      "ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING",
+      [eventId, subscriptions.map((sub: { id: string }) => sub.id)],
+    );
     const deliveries = (await db.query(
       "SELECT d.id, d.subscription_id, d.attempts, s.endpoint_ciphertext, s.p256dh_ciphertext, s.auth_ciphertext " +
       "FROM public.push_deliveries d JOIN public.push_subscriptions s " +
