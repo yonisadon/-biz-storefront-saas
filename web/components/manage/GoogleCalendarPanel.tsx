@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { mcallWithTimeout } from '@/lib/manageApi';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Status = {
   configured: boolean;
@@ -15,6 +16,8 @@ type Status = {
 };
 
 export default function GoogleCalendarPanel({ token }: { token: string }) {
+  const { language } = usePlatformLanguage();
+  const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +78,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
   }
 
   return (
-    <section dir="rtl" className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+    <section dir={language === "he" ? "rtl" : "ltr"} className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-bold">סנכרון ל-Google Calendar</h2>
@@ -103,7 +106,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
         <div className="mt-3 space-y-2">
           <p className="text-sm"><span className="font-semibold">חשבון:</span> <span dir="ltr">{status.google_email}</span></p>
           <p className="text-sm text-gray-600">ממתינים: {status.pending} · נכשלו: {status.failed}</p>
-          {status.last_sync_at && <p className="text-xs text-gray-500">סנכרון אחרון: {new Date(status.last_sync_at).toLocaleString('he-IL')}</p>}
+          {status.last_sync_at && <p className="text-xs text-gray-500">סנכרון אחרון: {new Date(status.last_sync_at).toLocaleString(locale)}</p>}
           {status.last_error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">שגיאת סנכרון אחרונה: {status.last_error}</p>}
           <div className="flex flex-wrap gap-2 pt-1">
             <button type="button" disabled={busy} onClick={() => void sync()} className="min-h-10 rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
