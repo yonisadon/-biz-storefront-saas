@@ -78,7 +78,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     const available = 2 - (current?.additional_images.length ?? 0) - extraFiles.length;
-    if (files.length > available) return setMsg('${t('extraImageLimit')}');
+    if (files.length > available) return setMsg(t('extraImageLimit'));
     try {
       const prepared = await Promise.all(files.map((file) => prepareImage(file)));
       const urls = prepared.map((blob) => URL.createObjectURL(blob));
@@ -125,7 +125,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     if (!quote) {
       const v = Number(priceStr.replace(',', '.'));
       if (priceStr.trim() === '' || !Number.isFinite(v) || v < 0 || v > 100000) {
-        return setMsg('${t('invalidPrice')}');
+        return setMsg(t('invalidPrice'));
       }
       price = Math.round(v * 100);
     }
@@ -144,7 +144,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       setBusy(false);
       if (error instanceof Error && error.name === 'AbortError') {
         onChanged();
-        return setMsg('${t('genericApiError')}');
+        return setMsg(t('genericApiError'));
       }
       return setMsg(t('productSaveFailed'));
     }
@@ -153,7 +153,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     // never leaves an image deleted while the form reports that saving failed.
     if (current && removePrimaryPending) {
       try { await mcallWithTimeout(token, `products/${id}/image`, { method: 'DELETE' }); setCurrent((item) => item ? { ...item, image_url: null } : item); }
-      catch { setBusy(false); onChanged(); return setMsg('${t('productSavedImageRemoveFailed')}'); }
+      catch { setBusy(false); onChanged(); return setMsg(t('productSavedImageRemoveFailed')); }
     }
     for (const imageId of removeAdditionalPending) {
       try { await mcallWithTimeout(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
