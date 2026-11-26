@@ -225,7 +225,7 @@ async function main() {
 
         const mediaDeletionCount = await db.query(
           `SELECT count(*)::int AS n FROM public.media_assets m
-            WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at IS NOT NULL
+            WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
               AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
               AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
               AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)`
@@ -236,7 +236,7 @@ async function main() {
           // Bound each run. Keep the DB row until object storage confirms deletion.
           const pendingMedia = await db.query(
             `SELECT m.id, m.storage_key FROM public.media_assets m
-              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at IS NOT NULL
+              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
                 AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
                 AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
                 AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
