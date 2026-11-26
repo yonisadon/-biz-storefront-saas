@@ -4,6 +4,7 @@ import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
+import { useStorefrontPushManagement } from '@/components/StorefrontPushManagement';
 import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
