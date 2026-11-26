@@ -147,7 +147,7 @@ export default async function StorefrontPage({ params }: Props) {
     <a href="#storefront-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black"><StorefrontText message="skipToMainContent" /></a>
     <StorefrontLanguageSwitcher />
     <StorefrontAccessibilityToolbar statementHref={ctx.base ? `${ctx.base}/legal#accessibility_statement` : '/biz/_site/legal#accessibility_statement'} />
-    <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
+    <div className="mx-auto max-w-4xl px-4 pt-1 text-center">
       <StorefrontPwaInstallButton />
     </div>
     {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" role="status"><p dir="auto">{announcement.message.trim()}</p></aside>}
