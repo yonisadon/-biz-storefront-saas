@@ -17,7 +17,7 @@ export default function ForgotPasswordForm() {
       const data=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(t('forgotFailed'));
       setMessage(t('forgotSuccess'));
-    }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setLoading(false);}
   }
   return <main dir={language === "he" ? "rtl" : "ltr"} className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10 text-slate-900">
@@ -25,7 +25,7 @@ export default function ForgotPasswordForm() {
       <div className="flex items-center justify-between"><p className="text-sm font-semibold text-blue-700">BTime</p><PlatformLanguageSwitcher /></div>
       <h1 className="mt-4 text-2xl font-bold">{t('forgotTitle')}</h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">{t('forgotIntro')}</p>
-      <form onSubmit={submit} className="mt-6 space-y-4">
+      <form onSubmit={submit} onInvalid={(event) => { const field = event.target as HTMLInputElement; if (!field || typeof field.setCustomValidity !== 'function') return; const v = field.validity; const msg = v.valueMissing ? t('requiredField') : field.type === 'email' && v.typeMismatch ? t('invalidEmail') : t('invalidField'); if (msg) field.setCustomValidity(msg); }} onInput={(event) => { const field = event.target as HTMLInputElement; if (field && typeof field.setCustomValidity === 'function') field.setCustomValidity(''); }} className="mt-6 space-y-4">
         <div><label htmlFor="reset-email" className="mb-1.5 block text-sm font-semibold">{t('email')}</label>
           <input id="reset-email" type="email" required maxLength={254} autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)}
             className="w-full rounded-xl border border-slate-300 px-3 py-3" dir="ltr" /></div>
