@@ -30,7 +30,7 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   if (msgs.includes('appointment_required')) return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (msgs.includes('invalid_appointment_time')) return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
   if (d?.error === 'unknown_product') return 'אחד הפריטים כבר אינו זמין. רעננו את הדף ונסו שוב.';
-  if (d?.error === 'slot_taken') return 'השעה נתפסה בינתיים. בחרו מועד פנוי אחר.';
+  if (d?.error === 'slot_taken' || d?.error === 'slot_blocked') return 'המועד כבר אינו זמין. בחרו מועד פנוי אחר.';
   return 'לא הצלחנו לשלוח. נסו שוב.';
 }
 
@@ -609,6 +609,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       if (!response.ok) {
         if (response.status === 409 || data?.error === 'duplicate_waitlist_request') {
           setWaitlistError('כבר קיימת בקשת המתנה פעילה עם אותם פרטים.');
+        } else if (data?.error === 'preferred_date_in_past') {
+          setWaitlistError('התאריך שנבחר כבר עבר. בחרו תאריך אחר.');
+        } else if (data?.error === 'invalid_waitlist_services' || data?.error === 'calendar_booking_disabled') {
+          setWaitlistError('לא ניתן להצטרף כרגע לרשימת ההמתנה לשירותים שנבחרו. רעננו את הדף ונסו שוב.');
         } else if (response.status === 429) {
           setWaitlistError('נשלחו יותר מדי בקשות. נסו שוב מאוחר יותר.');
         } else {
@@ -735,7 +739,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
-        {!done && (
+        {!done && !waitlistDone && (
           <div className="mb-4 rounded-xl bg-gray-50 p-3">
             <ul className="space-y-1.5 text-sm">
               {lines.map(({ p, q }) => {
@@ -756,7 +760,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </div>
         )}
 
-        {!done && step === 'reserve' && needsAppointment && (
+        {!done && !waitlistOpen && !waitlistDone && step === 'reserve' && needsAppointment && (
           <fieldset className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
             {hasAppointmentHours ? (
@@ -798,7 +802,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
-                {!appointmentTime && (
+                {!appointmentTime && !monthLoading && !monthError && !slotsLoading && !slotsError && (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
                     <p className="text-sm font-semibold">לא מצאתם מועד שמתאים לכם?</p>
                     <p className="mt-1 text-xs leading-5 text-ink/65">אפשר להשאיר בקשת המתנה עם תאריך ושעה מועדפים. העסק יוכל לבדוק את האפשרות וליצור איתכם קשר; הבקשה אינה שומרת תור ביומן.</p>
