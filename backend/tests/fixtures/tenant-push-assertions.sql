@@ -67,6 +67,12 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'pending outbox index is missing';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+     WHERE schemaname = 'public' AND indexname = 'idx_push_outbox_processed_at'
+  ) THEN
+    RAISE EXCEPTION 'completed Push history retention index is missing';
+  END IF;
 END
 $push_schema$;
 
