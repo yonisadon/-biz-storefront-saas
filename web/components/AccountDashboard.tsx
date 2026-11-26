@@ -119,7 +119,7 @@ export default function AccountDashboard() {
       setError('');
       setMessage('');
       try{await loadAccount();}
-      catch(err){clearAccountState();if(!cancelled)setError(err instanceof Error?err.message:'אירעה שגיאה.');}
+      catch(err){clearAccountState();if(!cancelled)setError(err instanceof Error?err.message:t('accountGenericError'));}
       finally{loadingRequest=false;if(!cancelled)setLoading(false);}
     };
     const endSession=()=>{
@@ -189,10 +189,10 @@ export default function AccountDashboard() {
       const data=await response.json().catch(()=>null);
       if(response.status===409&&data?.error==='management_link_association_required'){
         setManagementLinkNeedsAssociation(true);
-        setError('הקישור הקבוע של העסק נוצר בעבר ונשמר רק כטביעת אבטחה. כדי לשמור אותו מחדש, יש להדביק כאן את הקישור הקיים או לבקש מהסופר־אדמין לאתר עותק.');
+        setError(t('managementLinkRecoveryIntro'));
         return;
       }
-      if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל.':'לא ניתן לטעון את קישור הניהול.');
+      if(!response.ok)throw new Error(response.status===403?t('trialInactive'):t('managementLinkUnavailable'));
       setManagementUrl(data.management_url);
       setManagementLinkNeedsAssociation(false);
     }catch(err){setError(err instanceof Error?err.message:'אירעה שגיאה.');}
@@ -200,17 +200,17 @@ export default function AccountDashboard() {
   }
 
   async function openManagement(){
-    if(managementUrl){const path=sameOriginManagementPath(managementUrl);if(!path){setError('קישור הניהול השמור אינו תקין.');return;}window.location.assign(path);return;}
+    if(managementUrl){const path=sameOriginManagementPath(managementUrl);if(!path){setError(t('managementLinkStoredInvalid'));return;}window.location.assign(path);return;}
     setSaving(true);setError('');
     try{
       const response=await fetch('/api/auth/management-link',{method:'POST',cache:'no-store',credentials:'same-origin'});
       const data=await response.json().catch(()=>null);
       if(response.status===409&&data?.error==='management_link_association_required'){
         setManagementLinkNeedsAssociation(true);
-        setError('נדרש לשייך את קישור הניהול הקיים לחשבון לפני הכניסה.');
+        setError(t('managementLinkAssociationRequired'));
         return;
       }
-      if(!response.ok)throw new Error(response.status===403?'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל. יש לפנות לבעל הפלטפורמה.':'לא ניתן לטעון את קישור הניהול.');
+      if(!response.ok)throw new Error(response.status===403?t('trialInactiveContact'):t('managementLinkUnavailable'));
       const path=sameOriginManagementPath(data.management_url);
       if(!path)throw new Error('קישור הניהול שהתקבל אינו תקין.');
       setManagementUrl(data.management_url);
@@ -284,7 +284,7 @@ export default function AccountDashboard() {
       if(!response.ok)throw new Error(t('updateMailingFailed'));
       setMarketingEmail(data.marketingEmail===true);setMarketingSms(data.marketingSms===true);
       setMessage(t('mailingSaved'));
-    }catch(err){setError(err instanceof Error?err.message:'עדכון ההעדפות נכשל.');}
+    }catch(err){setError(err instanceof Error?err.message:t('accountGenericError'));}
     finally{setSaving(false);}
   }
 
@@ -398,7 +398,7 @@ export default function AccountDashboard() {
           </div>}
           {managementLinkNeedsAssociation&&<div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm font-semibold text-amber-900">{t('linkAssociation')}</p>
-            <p className="mt-1 text-xs leading-5 text-amber-900">הקישור המקורי אינו ניתן לשחזור מתוך טביעת האבטחה בלבד. אם שמרת עותק של הקישור, הדבק אותו כאן פעם אחת. אם אין לך עותק, פנה לסופר־אדמין לבדיקה.</p>
+            <p className="mt-1 text-xs leading-5 text-amber-900">{t('managementLinkRecoveryIntro')}</p>
             <input value={legacyManagementUrl} onChange={e=>setLegacyManagementUrl(e.target.value)} dir="ltr" placeholder="https://.../manage/..." className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs" />
             <button type="button" onClick={associateManagementLink} disabled={saving||!legacyManagementUrl.trim()} className="mt-2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{t('associateLink')}</button>
           </div>}
