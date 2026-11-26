@@ -242,6 +242,8 @@ test('platform account lifecycle and independent marketing consents', async () =
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
       await tenantDb.connect();
       try {
+        const { assertTenantRlsSecurity } = await import('../src/tenantRlsPostflight');
+        await assertTenantRlsSecurity(tenantDb, provisioned.database);
         const pushSettings = await tenantDb.query(
           'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
           [provisioned.id],
