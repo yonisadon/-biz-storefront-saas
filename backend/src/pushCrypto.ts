@@ -56,9 +56,13 @@ export type VapidKeys = { publicKey: string; privateKey: string };
 export function generateVapidKeys(): VapidKeys {
   const ecdh = createECDH('prime256v1');
   ecdh.generateKeys();
+  const rawPrivateKey = ecdh.getPrivateKey();
+  const privateKey = rawPrivateKey.length === 32
+    ? rawPrivateKey
+    : Buffer.concat([Buffer.alloc(32 - rawPrivateKey.length), rawPrivateKey]);
   return {
     publicKey: base64url(ecdh.getPublicKey(undefined, 'uncompressed')),
-    privateKey: base64url(Buffer.concat([Buffer.alloc(Math.max(0, 32 - ecdh.getPrivateKey().length)), ecdh.getPrivateKey()])),
+    privateKey: base64url(privateKey),
   };
 }
 
