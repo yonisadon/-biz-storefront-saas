@@ -264,6 +264,7 @@ export const PLATFORM_MESSAGES = {
     retention7Days: 'פניות צפויות להימחק בתוך 7 ימים.', minutes: 'דקות', replace: 'החלפה', additionalImage: 'תמונה נוספת',
     mainImage: 'תמונה ראשית', pwaIcon: 'אייקון PWA',
 
+        accessibility: 'הצהרת נגישות', otherAccountLogin: 'התחברות לחשבון אחר', characters: 'תווים',
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -529,6 +530,7 @@ export const PLATFORM_MESSAGES = {
     retention7Days: 'inquiries are scheduled for deletion within 7 days.', minutes: 'minutes', replace: 'Replace', additionalImage: 'Additional image',
     mainImage: 'Main image', pwaIcon: 'PWA icon',
 
+        accessibility: 'Accessibility statement', otherAccountLogin: 'Sign in to another account', characters: 'characters',
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -794,6 +796,7 @@ export const PLATFORM_MESSAGES = {
     retention7Days: 'обращений будут удалены в течение 7 дней.', minutes: 'минут', replace: 'Заменить', additionalImage: 'Дополнительное изображение',
     mainImage: 'Главное изображение', pwaIcon: 'Значок PWA',
 
+        accessibility: 'Заявление о доступности', otherAccountLogin: 'Войти в другой аккаунт', characters: 'символов',
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
 } as const;
