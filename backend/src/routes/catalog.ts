@@ -57,7 +57,7 @@ const insertAsset = (db: pg.PoolClient, a: StoredImage, filename: string | null)
     [a.id, a.key, filename, a.main.length, a.width, a.height],
   );
 
-// Deletes the asset row only if nothing references it; returns the storage keys to remove
+// Marks an unreferenced asset for durable storage deletion; returns its tracked storage key.
 async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Promise<PendingMediaAsset[]> {
   if (!assetId) return [];
   const r = await db.query(
