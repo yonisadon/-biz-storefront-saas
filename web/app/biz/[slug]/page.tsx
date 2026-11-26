@@ -76,7 +76,6 @@ export default async function StorefrontPage({ params }: Props) {
     : '';
   const hasContact = Boolean(b?.phone || b?.email || b?.whatsapp_number || social.instagram || social.facebook);
   const hasBusinessInfo = Boolean(oh?.days || hasContact || publicAddress);
-  const whatsappHref = waNumber ? `https://wa.me/${waNumber}?text=${encodeURIComponent('שלום, אשמח לקבל פרטים נוספים לגבי העסק.')}` : undefined;
   const instagramHref = safeSocialHref(social.instagram, 'instagram');
   const facebookHref = safeSocialHref(social.facebook, 'facebook');
   const addressHref = publicAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(publicAddress)}` : undefined;
@@ -127,7 +126,7 @@ export default async function StorefrontPage({ params }: Props) {
                 {addressHref && <a href={addressHref} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-9 items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"><span aria-hidden="true">↗</span><StorefrontText message="directions" /></a>}
               </div>}
               {hasContact && <div className="min-w-0"><h3 className="mb-2 text-base font-bold"><StorefrontText message="contactMethods" /></h3>
-                <StorefrontContactLinks whatsappHref={whatsappHref} instagramHref={instagramHref} facebookHref={facebookHref} phone={b?.phone ?? undefined} email={b?.email ?? undefined} />
+                <StorefrontContactLinks whatsappNumber={waNumber} instagramHref={instagramHref} facebookHref={facebookHref} phone={b?.phone ?? undefined} email={b?.email ?? undefined} />
               </div>}
             </div>
           </section>}
@@ -148,7 +147,7 @@ export default async function StorefrontPage({ params }: Props) {
     <div className="mx-auto max-w-4xl px-4 pt-3 text-center">
       <StorefrontPwaInstallButton />
     </div>
-    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" aria-label="Business announcement" role="status"><p>{announcement.message.trim()}</p></aside>}
+    {announcement?.enabled && announcement.message.trim() && <aside className="storefront-business-announcement" role="status"><p>{announcement.message.trim()}</p></aside>}
     <StorefrontPageComposition
       hasGallery={data.gallery.length > 0}
       identity={identitySlot}
