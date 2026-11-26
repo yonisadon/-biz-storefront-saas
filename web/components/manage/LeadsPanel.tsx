@@ -20,6 +20,14 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const statusLabels: Record<LeadStatus, string> = {
+    pending_approval: t('statusPendingApproval'),
+    whatsapp_initiated: t('statusWhatsappOpened'),
+    approved: t('statusApproved'),
+    completed: t('statusCompleted'),
+    rejected: t('statusRejected'),
+    cancelled: t('statusCanceled'),
+  };
 
   async function load(status: LeadStatus | '', offset: number, searchTerm = search) {
     setLoading(true); setError(null);
@@ -167,7 +175,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
             <button type="button" onClick={() => deleteLead(l.id)} className="mt-3 min-h-10 rounded-lg border border-red-300 px-3 py-2 text-sm font-semibold text-red-700">{t('deleteLead')}</button>
             <label className="mt-4 block text-sm font-semibold text-gray-700">{t('treatmentStatus')}
               <select value={l.status} aria-label={`${t('leadStatusFor')} ${l.customer_name || t('continueOnWhatsapp')}`} onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-base">
-                {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                {LEAD_STATUSES.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
               </select>
             </label>
           </li>
