@@ -296,7 +296,7 @@ async function main() {
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
           (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
-          (apply ? 'deleted ' + foundMediaObjects : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
+          (apply ? 'pending for API cleanup ' + foundMediaObjects : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
