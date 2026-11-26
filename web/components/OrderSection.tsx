@@ -586,9 +586,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       setServerAppointmentSlots([]);
       if (route === 'whatsapp') {
         if (!data?.whatsapp_url) return setError(t('whatsappLinkFailed'));
-        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: data.success_message ?? t('inquirySavedWhatsapp'), pushCapabilityToken: data.push_capability_token });
+        setDone({ route: 'whatsapp', url: data.whatsapp_url, message: t('inquirySavedWhatsapp'), pushCapabilityToken: data.push_capability_token });
       } else {
-        setDone({ route, message: data?.success_message ?? (route === 'reserve' ? t('appointmentSaved') : t('inquirySent')), pushCapabilityToken: data?.push_capability_token });
+        setDone({ route, message: route === 'reserve' ? t('appointmentSavedDetails') : t('inquirySent'), pushCapabilityToken: data?.push_capability_token });
       }
     } catch {
       setError(t('networkError'));
