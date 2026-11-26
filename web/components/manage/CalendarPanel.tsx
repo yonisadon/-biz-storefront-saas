@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mcallWithTimeout } from '@/lib/manageApi';
 import CalendarTimeline from '@/components/manage/CalendarTimeline';
 import type { ManageBusiness, MProduct, MProductsResponse } from '@/lib/types';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Appointment = {
   id: string; lead_id: string | null; service_id: string | null; service_name: string;
@@ -56,6 +57,8 @@ function slotsFor(date: string, duration: number, ranges: OpeningRange[], appoin
 
 export default function CalendarPanel({ token, biz }: { token: string; biz: ManageBusiness }) {
   const [date, setDate] = useState(() => todayInTimezone(biz.timezone || 'Asia/Jerusalem'));
+  const { language, t } = usePlatformLanguage();
+  const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
   const [products, setProducts] = useState<MProduct[]>([]);
@@ -116,7 +119,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     else next.setUTCDate(next.getUTCDate() + delta * (viewMode === 'week' ? 7 : 1));
     setDate(next.toISOString().slice(0, 10));
   };
-  const selectedDateLabel = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+  const selectedDateLabel = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
 
   const service = products.find((p) => p.id === serviceId);
   const selectedAppointments = useMemo(() => (calendar?.appointments ?? []).filter((item) => item.start_at < date + 'T24:00' && item.end_at > date + 'T00:00'), [calendar, date]);
@@ -234,14 +237,14 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
   }
 
   const field = 'min-h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
-  return <section dir="rtl" aria-label="יומן תורים" className="space-y-4">
+  return <section dir={language === "he" ? "rtl" : "ltr"} aria-label={t("tabCalendar")} className="space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0"><h2 className="text-lg font-bold">יומן תורים</h2><p className="mt-1 text-sm text-gray-600">תורים משוריינים, שעות פנויות וחסימות חריגות.</p></div>
       <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:w-auto sm:min-w-[420px]">
         <div className="flex justify-center rounded-full border bg-gray-50 p-1 sm:justify-start" role="group" aria-label="תצוגת יומן">{([['day','יום'],['week','שבוע'],['month','חודש']] as const).map(([mode,label]) => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)} className={`flex-1 rounded-full px-3 py-2 text-sm sm:flex-none ${viewMode === mode ? 'bg-white font-bold shadow-sm' : 'text-gray-600'}`}>{label}</button>)}</div>
         <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-2">
           <button type="button" onClick={() => moveDate(-1)} aria-label="הקודם" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">‹</button>
-          <div className="min-w-0 text-center"><p className="truncate text-sm font-semibold">{viewMode === 'month' ? new Intl.DateTimeFormat('he-IL',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.slice(0,7)+'-01T12:00:00Z')) : selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">בחירת תאריך</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 w-full max-w-48`}/></div>
+          <div className="min-w-0 text-center"><p className="truncate text-sm font-semibold">{viewMode === 'month' ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.slice(0,7)+'-01T12:00:00Z')) : selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">בחירת תאריך</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 w-full max-w-48`}/></div>
           <button type="button" onClick={() => moveDate(1)} aria-label="הבא" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">›</button>
         </div>
         <div className="flex items-center gap-2"><button type="button" onClick={() => {setDate(todayInTimezone(calendarTimezone));setViewMode('day');}} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">היום</button><button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button></div>
