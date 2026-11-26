@@ -440,7 +440,7 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
           if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return Number.NaN;
           return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
         };
-        const slots: string[] = [];
+        const candidateSlots: string[] = [];
         for (const range of ranges) {
           if (!range || typeof range !== 'object') continue;
           const open = toMinutes((range as { open?: unknown }).open);
@@ -454,28 +454,39 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
               needsAppointment: true, appointmentAt: slot, durationMinutes: duration,
               openingHoursDays: days, timezone: biz.timezone,
             })) continue;
-            {
-              const availability = await db.query(
-                `SELECT NOT EXISTS (
-                   SELECT 1 FROM appointments a
-                    WHERE a.status = 'reserved'
-                      AND tstzrange(a.start_at, a.end_at, '[)') &&
-                          tstzrange(($1::timestamp AT TIME ZONE $2),
-                            (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
-                 ) AND NOT EXISTS (
-                   SELECT 1 FROM appointment_blocks b
-                    WHERE tstzrange(b.start_at, b.end_at, '[)') &&
-                          tstzrange(($1::timestamp AT TIME ZONE $2),
-                            (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
-                 ) AS available`,
-                [slot, biz.timezone, duration],
-              );
-              if (availability.rows[0]?.available !== true) continue;
-            }
-            slots.push(slot.slice(11));
+            candidateSlots.push(slot);
           }
         }
-        return { date: query.date, duration_minutes: duration, slots };
+
+        // Evaluate all candidate slots in one round trip instead of issuing one
+        // overlap query per quarter-hour. The half-open ranges preserve the exact
+        // boundary behavior used by booking and appointment-block validation.
+        const uniqueCandidates = [...new Set(candidateSlots)];
+        if (!uniqueCandidates.length) return { date: query.date, duration_minutes: duration, slots: [] };
+        const available = await db.query(
+          `WITH candidates AS (
+             SELECT local_start,
+                    local_start AT TIME ZONE $2 AS starts_at,
+                    (local_start AT TIME ZONE $2) + ($3::int * interval '1 minute') AS ends_at
+               FROM (SELECT unnest($1::text[])::timestamp AS local_start) input
+           )
+           SELECT to_char(c.local_start, 'HH24:MI') AS slot
+             FROM candidates c
+            WHERE NOT EXISTS (
+              SELECT 1 FROM appointments a
+               WHERE a.status = 'reserved'
+                 AND tstzrange(a.start_at, a.end_at, '[)') &&
+                     tstzrange(c.starts_at, c.ends_at, '[)')
+            )
+              AND NOT EXISTS (
+                SELECT 1 FROM appointment_blocks b
+                 WHERE tstzrange(b.start_at, b.end_at, '[)') &&
+                       tstzrange(c.starts_at, c.ends_at, '[)')
+              )
+            ORDER BY c.local_start`,
+          [uniqueCandidates, biz.timezone, duration],
+        );
+        return { date: query.date, duration_minutes: duration, slots: available.rows.map((row: { slot: string }) => row.slot) };
       });
     });
 
