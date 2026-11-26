@@ -201,7 +201,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     } catch {
       setCustomerPushManageStatus(t('pushCancelFailed'));
     }
-  }, [apiBase]);
+  }, [apiBase, t]);
 
   useStorefrontPushManagement(kind === 'service', customerPushActive, customerPushManageStatus, cancelCustomerPush);
 
