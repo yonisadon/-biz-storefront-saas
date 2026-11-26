@@ -3,8 +3,10 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import type { GalleryImage } from '@/lib/types';
+import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 
 export default function StorefrontGallery({ images, heroId, layout = 'slider' }: { images: GalleryImage[]; heroId?: string; layout?: 'slider' | 'thumbnails' }) {
+  const t = useStorefrontTranslation();
   const slides = images.slice(0, 7);
   const heroIndex = Math.max(0, slides.findIndex((image) => image.id === heroId));
   const [active, setActive] = useState(heroIndex);
@@ -50,7 +52,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
       style={{ transform: `translateX(${(index - active) * 100}%)` }}
       aria-hidden={index !== active}
     >
-      <Image src={image.url} alt={image.alt || image.caption || 'תמונה של העסק'} fill priority={priority} sizes="(max-width: 640px) 100vw, 1024px" className="object-cover" />
+      <Image src={image.url} alt={image.alt || image.caption || t('galleryAlt')} fill priority={priority} sizes="(max-width: 640px) 100vw, 1024px" className="object-cover" />
       {image.caption && <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-8 text-sm font-medium text-white">{image.caption}</p>}
     </div>
   );
@@ -68,12 +70,12 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
 
   if (layout === 'thumbnails') {
     return (
-      <section aria-label="תמונות העסק" className="mx-auto max-w-5xl space-y-3">
+      <section aria-label={t('galleryBusinessImages')} className="mx-auto max-w-5xl space-y-3">
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 sm:aspect-[16/7] sm:rounded-[2rem]" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           {slides.map((image, index) => slideTrack(image, index, index === heroIndex))}
         </div>
-        {slides.length > 1 && <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="בחירת תמונה">
-          {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-14 sm:w-20 ' + (index === active ? 'border-primary' : 'border-transparent opacity-75 hover:opacity-100')}>
+        {slides.length > 1 && <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label={t('galleryChooseImage')}>
+          {slides.map((image, index) => <button key={image.id} type="button" aria-label={`${t('galleryImage')} ${index + 1} / ${slides.length}`} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-14 sm:w-20 ' + (index === active ? 'border-primary' : 'border-transparent opacity-75 hover:opacity-100')}>
             <Image src={image.url} alt="" fill sizes="112px" className="object-cover" />
           </button>)}
         </div>}
@@ -86,13 +88,13 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[1.5rem] bg-ink/5 shadow-md sm:aspect-[16/7] sm:rounded-[2rem]" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {slides.map((image, index) => slideTrack(image, index, index === heroIndex))}
         {slides.length > 1 && (
-          <div className="absolute inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8" aria-label="בקרת גלריית התמונות">
+          <div className="absolute inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8" aria-label={t('galleryControls')}>
             <button
               type="button"
               onClick={() => setAutoPlay((value) => !value)}
               className="min-h-11 rounded-full border border-white/80 bg-black/70 px-3 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              {autoPlay ? 'עצירת החלפה אוטומטית' : 'הפעלת החלפה אוטומטית'}
+              {autoPlay ? t('galleryStopAuto') : t('galleryStartAuto')}
             </button>
             <div className="flex items-center justify-center gap-1.5" role="group" aria-label="בחירת תמונה">
               {slides.map((image, index) => <button key={image.id} type="button" aria-label={'תמונה ' + (index + 1) + ' מתוך ' + slides.length} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'h-3 min-w-3 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ' + (index === active ? 'w-6 bg-white' : 'w-3 bg-white/75 hover:bg-white')} />)}
