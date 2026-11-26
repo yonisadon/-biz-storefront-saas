@@ -2106,3 +2106,8 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 .brand-root .storefront-universal-content #services-section > div:first-child p {
   margin-top: 0 !important;
 }
+
+
+/* Platform language direction; storefront pages keep their own scoped direction. */
+html[dir="ltr"] { direction: ltr; }
+html[dir="rtl"] { direction: rtl; }
