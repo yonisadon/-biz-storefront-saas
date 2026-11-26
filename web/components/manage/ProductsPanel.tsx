@@ -11,11 +11,11 @@ export default function ProductsPanel({ token }: { token: string }) {
  const { t } = usePlatformLanguage();
  const [data,setData]=useState<MProductsResponse|null>(null); const [error,setError]=useState<string|null>(null); const [editing,setEditing]=useState<MProduct|'new'|null>(null);
  const [searchInput,setSearchInput]=useState(''); const [search,setSearch]=useState(''); const [status,setStatus]=useState<'all'|'active'|'inactive'>('all'); const [loading,setLoading]=useState(false);
- const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcallWithTimeout<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError(t('productLoadFailed'));}finally{setLoading(false);}},[token,search,status]);
+ const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcallWithTimeout<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError(t('productLoadFailed'));}finally{setLoading(false);}},[token,search,status,t]);
  useEffect(()=>{void load(0);},[load]);
  async function move(p:MProduct,direction:'up'|'down'){if(!data)return;try{await mcallWithTimeout(token,`products/${p.id}/move`,{method:'POST',body:JSON.stringify({direction})});await load(data.offset);}catch{setError(t('orderUpdateFailed'));}}
  async function toggleActive(p:MProduct){try{await mcallWithTimeout(token,`products/${p.id}`,{method:'PATCH',body:JSON.stringify({is_active:!p.is_active})});await load(data?.offset??0);}catch{setError(t('updateFailed'));}}
- async function remove(p:MProduct){if(!confirm(`למחוק את "${p.name}"? הפעולה אינה הפיכה.`))return;try{await mcallWithTimeout(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError(t('deleteFailed'));}}
+ async function remove(p:MProduct){if(!confirm(`${t('productDeleteNamedConfirm')} "${p.name}"?`))return;try{await mcallWithTimeout(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError(t('deleteFailed'));}}
  return <section aria-label={t('tabProductsTitle')}>
   <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t('tabProductsTitle')} {data&&<span className="text-sm font-normal text-gray-500">({data.total})</span>}</h2><button type="button" onClick={()=>setEditing('new')} className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white">+ {t('add')}</button></div>
   <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-gray-200">
@@ -28,10 +28,10 @@ export default function ProductsPanel({ token }: { token: string }) {
   {data?.items.length===0&&<p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">{search||status!=='all'?t('noResults'):t('noProducts')}</p>}
   <ul className="mt-3 space-y-2">{data?.items.map((p,i)=><li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center ${p.is_active?'':'opacity-60'}`}>
    {/* eslint-disable-next-line @next/next/no-img-element */}{p.image_url?<img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover"/>:<div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">{t('noImage')}</div>}
-   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?t('quote'):ils(p.price_agorot)} · {p.kind==='service'?t('service'):t('product')}{p.kind==='service'?` · ${p.appointment_duration_minutes} דק׳`:''}{!p.is_active&&' · '+t('hiddenOnSite')}</div></div>
+   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?t('quote'):ils(p.price_agorot)} · {p.kind==='service'?t('service'):t('product')}{p.kind==='service'?` · ${p.appointment_duration_minutes} ${t('minutesAbbr')}`:''}{!p.is_active&&' · '+t('hiddenOnSite')}</div></div>
    <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end"><button type="button" className={btn} onClick={()=>move(p,'up')} disabled={loading||data.offset+i===0||Boolean(search)||status!=='all'} aria-label={`${t('moveUp')} ${p.name}`}>↑</button><button type="button" className={btn} onClick={()=>move(p,'down')} disabled={loading||data.offset+i>=data.total-1||Boolean(search)||status!=='all'} aria-label={`${t('moveDown')} ${p.name}`}>↓</button><button type="button" className={btn} onClick={()=>setEditing(p)}>{t('edit')}</button><button type="button" className={btn} onClick={()=>toggleActive(p)} disabled={loading}>{p.is_active?t('hide'):t('show')}</button><button type="button" className={`${btn} text-red-700`} onClick={()=>remove(p)} disabled={loading}>{t('delete')}</button></div>
   </li>)}</ul>
-  {data&&data.total>0&&<div className="mt-4 flex items-center justify-center gap-4"><button type="button" disabled={loading||data.offset===0} onClick={()=>void load(Math.max(0,data.offset-PAGE))} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('previousPage')}</button><span className="text-sm text-gray-500">{data.offset+1}–{Math.min(data.offset+data.items.length,data.total)} מתוך {data.total}</span><button type="button" disabled={loading||data.offset+data.items.length>=data.total} onClick={()=>void load(data.offset+PAGE)} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('nextPage')}</button></div>}
+  {data&&data.total>0&&<div className="mt-4 flex items-center justify-center gap-4"><button type="button" disabled={loading||data.offset===0} onClick={()=>void load(Math.max(0,data.offset-PAGE))} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('previousPage')}</button><span className="text-sm text-gray-500">{data.offset+1}–{Math.min(data.offset+data.items.length,data.total)} {t('of')} {data.total}</span><button type="button" disabled={loading||data.offset+data.items.length>=data.total} onClick={()=>void load(data.offset+PAGE)} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('nextPage')}</button></div>}
   {editing&&<ProductDialog key={editing==='new'?'new':editing.id} token={token} product={editing==='new'?null:editing} onClosed={()=>setEditing(null)} onChanged={()=>{void load(data?.offset??0);}}/>}
  </section>;
 }
@@ -39,6 +39,7 @@ export default function ProductsPanel({ token }: { token: string }) {
 function ProductDialog({ token, product, onClosed, onChanged }: {
   token: string; product: MProduct | null; onClosed: () => void; onChanged: () => void;
 }) {
+  const { t } = usePlatformLanguage();
   const ref = useRef<HTMLDialogElement>(null);
   const [current, setCurrent] = useState<MProduct | null>(product); // set once created
   const [kind, setKind] = useState<'product' | 'service'>(product?.kind ?? 'product');
@@ -77,7 +78,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     const available = 2 - (current?.additional_images.length ?? 0) - extraFiles.length;
-    if (files.length > available) return setMsg('אפשר להוסיף עד 2 תמונות נוספות (3 תמונות בסך הכול).');
+    if (files.length > available) return setMsg('${t('extraImageLimit')}');
     try {
       const prepared = await Promise.all(files.map((file) => prepareImage(file)));
       const urls = prepared.map((blob) => URL.createObjectURL(blob));
@@ -124,7 +125,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     if (!quote) {
       const v = Number(priceStr.replace(',', '.'));
       if (priceStr.trim() === '' || !Number.isFinite(v) || v < 0 || v > 100000) {
-        return setMsg('נא להזין מחיר תקין, או לסמן "הצעת מחיר".');
+        return setMsg('${t('invalidPrice')}');
       }
       price = Math.round(v * 100);
     }
@@ -143,7 +144,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       setBusy(false);
       if (error instanceof Error && error.name === 'AbortError') {
         onChanged();
-        return setMsg('הבקשה התעכבה. בדקו אם המוצר נשמר ברשימה לפני ניסיון נוסף.');
+        return setMsg('${t('genericApiError')}');
       }
       return setMsg(t('productSaveFailed'));
     }
@@ -152,17 +153,17 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     // never leaves an image deleted while the form reports that saving failed.
     if (current && removePrimaryPending) {
       try { await mcallWithTimeout(token, `products/${id}/image`, { method: 'DELETE' }); setCurrent((item) => item ? { ...item, image_url: null } : item); }
-      catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת התמונה הראשית נכשלה. נסו שוב.'); }
+      catch { setBusy(false); onChanged(); return setMsg('${t('productSavedImageRemoveFailed')}'); }
     }
     for (const imageId of removeAdditionalPending) {
       try { await mcallWithTimeout(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
-      catch { setBusy(false); onChanged(); return setMsg('פרטי המוצר נשמרו, אבל הסרת תמונה נוספת נכשלה. נסו שוב.'); }
+      catch { setBusy(false); onChanged(); return setMsg('${t('productSavedImageRemoveFailed')}'); }
     }
     if (file) {
       try { await mupload(token, `products/${id}/image`, file); }
       catch (err) {
         setBusy(false); onChanged();
-        return setMsg(`המוצר נשמר, אבל העלאת התמונה נכשלה: ${uploadErrorText(err)}`);
+        return setMsg(`${t('imageUploadFailed')} ${uploadErrorText(err)}`);
       }
     }
     for (const extra of [...extraFiles]) {
@@ -177,7 +178,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         });
       } catch (err) {
         setBusy(false); onChanged();
-        return setMsg(`המוצר נשמר, אך העלאת תמונה נוספת נכשלה: ${uploadErrorText(err)}`);
+        return setMsg(`${t('imageUploadFailed')} ${uploadErrorText(err)}`);
       }
     }
     setBusy(false); onChanged();
