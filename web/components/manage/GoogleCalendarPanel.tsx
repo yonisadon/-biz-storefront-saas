@@ -91,7 +91,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
       {!status && !error && <p className="mt-3 text-sm text-gray-500">{t('loadingConnection')}</p>}
       {status && !status.configured && (
         <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          החיבור עדיין לא הוגדר בשרת. נדרשים פרטי Google OAuth ומפתח הצפנה לפני שבעלי עסקים יוכלו להתחבר.
+          {t('googleNotConfigured')}
         </p>
       )}
       {status?.configured && !status.connected && (
@@ -113,7 +113,7 @@ export default function GoogleCalendarPanel({ token }: { token: string }) {
               {busy ? t('syncing') : t('syncNow')}
             </button>
             <button type="button" disabled={busy} onClick={() => void disconnect()} className="min-h-10 rounded-full border border-gray-300 px-4 py-2 text-sm">
-              ניתוק חשבון
+              {t('disconnectGoogle')}
             </button>
           </div>
         </div>
