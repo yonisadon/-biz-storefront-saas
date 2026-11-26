@@ -1751,10 +1751,7 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   letter-spacing: -.045em;
   line-height: 1.12;
 }
-.brand-root .storefront-universal-content #services-section > div:first-child {
-  margin-bottom: clamp(1.5rem, 3vw, 2.25rem);
-}
-.brand-root .storefront-universal-content #services-section > div:first-child p {
+.brand-root .storefront-universal-content #services-section > section > p:first-of-type {
   max-width: 38rem;
   color: color-mix(in srgb, var(--brand-text) 68%, transparent);
   font-size: .95rem;
