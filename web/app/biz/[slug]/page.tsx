@@ -39,7 +39,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return { title: 'העסק לא נמצא', robots: { index: false } };
   const { og, business } = data;
   const storefrontLanguage = normalizeStorefrontLanguage(business?.locale);
-  const storefrontLocale = getStorefrontLocale(storefrontLanguage);
   const openGraphLocale = storefrontLanguage === 'en' ? 'en_US' : storefrontLanguage === 'ru' ? 'ru_RU' : 'he_IL';
   const description = og?.description ?? undefined;
   const images = og?.image_url ? [{ url: og.image_url, alt: og?.title || '' }] : undefined;
