@@ -261,7 +261,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
                 <label className="absolute inset-x-0 bottom-0 cursor-pointer rounded-b-lg bg-black/70 py-1 text-center text-[10px] font-medium text-white">
-                  החלפה
+                  {t('replace')}
                   <input type="file" accept={ACCEPT} className="sr-only" aria-label={t('replaceImage')} onChange={(e) => {
                     const selected = e.target.files?.[0];
                     e.target.value = '';
