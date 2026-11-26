@@ -47,11 +47,11 @@ export default async function LegalPage({ params }: Props) {
         <a href={ctx.base || '/'} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><StorefrontText message="legalBackToStorefront" /> {biz.business.name}</a>
         <header className="mt-5 rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8">
           <p className="text-sm font-semibold text-primary"><StorefrontText message="legalPageAttribution" /></p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl"><StorefrontText message="legalAndAccessibility" /></h1>
+          <h1 id="legal-page-title" className="mt-2 text-3xl font-black tracking-tight sm:text-4xl"><StorefrontText message="legalAndAccessibility" /></h1>
           <p className="mt-3 text-sm leading-6 text-ink/70"><StorefrontText message="legalPageIntro" /></p>
           <p className="mt-2 text-xs leading-5 text-ink/60"><StorefrontText message="legalDocumentLanguageNote" /></p>
           <p className="mt-2 text-xs text-ink/60"><StorefrontText message="legalUpdated" />: {LEGAL_LAST_UPDATED}</p>
-          <nav aria-label="Legal documents" className="mt-5 flex flex-wrap gap-2">
+          <nav aria-labelledby="legal-page-title" className="mt-5 flex flex-wrap gap-2">
             {entries.map(({ doc, title }) => <a key={doc} href={`#${doc}`} className="rounded-full border border-ink/15 px-3 py-2 text-sm font-semibold hover:bg-primary/5">{title}</a>)}
           </nav>
         </header>
