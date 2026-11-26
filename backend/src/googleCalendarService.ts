@@ -287,7 +287,6 @@ export async function processGoogleCalendarJobs(tenantId: string, limit = 10) {
       // event ID makes the next retry idempotent. The stale processing lease recovers it.
       failed++;
     }
-    }
   }
 
   const counts = await withTenant(tenantId, async (db) => (await db.query(
