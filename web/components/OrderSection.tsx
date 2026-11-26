@@ -32,7 +32,9 @@ function errorText(status: number, d: ApiErrorPayload | null, t: (key: Storefron
   if (msgs.includes('contact_required')) return t('validPhoneRequired');
   if (msgs.includes('appointment_required')) return t('chooseAppointment');
   if (msgs.includes('invalid_appointment_time')) return t('appointmentUnavailable');
-  if (d?.error === 'unknown_product') return t('itemUnavailable');
+  if (d?.error === 'unknown_product' || d?.error === 'invalid_items') return t('itemUnavailable');
+  if (d?.error === 'total_too_large') return t('orderTotalTooLarge');
+  if (d?.error === 'duplicate_request') return t('duplicateOrderRequest');
   if (d?.error === 'slot_taken' || d?.error === 'slot_blocked') return t('slotUnavailable');
   return t('sendFailed');
 }
@@ -74,8 +76,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const t = useStorefrontTranslation();
   const storefrontLocale = useStorefrontLocale();
   const storefrontDirection = useStorefrontDirection();
-  // Hebrew and US English calendars conventionally start on Sunday; Russian starts on Monday.
-  const firstDayOffset = storefrontLocale.toLowerCase().startsWith('ru') ? 1 : 0;
+  // Calendar week layout follows the business location, not the visitor's UI language.
+  // Israeli business calendars start on Sunday, including when the visitor selects Russian.
+  const businessTimeZone = new Intl.DateTimeFormat('en', { timeZone: businessTimezone }).resolvedOptions().timeZone;
+  const firstDayOffset = businessTimeZone === 'Asia/Jerusalem' ? 0 : storefrontLocale.toLowerCase().startsWith('ru') ? 1 : 0;
 
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -519,7 +523,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const total = priced.reduce((s, l) => s + l.p.price_agorot! * l.q, 0);
   const hasQuote = lines.some((l) => l.p.price_agorot === null);
   const totalText = priced.length === 0 ? (hasQuote ? quoteLabel : '')
-    : hasQuote ? `${ils(total)} + ${quoteLabel}` : ils(total);
+    : hasQuote ? `${ils(total, storefrontLocale)} + ${quoteLabel}` : ils(total);
 
   const setQty = (product: Product, q: number) => {
     // Keep at least one distinct item in the order so the quantity control
