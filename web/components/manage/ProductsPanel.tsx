@@ -4,32 +4,34 @@ import { ils } from '@/lib/format';
 import { mcallWithTimeout, mupload, uploadErrorText } from '@/lib/manageApi';
 import { ACCEPT, prepareImage } from '@/lib/prepareImage';
 import type { MProduct, MProductsResponse } from '@/lib/types';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 const PAGE = 25;
 const btn = 'min-h-10 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 disabled:opacity-40 sm:min-h-9 sm:rounded-full sm:py-1.5';
 export default function ProductsPanel({ token }: { token: string }) {
+ const { t } = usePlatformLanguage();
  const [data,setData]=useState<MProductsResponse|null>(null); const [error,setError]=useState<string|null>(null); const [editing,setEditing]=useState<MProduct|'new'|null>(null);
  const [searchInput,setSearchInput]=useState(''); const [search,setSearch]=useState(''); const [status,setStatus]=useState<'all'|'active'|'inactive'>('all'); const [loading,setLoading]=useState(false);
- const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcallWithTimeout<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError('לא הצלחנו לטעון את המוצרים.');}finally{setLoading(false);}},[token,search,status]);
+ const load=useCallback(async(offset=0,term=search,state=status)=>{setLoading(true);try{const qs=new URLSearchParams({limit:String(PAGE),offset:String(offset),search:term,status:state});setData(await mcallWithTimeout<MProductsResponse>(token,`products?${qs}`));setError(null);}catch{setError(t('productLoadFailed'));}finally{setLoading(false);}},[token,search,status]);
  useEffect(()=>{void load(0);},[load]);
- async function move(p:MProduct,direction:'up'|'down'){if(!data)return;try{await mcallWithTimeout(token,`products/${p.id}/move`,{method:'POST',body:JSON.stringify({direction})});await load(data.offset);}catch{setError('שינוי הסדר נכשל.');}}
- async function toggleActive(p:MProduct){try{await mcallWithTimeout(token,`products/${p.id}`,{method:'PATCH',body:JSON.stringify({is_active:!p.is_active})});await load(data?.offset??0);}catch{setError('העדכון נכשל.');}}
- async function remove(p:MProduct){if(!confirm(`למחוק את "${p.name}"? הפעולה אינה הפיכה.`))return;try{await mcallWithTimeout(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError('המחיקה נכשלה.');}}
- return <section aria-label="מוצרים ושירותים">
-  <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">מוצרים ושירותים {data&&<span className="text-sm font-normal text-gray-500">({data.total})</span>}</h2><button type="button" onClick={()=>setEditing('new')} className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white">+ הוספה</button></div>
+ async function move(p:MProduct,direction:'up'|'down'){if(!data)return;try{await mcallWithTimeout(token,`products/${p.id}/move`,{method:'POST',body:JSON.stringify({direction})});await load(data.offset);}catch{setError(t('orderUpdateFailed'));}}
+ async function toggleActive(p:MProduct){try{await mcallWithTimeout(token,`products/${p.id}`,{method:'PATCH',body:JSON.stringify({is_active:!p.is_active})});await load(data?.offset??0);}catch{setError(t('updateFailed'));}}
+ async function remove(p:MProduct){if(!confirm(`למחוק את "${p.name}"? הפעולה אינה הפיכה.`))return;try{await mcallWithTimeout(token,`products/${p.id}`,{method:'DELETE'});await load(Math.max(0,(data?.offset??0)-(data?.items.length===1?PAGE:0)));}catch{setError(t('deleteFailed'));}}
+ return <section aria-label={t('tabProductsTitle')}>
+  <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t('tabProductsTitle')} {data&&<span className="text-sm font-normal text-gray-500">({data.total})</span>}</h2><button type="button" onClick={()=>setEditing('new')} className="rounded-full bg-gray-900 px-4 py-2 text-sm font-semibold text-white">+ {t('add')}</button></div>
   <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-white p-3 ring-1 ring-gray-200">
-   <label className="min-w-[12rem] flex-1 text-sm">חיפוש לפי שם<input value={searchInput} onChange={e=>setSearchInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')setSearch(searchInput.trim());}} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 px-3 py-2" placeholder="שם מוצר או שירות"/></label>
-   <label className="text-sm">תצוגה<select value={status} onChange={e=>setStatus(e.target.value as 'all'|'active'|'inactive')} className="mt-1 min-h-10 rounded-lg border border-gray-300 bg-white px-3 py-2"><option value="all">הכול</option><option value="active">מוצגים באתר</option><option value="inactive">מוסתרים</option></select></label>
-   <button type="button" onClick={()=>setSearch(searchInput.trim())} className="min-h-10 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">חיפוש</button>
+   <label className="min-w-[12rem] flex-1 text-sm">{t('productSearch')}<input value={searchInput} onChange={e=>setSearchInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')setSearch(searchInput.trim());}} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 px-3 py-2" placeholder={t('productSearchPlaceholder')}/></label>
+   <label className="text-sm">{t('displayFilter')}<select value={status} onChange={e=>setStatus(e.target.value as 'all'|'active'|'inactive')} className="mt-1 min-h-10 rounded-lg border border-gray-300 bg-white px-3 py-2"><option value="all">{t('all')}</option><option value="active">{t('visibleOnSite')}</option><option value="inactive">{t('hidden')}</option></select></label>
+   <button type="button" onClick={()=>setSearch(searchInput.trim())} className="min-h-10 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">{t('search')}</button>
   </div>
   {error&&<p role="alert" className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-800">{error}</p>}
-  {loading&&!data&&<p className="mt-4 text-sm text-gray-500">טוען…</p>}
-  {data?.items.length===0&&<p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">{search||status!=='all'?'לא נמצאו פריטים שמתאימים לחיפוש או לסינון.':'עדיין אין מוצרים. הוסיפו את הראשון כדי שהאתר יציג קטלוג.'}</p>}
+  {loading&&!data&&<p className="mt-4 text-sm text-gray-500">{t('loading')}</p>}
+  {data?.items.length===0&&<p className="mt-4 rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">{search||status!=='all'?t('noResults'):t('noProducts')}</p>}
   <ul className="mt-3 space-y-2">{data?.items.map((p,i)=><li key={p.id} className={`flex flex-col items-stretch gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center ${p.is_active?'':'opacity-60'}`}>
-   {/* eslint-disable-next-line @next/next/no-img-element */}{p.image_url?<img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover"/>:<div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">אין תמונה</div>}
-   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?'הצעת מחיר':ils(p.price_agorot)} · {p.kind==='service'?'שירות':'מוצר'}{p.kind==='service'?` · ${p.appointment_duration_minutes} דק׳`:''}{!p.is_active&&' · מוסתר באתר'}</div></div>
-   <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end"><button type="button" className={btn} onClick={()=>move(p,'up')} disabled={loading||data.offset+i===0||Boolean(search)||status!=='all'} aria-label={`הזז את ${p.name} למעלה`}>↑</button><button type="button" className={btn} onClick={()=>move(p,'down')} disabled={loading||data.offset+i>=data.total-1||Boolean(search)||status!=='all'} aria-label={`הזז את ${p.name} למטה`}>↓</button><button type="button" className={btn} onClick={()=>setEditing(p)}>עריכה</button><button type="button" className={btn} onClick={()=>toggleActive(p)} disabled={loading}>{p.is_active?'הסתרה':'הצגה'}</button><button type="button" className={`${btn} text-red-700`} onClick={()=>remove(p)} disabled={loading}>מחיקה</button></div>
+   {/* eslint-disable-next-line @next/next/no-img-element */}{p.image_url?<img src={p.image_url} alt="" loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-lg object-cover"/>:<div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">{t('noImage')}</div>}
+   <div className="min-w-0 flex-1"><div className="break-words font-semibold text-gray-900 sm:truncate">{p.name}</div><div className="text-sm text-gray-600">{p.price_agorot===null?t('quote'):ils(p.price_agorot)} · {p.kind==='service'?t('service'):t('product')}{p.kind==='service'?` · ${p.appointment_duration_minutes} דק׳`:''}{!p.is_active&&' · '+t('hiddenOnSite')}</div></div>
+   <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:flex-wrap sm:justify-end"><button type="button" className={btn} onClick={()=>move(p,'up')} disabled={loading||data.offset+i===0||Boolean(search)||status!=='all'} aria-label={`${t('moveUp')} ${p.name}`}>↑</button><button type="button" className={btn} onClick={()=>move(p,'down')} disabled={loading||data.offset+i>=data.total-1||Boolean(search)||status!=='all'} aria-label={`${t('moveDown')} ${p.name}`}>↓</button><button type="button" className={btn} onClick={()=>setEditing(p)}>{t('edit')}</button><button type="button" className={btn} onClick={()=>toggleActive(p)} disabled={loading}>{p.is_active?t('hide'):t('show')}</button><button type="button" className={`${btn} text-red-700`} onClick={()=>remove(p)} disabled={loading}>{t('delete')}</button></div>
   </li>)}</ul>
-  {data&&data.total>0&&<div className="mt-4 flex items-center justify-center gap-4"><button type="button" disabled={loading||data.offset===0} onClick={()=>void load(Math.max(0,data.offset-PAGE))} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הקודם</button><span className="text-sm text-gray-500">{data.offset+1}–{Math.min(data.offset+data.items.length,data.total)} מתוך {data.total}</span><button type="button" disabled={loading||data.offset+data.items.length>=data.total} onClick={()=>void load(data.offset+PAGE)} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">הבא</button></div>}
+  {data&&data.total>0&&<div className="mt-4 flex items-center justify-center gap-4"><button type="button" disabled={loading||data.offset===0} onClick={()=>void load(Math.max(0,data.offset-PAGE))} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('previousPage')}</button><span className="text-sm text-gray-500">{data.offset+1}–{Math.min(data.offset+data.items.length,data.total)} מתוך {data.total}</span><button type="button" disabled={loading||data.offset+data.items.length>=data.total} onClick={()=>void load(data.offset+PAGE)} className="rounded-full bg-white px-4 py-2 text-sm ring-1 ring-gray-300 disabled:opacity-40">{t('nextPage')}</button></div>}
   {editing&&<ProductDialog key={editing==='new'?'new':editing.id} token={token} product={editing==='new'?null:editing} onClosed={()=>setEditing(null)} onChanged={()=>{void load(data?.offset??0);}}/>}
  </section>;
 }
@@ -117,7 +119,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const n = name.trim();
-    if (!n) return setMsg('נא להזין שם.');
+    if (!n) return setMsg(t('productNameRequired'));
     let price: number | null = null;
     if (!quote) {
       const v = Number(priceStr.replace(',', '.'));
@@ -143,7 +145,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         onChanged();
         return setMsg('הבקשה התעכבה. בדקו אם המוצר נשמר ברשימה לפני ניסיון נוסף.');
       }
-      return setMsg('שמירת המוצר נכשלה.');
+      return setMsg(t('productSaveFailed'));
     }
 
     // Defer removals until the product fields have saved successfully, so a failed PATCH
@@ -190,46 +192,46 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl bg-white p-0 text-gray-900 backdrop:bg-black/50">
       <form onSubmit={save} className="space-y-3 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold">{current ? 'עריכת פריט' : 'פריט חדש'}</h3>
-          <button type="button" aria-label="סגירה" className="text-2xl leading-none" onClick={() => ref.current?.close()}>×</button>
+          <h3 className="text-lg font-bold">{current ? t('editItem') : t('newItem')}</h3>
+          <button type="button" aria-label={t('close')} className="text-2xl leading-none" onClick={() => ref.current?.close()}>×</button>
         </div>
 
-        <label className="block text-sm font-medium">סוג
+        <label className="block text-sm font-medium">{t('type')}
           <select className={input} value={kind} onChange={(e) => setKind(e.target.value as 'product' | 'service')}>
-            <option value="product">מוצר</option>
-            <option value="service">שירות</option>
+            <option value="product">{t('product')}</option>
+            <option value="service">{t('service')}</option>
           </select>
         </label>
-        <label className="block text-sm font-medium">שם *
+        <label className="block text-sm font-medium">{t('name')} *
           <input className={input} value={name} maxLength={120} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="block text-sm font-medium">תיאור
+        <label className="block text-sm font-medium">{t('description')}
           <textarea className={input} rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
 
         <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-          <legend className="px-1 text-sm font-medium">פרטים נוספים (רשות)</legend>
+          <legend className="px-1 text-sm font-medium">{t('extraDetails')}</legend>
           {details.map((item, index) => (
             <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-              <input className={input + ' min-w-0'} aria-label={`שם מאפיין ${index + 1}`} maxLength={50} placeholder="מאפיין" value={item.label}
+              <input className={input + ' min-w-0'} aria-label={`שם מאפיין ${index + 1}`} maxLength={50} placeholder={t('attribute')} value={item.label}
                 onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, label: e.target.value } : row))} />
-              <input className={input + ' min-w-0'} aria-label={`ערך מאפיין ${index + 1}`} maxLength={250} placeholder="ערך" value={item.value}
+              <input className={input + ' min-w-0'} aria-label={`ערך מאפיין ${index + 1}`} maxLength={250} placeholder={t('attributeValue')} value={item.value}
                 onChange={(e) => setDetails((items) => items.map((row, i) => i === index ? { ...row, value: e.target.value } : row))} />
-              <button type="button" onClick={() => setDetails((items) => items.filter((_, i) => i !== index))} className="px-2 text-sm text-red-700" aria-label="הסרת מאפיין">✕</button>
+              <button type="button" onClick={() => setDetails((items) => items.filter((_, i) => i !== index))} className="px-2 text-sm text-red-700" aria-label={t('removeRange')}>✕</button>
             </div>
           ))}
-          {details.length < 20 && <button type="button" onClick={() => setDetails((items) => [...items, { label: '', value: '' }])} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">+ הוספת מאפיין</button>}
-          <p className="text-xs text-gray-500">אפשר להוסיף מאפיינים חופשיים כמו מותג, דגם, צבע, חומר או מידות.</p>
+          {details.length < 20 && <button type="button" onClick={() => setDetails((items) => [...items, { label: '', value: '' }])} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">+ {t('addAttribute')}</button>}
+          <p className="text-xs text-gray-500">{t('attributeHint')}</p>
         </fieldset>
 
         <fieldset>
-          <legend className="text-sm font-medium">מחיר</legend>
+          <legend className="text-sm font-medium">{t('price')}</legend>
           <label className="mt-1 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={quote} onChange={(e) => setQuote(e.target.checked)} /> הצעת מחיר (ללא מחיר קבוע)
+            <input type="checkbox" checked={quote} onChange={(e) => setQuote(e.target.checked)} /> {t('quoteNoFixedPrice')}
           </label>
           {!quote && (
             <div className="mt-2 flex items-center gap-2">
-              <input className={input + ' mt-0'} dir="ltr" inputMode="decimal" placeholder="0.00" aria-label="מחיר בשקלים"
+              <input className={input + ' mt-0'} dir="ltr" inputMode="decimal" placeholder="0.00" aria-label={t('priceShekels')}
                 value={priceStr} onChange={(e) => setPriceStr(e.target.value)} />
               <span>₪</span>
             </div>
@@ -237,18 +239,18 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
         </fieldset>
 
         <div>
-          <div className="text-sm font-medium">תמונות מוצר (עד 3)</div>
+          <div className="text-sm font-medium">{t('productImages')}</div>
           <div className="mt-1 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {shownImage ? <img src={shownImage} alt="" className="h-20 w-20 rounded-lg object-cover" />
-              : <div className="grid h-20 w-20 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">אין תמונה</div>}
+              : <div className="grid h-20 w-20 place-items-center rounded-lg bg-gray-100 text-xs text-gray-400">{t('noImage')}</div>}
             <div className="flex flex-col gap-1.5">
               <label className="cursor-pointer rounded-full bg-white px-3 py-1.5 text-center text-sm ring-1 ring-gray-300">
-                {shownImage ? 'החלפת תמונה' : 'בחירת תמונה'}
+                {shownImage ? t('replaceImage') : t('chooseImage')}
                 <input type="file" accept={ACCEPT} className="sr-only" onChange={pick} />
               </label>
               {current?.image_url && !removePrimaryPending && !file && (
-                <button type="button" onClick={removeImage} className="rounded-full px-3 py-1.5 text-sm text-red-700 ring-1 ring-gray-300">הסרת תמונה</button>
+                <button type="button" onClick={removeImage} className="rounded-full px-3 py-1.5 text-sm text-red-700 ring-1 ring-gray-300">{t('removeImage')}</button>
               )}
             </div>
           </div>
@@ -259,20 +261,20 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
                 <img src={image.url} alt="" className="h-16 w-16 rounded-lg object-cover" />
                 <label className="absolute inset-x-0 bottom-0 cursor-pointer rounded-b-lg bg-black/70 py-1 text-center text-[10px] font-medium text-white">
                   החלפה
-                  <input type="file" accept={ACCEPT} className="sr-only" aria-label="החלפת תמונה נוספת" onChange={(e) => {
+                  <input type="file" accept={ACCEPT} className="sr-only" aria-label={t('replaceImage')} onChange={(e) => {
                     const selected = e.target.files?.[0];
                     e.target.value = '';
                     if (selected) void replaceAdditionalImage(image.id, selected);
                   }} />
                 </label>
-                <button type="button" onClick={() => removeAdditionalImage(image.id)} aria-label="הסרת תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
+                <button type="button" onClick={() => removeAdditionalImage(image.id)} aria-label={t('removeExtraImage')} className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
               </div>
             ))}
             {extraPreviews.map((url, index) => (
               <div key={url} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                <button type="button" onClick={() => { URL.revokeObjectURL(url); extraPreviewUrls.current = extraPreviewUrls.current.filter((item) => item !== url); setExtraFiles((items) => items.filter((_, i) => i !== index)); setExtraPreviews((items) => items.filter((_, i) => i !== index)); }} aria-label="ביטול תמונה נוספת" className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
+                <button type="button" onClick={() => { URL.revokeObjectURL(url); extraPreviewUrls.current = extraPreviewUrls.current.filter((item) => item !== url); setExtraFiles((items) => items.filter((_, i) => i !== index)); setExtraPreviews((items) => items.filter((_, i) => i !== index)); }} aria-label={t('cancel')} className="absolute -end-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-white text-red-700 shadow">×</button>
               </div>
             ))}
           </div>
@@ -282,33 +284,33 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
               <input type="file" accept={ACCEPT} multiple className="sr-only" onChange={pickAdditional} />
             </label>
           )}
-          {(removePrimaryPending || removeAdditionalPending.length > 0) && <p className="mt-1 text-xs text-amber-700">הסרת התמונות תתבצע רק לאחר שמירת פרטי המוצר.</p>}
-          <p className="mt-1 text-xs text-gray-500">JPG, PNG או WebP, עד 10MB לתמונה. התמונה הראשית נשארת ללא שינוי כשמוסיפים תמונות נוספות.</p>
+          {(removePrimaryPending || removeAdditionalPending.length > 0) && <p className="mt-1 text-xs text-amber-700">{t('pendingImageRemoval')}</p>}
+          <p className="mt-1 text-xs text-gray-500">{t('imageFormatHint')}</p>
         </div>
 
         {kind === 'service' && (
-          <label className="block text-sm font-medium">משך השירות
+          <label className="block text-sm font-medium">{t('serviceDuration')}
             <select className={input} value={appointmentDurationMinutes} onChange={(e) => setAppointmentDurationMinutes(Number(e.target.value))}>
-              <option value={15}>15 דקות — עד 4 תורים בשעה</option>
-              <option value={30}>30 דקות — עד 2 תורים בשעה</option>
-              <option value={45}>45 דקות</option>
-              <option value={60}>שעה — תור אחד בשעה</option>
-              <option value={90}>שעה וחצי</option>
-              <option value={120}>שעתיים</option>
-              <option value={180}>3 שעות — תור אחד בכל 3 שעות</option>
-              <option value={240}>4 שעות</option>
+              <option value={15}>{t('minutes15')}</option>
+              <option value={30}>{t('minutes30')}</option>
+              <option value={45}>{t('minutes45')}</option>
+              <option value={60}>{t('minutes60')}</option>
+              <option value={90}>{t('minutes90')}</option>
+              <option value={120}>{t('minutes120')}</option>
+              <option value={180}>{t('minutes180')}</option>
+              <option value={240}>{t('minutes240')}</option>
             </select>
-            <span className="mt-1 block text-xs font-normal text-gray-500">משך השירות משמש לחישוב זמן השריון הכולל כאשר הלקוח בוחר כמה שירותים יחד.</span>
+            <span className="mt-1 block text-xs font-normal text-gray-500">{t('serviceDurationHint')}</span>
           </label>
         )}
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> מוצג באתר
+          <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> {t('shownOnSite')}
         </label>
 
         {msg && <p role="alert" className="whitespace-pre-line rounded-lg bg-red-50 p-2 text-sm text-red-800">{msg}</p>}
         <button type="submit" disabled={busy}
           className="w-full rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-          {busy ? 'שומר…' : 'שמירה'}
+          {busy ? t('saving') : t('save')}
         </button>
       </form>
     </dialog>
