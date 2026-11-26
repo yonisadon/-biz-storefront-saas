@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
+import type { StorefrontMessageKey } from '@/lib/storefrontI18n';
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-export default function PwaInstallButton({ label }: { label: string }) {
-  const t = useStorefrontTranslation();
+export default function PwaInstallButton({ label, translate }: { label: string; translate?: (key: StorefrontMessageKey) => string }) {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [help, setHelp] = useState('');
@@ -23,7 +22,7 @@ export default function PwaInstallButton({ label }: { label: string }) {
     // private management pages or API responses.
     if ('serviceWorker' in window.navigator && window.isSecureContext) {
       window.navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {
-        setHelp(t('pwaWorkerError'));
+        setHelp(translate?.('pwaWorkerError') ?? 'לא הצלחנו להפעיל את רכיב ההתקנה. כדאי לרענן את הדף ולנסות שוב.');
       });
     }
 
@@ -49,16 +48,16 @@ export default function PwaInstallButton({ label }: { label: string }) {
     if (installPrompt) {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
-      if (choice.outcome === 'accepted') setHelp(t('pwaInstalled'));
-      else setHelp(t('pwaDismissed'));
+      if (choice.outcome === 'accepted') setHelp(translate?.('pwaInstalled') ?? 'אפליקציית הניהול נוספה למכשיר.');
+      else setHelp(translate?.('pwaDismissed') ?? 'ההתקנה לא הושלמה. אפשר לנסות שוב מאותו מסך ניהול.');
       setInstallPrompt(null);
       return;
     }
 
     const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
     setHelp(isIos
-      ? t('pwaIosHelp')
-      : t('pwaNoPrompt'));
+      ? (translate?.('pwaIosHelp') ?? 'ב-iPhone/iPad: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. לאחר ההתקנה פתחו את האתר מהסמל החדש. כך ניתן לקבל התראות Push (נדרש iOS/iPadOS 16.4 ומעלה).')
+      : (translate?.('pwaNoPrompt') ?? 'הדפדפן עדיין לא הציע התקנה כאפליקציה. פתחו את קישור הניהול ב-Chrome ועדכנו את הדף. אם מופיעה רק אפשרות „יצירת קיצור דרך” — אל תבחרו בה; נבדוק מדוע הדפדפן לא מזהה את אפשרות ההתקנה.'));
   }
 
   if (installed) return null;
