@@ -107,7 +107,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
       setProducts(services);
       setServiceId((current) => services.some((p) => p.id === current) ? current : services[0]?.id ?? '');
     } catch {
-      setError('לא הצלחנו לטעון את היומן. ודאו שמסד העסק עודכן במיגרציה ושגרסת השרת תומכת ביומן.');
+      setError(t('calendarLoadFailed'));
     } finally { setBusy(false); }
   }, [token, range.from, range.to]);
 
@@ -153,7 +153,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     : [], [service, calendar, selectedAppointments, selectedBlocks, date, ranges, localNow]);
 
   async function createAppointment() {
-    if (!serviceId || !phone.trim() || !startTime) return setError('יש לבחור שירות, להזין טלפון ולבחור שעה פנויה.');
+    if (!serviceId || !phone.trim() || !startTime) return setError(t('selectServicePhoneTime'));
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcallWithTimeout(token, 'appointments', {
@@ -161,14 +161,14 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
         body: JSON.stringify({ service_id: serviceId, customer_phone: phone, start_at: `${date}T${startTime}` }),
       });
       setPhone(''); setStartTime('');
-      setMessage('התור הידני נשמר ביומן.');
+      setMessage(t('appointmentSaved'));
       await load();
     } catch (err) {
       setError(err instanceof Error && err.name === 'AbortError'
-        ? 'הבקשה התעכבה. בדקו ביומן אם התור נשמר לפני ניסיון נוסף.'
+        ? t('appointmentDelayed')
         : err instanceof Error && err.message.includes('409')
-          ? 'השעה נתפסה בינתיים. בחרו שעה אחרת.'
-          : 'שמירת התור נכשלה. בדקו את מספר הטלפון, שעות הפעילות וזמינות השעה.');
+          ? t('appointmentConflict')
+          : t('appointmentSaveFailed'));
     } finally { setBusy(false); }
   }
 
@@ -176,9 +176,9 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
-      setMessage(status === 'cancelled' ? 'התור בוטל והשעה שוחררה.' : 'התור חזר ליומן.');
+      setMessage(status === 'cancelled' ? t('appointmentCanceled') : t('appointmentRestored'));
       await load();
-    } catch { setError('עדכון התור נכשל. אם המועד החדש אינו פנוי, התור המקורי נשאר ללא שינוי.'); }
+    } catch { setError(t('updateAppointmentFailed')); }
     finally { setBusy(false); }
   }
 
@@ -189,24 +189,24 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'PATCH', body: JSON.stringify({ ...(start_at ? { start_at } : {}), ...(service_id ? { service_id } : {}) }) });
-      setMessage('פרטי התור עודכנו.');
+      setMessage(t('appointmentUpdated'));
       setEditingTimes((v) => { const n = { ...v }; delete n[item.id]; return n; });
       setEditingServices((v) => { const n = { ...v }; delete n[item.id]; return n; });
       await load();
-    } catch { setError('לא ניתן לשמור את השינוי. ייתכן שהמועד תפוס או מחוץ לשעות הפעילות; התור המקורי לא שונה.'); }
+    } catch { setError(t('appointmentUpdateConflict')); }
     finally { setBusy(false); }
   }
 
   async function deleteAppointment(item: Appointment) {
-    if (!confirm(`למחוק את התור של ${item.customer_phone}?`)) return;
+    if (!confirm(`${t('appointmentDeleteConfirm')} ${item.customer_phone}?`)) return;
     setBusy(true); setError(null);
-    try { await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'DELETE' }); setMessage('התור נמחק.'); await load(); }
-    catch { setError('מחיקת התור נכשלה.'); }
+    try { await mcallWithTimeout(token, `appointments/${item.id}`, { method: 'DELETE' }); setMessage(t('appointmentDeleted')); await load(); }
+    catch { setError(t('appointmentDeleteFailed')); }
     finally { setBusy(false); }
   }
 
   async function createBlock() {
-    if (!allDayBlock && (!blockStart || !blockEnd || blockEnd <= blockStart)) return setError('שעת סיום החסימה חייבת להיות אחרי שעת ההתחלה.');
+    if (!allDayBlock && (!blockStart || !blockEnd || blockEnd <= blockStart)) return setError(t('blockEndAfterStart'));
     setBusy(true); setError(null); setMessage(null);
     try {
       const nextDateValue = new Date(`${date}T12:00:00Z`);
@@ -221,36 +221,36 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
         }),
       });
       setMessage(result.conflicting_appointments
-        ? `החסימה נשמרה, אבל קיימים ${result.conflicting_appointments} תורים משוריינים בטווח. הם לא בוטלו; יש לטפל בהם ידנית.`
-        : 'החסימה נשמרה ותמנע קביעות חדשות בטווח.');
+        ? `${t('blockSavedConflicts')} (${result.conflicting_appointments})`
+        : t('blockSaved'));
       setBlockReason(''); setAllDayBlock(false);
       await load();
-    } catch { setError('שמירת החסימה נכשלה.'); }
+    } catch { setError(t('blockSaveFailed')); }
     finally { setBusy(false); }
   }
 
   async function deleteBlock(block: TimeBlock) {
     setBusy(true); setError(null);
-    try { await mcallWithTimeout(token, `appointment-blocks/${block.id}`, { method: 'DELETE' }); setMessage('החסימה הוסרה.'); await load(); }
-    catch { setError('הסרת החסימה נכשלה.'); }
+    try { await mcallWithTimeout(token, `appointment-blocks/${block.id}`, { method: 'DELETE' }); setMessage(t('blockRemoved')); await load(); }
+    catch { setError(t('blockRemoveFailed')); }
     finally { setBusy(false); }
   }
 
   const field = 'min-h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm';
   return <section dir={language === "he" ? "rtl" : "ltr"} aria-label={t("tabCalendar")} className="space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0"><h2 className="text-lg font-bold">יומן תורים</h2><p className="mt-1 text-sm text-gray-600">תורים משוריינים, שעות פנויות וחסימות חריגות.</p></div>
+      <div className="min-w-0"><h2 className="text-lg font-bold">{t('calendarTitle')}</h2><p className="mt-1 text-sm text-gray-600">{t('calendarSubtitle')}</p></div>
       <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:w-auto sm:min-w-[420px]">
-        <div className="flex justify-center rounded-full border bg-gray-50 p-1 sm:justify-start" role="group" aria-label="תצוגת יומן">{([['day','יום'],['week','שבוע'],['month','חודש']] as const).map(([mode,label]) => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)} className={`flex-1 rounded-full px-3 py-2 text-sm sm:flex-none ${viewMode === mode ? 'bg-white font-bold shadow-sm' : 'text-gray-600'}`}>{label}</button>)}</div>
+        <div className="flex justify-center rounded-full border bg-gray-50 p-1 sm:justify-start" role="group" aria-label="תצוגת יומן">{([['day',t('calendarViewDay')],['week',t('calendarViewWeek')],['month',t('calendarViewMonth')]] as const).map(([mode,label]) => <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)} className={`flex-1 rounded-full px-3 py-2 text-sm sm:flex-none ${viewMode === mode ? 'bg-white font-bold shadow-sm' : 'text-gray-600'}`}>{label}</button>)}</div>
         <div className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-2">
-          <button type="button" onClick={() => moveDate(-1)} aria-label="הקודם" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">‹</button>
-          <div className="min-w-0 text-center"><p className="truncate text-sm font-semibold">{viewMode === 'month' ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.slice(0,7)+'-01T12:00:00Z')) : selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">בחירת תאריך</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 w-full max-w-48`}/></div>
-          <button type="button" onClick={() => moveDate(1)} aria-label="הבא" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">›</button>
+          <button type="button" onClick={() => moveDate(-1)} aria-label={t('previous')} className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">‹</button>
+          <div className="min-w-0 text-center"><p className="truncate text-sm font-semibold">{viewMode === 'month' ? new Intl.DateTimeFormat(locale,{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.slice(0,7)+'-01T12:00:00Z')) : selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">{t('selectDate')}</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 w-full max-w-48`}/></div>
+          <button type="button" onClick={() => moveDate(1)} aria-label={t('next')} className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">›</button>
         </div>
-        <div className="flex items-center gap-2"><button type="button" onClick={() => {setDate(todayInTimezone(calendarTimezone));setViewMode('day');}} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">היום</button><button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button></div>
+        <div className="flex items-center gap-2"><button type="button" onClick={() => {setDate(todayInTimezone(calendarTimezone));setViewMode('day');}} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">{t('today')}</button><button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">{t('refresh')}</button></div>
       </div>
     </div>
-    {viewMode === 'month' && <div className="rounded-2xl border border-gray-200 bg-white p-3"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500">{['ב׳','ג׳','ד׳','ה׳','ו׳','ש׳','א׳'].map((x) => <span key={x}>{x}</span>)}</div><div className="grid grid-cols-7 gap-1">{visibleDates.map((day) => { const events = (calendar?.appointments ?? []).filter((a) => a.start_at.slice(0,10) === day && a.status === 'reserved'); return <button key={day} type="button" onClick={() => {setDate(day);setViewMode('day');}} aria-pressed={date === day} className={`min-h-16 rounded-xl border p-1 text-center ${date === day ? 'border-gray-900 bg-primary text-primary-fg' : 'border-gray-100 bg-white'}`}><span className="text-sm font-semibold">{Number(day.slice(8,10))}</span><span className={`mt-1 block text-[10px] ${date === day ? 'text-primary-fg/75' : 'text-gray-500'}`}>{events.length ? `${events.length} תורים` : '—'}</span>{events.slice(0,2).map((event) => <span key={event.id} className={`mt-1 block truncate rounded px-1 text-[9px] ${date === day ? 'bg-white/15' : 'bg-blue-50 text-blue-800'}`}>{localLabel(event.start_at)} {event.service_name}</span>)}</button>;})}</div></div>}
+    {viewMode === 'month' && <div className="rounded-2xl border border-gray-200 bg-white p-3"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500">{[t('weekdayMon'),t('weekdayTue'),t('weekdayWed'),t('weekdayThu'),t('weekdayFri'),t('weekdaySat'),t('weekdaySun')].map((x) => <span key={x}>{x}</span>)}</div><div className="grid grid-cols-7 gap-1">{visibleDates.map((day) => { const events = (calendar?.appointments ?? []).filter((a) => a.start_at.slice(0,10) === day && a.status === 'reserved'); return <button key={day} type="button" onClick={() => {setDate(day);setViewMode('day');}} aria-pressed={date === day} className={`min-h-16 rounded-xl border p-1 text-center ${date === day ? 'border-gray-900 bg-primary text-primary-fg' : 'border-gray-100 bg-white'}`}><span className="text-sm font-semibold">{Number(day.slice(8,10))}</span><span className={`mt-1 block text-[10px] ${date === day ? 'text-primary-fg/75' : 'text-gray-500'}`}>{events.length ? `${events.length} {t('appointmentsCount')}` : '—'}</span>{events.slice(0,2).map((event) => <span key={event.id} className={`mt-1 block truncate rounded px-1 text-[9px] ${date === day ? 'bg-white/15' : 'bg-blue-50 text-blue-800'}`}>{localLabel(event.start_at)} {event.service_name}</span>)}</button>;})}</div></div>}
     {timelineDates.length > 0 && (
       <CalendarTimeline
         mode={viewMode === 'week' ? 'week' : 'day'}
@@ -271,49 +271,49 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     {message && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</p>}
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <h3 className="font-bold">קביעת תור ידני</h3>
-        <p className="mt-1 text-xs text-gray-500">התור נשמר ביומן בלבד, ללא יצירת פנייה נפרדת.</p>
+        <h3 className="font-bold">{t('manualAppointment')}</h3>
+        <p className="mt-1 text-xs text-gray-500">{t('manualAppointmentHint')}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">שירות<select className={`${field} mt-1 w-full`} value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartTime(''); }}><option value="">בחירת שירות</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
-          <label className="text-sm">טלפון לקוח<input className={`${field} mt-1 w-full`} dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05X-XXXXXXX"/></label>
+          <label className="text-sm">{t('serviceLabel')}<select className={`${field} mt-1 w-full`} value={serviceId} onChange={(e) => { setServiceId(e.target.value); setStartTime(''); }}><option value="">{t('chooseService')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
+          <label className="text-sm">{t('customerPhone')}<input className={`${field} mt-1 w-full`} dir="ltr" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="05X-XXXXXXX"/></label>
         </div>
-        <div className="mt-3"><p className="text-sm font-medium">שעות פנויות</p>
-          {!service && <p className="mt-2 text-sm text-gray-500">בחרו שירות כדי לראות שעות פנויות.</p>}
-          {service && !freeSlots.length && <p className="mt-2 text-sm text-gray-500">אין שעות פנויות לפי שעות הפעילות, התורים והחסימות.</p>}
+        <div className="mt-3"><p className="text-sm font-medium">{t('availableHours')}</p>
+          {!service && <p className="mt-2 text-sm text-gray-500">{t('chooseServiceHint')}</p>}
+          {service && !freeSlots.length && <p className="mt-2 text-sm text-gray-500">{t('noAvailableHours')}</p>}
           <div className="mt-2 flex flex-wrap gap-2">{freeSlots.map((slot) => <button type="button" key={slot} onClick={() => setStartTime(localLabel(slot))} className={`rounded-full px-3 py-2 text-sm ring-1 ${startTime === localLabel(slot) ? 'bg-primary text-primary-fg ring-gray-900' : 'bg-white ring-gray-300'}`}>{localLabel(slot)}</button>)}</div>
         </div>
-        <button type="button" onClick={() => void createAppointment()} disabled={busy || !service || !phone.trim() || !startTime} className="mt-4 min-h-11 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">שמירת תור ביומן</button>
+        <button type="button" onClick={() => void createAppointment()} disabled={busy || !service || !phone.trim() || !startTime} className="mt-4 min-h-11 w-full rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">{t('saveAppointment')}</button>
       </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <h3 className="font-bold">חסימת זמן</h3><p className="mt-1 text-xs text-gray-500">חסימה מונעת תורים חדשים. תורים קיימים נשארים משוריינים ומוצגת אזהרה.</p>
-        <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={allDayBlock} onChange={(e) => setAllDayBlock(e.target.checked)}/> חסימת יום מלא</label>
+        <h3 className="font-bold">{t('timeBlock')}</h3><p className="mt-1 text-xs text-gray-500">{t('timeBlockHint')}</p>
+        <label className="mt-3 flex items-center gap-2 text-sm"><input type="checkbox" checked={allDayBlock} onChange={(e) => setAllDayBlock(e.target.checked)}/> {t('fullDayBlock')}</label>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className="text-sm">משעה<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockStart} onChange={(e) => setBlockStart(e.target.value)}/></label>
-          <label className="text-sm">עד שעה<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}/></label>
+          <label className="text-sm">{t('fromTime')}<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockStart} onChange={(e) => setBlockStart(e.target.value)}/></label>
+          <label className="text-sm">{t('untilTime')}<input type="time" disabled={allDayBlock} className={`${field} mt-1 w-full disabled:opacity-50`} value={blockEnd} onChange={(e) => setBlockEnd(e.target.value)}/></label>
         </div>
-        <label className="mt-3 block text-sm">סיבה (לא חובה)<input className={`${field} mt-1 w-full`} value={blockReason} onChange={(e) => setBlockReason(e.target.value)} maxLength={300} placeholder="למשל: הפסקה"/></label>
-        <button type="button" onClick={() => void createBlock()} disabled={busy} className="mt-3 min-h-11 w-full rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">שמירת חסימה</button>
+        <label className="mt-3 block text-sm">{t('reasonOptional')}<input className={`${field} mt-1 w-full`} value={blockReason} onChange={(e) => setBlockReason(e.target.value)} maxLength={300} placeholder={t('reasonExample')}/></label>
+        <button type="button" onClick={() => void createBlock()} disabled={busy} className="mt-3 min-h-11 w-full rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">{t('saveBlock')}</button>
       </div>
     </div>
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <h3 className="font-bold">תורים לתאריך הנבחר</h3>
-      {busy && !calendar && <p className="mt-3 text-sm text-gray-500">טוען…</p>}
-      {!selectedAppointments.length && <p className="mt-3 text-sm text-gray-500">אין תורים משוריינים בתאריך זה.</p>}
+      <h3 className="font-bold">{t('appointmentsForDate')}</h3>
+      {busy && !calendar && <p className="mt-3 text-sm text-gray-500">{t('loading')}</p>}
+      {!selectedAppointments.length && <p className="mt-3 text-sm text-gray-500">{t('noAppointmentsForDate')}</p>}
       <div className="mt-3 space-y-3">{selectedAppointments.map((item) => <div id={'appointment-details-' + item.id} key={item.id} className={'rounded-xl border p-3 ' + (activeAppointmentId === item.id ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200')}>
-        <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{localLabel(item.start_at)}–{localLabel(item.end_at)} · {item.service_name}</p><p className="mt-1 text-sm text-gray-600" dir="ltr">{item.customer_phone} · {item.source === 'manual' ? 'תור ידני' : 'הגיע מהאתר'}</p><p className="mt-1 text-xs text-gray-500">{item.status === 'reserved' ? 'משוריין' : 'בוטל'}</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void changeStatus(item, item.status === 'reserved' ? 'cancelled' : 'reserved')} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs">{item.status === 'reserved' ? 'ביטול ושחרור שעה' : 'החזרה ליומן'}</button><button type="button" disabled={busy} onClick={() => void deleteAppointment(item)} className="rounded-full border border-red-200 px-3 py-1.5 text-xs text-red-700">מחיקה</button></div>
+        <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="font-semibold">{localLabel(item.start_at)}–{localLabel(item.end_at)} · {item.service_name}</p><p className="mt-1 text-sm text-gray-600" dir="ltr">{item.customer_phone} · {item.source === 'manual' ? t('manualAppointmentTag') : t('fromWebsite')}</p><p className="mt-1 text-xs text-gray-500">{item.status === 'reserved' ? t('reserved') : t('canceledStatus')}</p></div>
+          <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void changeStatus(item, item.status === 'reserved' ? 'cancelled' : 'reserved')} className="rounded-full border border-gray-300 px-3 py-1.5 text-xs">{item.status === 'reserved' ? 'ביטול ושחרור שעה' : 'החזרה ליומן'}</button><button type="button" disabled={busy} onClick={() => void deleteAppointment(item)} className="rounded-full border border-red-200 px-3 py-1.5 text-xs text-red-700">{t('delete')}</button></div>
         </div>
         {item.status === 'reserved' && <div className="mt-3 flex flex-wrap gap-2">
-          <label className="text-xs text-gray-600">שירות<select aria-label="שירות חדש" className={field} value={editingServices[item.id] ?? item.service_id ?? ''} onChange={(e) => setEditingServices((v) => ({ ...v, [item.id]: e.target.value }))}><option value="">שירות לא זמין</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
-          <label className="text-xs text-gray-600">מועד חדש<input type="datetime-local" aria-label="מועד חדש" className={field} value={editingTimes[item.id] ?? ''} onChange={(e) => setEditingTimes((v) => ({ ...v, [item.id]: e.target.value }))}/></label>
-          <button type="button" disabled={busy || (!editingTimes[item.id] && !editingServices[item.id])} onClick={() => void saveAppointment(item)} className="self-end rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-fg disabled:opacity-50">שמירת שינויים</button>
+          <label className="text-xs text-gray-600">{t('serviceLabel')}<select aria-label={t('newService')} className={field} value={editingServices[item.id] ?? item.service_id ?? ''} onChange={(e) => setEditingServices((v) => ({ ...v, [item.id]: e.target.value }))}><option value="">{t('serviceUnavailable')}</option>{products.map((p) => <option key={p.id} value={p.id}>{p.name} · {p.appointment_duration_minutes} דק׳</option>)}</select></label>
+          <label className="text-xs text-gray-600">{t('newDateTime')}<input type="datetime-local" aria-label={t('newDateTime')} className={field} value={editingTimes[item.id] ?? ''} onChange={(e) => setEditingTimes((v) => ({ ...v, [item.id]: e.target.value }))}/></label>
+          <button type="button" disabled={busy || (!editingTimes[item.id] && !editingServices[item.id])} onClick={() => void saveAppointment(item)} className="self-end rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-fg disabled:opacity-50">{t('saveChanges')}</button>
         </div>}
       </div>)}</div>
     </div>
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <h3 className="font-bold">חסימות לתאריך הנבחר</h3>
-      {!selectedBlocks.length && <p className="mt-2 text-sm text-gray-500">אין חסימות.</p>}
-      <div className="mt-2 space-y-2">{selectedBlocks.map((block) => <div key={block.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-3 text-sm"><span>{localLabel(block.start_at)}–{localLabel(block.end_at)}{block.reason ? ` · ${block.reason}` : ''}</span><button type="button" disabled={busy} onClick={() => void deleteBlock(block)} className="text-red-700 underline">הסרת חסימה</button></div>)}</div>
+      <h3 className="font-bold">{t('blocksForDate')}</h3>
+      {!selectedBlocks.length && <p className="mt-2 text-sm text-gray-500">{t('noBlocks')}</p>}
+      <div className="mt-2 space-y-2">{selectedBlocks.map((block) => <div key={block.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-3 text-sm"><span>{localLabel(block.start_at)}–{localLabel(block.end_at)}{block.reason ? ` · ${block.reason}` : ''}</span><button type="button" disabled={busy} onClick={() => void deleteBlock(block)} className="text-red-700 underline">{t('removeBlock')}</button></div>)}</div>
     </div>
   </section>;
 }
