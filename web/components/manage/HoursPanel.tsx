@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DAYS } from '@/lib/labels';
 import { mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Range = { open: string; close: string };
 type Day = 'closed' | Range[];
@@ -16,6 +17,8 @@ const DEFAULT: Record<string, Day> = {
 export default function HoursPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
+  const { t } = usePlatformLanguage();
+  const dayLabels: Record<string, string> = { sun: t('daySun'), mon: t('dayMon'), tue: t('dayTue'), wed: t('dayWed'), thu: t('dayThu'), fri: t('dayFri'), sat: t('daySat') };
   const oh = biz.config.opening_hours ?? {};
   const [days, setDays] = useState<Record<string, Day>>(oh.days ?? DEFAULT);
   const [bannerOn, setBannerOn] = useState<boolean>(oh.out_of_hours_banner?.enabled !== false);
@@ -31,14 +34,15 @@ export default function HoursPanel({ token, biz, onSaved }: {
   };
 
   function validate(): string | null {
-    for (const [k, label] of DAYS) {
+    for (const [k] of DAYS) {
+      const label = dayLabels[k] ?? k;
       const d = days[k];
       if (!d || d === 'closed') continue;
       const sorted = [...d].sort((a, b) => a.open.localeCompare(b.open));
       for (let i = 0; i < sorted.length; i++) {
         const r = sorted[i];
-        if (!r.open || !r.close || r.open >= r.close) return `${label}: שעת הסיום חייבת להיות אחרי שעת ההתחלה (משמרת לילה אינה נתמכת).`;
-        if (i > 0 && sorted[i - 1].close > r.open) return `${label}: טווחי השעות חופפים.`;
+        if (!r.open || !r.close || r.open >= r.close) return `${label}: ${t('nightShiftUnsupported')}`;
+        if (i > 0 && sorted[i - 1].close > r.open) return `${label}: ${t('timeRangesOverlap')}`;
       }
     }
     return null;
@@ -64,19 +68,20 @@ export default function HoursPanel({ token, biz, onSaved }: {
       onSaved({ ...biz, ...saved });
       const count = saved.warnings?.future_reserved_appointments ?? 0;
       setMsg({ ok: true, text: count > 0
-        ? `שעות הפעילות נשמרו. קיימים ${count} תורים משוריינים עתידיים; הם נשארו בתוקף. בדקו ידנית אם הם מתנגשים עם השעות החדשות.`
-        : 'שעות הפעילות נשמרו.' });
-    } catch { setMsg({ ok: false, text: 'השמירה נכשלה. נסו שוב.' }); }
+        ? `${t('hoursSavedWithBookings')} (${count})`
+        : t('hoursSaved') });
+    } catch { setMsg({ ok: false, text: t('businessSaveFailed') }); }
     finally { setBusy(false); }
   }
 
   const time = 'w-[108px] rounded-md border border-gray-300 bg-white px-1.5 py-1 text-sm';
 
   return (
-    <section aria-label="שעות פעילות" className="rounded-xl border border-ink/15 bg-white p-3 sm:p-4">
-      <h2 className="text-lg font-bold">שעות פעילות</h2>
+    <section aria-label={t("hoursTitle")} className="rounded-xl border border-ink/15 bg-white p-3 sm:p-4">
+      <h2 className="text-lg font-bold">{t("hoursTitle")}</h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
-        {DAYS.map(([k, label]) => {
+        {DAYS.map(([k]) => {
+          const label = dayLabels[k] ?? k;
           const d = days[k] ?? 'closed';
           const open = d !== 'closed';
           return (
@@ -90,23 +95,23 @@ export default function HoursPanel({ token, biz, onSaved }: {
                 <div className="min-w-0 flex-1 space-y-1.5">
                   {d.map((r, i) => (
                     <div key={i} className="flex items-center gap-2" dir="ltr">
-                      <input type="time" className={time} value={r.open} aria-label={`${label}: שעת פתיחה`}
+                      <input type="time" className={time} value={r.open} aria-label={`${label}: ${t("openingTime")}`}
                         onChange={(e) => setRange(k, i, { open: e.target.value })} />
                       <span>–</span>
-                      <input type="time" className={time} value={r.close} aria-label={`${label}: שעת סגירה`}
+                      <input type="time" className={time} value={r.close} aria-label={`${label}: ${t("closingTime")}`}
                         onChange={(e) => setRange(k, i, { close: e.target.value })} />
                       {d.length > 1 && (
-                        <button type="button" aria-label="הסרת טווח" className="px-2 text-lg text-red-700"
+                        <button type="button" aria-label={t("removeRange")} className="px-2 text-lg text-red-700"
                           onClick={() => setDay(k, d.filter((_, idx) => idx !== i))}>×</button>
                       )}
                     </div>
                   ))}
                   {d.length < 3 && (
                     <button type="button" className="text-sm underline"
-                      onClick={() => setDay(k, [...d, { open: '16:00', close: '20:00' }])}>+ הוספת טווח</button>
+                      onClick={() => setDay(k, [...d, { open: '16:00', close: '20:00' }])}>+ {t("addTimeRange")}</button>
                   )}
                 </div>
-              ) : <span className="text-gray-500">סגור</span>}
+              ) : <span className="text-gray-500">{t("closed")}</span>}
             </div>
           );
         })}
@@ -115,12 +120,12 @@ export default function HoursPanel({ token, biz, onSaved }: {
       <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" checked={bannerOn} onChange={(e) => setBannerOn(e.target.checked)} />
-          להציג באנר באתר מחוץ לשעות הפעילות
+          {t("showOutOfHoursBanner")}
         </label>
         {bannerOn && (
           <input className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" maxLength={200}
-            placeholder="אנחנו סגורים כרגע. השאירו פנייה ונחזור אליכם בשעות הפעילות."
-            aria-label="הודעת הבאנר" value={bannerMsg} onChange={(e) => setBannerMsg(e.target.value)} />
+            placeholder={t("bannerPlaceholder")}
+            aria-label={t("bannerMessage")} value={bannerMsg} onChange={(e) => setBannerMsg(e.target.value)} />
         )}
       </div>
 
@@ -130,7 +135,7 @@ export default function HoursPanel({ token, biz, onSaved }: {
       )}
       <button type="button" onClick={save} disabled={busy}
         className="mt-3 rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-        {busy ? 'שומר…' : 'שמירה'}
+        {busy ? t('saving') : t('save')}
       </button>
     </section>
   );
