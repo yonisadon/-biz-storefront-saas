@@ -1739,11 +1739,11 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   background: transparent !important;
   box-shadow: none !important;
 }
-.brand-root .storefront-universal-content #catalog-section > section[aria-labelledby="catalog-h"] {
+.brand-root .storefront-universal-content #catalog-section > section[aria-labelledby="products-h"] {
   padding: 0;
 }
-.brand-root .storefront-universal-content #catalog-h,
-.brand-root .storefront-universal-content #services-heading {
+.brand-root .storefront-universal-content #products-h,
+.brand-root .storefront-universal-content #services-h {
   margin: 0 0 clamp(1.5rem, 3vw, 2.25rem);
   color: var(--brand-text);
   font-size: clamp(2rem, 3.5vw, 3.15rem);
