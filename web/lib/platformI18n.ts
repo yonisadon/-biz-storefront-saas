@@ -180,6 +180,14 @@ export const PLATFORM_MESSAGES = {
     googleConnectFailed: 'לא ניתן להתחיל חיבור ל-Google Calendar. בדקו שהוגדרו פרטי OAuth בשרת.', googleSyncFailed: 'הסנכרון נכשל. התורים ב-BTime נשארים שמורים; אפשר לנסות שוב.',
     googleDisconnected: 'החיבור נותק וההרשאה בוטלה ככל שפרטי OAuth זמינים. אירועים קיימים נשארים ביומן Google.', googleDisconnectFailed: 'ניתוק Google Calendar נכשל. החיבור נשאר פעיל.',
 
+        selectServicePhoneTime: 'יש לבחור שירות, להזין טלפון ולבחור שעה פנויה.', appointmentDelayed: 'הבקשה התעכבה. בדקו ביומן אם התור נשמר לפני ניסיון נוסף.',
+    updateAppointmentFailed: 'עדכון התור נכשל. אם המועד החדש אינו פנוי, התור המקורי נשאר ללא שינוי.',
+    appointmentUpdateConflict: 'לא ניתן לשמור את השינוי. ייתכן שהמועד תפוס או מחוץ לשעות הפעילות; התור המקורי לא שונה.',
+    appointmentDeleteConfirm: 'למחוק את התור של', blockEndAfterStart: 'שעת סיום החסימה חייבת להיות אחרי שעת ההתחלה.',
+    blockSavedConflicts: 'החסימה נשמרה, אבל קיימים תורים משוריינים בטווח. הם לא בוטלו; יש לטפל בהם ידנית.',
+    blockSaved: 'החסימה נשמרה ותמנע קביעות חדשות בטווח.', blockSaveFailed: 'שמירת החסימה נכשלה.', blockRemoved: 'החסימה הוסרה.', blockRemoveFailed: 'הסרת החסימה נכשלה.',
+    appointmentUpdated: 'פרטי התור עודכנו.', appointmentDeleted: 'התור נמחק.', selectDate: 'בחירת תאריך', previous: 'הקודם', next: 'הבא',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -361,6 +369,14 @@ export const PLATFORM_MESSAGES = {
     googleConnectFailed: 'Unable to start Google Calendar connection. Check that OAuth credentials are configured on the server.', googleSyncFailed: 'Sync failed. BTime appointments remain saved; you can try again.',
     googleDisconnected: 'The connection was disconnected and authorization revoked if OAuth details were available. Existing events remain in Google Calendar.', googleDisconnectFailed: 'Could not disconnect Google Calendar. The connection remains active.',
 
+        selectServicePhoneTime: 'Select a service, enter a phone number and choose an available time.', appointmentDelayed: 'The request timed out. Check the calendar to see whether the appointment was saved before retrying.',
+    updateAppointmentFailed: 'Could not update the appointment. If the new time is unavailable, the original appointment remains unchanged.',
+    appointmentUpdateConflict: 'Could not save the change. The time may be occupied or outside business hours; the original appointment was not changed.',
+    appointmentDeleteConfirm: 'Delete the appointment for', blockEndAfterStart: 'The block end time must be after its start time.',
+    blockSavedConflicts: 'The block was saved, but existing appointments overlap the time range. They were not canceled and must be handled manually.',
+    blockSaved: 'The block was saved and will prevent new bookings during this time.', blockSaveFailed: 'Could not save the block.', blockRemoved: 'The block was removed.', blockRemoveFailed: 'Could not remove the block.',
+    appointmentUpdated: 'Appointment details updated.', appointmentDeleted: 'Appointment deleted.', selectDate: 'Choose date', previous: 'Previous', next: 'Next',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -541,6 +557,14 @@ export const PLATFORM_MESSAGES = {
     googleSyncPending: 'Некоторые события ожидают синхронизации. Можно повторить вручную.', googleStatusFailed: 'Не удалось загрузить состояние Google Calendar. Возможно, миграция базы данных бизнеса ещё не установлена.',
     googleConnectFailed: 'Не удалось начать подключение Google Calendar. Проверьте настройки OAuth на сервере.', googleSyncFailed: 'Синхронизация не удалась. Записи BTime сохранены; можно попробовать снова.',
     googleDisconnected: 'Подключение отключено, разрешение отозвано, если данные OAuth доступны. Существующие события остаются в Google Calendar.', googleDisconnectFailed: 'Не удалось отключить Google Calendar. Подключение остаётся активным.',
+
+        selectServicePhoneTime: 'Выберите услугу, введите номер телефона и выберите свободное время.', appointmentDelayed: 'Время ожидания запроса истекло. Перед повторной попыткой проверьте календарь — возможно, запись уже сохранена.',
+    updateAppointmentFailed: 'Не удалось обновить запись. Если новое время недоступно, исходная запись остаётся без изменений.',
+    appointmentUpdateConflict: 'Не удалось сохранить изменение. Возможно, время занято или находится вне рабочих часов; исходная запись не изменена.',
+    appointmentDeleteConfirm: 'Удалить запись для', blockEndAfterStart: 'Время окончания блокировки должно быть позже времени начала.',
+    blockSavedConflicts: 'Блокировка сохранена, но в этом интервале есть существующие записи. Они не отменены и требуют ручной обработки.',
+    blockSaved: 'Блокировка сохранена и предотвратит новые записи в этот период.', blockSaveFailed: 'Не удалось сохранить блокировку.', blockRemoved: 'Блокировка снята.', blockRemoveFailed: 'Не удалось снять блокировку.',
+    appointmentUpdated: 'Данные записи обновлены.', appointmentDeleted: 'Запись удалена.', selectDate: 'Выбрать дату', previous: 'Назад', next: 'Далее',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
