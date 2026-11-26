@@ -73,8 +73,38 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'completed Push history retention index is missing';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'media_assets' AND column_name = 'deleted_at'
+  ) OR NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'idx_media_assets_pending_deletion'
+  ) THEN
+    RAISE EXCEPTION 'durable media deletion tracking column/index is missing';
+  END IF;
 END
 $push_schema$;
+
+-- A pending deletion keeps the storage key durable until the object is removed.
+DO $media_deletion$
+DECLARE
+  v_asset uuid;
+  v_tenant uuid := '00000000-0000-0000-0000-000000000101';
+BEGIN
+  INSERT INTO public.media_assets (tenant_id, storage_key, deleted_at)
+  VALUES (v_tenant, v_tenant::text || '/asset.jpg', now())
+  RETURNING id INTO v_asset;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.media_assets
+     WHERE id = v_asset AND tenant_id = v_tenant AND deleted_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'media deletion intent must remain durable in the database';
+  END IF;
+  DELETE FROM public.media_assets WHERE id = v_asset AND deleted_at IS NOT NULL;
+  IF EXISTS (SELECT 1 FROM public.media_assets WHERE id = v_asset) THEN
+    RAISE EXCEPTION 'media asset row should be finalized only after successful storage deletion';
+  END IF;
+END
+$media_deletion$;
 
 -- Completed events older than retention are removed with their deliveries;
 -- pending events and events with a pending/processing delivery are preserved.
