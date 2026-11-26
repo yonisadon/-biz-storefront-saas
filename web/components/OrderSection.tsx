@@ -1,7 +1,7 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
 import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
@@ -176,7 +176,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     return () => { cancelled = true; };
   }, [apiBase, pushPublicKey, pushEnvironment]);
 
-  async function cancelCustomerPush() {
+  const cancelCustomerPush = useCallback(async () => {
     setCustomerPushManageStatus(null);
     try {
       if (!('serviceWorker' in navigator)) throw new Error('push_not_supported');
@@ -195,7 +195,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     } catch {
       setCustomerPushManageStatus('לא הצלחנו לבטל את ההתראות כרגע. נסו שוב.');
     }
-  }
+  }, [apiBase]);
+
+  useStorefrontPushManagement(kind === 'service', customerPushActive, customerPushManageStatus, cancelCustomerPush);
 
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
     if (!pushPublicKey || pushEnvironment !== 'supported') return;
@@ -1001,16 +1003,6 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </form>
         )}
       </dialog>
-      {kind === 'service' && (customerPushActive || customerPushManageStatus) && (
-        <div className="mt-8 border-t border-ink/10 pt-3 text-center">
-          {customerPushActive && (
-            <button type="button" onClick={() => void cancelCustomerPush()} className="text-xs text-ink/55 underline underline-offset-2">
-              ניהול התראות מהעסק
-            </button>
-          )}
-          {customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/55">{customerPushManageStatus}</p>}
-        </div>
-      )}
     </section>
   );
 }
