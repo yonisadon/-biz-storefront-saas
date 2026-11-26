@@ -233,7 +233,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
         )).rows[0];
         if (capability) {
           await db.query(
-            "UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '2 hours', " +
+            "UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '24 hours', " +
             "locked_until = NULL, last_error = 'awaiting_customer_consent' WHERE id = $1",
             [eventId],
           );
@@ -244,7 +244,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       return null;
     }
     if (!runtimeConfigured()) {
-      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '2 hours', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
+      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '24 hours', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
       return null;
     }
     await db.query("UPDATE public.push_outbox SET status = 'processing', attempts = attempts + 1, locked_until = now() + interval '1 minute' WHERE id = $1", [eventId]);
