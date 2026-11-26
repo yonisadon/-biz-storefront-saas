@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 
 type Prefs = {
   fontScale: 0 | 1 | 2 | 3;
@@ -52,6 +53,7 @@ function apply(p: Prefs) {
 }
 
 export default function AccessibilityToolbar({ statementHref }: { statementHref?: string }) {
+  const t = useStorefrontTranslation();
   const [open, setOpen] = useState(false);
   const [p, setP] = useState<Prefs>(OFF);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -98,7 +100,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
       onClick={() => update({ ...p, [key]: !p[key] })}
       className={`min-h-11 w-full rounded-lg border px-3 py-2 text-start text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 ${p[key] ? 'border-primary bg-primary text-primary-fg' : 'border-ink/25 bg-surface text-ink'}`}
     >
-      {label}: {p[key] ? 'פעיל' : 'כבוי'}
+      {label}: {p[key] ? t('a11yActive') : t('a11yInactive')}
     </button>
   );
 
@@ -107,7 +109,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
       <button
         ref={triggerRef}
         type="button"
-        aria-label="פתיחת כלי נגישות"
+        aria-label={t('a11yOpen')}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls="a11y-panel"
@@ -129,28 +131,28 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
           className="absolute bottom-14 end-0 max-h-[min(75vh,36rem)] w-[min(19rem,calc(100vw-1.5rem))] space-y-3 overflow-y-auto rounded-xl border border-ink/20 bg-surface p-3 text-ink shadow-xl sm:bottom-auto sm:top-14"
         >
           <div className="flex items-center justify-between gap-2">
-            <h2 id="a11y-title" className="text-base font-bold">כלי נגישות</h2>
-            <button ref={closeRef} type="button" onClick={() => { setOpen(false); triggerRef.current?.focus(); }} className="min-h-11 min-w-11 rounded-lg border border-ink/25 px-3 text-sm" aria-label="סגירת כלי הנגישות">סגירה</button>
+            <h2 id="a11y-title" className="text-base font-bold">{t('a11yTitle')}</h2>
+            <button ref={closeRef} type="button" onClick={() => { setOpen(false); triggerRef.current?.focus(); }} className="min-h-11 min-w-11 rounded-lg border border-ink/25 px-3 text-sm" aria-label={t('a11yCloseLabel')}>{t('a11yClose')}</button>
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-semibold">גודל טקסט</p>
+            <p className="text-sm font-semibold">{t('a11yTextSize')}</p>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.max(0, p.fontScale - 1) as Prefs['fontScale'] })} disabled={p.fontScale === 0} aria-label="הקטנת טקסט">א−</button>
-              <span className="min-w-16 text-center text-sm" aria-live="polite">{['רגיל', 'גדול', 'גדול מאוד', 'הכי גדול'][p.fontScale]}</span>
-              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.min(3, p.fontScale + 1) as Prefs['fontScale'] })} disabled={p.fontScale === 3} aria-label="הגדלת טקסט">א+</button>
+              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.max(0, p.fontScale - 1) as Prefs['fontScale'] })} disabled={p.fontScale === 0} aria-label={t('a11yDecrease')}>א−</button>
+              <span className="min-w-16 text-center text-sm" aria-live="polite">{[t('a11yNormal'), t('a11yLarge'), t('a11yLarger'), t('a11yLargest')][p.fontScale]}</span>
+              <button type="button" className="min-h-11 rounded-lg border border-ink/25 px-3 text-sm" onClick={() => update({ ...p, fontScale: Math.min(3, p.fontScale + 1) as Prefs['fontScale'] })} disabled={p.fontScale === 3} aria-label={t('a11yIncrease')}>א+</button>
             </div>
           </div>
           <div className="space-y-2">
-            {toggle('contrast', 'ניגודיות גבוהה')}
-            {toggle('links', 'הדגשת קישורים')}
-            {toggle('spacing', 'ריווח טקסט')}
-            {toggle('readableFont', 'גופן קריא')}
-            {toggle('focus', 'הדגשת מיקוד מקלדת')}
-            {toggle('reduceMotion', 'צמצום אנימציות')}
+            {toggle('contrast', t('a11yContrast'))}
+            {toggle('links', t('a11yLinks'))}
+            {toggle('spacing', t('a11ySpacing'))}
+            {toggle('readableFont', t('a11yFont'))}
+            {toggle('focus', t('a11yFocus'))}
+            {toggle('reduceMotion', t('a11yMotion'))}
           </div>
-          <button type="button" onClick={() => update(OFF)} className="min-h-11 w-full rounded-lg border border-ink/25 px-3 py-2 text-start text-sm font-semibold">איפוס כל ההגדרות</button>
-          {statementHref && <a href={statementHref} className="block min-h-11 px-1 pt-1 text-sm underline underline-offset-4">מידע משפטי ונגישות</a>}
-          <p className="text-xs leading-5 text-ink/70">הכלים משנים את תצוגת האתר בלבד ואינם מחליפים התאמות נגישות בתוכן עצמו.</p>
+          <button type="button" onClick={() => update(OFF)} className="min-h-11 w-full rounded-lg border border-ink/25 px-3 py-2 text-start text-sm font-semibold">{t('a11yReset')}</button>
+          {statementHref && <a href={statementHref} className="block min-h-11 px-1 pt-1 text-sm underline underline-offset-4">{t('a11yLegal')}</a>}
+          <p className="text-xs leading-5 text-ink/70">{t('a11yDisclaimer')}</p>
         </section>
       )}
     </div>
