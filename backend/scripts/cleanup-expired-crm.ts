@@ -154,12 +154,13 @@ async function main() {
             "to_regclass('public.push_outbox') IS NOT NULL AS has_push_outbox, " +
             "to_regclass('public.push_deliveries') IS NOT NULL AS has_push_deliveries, " +
             "to_regclass('public.push_subscription_targets') IS NOT NULL AS has_push_targets, " +
-            "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities"
+            "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities, " +
+            "to_regclass('public.idx_push_outbox_processed_at') IS NOT NULL AS has_push_retention_index"
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
               !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads ||
-              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities) {
+              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities || !c?.has_push_retention_index) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
@@ -216,7 +217,7 @@ async function main() {
         // Keep completed Push history for the configured period. The explicit delivery guard
         // protects retries even if an event's outbox status is unexpectedly inconsistent.
         const pushHistoryWhere = "o.tenant_id = app.current_tenant_id() AND o.status = 'done' AND o.processed_at IS NOT NULL " +
-          "AND $1::int IS NOT NULL AND o.processed_at + ($1::int * interval '1 day') <= now() " +
+          "AND $1::int IS NOT NULL AND o.processed_at <= now() - ($1::int * interval '1 day') " +
           "AND NOT EXISTS (SELECT 1 FROM public.push_deliveries d WHERE d.tenant_id = o.tenant_id " +
           "AND d.outbox_id = o.id AND d.status IN ('pending','processing'))";
         const pushHistoryCount = await db.query('SELECT count(*)::int AS n FROM public.push_outbox o WHERE ' + pushHistoryWhere, [p.pushHistory]);
