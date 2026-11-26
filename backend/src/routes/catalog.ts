@@ -20,11 +20,6 @@ const idParam = (req: FastifyRequest) => {
 };
 const mediaUrl = (key: string) => `${env.MEDIA_BASE_URL.replace(/\/+$/, '')}/media/${key}`;
 
-const removeQuietly = async (req: FastifyRequest, keys: string[]) => {
-  if (!keys.length) return;
-  await storage.remove(keys).catch((err) => req.log.warn({ err }, 'storage cleanup failed'));
-};
-
 type PendingMediaAsset = { id: string; storage_key: string };
 
 async function readUpload(req: FastifyRequest) {
@@ -34,28 +29,40 @@ async function readUpload(req: FastifyRequest) {
   return { buffer, filename: sanitizeFilename(file.filename) };
 }
 
-// Process -> write both variants to storage. DB rows are written afterwards by the caller.
-async function storeImage(tenantId: string, buffer: Buffer) {
+// Persist a pending-deletion row before uploading either object. If the process
+// crashes or a later DB transaction rolls back, cleanup still has the storage key.
+async function storeImage(req: FastifyRequest, buffer: Buffer, filename: string | null) {
   const img = await processImage(buffer);
   const id = randomUUID();
-  const key = mainKey(tenantId, id);
-  await storage.put(key, img.main, 'image/jpeg');
+  const key = mainKey(req.tenantId, id);
+  await withTenant(req.tenantId, async (db) => {
+    await db.query(
+      `INSERT INTO media_assets
+         (id, tenant_id, storage_key, original_filename, mime_type, size_bytes, width, height, deleted_at)
+       VALUES ($1, app.current_tenant_id(), $2, $3, 'image/jpeg', $4, $5, $6, now())`,
+      [id, key, filename, img.main.length, img.width, img.height],
+    );
+  });
   try {
+    await storage.put(key, img.main, 'image/jpeg');
     await storage.put(ogKey(key), img.og, 'image/jpeg');
-  } catch (e) {
-    await storage.remove([key]).catch(() => {});
-    throw e;
+  } catch (error) {
+    await removeTrackedAssets(req, [{ id, storage_key: key }]);
+    throw error;
   }
   return { id, key, main: img.main, width: img.width, height: img.height };
 }
 type StoredImage = Awaited<ReturnType<typeof storeImage>>;
 
-const insertAsset = (db: pg.PoolClient, a: StoredImage, filename: string | null) =>
-  db.query(
-    `INSERT INTO media_assets (id, tenant_id, storage_key, original_filename, mime_type, size_bytes, width, height)
-     VALUES ($1, app.current_tenant_id(), $2, $3, 'image/jpeg', $4, $5, $6)`,
-    [a.id, a.key, filename, a.main.length, a.width, a.height],
+const activateAsset = async (db: pg.PoolClient, asset: StoredImage) => {
+  const result = await db.query(
+    `UPDATE media_assets SET deleted_at = NULL
+      WHERE id = $1 AND storage_key = $2 AND deleted_at IS NOT NULL
+      RETURNING id`,
+    [asset.id, asset.key],
   );
+  if (!result.rowCount) throw new Error('pending_media_asset_not_found');
+};
 
 // Marks an unreferenced asset for durable storage deletion; returns its tracked storage key.
 async function dropAssetIfOrphan(db: pg.PoolClient, assetId: string | null): Promise<PendingMediaAsset[]> {
@@ -244,20 +251,20 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       }
     });
 
-    const asset = await storeImage(req.tenantId, buffer);
+    const asset = await storeImage(req, buffer, filename);
     let result: { oldAssets: PendingMediaAsset[]; product: ReturnType<typeof shapeProduct> };
     try {
       result = await withTenant(req.tenantId, async (db) => {
         const cur = await db.query('SELECT image_asset_id FROM products WHERE id = $1 FOR UPDATE', [id]);
         if (!cur.rows[0]) throw new HttpError(404, 'not_found');
-        await insertAsset(db, asset, filename);
+        await activateAsset(db, asset);
         await db.query('UPDATE products SET image_asset_id = $1 WHERE id = $2', [asset.id, id]);
         const oldAssets = await dropAssetIfOrphan(db, cur.rows[0].image_asset_id);
         const row = (await db.query(`${PRODUCT_SELECT} WHERE p.id = $1`, [id])).rows[0];
         return { oldAssets, product: shapeProduct(row) };
       });
     } catch (err) {
-      await removeQuietly(req, variantKeys(asset.key)); // DB failed: don't leave files behind
+      await removeTrackedAssets(req, [{ id: asset.id, storage_key: asset.key }]); // DB failed: don't leave files behind
       throw err;
     }
     await removeTrackedAssets(req, result.oldAssets);
@@ -280,7 +287,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
   app.post('/products/:id/additional-images', uploadLimit, async (req, reply) => {
     const id = idParam(req);
     const { buffer, filename } = await readUpload(req);
-    const asset = await storeImage(req.tenantId, buffer);
+    const asset = await storeImage(req, buffer, filename);
     let result: { image: unknown; oldAssets: PendingMediaAsset[] };
     try {
       result = await withTenant(req.tenantId, async (db) => {
@@ -290,7 +297,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
         const occupied = new Set(used.rows.map((row) => Number(row.position)));
         const position = [2, 3].find((value) => !occupied.has(value));
         if (!position) throw new HttpError(409, 'product_images_full');
-        await insertAsset(db, asset, filename);
+        await activateAsset(db, asset);
         const inserted = await db.query(
           'INSERT INTO product_images (tenant_id, product_id, asset_id, position) VALUES (app.current_tenant_id(), $1, $2, $3) RETURNING id, position',
           [id, asset.id, position],
@@ -301,7 +308,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
         };
       });
     } catch (err) {
-      await removeQuietly(req, variantKeys(asset.key));
+      await removeTrackedAssets(req, [{ id: asset.id, storage_key: asset.key }]);
       throw err;
     }
     return reply.code(201).send(result.image);
@@ -312,7 +319,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
     const imageId = (req.params as { imageId: string }).imageId;
     if (!UUID_RE.test(imageId)) throw new HttpError(404, 'not_found');
     const { buffer, filename } = await readUpload(req);
-    const asset = await storeImage(req.tenantId, buffer);
+    const asset = await storeImage(req, buffer, filename);
     try {
       const result = await withTenant(req.tenantId, async (db) => {
         const current = await db.query(
@@ -320,7 +327,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
           [imageId, id],
         );
         if (!current.rows[0]) throw new HttpError(404, 'not_found');
-        await insertAsset(db, asset, filename);
+        await activateAsset(db, asset);
         await db.query(
           'UPDATE product_images SET asset_id = $1 WHERE id = $2 AND product_id = $3',
           [asset.id, imageId, id],
@@ -331,7 +338,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       await removeTrackedAssets(req, result.oldAssets);
       return { id: imageId, url: mediaUrl(asset.key), width: asset.width, height: asset.height };
     } catch (err) {
-      await removeQuietly(req, variantKeys(asset.key));
+      await removeTrackedAssets(req, [{ id: asset.id, storage_key: asset.key }]);
       throw err;
     }
   });
@@ -366,7 +373,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
       if (n >= MAX_GALLERY) throw new HttpError(409, 'gallery_full');
     });
 
-    const asset = await storeImage(req.tenantId, buffer);
+    const asset = await storeImage(req, buffer, filename);
     let item: unknown;
     try {
       item = await withTenant(req.tenantId, async (db) => {
@@ -378,7 +385,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
             ORDER BY s LIMIT 1`,
         );
         if (!free.rows[0]) throw new HttpError(409, 'gallery_full');
-        await insertAsset(db, asset, filename);
+        await activateAsset(db, asset);
         const r = await db.query(
           `INSERT INTO portfolio_images (tenant_id, asset_id, position)
            VALUES (app.current_tenant_id(), $1, $2)
@@ -388,7 +395,7 @@ export const catalogRoutes: FastifyPluginAsync = async (app) => {
         return { ...r.rows[0], url: mediaUrl(asset.key) };
       });
     } catch (err) {
-      await removeQuietly(req, variantKeys(asset.key));
+      await removeTrackedAssets(req, [{ id: asset.id, storage_key: asset.key }]);
       throw err;
     }
     return reply.code(201).send(item);
