@@ -1,44 +1,47 @@
 import { DAYS } from '@/lib/labels';
 import type { DayHours } from '@/lib/types';
+import { StorefrontDayName, StorefrontText } from '@/components/StorefrontLanguageProvider';
 
-export type HoursProps = { days: Record<string, DayHours>; openNow?: boolean | null; embedded?: boolean };
+export type HoursProps = { days: Record<string, DayHours>; openNow?: boolean | null; embedded?: boolean; multilingual?: boolean };
 
 export default function Hours({
   days,
   openNow,
   embedded = false,
+  multilingual = false,
 }: HoursProps) {
   return (
     <section
-      aria-label="שעות פעילות"
+      aria-label={multilingual ? undefined : "שעות פעילות"}
+      aria-labelledby={multilingual ? "storefront-opening-hours-heading" : undefined}
       className={embedded ? 'min-w-0' : 'rounded-xl border border-ink/15 bg-surface px-3 py-2.5'}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span aria-hidden="true" className="text-base">◷</span>
-        <h3 className="font-semibold">שעות פעילות</h3>
+        <h3 id={multilingual ? "storefront-opening-hours-heading" : undefined} className="font-semibold">{multilingual ? <StorefrontText message="hoursOfOperation" /> : "שעות פעילות"}</h3>
         {openNow === true && (
           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">
-            פתוח עכשיו
+            {multilingual ? <StorefrontText message="openNow" /> : "פתוח עכשיו"}
           </span>
         )}
         {openNow === false && (
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-            סגור עכשיו
+            {multilingual ? <StorefrontText message="closedNow" /> : "סגור עכשיו"}
           </span>
         )}
         <details className="ms-auto">
           <summary className="cursor-pointer list-none rounded-full px-2 py-1 text-sm font-medium text-primary hover:bg-primary/5">
-            כל שעות הפעילות
+            {multilingual ? <StorefrontText message="allOpeningHours" /> : "כל שעות הפעילות"}
           </summary>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 border-t border-ink/10 pt-3 text-sm text-ink/85">
             {DAYS.map(([key, label]) => {
               const d = days[key];
               return (
                 <div key={key} className="contents">
-                  <dt className="font-medium">{label}</dt>
+                  <dt className="font-medium">{multilingual ? <StorefrontDayName day={key} /> : label}</dt>
                   <dd>
                     {!d || d === 'closed'
-                      ? 'סגור'
+                      ? (multilingual ? <StorefrontText message="closed" /> : 'סגור')
                       : d.map((r, i) => (
                           <span key={i} dir="ltr" className="me-3 inline-block whitespace-nowrap">
                             {r.open}–{r.close}
