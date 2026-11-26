@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type Appointment = {
   id: string;
@@ -32,8 +33,8 @@ function minuteOnDay(value: string, day: string) {
   if (eventDay > day) return 24 * 60;
   return minuteOf(value.slice(11, 16));
 }
-function dayLabel(day: string) {
-  return new Intl.DateTimeFormat('he-IL', {
+function dayLabel(day: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC',
   }).format(new Date(day + 'T12:00:00Z'));
 }
@@ -44,6 +45,8 @@ function clockLabel(value: string) {
 export default function CalendarTimeline({
   mode, dates, selectedDate, appointments, blocks, openingDays, onSelectDate, onSelectAppointment,
 }: Props) {
+  const { language } = usePlatformLanguage();
+  const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
   const bounds = useMemo(() => {
     let earliest = 24 * 60;
     let latest = 0;
@@ -103,7 +106,7 @@ export default function CalendarTimeline({
               <button key={day} type="button" onClick={() => onSelectDate(day)}
                 aria-pressed={selectedDate === day}
                 className="border-b border-s border-gray-200 p-2 text-center text-xs font-semibold hover:bg-gray-50">
-                {dayLabel(day)}
+                {dayLabel(day, locale)}
               </button>
             ))}
             <div className="relative border-e border-gray-200" style={{ height: timelineHeight }}>
