@@ -111,7 +111,7 @@ async function main() {
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
   let pushHistoryDeleted = 0, pushHistoryFound = 0;
-  let mediaObjectsDeleted = 0, mediaObjectsFound = 0;
+  let mediaObjectsFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -233,7 +233,6 @@ async function main() {
         // Physical media deletion is handled by the API process, which owns the
         // mounted local volume. This service only reports pending rows; it must
         // never use its own local filesystem to finalize API media records.
-        const tenantMediaObjectsDeleted = 0;
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
           const deletedWaitlist = await db.query(`
@@ -291,7 +290,7 @@ async function main() {
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
         pushHistoryDeleted += tenantPushHistoryDeleted; pushHistoryFound += foundPushHistory;
-        mediaObjectsDeleted += tenantMediaObjectsDeleted; mediaObjectsFound += foundMediaObjects;
+        mediaObjectsFound += foundMediaObjects;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
@@ -311,7 +310,7 @@ async function main() {
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
       '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
       '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound +
-      '; media assets deleted/found: ' + mediaObjectsDeleted + '/' + mediaObjectsFound + '.');
+      '; media assets pending for API cleanup: ' + mediaObjectsFound + '.');
   } finally {
     if (lockAcquired) {
       await registry.query('SELECT pg_advisory_unlock($1, $2)', [74122, 93002]).catch(() => {});
