@@ -157,7 +157,7 @@ function ProductDialog({ token, product, onClosed, onChanged }: {
     }
     for (const imageId of removeAdditionalPending) {
       try { await mcallWithTimeout(token, `products/${id}/additional-images/${imageId}`, { method: 'DELETE' }); }
-      catch { setBusy(false); onChanged(); return setMsg('${t('productSavedImageRemoveFailed')}'); }
+      catch { setBusy(false); onChanged(); return setMsg(t('productSavedImageRemoveFailed')); }
     }
     if (file) {
       try { await mupload(token, `products/${id}/image`, file); }
