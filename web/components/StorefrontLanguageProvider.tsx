@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   getStoredStorefrontLanguage,
-  getStorefrontDirection,
+  getStorefrontDirection as getDirection,
   getStorefrontLocale,
   normalizeStorefrontLanguage,
   storeStorefrontLanguage,
@@ -44,7 +44,7 @@ export default function StorefrontLanguageProvider({
 
   return (
     <StorefrontLanguageContext.Provider value={{ language, setLanguage }}>
-      <div lang={getStorefrontLocale(language)} dir={getStorefrontDirection(language)}>
+      <div lang={getStorefrontLocale(language)} dir={getDirection(language)}>
         {children}
       </div>
     </StorefrontLanguageContext.Provider>
@@ -55,6 +55,11 @@ function useStorefrontLanguage() {
   const context = useContext(StorefrontLanguageContext);
   if (!context) throw new Error("Storefront language components must be inside StorefrontLanguageProvider");
   return context;
+}
+
+export function useStorefrontDirection() {
+  const { language } = useStorefrontLanguage();
+  return getDirection(language);
 }
 
 export function useStorefrontLocale() {
