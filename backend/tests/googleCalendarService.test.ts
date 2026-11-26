@@ -12,6 +12,8 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
 
   const {
     buildGoogleCalendarEvent,
+    isCurrentGoogleCalendarJobVersion,
+    isCurrentGoogleCalendarJobVersion,
     createGoogleOAuthState,
     decryptGoogleToken,
     encryptGoogleToken,
@@ -37,6 +39,11 @@ test('Google Calendar token encryption and OAuth state validation', async () => 
   const tamperedState = `${payload}.${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`;
   assert.throws(() => verifyGoogleOAuthState(tamperedState));
   assert.equal(isGoogleCalendarConfigured(), true);
+
+  assert.equal(isCurrentGoogleCalendarJobVersion({ status: 'processing', version: 'v1' }, 'v1'), true);
+  assert.equal(isCurrentGoogleCalendarJobVersion({ status: 'pending', version: 'v2' }, 'v1'), false);
+  assert.equal(isCurrentGoogleCalendarJobVersion({ status: 'processing', version: 'v2' }, 'v1'), false);
+  assert.equal(isCurrentGoogleCalendarJobVersion(null, 'v1'), false);
 
   const event = buildGoogleCalendarEvent({
     appointment_id: '12345678-1234-1234-1234-123456789abc',
