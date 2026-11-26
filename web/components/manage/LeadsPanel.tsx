@@ -62,7 +62,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
         l.submission_channel === 'whatsapp' ? 'WhatsApp' : 'אתר', STATUS_LABEL[l.status], l.message,
         l.items.map((i) => `${i.name} × ${i.quantity}`).join('; '),
         l.estimated_total_agorot === null ? (l.metadata?.has_quote_items ? 'הצעת מחיר' : '') : (l.estimated_total_agorot / 100).toFixed(2),
-        l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : l.metadata?.appointment_needs_coordination ? 'לתיאום מול הלקוח' : '',
+        l.metadata?.action === 'waitlist' && l.metadata.preferred_date ? `${l.metadata.preferred_date}${l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}` : l.metadata?.appointment_at ? l.metadata.appointment_at.replace('T', ' ') : '',
         l.metadata?.appointment_duration_minutes ?? '',
         (l.notes ?? []).map((note) => `[${fmtDate(note.created_at)}] ${note.body}`).join(' | '),
       ]);
@@ -149,7 +149,12 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
               <a className="inline-flex min-h-10 items-center rounded-lg bg-green-50 px-3 text-sm font-semibold text-green-800" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">פתיחה בוואטסאפ</a>
             </div>}
             {l.customer_email && <p dir="ltr" className="mt-2 break-all text-start text-sm text-gray-600">{l.customer_email}</p>}
-            {(l.metadata?.appointment_at || l.metadata?.appointment_needs_coordination) && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900">{l.metadata.appointment_at ? <p>שעת תור מבוקשת: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p> : <p>מועד התור יתואם מול הלקוח</p>}{l.metadata.appointment_duration_minutes && <p className="mt-1">משך תור משוער: {l.metadata.appointment_duration_minutes} דקות</p>}</div>}
+            {(l.metadata?.appointment_at || (l.metadata?.action === 'waitlist' && l.metadata.preferred_date)) && <div className="mt-3 rounded-lg bg-blue-50 p-2 text-sm font-medium text-blue-900">
+              {l.metadata.action === 'waitlist' && l.metadata.preferred_date
+                ? <p>תאריך מועדף לרשימת המתנה: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>
+                : <p>תור ששוריין ביומן: <span dir="ltr">{l.metadata.appointment_at?.replace('T', ' ')}</span></p>}
+              {l.metadata.appointment_duration_minutes && <p className="mt-1">משך התור: {l.metadata.appointment_duration_minutes} דקות</p>}
+            </div>}
             {l.message && <p className="mt-3 whitespace-pre-line rounded-xl bg-gray-50 p-3 text-sm leading-6 text-gray-700">{l.message}</p>}
             <div className="mt-3 border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-500">פריטים בפנייה</p>
@@ -190,7 +195,8 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                     <a className="text-blue-700 underline" href={waLink(l.customer_phone)} target="_blank" rel="noopener noreferrer">וואטסאפ</a>
                   </div>}
                   {l.customer_email && <div dir="ltr" className="text-start text-gray-600">{l.customer_email}</div>}
-                  {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">תור מבוקש: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
+                  {l.metadata?.appointment_at && <p className="mt-1 text-sm font-medium text-blue-800">תור ששוריין ביומן: <span dir="ltr">{l.metadata.appointment_at.replace('T', ' ')}</span></p>}
+                  {l.metadata?.action === 'waitlist' && l.metadata.preferred_date && <p className="mt-1 text-sm font-medium text-blue-800">תאריך מועדף להמתנה: <span dir="ltr">{l.metadata.preferred_date}{l.metadata.preferred_time ? ` ${l.metadata.preferred_time}` : ''}</span></p>}
                   {l.message && <p className="mt-1 whitespace-pre-line text-gray-600">{l.message}</p>}
                   <LeadNotes token={token} leadId={l.id} />
                 </td>

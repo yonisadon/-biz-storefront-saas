@@ -191,3 +191,17 @@ test('seller can explicitly confirm a manually chosen time when opening hours ar
   assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: false }), 'outside_business_hours');
   assert.equal(validateAppointmentSelection({ ...args, allowOutsideOpeningHours: true }), null);
 });
+
+test('today future booking is accepted, while earlier today and yesterday are rejected', () => {
+  const args = { needsAppointment: true, durationMinutes: 30, openingHoursDays: { mon: [{ open: '09:00', close: '17:00' }], sun: [{ open: '09:00', close: '17:00' }] }, timezone: 'Asia/Jerusalem', now: new Date('2026-10-19T06:00:00.000Z') };
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T10:00' }), null);
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T08:45' }), 'invalid_appointment_time');
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-18T10:00' }), 'invalid_appointment_time');
+});
+
+test('seller waitlist scheduling allows outside hours but still rejects past times', () => {
+  const args = { needsAppointment: true, durationMinutes: 45, openingHoursDays: { mon: [{ open: '09:00', close: '17:00' }] }, timezone: 'Asia/Jerusalem', now: new Date('2026-10-19T06:00:00.000Z'), requireQuarterHour: false, ignoreOpeningHours: true };
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T22:13' }), null);
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-19T08:45' }), 'invalid_appointment_time');
+  assert.equal(validateAppointmentSelection({ ...args, appointmentAt: '2026-10-18T22:13' }), 'invalid_appointment_time');
+});

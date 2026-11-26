@@ -7,7 +7,6 @@ const optText = (max: number) =>
 
 const price = z.number().int().min(0).max(10_000_000).nullable(); // agorot, null = quote
 const appointmentDuration = z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120), z.literal(180), z.literal(240)]);
-export const BookingMode = z.enum(['none', 'free_datetime', 'availability']);
 
 const productDetails = z.array(z.object({
   label: z.string().trim().min(1).max(50),
@@ -21,8 +20,6 @@ export const ProductCreate = z.object({
   details: productDetails.default([]),
   price_agorot: price.default(null),
   is_active: z.boolean().default(true),
-  requires_appointment: z.boolean().default(false),
-  booking_mode: BookingMode.optional(),
   appointment_duration_minutes: appointmentDuration.default(30),
 }).strict();
 
@@ -33,8 +30,6 @@ export const ProductPatch = z.object({
   details: productDetails.optional(),
   price_agorot: price.optional(),
   is_active: z.boolean().optional(),
-  requires_appointment: z.boolean().optional(),
-  booking_mode: BookingMode.optional(),
   appointment_duration_minutes: appointmentDuration.optional(),
 }).strict().refine((o) => Object.values(o).some((v) => v !== undefined), { message: 'empty_patch' });
 
@@ -55,6 +50,7 @@ export const ProductListQuery = z.object({
 }).strict();
 export const ProductMove = z.object({ direction: z.enum(['up', 'down']) }).strict();
 export const PublicCatalogQuery = z.object({
+  kind: z.enum(['product', 'service']).optional(),
   search: z.string().trim().max(100).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(12),
   offset: z.coerce.number().int().min(0).default(0),

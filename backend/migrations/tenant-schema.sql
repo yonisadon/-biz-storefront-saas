@@ -67,30 +67,8 @@ BEGIN
   RETURN NEW;
 END $$;
 
--- Keep the old requires_appointment boolean compatible with explicit booking modes.
-CREATE OR REPLACE FUNCTION app.sync_product_booking_mode()
-RETURNS trigger
-LANGUAGE plpgsql
-  AS $$
-BEGIN
-  IF NEW.kind <> 'service' THEN
-    NEW.booking_mode := 'none';
-    NEW.requires_appointment := false;
-  ELSIF TG_OP = 'INSERT' THEN
-    IF NEW.booking_mode = 'none' AND NEW.requires_appointment THEN
-      NEW.booking_mode := 'free_datetime';
-    ELSE
-      NEW.requires_appointment := NEW.booking_mode <> 'none';
-    END IF;
-  ELSIF NEW.booking_mode IS DISTINCT FROM OLD.booking_mode THEN
-    NEW.requires_appointment := NEW.booking_mode <> 'none';
-  ELSIF NEW.requires_appointment IS DISTINCT FROM OLD.requires_appointment THEN
-    NEW.booking_mode := CASE WHEN NEW.requires_appointment THEN 'free_datetime' ELSE 'none' END;
-  ELSE
-    NEW.requires_appointment := NEW.booking_mode <> 'none';
-  END IF;
-  RETURN NEW;
-END $$;
+-- Legacy booking_mode columns remain temporarily for migration compatibility only.
+-- New application behavior is configured once per business in config.contact_options.
 
 -- ---------------------------------------------------------------------
 -- 3. Tables
@@ -115,8 +93,8 @@ CREATE TABLE IF NOT EXISTS public.businesses (
                    CHECK (jsonb_typeof(config) = 'object'),
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now(),
-  -- WhatsApp requires a number when enabled. Both contact routes may be
-  -- disabled because availability-mode calendar bookings are independent.
+  -- Legacy WhatsApp flag remains only as a compatibility constraint.
+  -- Current product/service contact options are stored in config.contact_options.
   CONSTRAINT chk_whatsapp_route_needs_number
     CHECK ((config #>> '{order_flow,whatsapp_enabled}') IS DISTINCT FROM 'true'
            OR whatsapp_number IS NOT NULL)
@@ -260,7 +238,7 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   UNIQUE (tenant_id, id),
   UNIQUE (tenant_id, lead_id),
   FOREIGN KEY (tenant_id, lead_id)
-    REFERENCES public.leads (tenant_id, id) ON DELETE CASCADE,
+    REFERENCES public.leads (tenant_id, id) ON DELETE SET NULL (lead_id),
   FOREIGN KEY (tenant_id, service_id)
     REFERENCES public.products (tenant_id, id) ON DELETE SET NULL (service_id),
   CONSTRAINT appointments_no_reserved_overlap
@@ -368,11 +346,6 @@ BEGIN
          FOR EACH ROW EXECUTE FUNCTION app.set_updated_at()', t);
   END LOOP;
 END $$;
-
-DROP TRIGGER IF EXISTS trg_products_booking_mode ON public.products;
-CREATE TRIGGER trg_products_booking_mode
-  BEFORE INSERT OR UPDATE ON public.products
-  FOR EACH ROW EXECUTE FUNCTION app.sync_product_booking_mode();
 
 CREATE TABLE IF NOT EXISTS public.push_settings (
   tenant_id uuid PRIMARY KEY REFERENCES public.businesses(id) ON DELETE CASCADE,

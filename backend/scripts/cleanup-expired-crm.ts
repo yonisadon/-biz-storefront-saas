@@ -109,7 +109,7 @@ async function main() {
   const tenantConnections = new Map<string, pg.Client>();
   let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
-  let waitlistDeleted = 0, waitlistFound = 0, appointmentsToUnlink = 0;
+  let waitlistDeleted = 0, waitlistFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -139,17 +139,20 @@ async function main() {
         tenantConnections.set(tenant.database_name, db);
         try {
   const check = await db.query(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
+            "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_closed_at') AS has_closed_at, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='leads' AND column_name='retention_opened_at') AS has_opened_at, " +
             "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.appointments'::regclass AND conname='appointments_tenant_id_lead_id_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_appointments, " +
             "to_regclass('public.waitlist_entries') IS NOT NULL AS has_waitlist, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='appointment_id') AS has_waitlist_link, " +
+            "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='lead_id') AS has_waitlist_lead_link, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_preferred_time, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_status_changed_at, " +
-            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey') AS has_waitlist_fk",
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (appointment_id)%') AS has_waitlist_fk, " +
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_lead_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_waitlist_leads"
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
-              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk) {
+              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
@@ -191,25 +194,17 @@ async function main() {
 
         const waitlistWhere = "(w.status = 'waiting' AND $1::int IS NOT NULL AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) + ($1::int * interval '1 day') <= now()) " +
           "OR (w.status = 'rejected' AND $2::int IS NOT NULL AND w.updated_at + ($2::int * interval '1 day') <= now()) " +
-          "OR (w.status = 'closed' AND $3::int IS NOT NULL AND (CASE WHEN a.id IS NULL THEN w.updated_at WHEN a.status = 'reserved' THEN a.end_at WHEN a.status = 'cancelled' THEN a.status_changed_at ELSE w.updated_at END) + ($3::int * interval '1 day') <= now()) " +
+          "OR (w.status = 'closed' AND $3::int IS NOT NULL AND w.updated_at + ($3::int * interval '1 day') <= now()) " +
           "OR (w.status = 'scheduled_without_booking' AND $4::int IS NOT NULL AND w.updated_at + ($4::int * interval '1 day') <= now())";
         const waitlistParams = [p.waitlistWaiting, p.waitlistRejected, p.waitlistClosed, p.waitlistScheduled];
-        const waitlistFrom = 'public.waitlist_entries w JOIN public.businesses b ON b.id = w.tenant_id LEFT JOIN public.appointments a ON a.id = w.appointment_id AND a.tenant_id = w.tenant_id WHERE w.tenant_id = app.current_tenant_id() AND (' + waitlistWhere + ')';
+        const waitlistFrom = 'public.waitlist_entries w JOIN public.businesses b ON b.id = w.tenant_id WHERE w.tenant_id = app.current_tenant_id() AND (' + waitlistWhere + ')';
         const waitlistCount = await db.query('SELECT count(*)::int AS n FROM ' + waitlistFrom, waitlistParams);
-
-        const unlinkCount = await db.query(
-          "SELECT count(*)::int AS n FROM public.appointments a JOIN public.leads l ON l.id = a.lead_id " +
-          "WHERE a.status = 'reserved' AND ((l.status IN ('rejected','cancelled','completed') AND $1::int IS NOT NULL AND l.retention_closed_at IS NOT NULL AND l.retention_closed_at + ($1::int * interval '1 day') <= now()) " +
-          "OR (l.status NOT IN ('rejected','cancelled','completed') AND $2::int IS NOT NULL AND l.retention_opened_at IS NOT NULL AND l.retention_opened_at + ($2::int * interval '1 day') <= now()))",
-          leadParams,
-        );
 
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0;
         if (apply) {
           const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
-            'LEFT JOIN public.appointments a ON a.id = w2.appointment_id AND a.tenant_id = w2.tenant_id ' +
             'WHERE w2.tenant_id = app.current_tenant_id() AND (' + waitlistWhere.replaceAll('w.', 'w2.') + ')) RETURNING w.id',
             waitlistParams,
           );
@@ -224,16 +219,14 @@ async function main() {
         const foundLeads = Number(leadCount.rows[0]?.n ?? 0);
         const foundAppointments = Number(appointmentCount.rows[0]?.n ?? 0);
         const foundWaitlist = Number(waitlistCount.rows[0]?.n ?? 0);
-        const unlink = Number(unlinkCount.rows[0]?.n ?? 0);
         leadsDeleted += tenantLeadsDeleted; leadsFound += foundLeads;
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
-        appointmentsToUnlink += unlink;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
-          unlink + ' appointment(s) will be detached from expired CRM leads.');
+          'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
         throw new Error('CRM cleanup deletion failed for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
@@ -242,8 +235,7 @@ async function main() {
     console.log('Retention cleanup complete. Mode: ' + (apply ? 'APPLY' : 'DRY_RUN') +
       '; tenants: ' + tenants.length + '; leads deleted/found: ' + leadsDeleted + '/' + leadsFound +
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
-      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
-      '; appointments to unlink: ' + appointmentsToUnlink + '.');
+      '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound + '.');
   } finally {
     await Promise.all([...tenantConnections.values()].map((db) => db.end().catch(() => {})));
     if (lockAcquired) {

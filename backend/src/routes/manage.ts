@@ -4,13 +4,13 @@ import { env } from '../config';
 import { pool, withTenant } from '../db';
 import { HttpError } from '../errors';
 import { validateConfig } from '../configValidator';
+import { resolveContactOptions, validateContactOptions } from '../crmRouting';
 import { BusinessPatch, LeadListQuery, LeadNoteInput, LeadStatusPatch } from '../schemas';
 import { resolveByToken } from '../tenant';
 import { catalogRoutes } from './catalog';
 import { appointmentRoutes } from './appointments';
 import { manageWaitlistRoutes } from './waitlist';
 import { googleCalendarManageRoutes } from './googleCalendar';
-import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { hashPushCapability, isSupportedPushEndpoint, type BrowserPushSubscription } from '../pushCrypto';
 import { savePushSubscription } from '../pushService';
 
@@ -144,7 +144,15 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
                 locale, timezone, config
            FROM businesses WHERE id = app.current_tenant_id()`,
       );
-      return result.rows[0];
+      const business = result.rows[0];
+      if (!business) return null;
+      const legacyCalendar = !business.config?.contact_options && Boolean((await db.query(
+        "SELECT EXISTS (SELECT 1 FROM products WHERE kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+      )).rows[0]?.enabled);
+      return {
+        ...business,
+        config: { ...business.config, contact_options: resolveContactOptions(business.config, legacyCalendar) },
+      };
     });
     if (!biz) throw new HttpError(404, 'not_found');
     const onboarding = await pool.query(
@@ -199,6 +207,10 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         const merged = { ...cur.config, ...patch.config, version: 1 };
         const errors = validateConfig(merged);
         if (errors) throw new HttpError(422, 'invalid_config', 'Config failed validation', errors);
+        if (merged.contact_options) {
+          const contactErrors = validateContactOptions(merged);
+          if (contactErrors.length) throw new HttpError(422, 'invalid_contact_options', 'Contact settings are inconsistent', contactErrors);
+        }
         set('config', JSON.stringify(merged), '::jsonb');
       }
 
@@ -354,15 +366,8 @@ export const manageRoutes: FastifyPluginAsync = async (app) => {
         [status, id],
       );
       if (!r.rows[0]) throw new HttpError(404, 'not_found'); // also hit for other tenants' ids
-      if (status === 'rejected' || status === 'cancelled') {
-        await db.query(
-          "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE lead_id = $1 AND status = 'reserved'",
-          [id],
-        );
-      }
       return r.rows[0];
     });
-    void processGoogleCalendarJobs(req.tenantId, 5).catch((error) => req.log.warn({ err: error }, 'Google Calendar sync after lead status change failed'));
     return updatedLead;
   });
 };

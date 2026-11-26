@@ -2,9 +2,8 @@ import StorefrontItemImage from '@/components/StorefrontItemImage';
 import { ils } from '@/lib/format';
 import type { Product } from '@/lib/types';
 
-type BookingMode = 'none' | 'free_datetime' | 'availability';
 type Action =
-  | { type: 'catalog'; quantity: number; canOrder: boolean; calendarOnlyAvailable: boolean; bookingMode: BookingMode; onQuantityChange: (quantity: number) => void }
+  | { type: 'catalog'; quantity: number; canOrder: boolean; onQuantityChange: (quantity: number) => void }
   | { type: 'whatsapp'; href?: string };
 
 type Props = {
@@ -29,12 +28,8 @@ function QuantityStepper({ quantity, onChange, label }: { quantity: number; onCh
 /** Shared product/service presentation. Actions stay owned by the calling flow. */
 export default function StorefrontCatalogItem({ product, quoteLabel, action, itemId, focusableTarget = false }: Props) {
   const catalogAction = action.type === 'catalog' ? action : null;
-  const canSelect = catalogAction && (catalogAction.canOrder || (product.kind === 'service' && catalogAction.bookingMode === 'availability'));
-  const serviceLabel = catalogAction?.bookingMode === 'availability'
-    ? `שירות · תור ביומן ${product.appointment_duration_minutes} דק׳`
-    : catalogAction?.bookingMode === 'free_datetime'
-      ? `שירות · מועד מבוקש ${product.appointment_duration_minutes} דק׳`
-      : 'שירות';
+  const canSelect = catalogAction && catalogAction.canOrder;
+  const serviceLabel = `שירות · ${product.appointment_duration_minutes} דק׳`;
 
   const selectFromCard = () => {
     if (!catalogAction || !canSelect || catalogAction.quantity > 0) return;
@@ -74,7 +69,7 @@ export default function StorefrontCatalogItem({ product, quoteLabel, action, ite
           ) : (
             <button type="button" onClick={() => catalogAction.onQuantityChange(1)}
               className="storefront-card-action inline-flex items-center gap-2 rounded-full border border-ink/15 bg-transparent px-4 py-2 text-sm font-semibold text-ink/85 transition hover:border-primary/35 hover:bg-primary/5">
-              <span>{catalogAction.calendarOnlyAvailable && product.kind === 'service' && catalogAction.bookingMode === 'availability' ? 'קביעת תור' : product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}</span>
+              <span>{product.kind === 'service' ? 'בחר שירות' : 'בחר מוצר'}</span>
               <span aria-hidden="true" className="text-base leading-none">←</span>
             </button>
           ))}

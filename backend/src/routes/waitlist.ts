@@ -7,6 +7,7 @@ import { validateAppointmentSelection } from '../appointmentRules';
 import { processGoogleCalendarJobs } from '../googleCalendarService';
 import { dispatchPushEventAfterCommit, enqueuePushEvent, issuePushCapability } from '../pushService';
 import { hasUniqueServiceIds, isValidCalendarDate } from '../waitlistRules';
+import { resolveContactOptions } from '../crmRouting';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const date = z.string().refine(isValidCalendarDate, { message: 'invalid_date' });
@@ -46,30 +47,55 @@ export const publicWaitlistRoutes: FastifyPluginAsync = async (app) => {
     try {
       const result = await withTenant(req.tenantId, async (db) => {
         const business = (await db.query(
-          'SELECT timezone, (now() AT TIME ZONE timezone)::date::text AS today FROM businesses WHERE id = app.current_tenant_id()',
+          'SELECT timezone, config, (now() AT TIME ZONE timezone)::date::text AS today FROM businesses WHERE id = app.current_tenant_id()',
         )).rows[0];
         if (!business) throw new HttpError(404, 'not_found');
         if (input.preferred_date < business.today) throw new HttpError(400, 'preferred_date_in_past');
         const services = (await db.query(
-          `SELECT id, name, kind,
-                  COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) AS booking_mode
+          `SELECT id, name, kind, price_agorot, appointment_duration_minutes
              FROM products
             WHERE id = ANY($1::uuid[]) AND is_active = true
             ORDER BY id`,
           [input.service_ids],
         )).rows;
-        if (services.length !== input.service_ids.length ||
-            services.some((service) => service.kind !== 'service' || service.booking_mode !== 'availability')) {
+        if (services.length !== input.service_ids.length || services.some((service) => service.kind !== 'service')) {
           throw new HttpError(400, 'invalid_waitlist_services');
         }
+        const legacyCalendar = !business.config?.contact_options && Boolean((await db.query(
+          "SELECT EXISTS (SELECT 1 FROM products WHERE id = ANY($1::uuid[]) AND kind = 'service' AND is_active AND COALESCE(booking_mode, CASE WHEN requires_appointment THEN 'free_datetime' ELSE 'none' END) <> 'none') AS enabled",
+          [input.service_ids],
+        )).rows[0]?.enabled);
+        const contactOptions = resolveContactOptions(business.config, legacyCalendar);
+        if (!contactOptions.services.calendar_enabled) throw new HttpError(403, 'calendar_booking_disabled');
+
+        let leadId: string | null = null;
+        if (contactOptions.services.crm_enabled) {
+          const total = services.reduce((sum, service) => sum + (service.price_agorot ?? 0), 0);
+          const hasQuote = services.some((service) => service.price_agorot === null);
+          const lead = await db.query(
+            `INSERT INTO leads (tenant_id, customer_name, customer_phone, submission_channel, status, estimated_total_agorot, metadata)
+             VALUES (app.current_tenant_id(), $1, $2, 'site', 'pending_approval', $3, $4::jsonb)
+             RETURNING id`,
+            [input.customer_name || null, input.customer_phone, total > 0 ? total : null,
+             JSON.stringify({ domain: 'services', action: 'waitlist', has_quote_items: hasQuote, preferred_date: input.preferred_date, preferred_time: input.preferred_time ?? null })],
+          );
+          leadId = lead.rows[0].id as string;
+          await db.query(
+            `INSERT INTO lead_items (tenant_id, lead_id, product_id, item_name, unit_price_agorot, quantity)
+             SELECT app.current_tenant_id(), $1, x.pid, x.nm, x.pr, 1
+               FROM unnest($2::uuid[], $3::text[], $4::int[]) AS x(pid, nm, pr)`,
+            [leadId, services.map((service) => service.id), services.map((service) => service.name), services.map((service) => service.price_agorot)],
+          );
+        }
+
         const entry = (await db.query(
           `INSERT INTO waitlist_entries
-            (tenant_id, customer_name, customer_phone, service_ids, service_names, preferred_date,
+            (tenant_id, lead_id, customer_name, customer_phone, service_ids, service_names, preferred_date,
              preferred_time, note)
-           VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7)
-           RETURNING id, created_at`,
+           VALUES (app.current_tenant_id(), $1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, created_at, lead_id`,
           [
-            input.customer_name || null, input.customer_phone, services.map((service) => service.id),
+            leadId, input.customer_name || null, input.customer_phone, services.map((service) => service.id),
             services.map((service) => service.name), input.preferred_date,
             input.preferred_time ?? null, input.note || null,
           ],
@@ -106,6 +132,10 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
       offset: z.coerce.number().int().min(0).max(10000).default(0),
     }).parse(req.query);
     return withTenant(req.tenantId, async (db) => {
+      const business = (await db.query(
+        'SELECT timezone FROM businesses WHERE id = app.current_tenant_id()',
+      )).rows[0];
+      if (!business) throw new HttpError(404, 'not_found');
       const result = await db.query(
         `SELECT w.id, w.customer_name, w.customer_phone, w.service_ids, w.service_names, w.preferred_date,
                 w.preferred_time, w.note, w.status, w.created_at, w.updated_at,
@@ -119,6 +149,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         [query.status ?? null, query.limit, query.offset],
       );
       return {
+        timezone: business.timezone,
         total: result.rows[0] ? Number(result.rows[0].total) : 0,
         limit: query.limit,
         offset: query.offset,
@@ -130,44 +161,21 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
   app.patch('/waitlist/:id', async (req) => {
     const id = idFrom(req);
     const input = z.object({ status: z.enum(['waiting', 'rejected', 'scheduled_without_booking']) }).strict().parse(req.body);
-    const result = await withTenant(req.tenantId, async (db) => {
-      const current = (await db.query('SELECT appointment_id, status FROM waitlist_entries WHERE id = $1 FOR UPDATE', [id])).rows[0];
-      if (!current) throw new HttpError(404, 'not_found');
-      if (current.appointment_id && input.status === 'waiting') {
-        throw new HttpError(409, 'waitlist_has_scheduled_appointment', 'יש לעדכן או לבטל את התור ביומן לפני פתיחת הבקשה מחדש.');
-      }
-      let pushEventId: string | null = null;
-      if (current.appointment_id && input.status === 'rejected') {
-        const cancelled = await db.query(
-          "UPDATE appointments SET status = 'cancelled', status_changed_at = now() WHERE id = $1 AND status = 'reserved' RETURNING id",
-          [current.appointment_id],
-        );
-        if (cancelled.rows[0]) {
-          const business = (await db.query('SELECT slug FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
-          pushEventId = await enqueuePushEvent(db, req.tenantId, {
-            audience: 'customer',
-            eventType: 'customer.appointment_cancelled',
-            targetType: 'appointment',
-            targetId: current.appointment_id,
-            payload: { title: 'BTime', body: 'יש עדכון לגבי רשימת ההמתנה שלך', url: '/biz/' + business.slug },
-          });
-        }
+    return withTenant(req.tenantId, async (db) => {
+      const exists = await db.query(
+        'SELECT status, appointment_id FROM waitlist_entries WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+      if (!exists.rowCount) throw new HttpError(404, 'not_found');
+      if (exists.rows[0].status === 'closed' || exists.rows[0].appointment_id) {
+        throw new HttpError(409, 'waitlist_already_scheduled', 'בקשה שכבר שובצה ביומן מנוהלת דרך התור עצמו.');
       }
       const updated = await db.query(
         'UPDATE waitlist_entries SET status = $1, updated_at = now() WHERE id = $2 RETURNING id, status, appointment_id, updated_at',
         [input.status, id],
       );
-      return { ...updated.rows[0], push_event_id: pushEventId };
+      return updated.rows[0];
     });
-    if (result.appointment_id && input.status === 'rejected') {
-      void processGoogleCalendarJobs(req.tenantId, 5).catch((error) =>
-        req.log.warn({ err: error }, 'Google Calendar sync after waitlist cancellation failed'));
-    }
-    const response = result as Record<string, unknown>;
-    const pushEventId = typeof response.push_event_id === 'string' ? response.push_event_id : null;
-    delete response.push_event_id;
-    if (pushEventId) await dispatchPushEventAfterCommit(req.tenantId, pushEventId, req.log);
-    return response;
   });
   app.post('/waitlist/:id/schedule', async (req, reply) => {
     const id = idFrom(req);
@@ -196,7 +204,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         if (!business) throw new HttpError(404, 'not_found');
 
         const services = (await db.query(
-          `SELECT id, name, kind, booking_mode, requires_appointment, appointment_duration_minutes
+          `SELECT id, name, kind, appointment_duration_minutes
              FROM products
             WHERE id = ANY($1::uuid[]) AND is_active = true
             ORDER BY id
@@ -204,8 +212,7 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
           [entry.service_ids],
         )).rows;
         if (services.length !== entry.service_ids.length ||
-            services.some((service) => service.kind !== 'service' ||
-              (service.booking_mode ?? (service.requires_appointment ? 'free_datetime' : 'none')) !== 'availability')) {
+            services.some((service) => service.kind !== 'service')) {
           throw new HttpError(409, 'waitlist_services_unavailable', 'אחד השירותים בבקשה אינו זמין עוד לשיבוץ.');
         }
 
@@ -224,30 +231,21 @@ export const manageWaitlistRoutes: FastifyPluginAsync = async (app) => {
         });
         if (validationError) throw new HttpError(400, validationError);
 
-        const blocked = await db.query(
-          `SELECT EXISTS (
-             SELECT 1 FROM appointment_blocks b
-              WHERE tstzrange(b.start_at, b.end_at, '[)') &&
-                    tstzrange(($1::timestamp AT TIME ZONE $2),
-                      (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
-           ) AS blocked`,
-          [input.start_at, business.timezone, duration],
-        );
-        if (blocked.rows[0]?.blocked) {
-          throw new HttpError(409, 'slot_taken', 'המועד נמצא בחסימת זמן של העסק. בחרו שעה אחרת.');
-        }
+        // Seller-confirmed waitlist scheduling intentionally ignores explicit calendar blocks.
+        // Existing reserved appointments are still protected by the appointments overlap constraint.
 
         const serviceNames = services.map((service) => service.name);
         const appointment = (await db.query(
-          `INSERT INTO appointments
-             (tenant_id, service_id, service_name, customer_phone, start_at, end_at, source, status)
+`INSERT INTO appointments
+             (tenant_id, lead_id, service_id, service_name, customer_phone, start_at, end_at, source, status)
            VALUES
-             (app.current_tenant_id(), $1, $2, $3,
-              ($4::timestamp AT TIME ZONE $5),
-              (($4::timestamp AT TIME ZONE $5) + ($6::int * interval '1 minute')),
+             (app.current_tenant_id(), $1, $2, $3, $4,
+              ($5::timestamp AT TIME ZONE $6),
+              (($5::timestamp AT TIME ZONE $6) + ($7::int * interval '1 minute')),
               'manual', 'reserved')
            RETURNING id, start_at, end_at, status`,
           [
+            entry.lead_id ?? null,
             services.length === 1 ? services[0].id : null,
             serviceNames.join(' + '),
             entry.customer_phone,

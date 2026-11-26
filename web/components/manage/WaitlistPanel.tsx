@@ -19,13 +19,27 @@ type Entry = {
   appointment_id: string | null;
   appointment_start_at: string | null;
 };
-type Response = { total: number; entries: Entry[] };
+type Response = { total: number; entries: Entry[]; timezone: string };
 const labels: Record<Status, string> = {
   waiting: 'ממתין',
   rejected: 'נדחה',
   closed: 'נסגר – נקבע ביומן',
   scheduled_without_booking: 'נקבע ללא שריון',
 };
+
+function dateTimeInTimezone(timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+}
 
 function formatPreferredDate(value: string): string {
   // PostgreSQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp,
@@ -43,6 +57,8 @@ export default function WaitlistPanel({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string>>({});
+  const [businessTimezone, setBusinessTimezone] = useState('Asia/Jerusalem');
+  const minimumScheduleDateTime = dateTimeInTimezone(businessTimezone);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -51,6 +67,7 @@ export default function WaitlistPanel({ token }: { token: string }) {
       const query = filter ? `?status=${filter}` : '';
       const result = await mcallWithTimeout<Response>(token, `waitlist${query}`);
       setEntries(result.entries);
+      if (result.timezone) setBusinessTimezone(result.timezone);
     } catch {
       setError('לא הצלחנו לטעון את רשימת ההמתנה. נסו שוב.');
     } finally {
@@ -92,11 +109,13 @@ export default function WaitlistPanel({ token }: { token: string }) {
       const errorCode = err instanceof ApiError ? err.body?.error : null;
       setError(err instanceof Error && err.name === 'AbortError'
         ? 'הבקשה התעכבה. בדקו ביומן אם התור נוצר לפני ניסיון נוסף.'
-        : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
-          ? 'המועד תפוס או חסום ביומן. בחרו מועד אחר.'
-          : err instanceof ApiError && err.status === 400
-            ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
-            : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+        : errorCode === 'invalid_appointment_time'
+          ? 'אי אפשר לשבץ תור לתאריך או לשעה שכבר עברו. בחרו מועד מהיום והלאה.'
+          : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
+            ? 'המועד מתנגש עם תור קיים. בחרו מועד אחר.'
+            : err instanceof ApiError && err.status === 400
+              ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
+              : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
       setBusy(false);
     }
   }
@@ -161,14 +180,14 @@ export default function WaitlistPanel({ token }: { token: string }) {
             {entry.status === 'waiting' && (
               <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <label className="min-w-[220px] flex-1 text-xs text-gray-600">מועד לתור ביומן
-                  <input type="datetime-local" step={60} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
+                  <input type="datetime-local" step={60} min={minimumScheduleDateTime} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
                 </label>
                 <button type="button" disabled={busy || !scheduleTimes[entry.id]} onClick={() => void schedule(entry)} className="min-h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50">שיבוץ ביומן</button>
               </div>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <label className="text-xs text-gray-600">עדכון סטטוס
-                <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
+                <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy || entry.status === 'closed' || Boolean(entry.appointment_id)} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
                   {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'closed'}>{labels[status]}</option>)}
                 </select>
               </label>
