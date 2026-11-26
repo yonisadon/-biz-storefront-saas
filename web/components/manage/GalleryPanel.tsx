@@ -27,7 +27,7 @@ export default function GalleryPanel({ token }: { token: string }) {
       setHeroId(biz.config?.branding?.hero_gallery_image_id ?? null);
       setIconId(biz.config?.branding?.icon_gallery_image_id ?? null);
     } catch { setMsg(t('galleryLoadFailed')); }
-  }, [token]);
+  }, [token, t]);
   useEffect(() => { load(); }, [load]);
 
   const remaining = MAX - (items?.length ?? 0);
