@@ -188,6 +188,16 @@ export const PLATFORM_MESSAGES = {
     blockSaved: 'החסימה נשמרה ותמנע קביעות חדשות בטווח.', blockSaveFailed: 'שמירת החסימה נכשלה.', blockRemoved: 'החסימה הוסרה.', blockRemoveFailed: 'הסרת החסימה נכשלה.',
     appointmentUpdated: 'פרטי התור עודכנו.', appointmentDeleted: 'התור נמחק.', selectDate: 'בחירת תאריך', previous: 'הקודם', next: 'הבא',
 
+        calendarSubtitle: 'תורים משוריינים, שעות פנויות וחסימות חריגות.', today: 'היום', refresh: 'רענון', weekdayMon: 'ב׳', weekdayTue: 'ג׳', weekdayWed: 'ד׳', weekdayThu: 'ה׳', weekdayFri: 'ו׳', weekdaySat: 'ש׳', weekdaySun: 'א׳',
+    appointmentsCount: 'תורים', manualAppointment: 'קביעת תור ידני', manualAppointmentHint: 'התור נשמר ביומן בלבד, ללא יצירת פנייה נפרדת.',
+    serviceLabel: 'שירות', chooseService: 'בחירת שירות', customerPhone: 'טלפון לקוח', availableHours: 'שעות פנויות', chooseServiceHint: 'בחרו שירות כדי לראות שעות פנויות.',
+    noAvailableHours: 'אין שעות פנויות לפי שעות הפעילות, התורים והחסימות.', saveAppointment: 'שמירת תור ביומן', timeBlock: 'חסימת זמן',
+    timeBlockHint: 'חסימה מונעת תורים חדשים. תורים קיימים נשארים משוריינים ומוצגת אזהרה.', fullDayBlock: 'חסימת יום מלא', fromTime: 'משעה', untilTime: 'עד שעה',
+    reasonOptional: 'סיבה (לא חובה)', reasonExample: 'למשל: הפסקה', saveBlock: 'שמירת חסימה', appointmentsForDate: 'תורים לתאריך הנבחר',
+    noAppointmentsForDate: 'אין תורים משוריינים בתאריך זה.', manualAppointmentTag: 'תור ידני', fromWebsite: 'הגיע מהאתר', reserved: 'משוריין', canceledStatus: 'בוטל',
+    cancelRelease: 'ביטול ושחרור שעה', restoreToCalendar: 'החזרה ליומן', newService: 'שירות חדש', serviceUnavailable: 'שירות לא זמין',
+    newDateTime: 'מועד חדש', saveChanges: 'שמירת שינויים', blocksForDate: 'חסימות לתאריך הנבחר', noBlocks: 'אין חסימות.', removeBlock: 'הסרת חסימה',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -377,6 +387,16 @@ export const PLATFORM_MESSAGES = {
     blockSaved: 'The block was saved and will prevent new bookings during this time.', blockSaveFailed: 'Could not save the block.', blockRemoved: 'The block was removed.', blockRemoveFailed: 'Could not remove the block.',
     appointmentUpdated: 'Appointment details updated.', appointmentDeleted: 'Appointment deleted.', selectDate: 'Choose date', previous: 'Previous', next: 'Next',
 
+        calendarSubtitle: 'Booked appointments, available times and exceptional blocks.', today: 'Today', refresh: 'Refresh', weekdayMon: 'Mon', weekdayTue: 'Tue', weekdayWed: 'Wed', weekdayThu: 'Thu', weekdayFri: 'Fri', weekdaySat: 'Sat', weekdaySun: 'Sun',
+    appointmentsCount: 'appointments', manualAppointment: 'Add manual appointment', manualAppointmentHint: 'This appointment is saved only in the calendar; no separate inquiry is created.',
+    serviceLabel: 'Service', chooseService: 'Choose service', customerPhone: 'Customer phone', availableHours: 'Available times', chooseServiceHint: 'Choose a service to see available times.',
+    noAvailableHours: 'No available times based on business hours, appointments and blocks.', saveAppointment: 'Save appointment', timeBlock: 'Block time',
+    timeBlockHint: 'A block prevents new appointments. Existing appointments remain booked and a warning is shown.', fullDayBlock: 'Block full day', fromTime: 'From', untilTime: 'Until',
+    reasonOptional: 'Reason (optional)', reasonExample: 'For example: break', saveBlock: 'Save block', appointmentsForDate: 'Appointments for selected date',
+    noAppointmentsForDate: 'No booked appointments on this date.', manualAppointmentTag: 'Manual appointment', fromWebsite: 'From website', reserved: 'Booked', canceledStatus: 'Canceled',
+    cancelRelease: 'Cancel and release time', restoreToCalendar: 'Restore to calendar', newService: 'New service', serviceUnavailable: 'Service unavailable',
+    newDateTime: 'New date and time', saveChanges: 'Save changes', blocksForDate: 'Blocks for selected date', noBlocks: 'No blocks.', removeBlock: 'Remove block',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -565,6 +585,16 @@ export const PLATFORM_MESSAGES = {
     blockSavedConflicts: 'Блокировка сохранена, но в этом интервале есть существующие записи. Они не отменены и требуют ручной обработки.',
     blockSaved: 'Блокировка сохранена и предотвратит новые записи в этот период.', blockSaveFailed: 'Не удалось сохранить блокировку.', blockRemoved: 'Блокировка снята.', blockRemoveFailed: 'Не удалось снять блокировку.',
     appointmentUpdated: 'Данные записи обновлены.', appointmentDeleted: 'Запись удалена.', selectDate: 'Выбрать дату', previous: 'Назад', next: 'Далее',
+
+        calendarSubtitle: 'Запланированные записи, свободное время и специальные блокировки.', today: 'Сегодня', refresh: 'Обновить', weekdayMon: 'Пн', weekdayTue: 'Вт', weekdayWed: 'Ср', weekdayThu: 'Чт', weekdayFri: 'Пт', weekdaySat: 'Сб', weekdaySun: 'Вс',
+    appointmentsCount: 'записей', manualAppointment: 'Добавить запись вручную', manualAppointmentHint: 'Запись сохраняется только в календаре; отдельное обращение не создаётся.',
+    serviceLabel: 'Услуга', chooseService: 'Выбрать услугу', customerPhone: 'Телефон клиента', availableHours: 'Свободное время', chooseServiceHint: 'Выберите услугу, чтобы увидеть свободное время.',
+    noAvailableHours: 'Нет свободного времени с учётом часов работы, записей и блокировок.', saveAppointment: 'Сохранить запись', timeBlock: 'Блокировка времени',
+    timeBlockHint: 'Блокировка запрещает новые записи. Существующие записи сохраняются, отображается предупреждение.', fullDayBlock: 'Заблокировать весь день', fromTime: 'С', untilTime: 'До',
+    reasonOptional: 'Причина (необязательно)', reasonExample: 'Например: перерыв', saveBlock: 'Сохранить блокировку', appointmentsForDate: 'Записи на выбранную дату',
+    noAppointmentsForDate: 'На эту дату нет запланированных записей.', manualAppointmentTag: 'Ручная запись', fromWebsite: 'С сайта', reserved: 'Запланировано', canceledStatus: 'Отменено',
+    cancelRelease: 'Отменить и освободить время', restoreToCalendar: 'Вернуть в календарь', newService: 'Новая услуга', serviceUnavailable: 'Услуга недоступна',
+    newDateTime: 'Новая дата и время', saveChanges: 'Сохранить изменения', blocksForDate: 'Блокировки на выбранную дату', noBlocks: 'Нет блокировок.', removeBlock: 'Снять блокировку',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
