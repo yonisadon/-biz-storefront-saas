@@ -256,6 +256,14 @@ export const PLATFORM_MESSAGES = {
     legalDuplicateWarning: 'אם כבר הזנתם בעבר מסמך מלא, עברו על הטקסט שהזנתם והתאימו אותו כך שיכלול רק את המידע הנוסף של העסק, כדי למנוע כפילויות.',
     legalSaved: 'מסמכי האתר נשמרו.', legalSaveFailed: 'שמירת המסמכים נכשלה. בדקו את החיבור ונסו שוב.', legalDocuments: 'מסמכי האתר',
 
+        managementLinkRecoveryIntro: 'הקישור הקבוע של העסק נוצר בעבר ונשמר רק כטביעת אבטחה. כדי לשמור אותו מחדש, יש להדביק כאן את הקישור הקיים או לבקש מהסופר־אדמין לאתר עותק.',
+    managementLinkAssociationRequired: 'נדרש לשייך את קישור הניהול הקיים לחשבון לפני הכניסה.', managementLinkStoredInvalid: 'קישור הניהול השמור אינו תקין.',
+    trialInactiveContact: 'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל. יש לפנות לבעל הפלטפורמה.', accountGenericError: 'אירעה שגיאה.',
+    progressOf: 'מתוך', steps: 'שלבים', progressAria: 'התקדמות הקמת העסק',
+    retentionOverdue: 'פניות עברו את תקופת השמירה וממתינות לניקוי המתוזמן.', retention24Hours: 'פניות צפויות להימחק בתוך 24 שעות.',
+    retention7Days: 'פניות צפויות להימחק בתוך 7 ימים.', minutes: 'דקות', replace: 'החלפה', additionalImage: 'תמונה נוספת',
+    mainImage: 'תמונה ראשית', pwaIcon: 'אייקון PWA',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -513,6 +521,14 @@ export const PLATFORM_MESSAGES = {
     legalDuplicateWarning: 'If you previously entered a complete document, review it and adjust it to include only business-specific information to avoid duplication.',
     legalSaved: 'Website documents saved.', legalSaveFailed: 'Could not save the documents. Check your connection and try again.', legalDocuments: 'Website documents',
 
+        managementLinkRecoveryIntro: 'The permanent business link was created previously and only its security fingerprint was retained. To save it again, paste the existing link here or ask the super admin to locate a copy.',
+    managementLinkAssociationRequired: 'The existing management link must be linked to the account before signing in.', managementLinkStoredInvalid: 'The saved management link is invalid.',
+    trialInactiveContact: 'The trial has ended or the subscription is inactive. Contact the platform owner.', accountGenericError: 'An error occurred.',
+    progressOf: 'of', steps: 'steps', progressAria: 'Business setup progress',
+    retentionOverdue: 'inquiries are past the retention period and are waiting for scheduled cleanup.', retention24Hours: 'inquiries are scheduled for deletion within 24 hours.',
+    retention7Days: 'inquiries are scheduled for deletion within 7 days.', minutes: 'minutes', replace: 'Replace', additionalImage: 'Additional image',
+    mainImage: 'Main image', pwaIcon: 'PWA icon',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -769,6 +785,14 @@ export const PLATFORM_MESSAGES = {
     legalUpdatedAt: 'Дата обновления текста платформы:', legalAdvice: 'Перед публикацией юридического текста рекомендуется получить соответствующую консультацию; система не предоставляет юридических консультаций.',
     legalDuplicateWarning: 'Если ранее вы добавили полный документ, проверьте его и оставьте только дополнительную информацию о бизнесе, чтобы избежать дублирования.',
     legalSaved: 'Документы сайта сохранены.', legalSaveFailed: 'Не удалось сохранить документы. Проверьте соединение и попробуйте снова.', legalDocuments: 'Документы сайта',
+
+        managementLinkRecoveryIntro: 'Постоянная ссылка бизнеса была создана ранее, но сохранился только её защитный отпечаток. Чтобы сохранить ссылку снова, вставьте сюда существующую ссылку или попросите супер-администратора найти копию.',
+    managementLinkAssociationRequired: 'Перед входом необходимо привязать существующую ссылку управления к аккаунту.', managementLinkStoredInvalid: 'Сохранённая ссылка управления недействительна.',
+    trialInactiveContact: 'Пробный период завершён или подписка неактивна. Обратитесь к владельцу платформы.', accountGenericError: 'Произошла ошибка.',
+    progressOf: 'из', steps: 'этапов', progressAria: 'Прогресс настройки бизнеса',
+    retentionOverdue: 'обращений превысили срок хранения и ожидают плановой очистки.', retention24Hours: 'обращений будут удалены в течение 24 часов.',
+    retention7Days: 'обращений будут удалены в течение 7 дней.', minutes: 'минут', replace: 'Заменить', additionalImage: 'Дополнительное изображение',
+    mainImage: 'Главное изображение', pwaIcon: 'Значок PWA',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
