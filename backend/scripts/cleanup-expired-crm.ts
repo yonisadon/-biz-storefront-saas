@@ -230,40 +230,13 @@ async function main() {
               AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
               AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)`
         );
-        let tenantMediaObjectsDeleted = 0;
+        // Physical media deletion is handled by the API process, which owns the
+        // mounted local volume. This service only reports pending rows; it must
+        // never use its own local filesystem to finalize API media records.
+        const tenantMediaObjectsDeleted = 0;
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
-          // Bound each run. Keep the DB row until object storage confirms deletion.
-          const pendingMedia = await db.query(
-            `SELECT m.id, m.storage_key FROM public.media_assets m
-              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
-                AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
-                AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
-                AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
-              ORDER BY m.deleted_at, m.id LIMIT 50 FOR UPDATE SKIP LOCKED`
-          );
-          if (pendingMedia.rows.length) {
-            try {
-              // Fail closed: do not let the storage module's local-driver default
-              // finalize DB rows when the cleanup service lacks its storage config.
-              if (!process.env.STORAGE_DRIVER) throw new Error('STORAGE_DRIVER must be explicitly configured for media deletion retries.');
-              const { storage, variantKeys } = await import('../src/storage');
-              await storage.remove(pendingMedia.rows.flatMap((asset: { storage_key: string }) => variantKeys(asset.storage_key)));
-              const finalized = await db.query(
-                `DELETE FROM public.media_assets m
-                  WHERE m.id = ANY($1::uuid[]) AND m.deleted_at IS NOT NULL
-                    AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
-                    AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
-                    AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
-                  RETURNING m.id`,
-                [pendingMedia.rows.map((asset: { id: string }) => asset.id)]
-              );
-              tenantMediaObjectsDeleted = finalized.rowCount ?? 0;
-            } catch (error) {
-              console.warn('Media storage deletion deferred for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
-            }
-          }
-          const deletedWaitlist = await db.query(
+          const deletedWaitlist = await db.query(`
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
             'WHERE w2.tenant_id = app.current_tenant_id() AND (' + waitlistWhere.replaceAll('w.', 'w2.') + ')) RETURNING w.id',

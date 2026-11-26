@@ -19,7 +19,8 @@ export type PushEventType =
 
 const CAPABILITY_TTL_DAYS = 7;
 const MAX_DELIVERIES = 10;
-const MAX_ATTEMPTS = 8;
+// One initial delivery attempt plus exactly one automatic retry.
+const MAX_ATTEMPTS = 2;
 
 function runtimeConfigured(): boolean {
   return Boolean(env.WEB_PUSH_VAPID_PUBLIC_KEY && env.WEB_PUSH_VAPID_PRIVATE_KEY &&
@@ -232,7 +233,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
         )).rows[0];
         if (capability) {
           await db.query(
-            "UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '30 minutes', " +
+            "UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '2 hours', " +
             "locked_until = NULL, last_error = 'awaiting_customer_consent' WHERE id = $1",
             [eventId],
           );
@@ -243,7 +244,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       return null;
     }
     if (!runtimeConfigured()) {
-      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '30 minutes', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
+      await db.query("UPDATE public.push_outbox SET status = 'pending', next_attempt_at = now() + interval '2 hours', locked_until = NULL, last_error = 'push_runtime_not_configured' WHERE id = $1", [eventId]);
       return null;
     }
     await db.query("UPDATE public.push_outbox SET status = 'processing', attempts = attempts + 1, locked_until = now() + interval '1 minute' WHERE id = $1", [eventId]);
