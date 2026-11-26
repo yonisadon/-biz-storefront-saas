@@ -68,6 +68,19 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     const from = query.date ?? query.from!;
     const to = query.date ?? query.to!;
     if (!query.date && (!query.from || !query.to)) throw new HttpError(400, 'invalid_date_range');
+
+    // The calendar's month view requests a maximum 42-day grid. Reject wider
+    // ranges so a caller cannot turn this endpoint into an unbounded history export.
+    const fromMs = Date.parse(`${from}T00:00:00.000Z`);
+    const toMs = Date.parse(`${to}T00:00:00.000Z`);
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) ||
+        new Date(fromMs).toISOString().slice(0, 10) !== from ||
+        new Date(toMs).toISOString().slice(0, 10) !== to) {
+      throw new HttpError(400, 'invalid_date_range');
+    }
+    const rangeDays = Math.floor((toMs - fromMs) / 86_400_000) + 1;
+    if (rangeDays < 1) throw new HttpError(400, 'invalid_date_range');
+    if (rangeDays > 42) throw new HttpError(400, 'date_range_too_large');
     return withTenant(req.tenantId, async (db) => {
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
