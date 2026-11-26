@@ -83,3 +83,17 @@ export function StorefrontLanguageSwitcher() {
     </div>
   );
 }
+
+const DAY_MESSAGE_KEYS = {
+  sun: "daySunday",
+  mon: "dayMonday",
+  tue: "dayTuesday",
+  wed: "dayWednesday",
+  thu: "dayThursday",
+  fri: "dayFriday",
+  sat: "daySaturday",
+} as const satisfies Record<string, StorefrontMessageKey>;
+
+export function StorefrontDayName({ day }: { day: keyof typeof DAY_MESSAGE_KEYS }) {
+  return <StorefrontText message={DAY_MESSAGE_KEYS[day]} />;
+}
