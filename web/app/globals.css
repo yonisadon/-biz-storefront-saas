@@ -2059,9 +2059,11 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
 .brand-root .storefront-universal-content > #services-section {
   padding-top: clamp(.9rem, 1.8vw, 1.4rem);
 }
+.brand-root .storefront-universal-content #catalog-section > div:first-child,
 .brand-root .storefront-universal-content #services-section > div:first-child {
   margin-bottom: .4rem;
 }
+.brand-root .storefront-universal-content #catalog-section > div:first-child p,
 .brand-root .storefront-universal-content #services-section > div:first-child p {
   margin-top: .25rem;
   line-height: 1.55;
@@ -2086,5 +2088,9 @@ html.a11y-reduce-motion .brand-root .storefront-gallery-wrap * {
   padding: .8rem .9rem .9rem;
 }
 .brand-root .storefront-universal-content .storefront-items-list[data-layout="list"] > li.storefront-card[data-has-image="false"] {
+  max-width: 34rem;
+}
+
+.brand-root #catalog-section .storefront-items-list[data-kind="product"][data-layout="list"] > li.storefront-card[data-has-image="false"] {
   max-width: 34rem;
 }
