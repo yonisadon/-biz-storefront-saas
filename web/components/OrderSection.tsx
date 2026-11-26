@@ -1,6 +1,7 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
+import { useStorefrontTranslation } from '@/components/StorefrontLanguageProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
 import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
@@ -69,6 +70,7 @@ function dateInTimezone(timezone: string): string {
 }
 
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, businessTimezone, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
+  const t = useStorefrontTranslation();
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -665,18 +667,18 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   return (
     <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? (otherCartCount > 0 ? 'pb-40' : 'pb-24') : ''}>
       <div className="flex items-center justify-between gap-3">
-        <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
+        <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? t('ourProducts') : t('ourServices')}</h2>
       </div>
-      {(items.length > 0 || search.trim()) && <p className="mt-1 text-sm leading-5 text-ink/65">{kind === 'product' ? 'בחרו מוצר כדי להוסיף אותו להזמנה.' : 'בחרו שירות כדי להוסיף אותו להזמנה.'}</p>}
+      {(items.length > 0 || search.trim()) && <p className="mt-1 text-sm leading-5 text-ink/65">{kind === 'product' ? t('selectProductToAdd') : t('selectServiceToAdd')}</p>}
 
       {catalogTotal >= 5 && (
         <div className="mt-4">
-          <label htmlFor={`storefront-${kind}-search`} className="sr-only">חיפוש {kind === 'product' ? 'חיפוש מוצרים' : 'חיפוש שירותים'}</label>
-          <input id={`storefront-${kind}-search`} type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש לפי שם או תיאור…" className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+          <label htmlFor={`storefront-${kind}-search`} className="sr-only">{kind === 'product' ? t('searchProducts') : t('searchServices')}</label>
+          <input id={`storefront-${kind}-search`} type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('searchByNameOrDescription')} className="min-h-11 w-full rounded-xl border border-ink/20 bg-white px-4 py-2 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
         </div>
       )}
-      {searching && <p role="status" className="mt-3 text-sm text-ink/65">מחפשים פריטים…</p>}
-      {!searching && search.trim() && items.length === 0 && !catalogError && <p className="mt-4 text-sm text-ink/65">לא נמצאו פריטים התואמים לחיפוש.</p>}
+      {searching && <p role="status" className="mt-3 text-sm text-ink/65">{t('searchingItems')}</p>}
+      {!searching && search.trim() && items.length === 0 && !catalogError && <p className="mt-4 text-sm text-ink/65">{t('noSearchResults')}</p>}
 
       {items.length > 0 && (
         <div className="mt-3 space-y-5">
@@ -684,8 +686,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             const groupItems = items.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
             const layout = kind === 'product' ? productLayout : serviceLayout;
-            return <section key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
-              {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-2 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
+            return <section key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind} aria-label={kind === 'product' ? t('products') : t('services')}>
+              {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-2 text-lg font-bold">{kind === 'product' ? t('products') : t('services')}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((p) => (
             <StorefrontCatalogItem
@@ -708,10 +710,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       )}
 
       {(search.trim() ? searchTotal : catalogTotal) > 0 && <div className="mt-5 flex flex-col items-center gap-2">
-        <p className="text-sm text-ink/60">מוצגים {items.length} מתוך {search.trim() ? searchTotal : catalogTotal} פריטים</p>
+        <p className="text-sm text-ink/60">{t('itemsShown')} {items.length} {t('of')} {search.trim() ? searchTotal : catalogTotal} {t('items')}</p>
         {catalogError && <p role="alert" className="text-sm text-red-700">{catalogError}</p>}
         {hasMore && <button type="button" onClick={loadMore} disabled={loadingMore} className="min-h-11 rounded-full border border-ink/25 bg-white px-5 py-2.5 text-sm font-semibold text-ink hover:bg-ink/5 disabled:opacity-50">
-          {loadingMore ? 'טוען פריטים…' : 'הצגת עוד פריטים'}
+          {loadingMore ? t('loadingItems') : t('showMoreItems')}
         </button>}
       </div>}
 
@@ -725,20 +727,20 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <button
               type="button"
               onClick={() => { setCart({}); setStep('choose'); setError(null); }}
-              aria-label={kind === 'product' ? 'ביטול בחירת המוצרים וניקוי ההזמנה' : 'ביטול בחירת השירותים וניקוי ההזמנה'}
-              title={kind === 'product' ? 'ניקוי בחירת המוצרים' : 'ניקוי בחירת השירותים'}
+              aria-label={kind === 'product' ? t('clearProductSelection') : t('clearServiceSelection')}
+              title={kind === 'product' ? t('clearProducts') : t('clearServices')}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink/65 transition hover:bg-ink/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               <span aria-hidden="true">×</span>
             </button>
             <div className="min-w-0">
-              <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
+              <div className="text-xs text-ink/70">{count} {kind === 'product' ? t('selectedProducts') : t('selectedServices')}</div>
               <div className="font-bold text-lg">{totalText}</div>
             </div>
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
             className="min-h-11 shrink-0 rounded-full border-0 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-6">
-            {kind === 'product' ? 'המשך לשליחת פנייה' : 'בחירת דרך תיאום'}
+            {kind === 'product' ? t('continueToInquiry') : t('chooseCoordinationMethod')}
           </button>
         </div>
       )}
@@ -746,8 +748,8 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {/* Order Modal */}
       <dialog ref={dlg} aria-labelledby={`order-dialog-title-${kind}`} onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
-          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'שליחת פנייה לגבי המוצרים' : 'בחירת דרך תיאום'}</h3>
-          <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
+          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? t('contactAboutProducts') : t('chooseCoordinationMethod')}</h3>
+          <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? t('closeConfirmation') : t('closeOrderDialog')} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
         {!done && !waitlistDone && (
