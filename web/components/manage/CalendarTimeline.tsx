@@ -45,7 +45,7 @@ function clockLabel(value: string) {
 export default function CalendarTimeline({
   mode, dates, selectedDate, appointments, blocks, openingDays, onSelectDate, onSelectAppointment,
 }: Props) {
-  const { language } = usePlatformLanguage();
+  const { language, t } = usePlatformLanguage();
   const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
   const bounds = useMemo(() => {
     let earliest = 24 * 60;
@@ -88,10 +88,10 @@ export default function CalendarTimeline({
   const timelineHeight = ((bounds.end - bounds.start) / 60) * 64;
 
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white p-3" aria-label={mode === 'day' ? 'לוח יומי' : 'לוח שבועי'}>
+    <section className="rounded-2xl border border-gray-200 bg-white p-3" aria-label={mode === 'day' ? t('calendarDayBoard') : t('calendarWeekBoard')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-bold">{mode === 'day' ? 'לוח יומי' : 'לוח שבועי'}</h3>
-        {mode === 'week' && <p className="text-xs text-gray-500 sm:hidden">גללו לצדדים כדי לראות את כל הימים.</p>}
+        <h3 className="font-bold">{mode === 'day' ? t('calendarDayBoard') : t('calendarWeekBoard')}</h3>
+        {mode === 'week' && <p className="text-xs text-gray-500 sm:hidden">{t('scrollHorizontally')}</p>}
         <div className="flex flex-wrap gap-3 text-xs text-gray-600">
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-blue-200"/> נקבע באתר</span>
           <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-violet-200"/> תור ידני</span>
@@ -101,7 +101,7 @@ export default function CalendarTimeline({
       <div className="overflow-x-auto">
         <div className={mode === 'day' ? 'min-w-[320px]' : 'min-w-[1120px]'}>
           <div className="grid" style={{ gridTemplateColumns: mode === 'day' ? '56px minmax(250px, 1fr)' : '56px repeat(7, minmax(150px, 1fr))' }}>
-            <div className="border-b border-gray-200 p-2 text-xs text-gray-500">שעה</div>
+            <div className="border-b border-gray-200 p-2 text-xs text-gray-500">{t('calendarHour')}</div>
             {dates.map((day) => (
               <button key={day} type="button" onClick={() => onSelectDate(day)}
                 aria-pressed={selectedDate === day}
@@ -135,7 +135,7 @@ export default function CalendarTimeline({
                     return (
                       <div key={block.id} className="absolute inset-x-1 z-10 overflow-hidden rounded-md border border-dashed border-gray-400 bg-gray-200/90 px-1 py-0.5 text-[10px] text-gray-700"
                         style={{ top: ((start - bounds.start) / 60) * 64, height: Math.max(18, ((end - start) / 60) * 64) }}>
-                        חסימה{block.reason ? ' · ' + block.reason : ''}
+                        {t('blockedTime')}{block.reason ? ' · ' + block.reason : ''}
                       </div>
                     );
                   })}
@@ -151,12 +151,12 @@ export default function CalendarTimeline({
                         : 'border-blue-300 bg-blue-50 text-blue-900';
                     return (
                       <button key={item.id} type="button"
-                        aria-label={'פתיחת פרטי תור ' + clockLabel(item.start_at) + ' ' + item.service_name}
+                        aria-label={t('openAppointmentDetails') + ' ' + clockLabel(item.start_at) + ' ' + item.service_name}
                         onClick={() => onSelectAppointment(item.id, day)}
                         className={'absolute inset-x-1 z-20 overflow-hidden rounded-md border px-1.5 py-1 text-start text-[10px] shadow-sm hover:brightness-95 ' + sourceClass}
                         style={{ top: ((start - bounds.start) / 60) * 64, height: Math.max(24, ((end - start) / 60) * 64) }}>
                         <span className="block truncate font-semibold">{clockLabel(item.start_at)} · {item.service_name}</span>
-                        <span className="block truncate">{item.source === 'manual' ? 'תור ידני' : 'נקבע באתר'}{cancelled ? ' · בוטל' : ''}</span>
+                        <span className="block truncate">{item.source === 'manual' ? t('manualAppointmentTag') : t('fromWebsite')}{cancelled ? ' · ' + t('canceledStatus') : ''}</span>
                       </button>
                     );
                   })}
