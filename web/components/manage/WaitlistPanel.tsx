@@ -22,11 +22,8 @@ type Entry = {
 };
 type Response = { total: number; limit: number; offset: number; entries: Entry[]; timezone: string };
 const PAGE_SIZE = 50;
-const labels: Record<Status, string> = {
-  waiting: 'ממתין',
-  rejected: 'נדחה',
-  closed: 'נסגר – נקבע ביומן',
-  scheduled_without_booking: 'נקבע ללא שריון',
+const statusTranslationKeys: Record<Status, import('@/lib/platformI18n').PlatformMessageKey> = {
+  waiting: 'statusWaiting', rejected: 'statusRejected', closed: 'statusClosed', scheduled_without_booking: 'statusScheduledNoBooking',
 };
 
 function dateTimeInTimezone(timezone: string): string {
@@ -43,18 +40,19 @@ function dateTimeInTimezone(timezone: string): string {
   return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
 }
 
-function formatPreferredDate(value: string, locale: string): string {
+function formatPreferredDate(value: string, locale: string, unavailable: string): string {
   // PostgreSQL DATE may arrive as YYYY-MM-DD or as an ISO timestamp,
   // depending on the driver/serialization path. Keep the calendar day stable.
   const dateOnly = value.slice(0, 10);
   const parsed = dateOnly ? new Date(`${dateOnly}T12:00:00Z`) : new Date(value);
-  if (!Number.isFinite(parsed.getTime())) return 'תאריך לא זמין';
+  if (!Number.isFinite(parsed.getTime())) return unavailable;
   return new Intl.DateTimeFormat(locale, { timeZone: 'UTC' }).format(parsed);
 }
 
 export default function WaitlistPanel({ token }: { token: string }) {
-  const { language } = usePlatformLanguage();
+  const { language, t } = usePlatformLanguage();
   const locale = language === 'he' ? 'he-IL' : language === 'ru' ? 'ru-RU' : 'en-US';
+  const labels: Record<Status, string> = { waiting: t('statusWaiting'), rejected: t('statusRejected'), closed: t('statusClosed'), scheduled_without_booking: t('statusScheduledNoBooking') };
   const [entries, setEntries] = useState<Entry[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -77,11 +75,11 @@ export default function WaitlistPanel({ token }: { token: string }) {
       setTotal(result.total);
       if (result.timezone) setBusinessTimezone(result.timezone);
     } catch {
-      setError('לא הצלחנו לטעון את רשימת ההמתנה. נסו שוב.');
+      setError(t('waitlistLoadFailed'));
     } finally {
       setBusy(false);
     }
-  }, [token, filter, page]);
+  }, [token, filter, page, t]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
@@ -96,17 +94,17 @@ export default function WaitlistPanel({ token }: { token: string }) {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       });
-      setMessage('סטטוס הבקשה עודכן.');
+      setMessage(t('statusUpdated'));
       await load();
     } catch {
-      setError('עדכון הסטטוס נכשל.');
+      setError(t('waitlistStatusFailed'));
       setBusy(false);
     }
   }
 
   async function schedule(entry: Entry) {
     const start_at = scheduleTimes[entry.id];
-    if (!start_at) { setError('יש לבחור תאריך ושעה לשיבוץ ביומן.'); return; }
+    if (!start_at) { setError(t('chooseAppointmentDateTime')); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcallWithTimeout(
@@ -114,34 +112,34 @@ export default function WaitlistPanel({ token }: { token: string }) {
         'waitlist/' + entry.id + '/schedule',
         { method: 'POST', body: JSON.stringify({ start_at }) },
       );
-      setMessage('התור נוצר ביומן, השעה נתפסה ובקשת ההמתנה נסגרה.');
+      setMessage(t('waitlistAppointmentCreated'));
       setScheduleTimes((current) => { const next = { ...current }; delete next[entry.id]; return next; });
       await load();
     } catch (err) {
       const errorCode = err instanceof ApiError ? err.body?.error : null;
       setError(err instanceof Error && err.name === 'AbortError'
-        ? 'הבקשה התעכבה. בדקו ביומן אם התור נוצר לפני ניסיון נוסף.'
+        ? t('waitlistScheduleDelayed')
         : errorCode === 'invalid_appointment_time'
-          ? 'אי אפשר לשבץ תור לתאריך או לשעה שכבר עברו. בחרו מועד מהיום והלאה.'
+          ? t('appointmentPast')
           : errorCode === 'slot_taken' || (err instanceof ApiError && err.status === 409)
-            ? 'המועד מתנגש עם תור קיים. בחרו מועד אחר.'
+            ? t('slotTaken')
             : err instanceof ApiError && err.status === 400
-              ? 'המועד אינו תקין. בדקו את התאריך, השעה ומשך השירות.'
-              : 'יצירת התור ביומן נכשלה. נסו שוב או בדקו את החיבור.');
+              ? t('invalidAppointmentTime')
+              : t('waitlistScheduleFailed'));
       setBusy(false);
     }
   }
 
   async function remove(entry: Entry) {
-    if (!confirm(`למחוק את בקשת ההמתנה של ${entry.customer_name || entry.customer_phone}? אם קיים תור ביומן, הוא יישאר ביומן ולא יבוטל.`)) return;
+    if (!confirm(`${t('deleteWaitlistConfirm')} (${entry.customer_name || entry.customer_phone})`)) return;
     setBusy(true); setError(null); setMessage(null);
     try {
       await mcallWithTimeout(token, `waitlist/${entry.id}`, { method: 'DELETE' });
-      setMessage('בקשת ההמתנה נמחקה.');
+      setMessage(t('waitlistDeleted'));
       if (entries.length === 1 && page > 0) setPage((current) => current - 1);
       else await load();
     } catch {
-      setError('מחיקת הבקשה נכשלה.');
+      setError(t('waitlistDeleteFailed'));
       setBusy(false);
     }
   }
@@ -150,57 +148,57 @@ export default function WaitlistPanel({ token }: { token: string }) {
     <section dir={language === "he" ? "rtl" : "ltr"} className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">רשימת המתנה</h2>
-          <p className="mt-1 text-sm text-gray-600">בקשת המתנה אינה שומרת מקום ביומן.</p>
+          <h2 className="text-lg font-bold">{t('waitlistTitle')}</h2>
+          <p className="mt-1 text-sm text-gray-600">{t('waitlistSubtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-sm">סינון
+          <label className="text-sm">{t('filter')}
             <select className="ms-2 min-h-10 rounded-lg border border-gray-300 bg-white px-3" value={filter} onChange={(e) => { setFilter(e.target.value as Status | ''); setPage(0); }}>
-              <option value="">כל הסטטוסים</option>
+              <option value="">{t('allStatuses')}</option>
               {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status}>{labels[status]}</option>)}
             </select>
           </label>
-          <button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm">רענון</button>
+          <button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm">{t('refresh')}</button>
         </div>
       </div>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {message && <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">{message}</p>}
-      {busy && !entries.length && <p className="text-sm text-gray-500">טוען…</p>}
-      {!busy && !entries.length && <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">אין בקשות המתנה להצגה.</p>}
-      {total > 0 && <p className="text-xs text-gray-500">מוצגות {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} מתוך {total} בקשות</p>}
+      {busy && !entries.length && <p className="text-sm text-gray-500">{t('loading')}</p>}
+      {!busy && !entries.length && <p className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">{t('noWaitlist')}</p>}
+      {total > 0 && <p className="text-xs text-gray-500">{t('shown')} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} {t('of')} {total} {t('requests')}</p>}
       <div className="space-y-3">
         {entries.map((entry) => (
           <article key={entry.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="font-semibold">{entry.customer_name || 'ללא שם'}</h3>
+                <h3 className="font-semibold">{entry.customer_name || t('noName')}</h3>
                 <p className="mt-1 text-sm" dir="ltr">{entry.customer_phone}</p>
-                <p className="mt-2 text-sm text-gray-700">שירותים: {entry.service_names.join(', ')}</p>
+                <p className="mt-2 text-sm text-gray-700">{t('services')}: {entry.service_names.join(', ')}</p>
                 <p className="mt-2 text-sm text-gray-700">
-                  {formatPreferredDate(entry.preferred_date, locale)}
-                  {entry.preferred_time ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · ללא שעה מועדפת'}
+                  {formatPreferredDate(entry.preferred_date, locale, t('dateUnavailable'))}
+                  {entry.preferred_time ? ` · ${String(entry.preferred_time).slice(0, 5)}` : ' · '+t('noPreferredTime')}
                 </p>
                 {entry.note && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-600">{entry.note}</p>}
-                <p className="mt-2 text-xs text-gray-500">נשלח: {new Date(entry.created_at).toLocaleString(locale)}</p>
+                <p className="mt-2 text-xs text-gray-500">{t('sent')}: {new Date(entry.created_at).toLocaleString(locale)}</p>
               </div>
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium">{labels[entry.status]}</span>
             </div>
             {entry.appointment_id && (
               <p className="mt-3 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-900">
-                תור משויך ביומן{entry.appointment_start_at ? ': ' + new Date(entry.appointment_start_at).toLocaleString('he-IL') : ' (רשומת התור כבר אינה קיימת)'}.
-                אפשר לשנות את מועד התור מתוך יומן התורים.
+                {t('linkedAppointment')}{entry.appointment_start_at ? ': ' + new Date(entry.appointment_start_at).toLocaleString(locale) : ' ('+t('appointmentRecordMissing')+')'}.
+                {t('changeAppointmentInCalendar')}
               </p>
             )}
             {entry.status === 'waiting' && (
               <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <label className="min-w-[220px] flex-1 text-xs text-gray-600">מועד לתור ביומן
+                <label className="min-w-[220px] flex-1 text-xs text-gray-600">{t('appointmentDateInCalendar')}
                   <input type="datetime-local" step={60} min={minimumScheduleDateTime} value={scheduleTimes[entry.id] ?? ''} onChange={(e) => setScheduleTimes((current) => ({ ...current, [entry.id]: e.target.value }))} disabled={busy} className="mt-1 min-h-10 w-full rounded-lg border border-gray-300 bg-white px-2 text-sm" />
                 </label>
-                <button type="button" disabled={busy || !scheduleTimes[entry.id]} onClick={() => void schedule(entry)} className="min-h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50">שיבוץ ביומן</button>
+                <button type="button" disabled={busy || !scheduleTimes[entry.id]} onClick={() => void schedule(entry)} className="min-h-10 rounded-full bg-gray-900 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('scheduleInCalendar')}</button>
               </div>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <label className="text-xs text-gray-600">עדכון סטטוס
+              <label className="text-xs text-gray-600">{t('updateStatus')}
                 <select aria-label={'סטטוס עבור ' + (entry.customer_name || entry.customer_phone)} disabled={busy || entry.status === 'closed' || Boolean(entry.appointment_id)} className="ms-2 min-h-9 rounded-lg border border-gray-300 bg-white px-2" value={entry.status} onChange={(e) => void updateStatus(entry, e.target.value as Status)}>
                   {(Object.keys(labels) as Status[]).map((status) => <option key={status} value={status} disabled={status === 'closed'}>{labels[status]}</option>)}
                 </select>
@@ -210,10 +208,10 @@ export default function WaitlistPanel({ token }: { token: string }) {
           </article>
         ))}
       </div>
-      {total > PAGE_SIZE && <nav aria-label="עמודי רשימת המתנה" className="flex flex-wrap items-center justify-center gap-3 pt-2">
-        <button type="button" disabled={busy || page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">הקודם</button>
-        <span className="text-sm text-gray-600">עמוד {page + 1} מתוך {Math.ceil(total / PAGE_SIZE)}</span>
-        <button type="button" disabled={busy || (page + 1) * PAGE_SIZE >= total} onClick={() => setPage((current) => current + 1)} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">הבא</button>
+      {total > PAGE_SIZE && <nav aria-label={t('waitlistPages')} className="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <button type="button" disabled={busy || page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">{t('previousPage')}</button>
+        <span className="text-sm text-gray-600">{t('page')} {page + 1} {t('of')} {Math.ceil(total / PAGE_SIZE)}</span>
+        <button type="button" disabled={busy || (page + 1) * PAGE_SIZE >= total} onClick={() => setPage((current) => current + 1)} className="min-h-10 rounded-full border border-gray-300 px-4 text-sm disabled:opacity-40">{t('nextPage')}</button>
       </nav>}
     </section>
   );
