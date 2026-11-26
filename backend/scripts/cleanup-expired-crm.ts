@@ -1,4 +1,3 @@
-import { storage, variantKeys } from '../src/storage';
 import pg from 'pg';
 
 const registryUrl = process.env.APP_DATABASE_URL;
@@ -247,6 +246,10 @@ async function main() {
           );
           if (pendingMedia.rows.length) {
             try {
+              // Fail closed: do not let the storage module's local-driver default
+              // finalize DB rows when the cleanup service lacks its storage config.
+              if (!process.env.STORAGE_DRIVER) throw new Error('STORAGE_DRIVER must be explicitly configured for media deletion retries.');
+              const { storage, variantKeys } = await import('../src/storage');
               await storage.remove(pendingMedia.rows.flatMap((asset: { storage_key: string }) => variantKeys(asset.storage_key)));
               const finalized = await db.query(
                 `DELETE FROM public.media_assets m
