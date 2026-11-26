@@ -86,6 +86,13 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'appointment block range overlap index is missing';
   END IF;
+  IF (SELECT count(*) FROM pg_policies
+       WHERE schemaname = 'public'
+         AND tablename IN ('waitlist_entries', 'google_calendar_connections', 'google_calendar_oauth_states', 'google_calendar_sync_jobs')
+         AND policyname = 'tenant_isolation'
+         AND roles::text[] @> ARRAY['app_runtime']::text[]) <> 4 THEN
+    RAISE EXCEPTION 'waitlist and Google Calendar tenant policies must target app_runtime explicitly';
+  END IF;
 END
 $push_schema$;
 
