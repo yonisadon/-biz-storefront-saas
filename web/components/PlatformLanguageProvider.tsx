@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { platformDirection, translatePlatform, type PlatformLanguage, type PlatformMessageKey } from '@/lib/platformI18n';
 
 type ContextValue = { language: PlatformLanguage; setLanguage: (language: PlatformLanguage) => void; t: (key: PlatformMessageKey) => string };
@@ -8,6 +9,8 @@ const Context = createContext<ContextValue | null>(null);
 const STORAGE_KEY = 'btime-platform-language';
 
 export default function PlatformLanguageProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isCustomerStorefront = pathname.startsWith('/biz/');
   const [language, setLanguageState] = useState<PlatformLanguage>('he');
   useEffect(() => {
     try {
@@ -17,10 +20,12 @@ export default function PlatformLanguageProvider({ children }: { children: React
   }, []);
   useEffect(() => {
     const direction = platformDirection(language);
-    document.documentElement.lang = language;
-    document.documentElement.dir = direction;
+    if (!isCustomerStorefront) {
+      document.documentElement.lang = language;
+      document.documentElement.dir = direction;
+    }
     try { window.localStorage.setItem(STORAGE_KEY, language); } catch { /* Language still works for this session. */ }
-  }, [language]);
+  }, [language, isCustomerStorefront]);
   const setLanguage = useCallback((next: PlatformLanguage) => setLanguageState(next), []);
   const t = useCallback((key: PlatformMessageKey) => translatePlatform(language, key), [language]);
   return <Context.Provider value={{ language, setLanguage, t }}>{children}</Context.Provider>;
