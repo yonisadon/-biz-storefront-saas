@@ -11,7 +11,7 @@ import OrderSection from '@/components/OrderSection';
 import ReadMoreText from '@/components/ReadMoreText';
 import { getCtx, getStorefront } from '@/lib/api';
 import { themeVars } from '@/lib/theme';
-import { getStorefrontLocale, normalizeStorefrontLanguage } from '@/lib/storefrontI18n';
+import { normalizeStorefrontLanguage } from '@/lib/storefrontI18n';
 
 export const revalidate = 30;
 type Props = { params: Promise<{ slug: string }> };
