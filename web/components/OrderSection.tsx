@@ -820,16 +820,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat(storefrontLocale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">{t('appointmentDuration')}: {reservedAppointmentDurationMinutes} {storefrontLocale === 'he-IL' ? 'דקות' : storefrontLocale === 'ru-RU' ? 'мин' : 'min'} · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
                 {!appointmentTime && !monthLoading && !monthError && !slotsLoading && !slotsError && (
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-                    <p className="text-sm font-semibold">לא מצאתם מועד שמתאים לכם?</p>
-                    <p className="mt-1 text-xs leading-5 text-ink/65">אפשר להשאיר בקשת המתנה עם תאריך ושעה מועדפים. העסק יוכל לבדוק את האפשרות וליצור איתכם קשר; הבקשה אינה שומרת תור ביומן.</p>
+                    <p className="text-sm font-semibold">{t('noSuitableTime')}</p>
+                    <p className="mt-1 text-xs leading-5 text-ink/65">{t('waitlistExplain')}</p>
                     <button type="button" onClick={openWaitlist} className="mt-2 min-h-11 w-full rounded-xl border border-primary/30 bg-surface px-4 py-2 text-sm font-semibold text-primary">
-                      בקשת הצטרפות לרשימת המתנה
+                      {t('waitlistRequest')}
                     </button>
                   </div>
                 )}
               </>
             ) : (
-              <p className="text-sm leading-6 text-ink/75">לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר לבחור בקשת המתנה או לפנות לעסק ב-WhatsApp.</p>
+              <p className="text-sm leading-6 text-ink/75">{t('noBookingHours')}</p>
             )}
           </fieldset>
         )}
@@ -837,7 +837,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
         {waitlistDone && (
           <div role="status" className="mb-4 rounded-xl bg-green-50 p-3 text-sm text-green-900">
-            <p>הבקשה נוספה לרשימת ההמתנה. העסק יוכל ליצור איתכם קשר; לא נשמר תור ביומן.</p>
+            <p>{t('waitlistSuccess')}</p>
             {waitlistPushCapability && pushPublicKey && (
               <div className="mt-3">
                 {pushRevoked.waitlist ? (
@@ -848,12 +848,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   </div>
                 ) : waitlistPushState.success ? (
                   <div>
-                    <p role="status" className="text-sm">ההתראות הופעלו לעסק הזה. תקבלו עדכונים רק על התורים ובקשות ההמתנה שלכם.</p>
+                    <p role="status" className="text-sm">{t('pushEnabled')}</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void cancelPushForBusiness('waitlist')}
-                      className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                      className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? t('pushCancelBusy') : t('pushCancel')}</button>
                   </div>
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
-                  <p className="text-sm leading-6 text-green-900">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
+                  <p className="text-sm leading-6 text-green-900">{t('pushIOS')}</p>
                 ) : pushEnvironment === 'checking' ? (
                   <p className="text-sm text-green-900">{t('pushChecking')}</p>
                 ) : pushEnvironment === 'unsupported' ? (
@@ -864,7 +864,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     <p className="mt-1 text-xs leading-5 text-green-900/75">{t('pushConsentInfo')}</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
                       className="mt-3 min-h-11 rounded-full border border-primary/25 bg-white px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
-                      {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
+                      {waitlistPushState.busy ? t('pushEnableBusy') : t('pushConfirm')}
                     </button>
                     {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
                   </>
@@ -876,21 +876,21 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
         {waitlistOpen ? (
           <form onSubmit={submitWaitlist} className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
-            <h3 className="font-semibold">בקשת הצטרפות לרשימת המתנה</h3>
+            <h3 className="font-semibold">{t('waitlistRequest')}</h3>
             {waitlistError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{waitlistError}</p>}
-            <label className="block text-sm">שם (רשות)
-              <input type="text" maxLength={100} autoComplete="name" value={waitlistName} onChange={(e) => setWaitlistName(e.target.value)} className={input} placeholder="שם מלא" />
+            <label className="block text-sm">{t('customerNameOptional')}
+              <input type="text" maxLength={100} autoComplete="name" value={waitlistName} onChange={(e) => setWaitlistName(e.target.value)} className={input} placeholder={t('fullName')} />
             </label>
-            <label className="block text-sm">טלפון *
+            <label className="block text-sm">{t('phoneRequired')}
               <input required type="tel" inputMode="tel" dir="ltr" value={form.phone} onChange={setField('phone')} className={input} placeholder="0500000000"/>
             </label>
-            <label className="block min-w-0 text-sm">תאריך מועדף *
+            <label className="block min-w-0 text-sm">{t('preferredDate')}
               <input required type="date" min={todayDate} value={waitlistPreferredDate} onChange={(e) => setWaitlistPreferredDate(e.target.value)} className={`${input} block`}/>
             </label>
-            <label className="block text-sm">שעה מועדפת (רשות)
+            <label className="block text-sm">{t('preferredTimeOptional')}
               <input type="time" value={waitlistPreferredTime} onChange={(e) => setWaitlistPreferredTime(e.target.value)} className={input}/>
             </label>
-            <label className="block text-sm">הערה (רשות)
+            <label className="block text-sm">{t('noteOptional')}
               <textarea maxLength={500} rows={3} value={waitlistNote} onChange={(e) => setWaitlistNote(e.target.value)} className={input}/>
             </label>
             <div className="flex gap-2">
@@ -920,10 +920,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <div>
                     <p role="status" className="text-sm text-ink/75">{appointmentPushState.status}</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void cancelPushForBusiness('appointment')}
-                      className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
+                      className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? t('pushCancelBusy') : t('pushCancel')}</button>
                   </div>
                 ) : pushEnvironment === 'ios-home-screen-required' ? (
-                  <p className="text-sm leading-6 text-ink/75">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
+                  <p className="text-sm leading-6 text-ink/75">{t('pushIOS')}</p>
                 ) : pushEnvironment === 'checking' ? (
                   <p className="text-sm text-ink/75">{t('pushChecking')}</p>
                 ) : pushEnvironment === 'unsupported' ? (
@@ -934,7 +934,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     <p className="mt-1 text-xs leading-5 text-ink/65">{t('pushConsentInfo')}</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
                       className="mt-3 min-h-11 rounded-full border border-primary/25 bg-surface px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
-                      {appointmentPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
+                      {appointmentPushState.busy ? t('pushEnableBusy') : t('pushConfirm')}
                     </button>
                     {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
                   </>
@@ -948,10 +948,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {kind === 'service' ? (
               <>
                 {calendarEnabled && hasAppointmentHours && <button type="button" disabled={busy !== null} onClick={() => { setError(null); setStep('reserve'); }}
-                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">קביעת תור ביומן</button>}
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">{t('appointmentBooking')}</button>}
                 {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">העסק עדיין לא הגדיר שעות פעילות. אפשר להשאיר בקשת המתנה או לפנות ב-WhatsApp.</p>}
                 {calendarEnabled && !hasAppointmentHours && <button type="button" onClick={openWaitlist}
-                  className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">בקשת הצטרפות לרשימת המתנה</button>}
+                  className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">{t('waitlistRequest')}</button>}
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
                   {busy === 'whatsapp' ? 'מכין הודעה…' : t('whatsappContact')}
