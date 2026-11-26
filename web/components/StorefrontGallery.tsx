@@ -96,7 +96,7 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
             >
               {autoPlay ? t('galleryStopAuto') : t('galleryStartAuto')}
             </button>
-            <div className="flex items-center justify-center gap-1.5" role="group" aria-label="בחירת תמונה">
+            <div className="flex items-center justify-center gap-1.5" role="group" aria-label={t('galleryChooseImage')}>
               {slides.map((image, index) => <button key={image.id} type="button" aria-label={`${t('galleryImage')} ${index + 1} / ${slides.length}`} aria-current={index === active ? 'true' : undefined} onClick={() => setActive(index)} className={'h-3 min-w-3 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ' + (index === active ? 'w-6 bg-white' : 'w-3 bg-white/75 hover:bg-white')} />)}
             </div>
           </div>
