@@ -738,7 +738,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </div>
           <button ref={openerRef} type="button" onClick={openContinuation}
             className="min-h-11 shrink-0 rounded-full border-0 bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:px-6">
-            {kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}
+            {kind === 'product' ? 'המשך לשליחת פנייה' : 'בחירת דרך תיאום'}
           </button>
         </div>
       )}
@@ -746,7 +746,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {/* Order Modal */}
       <dialog ref={dlg} aria-labelledby={`order-dialog-title-${kind}`} onClose={() => (openerRef.current ?? sectionHeadingRef.current)?.focus()} className="customer-order-dialog m-auto box-border max-h-[calc(100dvh-1rem)] w-[calc(100%-1.5rem)] max-w-[30rem] min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl bg-surface p-3 text-start shadow-xl backdrop:bg-black/50 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="mb-4 flex min-w-0 items-center justify-between gap-2">
-          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'המשך לפנייה' : 'בחירת דרך תיאום'}</h3>
+          <h3 id={`order-dialog-title-${kind}`} className="min-w-0 text-xl font-bold">{kind === 'product' ? 'שליחת פנייה לגבי המוצרים' : 'בחירת דרך תיאום'}</h3>
           <button type="button" onClick={() => dlg.current?.close()} aria-label={done ? "סגירת הודעת האישור; התור נשאר שמור" : "סגירת חלון ההזמנה"} className="min-h-11 min-w-11 rounded-lg border border-ink/20 p-2 text-xl focus-visible:outline-2 focus-visible:outline-offset-2">✕</button>
         </div>
 
