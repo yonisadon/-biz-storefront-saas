@@ -251,7 +251,7 @@ export async function processPushOutboxEvent(tenantId: string, eventId: string):
       "INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id) " +
       "SELECT app.current_tenant_id(), $1, selected.subscription_id " +
       "FROM (SELECT DISTINCT unnest($2::uuid[]) AS subscription_id) selected " +
-      "ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING",
+      "WHERE selected.subscription_id IS NOT NULL ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING",
       [eventId, subscriptions.map((sub: { id: string }) => sub.id)],
     );
     const deliveries = (await db.query(
