@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { mcallWithTimeout } from '@/lib/manageApi';
 import { LEGAL_DEFAULTS, LEGAL_LAST_UPDATED } from '@/lib/legalDefaults';
 import type { ManageBusiness } from '@/lib/types';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 const DOCS = [
   {
@@ -41,6 +42,7 @@ function readLegal(biz: ManageBusiness): LegalValues {
 export default function LegalPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
+  const { t } = usePlatformLanguage();
   const [values, setValues] = useState<LegalValues>(() => readLegal(biz));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -57,35 +59,36 @@ export default function LegalPanel({ token, biz, onSaved }: {
         body: JSON.stringify({ config: { legal } }),
       });
       onSaved({ ...latest, ...saved, config: { ...latest.config, ...(saved.config ?? {}), legal } });
-      setMessage('מסמכי האתר נשמרו.');
+      setMessage(t('legalSaved'));
     } catch {
-      setMessage('שמירת המסמכים נכשלה. בדקו את החיבור ונסו שוב.');
+      setMessage(t('legalSaveFailed'));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section aria-label="מסמכי האתר" className="space-y-4">
+    <section aria-label={t("legalDocuments")} className="space-y-4">
       <div className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
-        <h2 className="text-lg font-bold">מסמכי האתר</h2>
+        <h2 className="text-lg font-bold">{t("legalDocuments")}</h2>
         <p className="mt-2 text-sm leading-6 text-ink/70">
-          שלושת המסמכים מורכבים משני חלקים: נוסח קבוע של Biz Storefront, שמופיע אוטומטית ואינו ניתן לעריכה,
-          והשלמות שהעסק מוסיף בהתאם לפעילות שלו. רק ההשלמות נשמרות בהגדרות העסק. נוסחי הפלטפורמה מתעדכנים מעת לעת עם שינויים במערכת ובמדיניות; מועד העדכון מוצג במסמך הציבורי.
-          מועד עדכון נוסח הפלטפורמה: {LEGAL_LAST_UPDATED}. מומלץ לקבל ייעוץ מתאים לפני פרסום נוסח משפטי; המערכת אינה מספקת ייעוץ משפטי.
-        </p>
-        <p className="mt-2 text-sm leading-6 text-ink/70">
-          אם כבר הזנתם בעבר מסמך מלא, עברו על הטקסט שהזנתם והתאימו אותו כך שיכלול רק את המידע הנוסף של העסק, כדי למנוע כפילויות.
+          {t('legalIntro')} {t('legalUpdatedAt')} {LEGAL_LAST_UPDATED}. {t('legalAdvice')}
+        </p>        <p className="mt-2 text-sm leading-6 text-ink/70">
+          {t('legalDuplicateWarning')}
         </p>
       </div>
-      {DOCS.map(({ key, title, hint, placeholder }) => (
+      {DOCS.map(({ key }) => {
+        const title = key === 'accessibility_statement' ? t('accessibilityDoc') : key === 'terms_of_use' ? t('termsDoc') : t('privacyDoc');
+        const hint = key === 'accessibility_statement' ? t('accessibilityHint') : key === 'terms_of_use' ? t('termsBusinessHint') : t('privacyBusinessHint');
+        const placeholder = key === 'accessibility_statement' ? t('accessibilityPlaceholder') : key === 'terms_of_use' ? t('termsBusinessPlaceholder') : t('privacyBusinessPlaceholder');
+        return (
         <section key={key} aria-labelledby={`legal-${key}`} className="rounded-2xl border border-ink/10 bg-white p-4 sm:p-5">
           <h3 id={`legal-${key}`} className="font-bold">{title}</h3>
           <p className="mt-1 text-sm leading-5 text-ink/65">{hint}</p>
 
           <details className="mt-3 rounded-xl border border-ink/10 bg-slate-50 p-3">
             <summary className="cursor-pointer text-sm font-semibold">
-              החלק הקבוע של Biz Storefront – לקריאה בלבד
+              {t('legalFixedTitle')}
             </summary>
             <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-ink/75">
               {LEGAL_DEFAULTS[key]}
@@ -93,7 +96,7 @@ export default function LegalPanel({ token, biz, onSaved }: {
           </details>
 
           <label htmlFor={`legal-input-${key}`} className="mt-4 block text-sm font-semibold">
-            השלמות מטעם העסק
+            {t('legalBusinessAdditions')}
           </label>
           <textarea
             id={`legal-input-${key}`}
@@ -106,11 +109,12 @@ export default function LegalPanel({ token, biz, onSaved }: {
           />
           <span className="mt-1 block text-end text-xs text-gray-500">{values[key].length}/20,000 תווים</span>
         </section>
-      ))}
+      );
+      })}
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={save} disabled={saving}
           className="min-h-11 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-fg disabled:opacity-50">
-          {saving ? 'שומר…' : 'שמירת מסמכי האתר'}
+          {saving ? t('saving') : t('save')}
         </button>
         {message && <p role="status" className="text-sm text-ink/75">{message}</p>}
       </div>
