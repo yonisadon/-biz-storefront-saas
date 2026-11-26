@@ -223,7 +223,7 @@ export default function LeadsPanel({ token, initial }: { token: string; initial:
                   <select value={l.status} aria-label={`${t('leadStatusFor')} ${l.customer_name || t('continueOnWhatsapp')}`}
                     onChange={(e) => changeStatus(l.id, e.target.value as LeadStatus)}
                     className="rounded-lg border border-gray-300 bg-white px-2 py-1.5">
-                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                    {LEAD_STATUSES.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
                   </select>
                 </td>
                 <td className="px-3 py-2"><button type="button" onClick={() => deleteLead(l.id)} className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-semibold text-red-700">{t('delete')}</button></td>
