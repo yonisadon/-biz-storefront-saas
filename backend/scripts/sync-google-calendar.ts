@@ -8,7 +8,7 @@ async function main() {
   }
 
   const tenants = await pool.query(
-    'SELECT tenant_id FROM app.tenant_databases ORDER BY tenant_id',
+    'SELECT td.tenant_id FROM app.tenant_databases td JOIN public.businesses b ON b.id = td.tenant_id WHERE b.status = \'active\' ORDER BY td.tenant_id',
   );
   let processed = 0;
   let failed = 0;

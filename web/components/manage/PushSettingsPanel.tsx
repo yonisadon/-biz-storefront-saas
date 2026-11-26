@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { mcall } from '@/lib/manageApi';
+import { getWebPushEnvironment } from '@/lib/pushPlatform';
 
 type Settings = {
   entitled: boolean;
@@ -37,7 +38,7 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [deviceSubscribed, setDeviceSubscribed] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported' | 'ios-home-screen-required'>('default');
   const deviceOperationRef = useRef(false);
   const deviceAttemptRef = useRef(0);
   const deviceStateRefreshRef = useRef(0);
@@ -45,7 +46,15 @@ export default function PushSettingsPanel({ token }: { token: string }) {
   const refreshDeviceState = useCallback(async () => {
     const refreshId = ++deviceStateRefreshRef.current;
     const isLatestRefresh = () => deviceStateRefreshRef.current === refreshId;
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    const environment = getWebPushEnvironment();
+    if (environment === 'ios-home-screen-required') {
+      if (isLatestRefresh()) {
+        setPermission('ios-home-screen-required');
+        setDeviceSubscribed(false);
+      }
+      return;
+    }
+    if (environment === 'unsupported') {
       if (isLatestRefresh()) {
         setPermission('unsupported');
         setDeviceSubscribed(false);
@@ -135,9 +144,9 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     setSaving(true);
     setMessage('');
     try {
-      if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        throw new Error('unsupported');
-      }
+      const environment = getWebPushEnvironment();
+      if (environment === 'ios-home-screen-required') throw new Error('ios_home_screen_required');
+      if (environment === 'unsupported') throw new Error('unsupported');
       if (Notification.permission === 'denied') throw new Error('permission');
       const granted = Notification.permission === 'granted'
         ? 'granted'
@@ -176,9 +185,11 @@ export default function PushSettingsPanel({ token }: { token: string }) {
     } catch (error) {
       if (!isCurrent()) return;
       const reason = error instanceof Error ? error.message : '';
-      setMessage(reason === 'permission'
-        ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
-        : reason === 'unsupported'
+      setMessage(reason === 'ios_home_screen_required'
+        ? 'כדי לקבל התראות ב-iPhone או iPad, הוסיפו את אזור הניהול למסך הבית: פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”. פתחו את הסמל החדש והפעילו התראות. נדרש iOS/iPadOS 16.4 ומעלה.'
+        : reason === 'permission'
+          ? 'ההרשאה חסומה. אפשרו התראות בהגדרות האתר בדפדפן וחזרו לכאן.'
+          : reason === 'unsupported'
           ? 'הדפדפן אינו תומך בהתראות Push במצב הנוכחי.'
           : reason === 'service_worker_inactive'
             ? 'רכיב ההתראות עדיין נטען. המתינו רגע ונסו שוב.'
@@ -257,12 +268,12 @@ export default function PushSettingsPanel({ token }: { token: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/10 p-3">
         <div className="min-w-0">
           <p className="text-sm font-bold">התראות למוכר במכשיר הזה</p>
-          <p className="mt-1 text-xs leading-5 text-ink/60">{permission === 'denied' ? 'ההרשאה חסומה בדפדפן. יש לאפשר התראות בהגדרות האתר.' : permission === 'unsupported' ? 'הדפדפן אינו תומך בהתראות במצב הנוכחי.' : deviceSubscribed ? 'המכשיר הזה רשום לקבלת התראות.' : 'אפשר להפעיל התראות במכשיר הזה.'}</p>
+          <p className="mt-1 text-xs leading-5 text-ink/60">{permission === 'denied' ? 'ההרשאה חסומה בדפדפן. יש לאפשר התראות בהגדרות האתר.' : permission === 'ios-home-screen-required' ? 'ב-iPhone/iPad יש להוסיף את אזור הניהול למסך הבית כדי להפעיל Push.' : permission === 'unsupported' ? 'הדפדפן או גרסת מערכת ההפעלה אינם תומכים בהתראות Push.' : deviceSubscribed ? 'המכשיר הזה רשום לקבלת התראות.' : 'אפשר להפעיל התראות במכשיר הזה.'}</p>
         </div>
         {deviceSubscribed ? (
           <button type="button" onClick={() => void disableThisDevice()} disabled={saving}
             className="min-h-10 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold text-ink disabled:opacity-50">כיבוי במכשיר הזה</button>
-        ) : permission === 'unsupported' || permission === 'denied' ? null : (
+        ) : permission === 'unsupported' || permission === 'denied' || permission === 'ios-home-screen-required' ? null : (
           <button type="button" onClick={() => void enableThisDevice()} disabled={saving || !settings.seller_effective}
             className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">הפעלת התראות במכשיר הזה</button>
         )}

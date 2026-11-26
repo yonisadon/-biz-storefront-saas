@@ -72,7 +72,6 @@ export async function provisionBusinessForOwner(
   let tenantAdmin: pg.Client | undefined;
   let tenantId: string | undefined;
   let databaseName: string | undefined;
-  let databaseCreated = false;
 
   try {
     registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL);
@@ -99,6 +98,10 @@ export async function provisionBusinessForOwner(
           input.name,
           whatsapp,
           JSON.stringify({
+            contact_options: {
+              products: { whatsapp_enabled: false, crm_enabled: true },
+              services: { calendar_enabled: true, whatsapp_enabled: false, crm_enabled: true },
+            },
             opening_hours: {
               days: { sun: [], mon: [], tue: [], wed: [], thu: [], fri: [], sat: [] },
               out_of_hours_banner: { enabled: false, message: '' },
@@ -120,7 +123,6 @@ export async function provisionBusinessForOwner(
 
     databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
     await databaseAdmin.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
-    databaseCreated = true;
     await databaseAdmin.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(databaseName)} TO app_runtime, app_superadmin`);
 
     tenantAdmin = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName));
@@ -143,6 +145,14 @@ export async function provisionBusinessForOwner(
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
       [b.id, b.slug, b.name, 'active', b.whatsapp_number, b.phone, b.email,
        b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
+    );
+
+    // The schema and tenant migrations run before this business row exists.
+    // Initialize its Push settings now, so customer Push works immediately
+    // without requiring the owner to open the settings screen first.
+    await tenantAdmin.query(
+      'INSERT INTO public.push_settings (tenant_id) VALUES ($1) ON CONFLICT (tenant_id) DO NOTHING',
+      [tenantId],
     );
 
     const client = registry;
@@ -190,12 +200,59 @@ export async function provisionBusinessForOwner(
       management_url: `${env.PUBLIC_BASE_URL!.replace(/\/+$/, '')}/manage/${managementToken.token}`,
     };
   } catch (error) {
-    if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-    if (databaseCreated && databaseName && databaseAdmin) {
-      await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`).catch(() => {});
+    if (tenantAdmin) {
+      await tenantAdmin.end().catch((cleanupErr) => {
+        console.error('Tenant connection close failed during owner provisioning rollback:', cleanupErr);
+      });
+      tenantAdmin = undefined;
     }
+
+    let cleanupFailed = false;
+    if (databaseName && databaseAdmin) {
+      try {
+        // Also attempt this after an ambiguous CREATE DATABASE network failure.
+        await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
+      } catch (cleanupErr) {
+        cleanupFailed = true;
+        console.error('Tenant database cleanup failed; preserving suspended business for recovery:', {
+          tenantId, databaseName, error: cleanupErr,
+        });
+      }
+    }
+
     if (tenantId && registry) {
-      await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]).catch(() => {});
+      if (cleanupFailed && databaseName) {
+        await registry.query(
+          'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+          [tenantId, databaseName],
+        ).catch((cleanupErr) => {
+          console.error('Could not preserve tenant database mapping for owner provisioning recovery:', cleanupErr);
+        });
+        await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]).catch((cleanupErr) => {
+          console.error('Could not suspend partially provisioned owner business:', cleanupErr);
+        });
+      } else {
+        try {
+          await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]);
+        } catch (cleanupErr) {
+          cleanupFailed = true;
+          console.error('Registry cleanup failed during owner provisioning rollback:', cleanupErr);
+          if (databaseName) {
+            await registry.query(
+              'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+              [tenantId, databaseName],
+            ).catch((preserveErr) => console.error('Could not preserve tenant mapping for recovery:', preserveErr));
+          }
+          await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]).catch((preserveErr) => {
+            console.error('Could not suspend partially provisioned owner business:', preserveErr);
+          });
+        }
+      }
+    }
+
+    if (cleanupFailed) {
+      throw new HttpError(500, 'business_provisioning_cleanup_pending',
+        'Business setup failed and automatic cleanup could not be completed. The business was kept suspended for safe recovery.');
     }
     if ((error as { code?: string }).code === '23505') {
       throw new HttpError(409, 'slug_or_business_contact_already_exists');

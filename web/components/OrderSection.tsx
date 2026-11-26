@@ -3,6 +3,7 @@
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
+import { getWebPushEnvironment, type WebPushEnvironment } from '@/lib/pushPlatform';
 import type { ContactOptions, DayHours, Product, PublicCatalogPage } from '@/lib/types';
 
 type Layout = 'cards' | 'gallery' | 'list' | 'grid' | 'carousel' | 'luxury_catalog';
@@ -101,6 +102,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushCapability, setWaitlistPushCapability] = useState<string | null>(null);
   const [pushPublicKey, setPushPublicKey] = useState<string | null>(null);
+  const [pushEnvironment, setPushEnvironment] = useState<WebPushEnvironment | 'checking'>('checking');
   const [customerPushActive, setCustomerPushActive] = useState(false);
   const [customerPushManageStatus, setCustomerPushManageStatus] = useState<string | null>(null);
   const [appointmentPushState, setAppointmentPushState] = useState({ busy: false, success: false, status: null as string | null });
@@ -122,6 +124,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   useEffect(() => {
     if (done) successRef.current?.focus();
   }, [done]);
+
+  useEffect(() => {
+    setPushEnvironment(getWebPushEnvironment());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,7 +154,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
   useEffect(() => {
     let cancelled = false;
-    if (!pushPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+    if (pushEnvironment !== 'supported' || !pushPublicKey || typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
         !('serviceWorker' in navigator) || !('PushManager' in window)) return;
     void (async () => {
       try {
@@ -167,7 +173,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       }
     })();
     return () => { cancelled = true; };
-  }, [apiBase, pushPublicKey]);
+  }, [apiBase, pushPublicKey, pushEnvironment]);
 
   async function cancelCustomerPush() {
     setCustomerPushManageStatus(null);
@@ -191,7 +197,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }
 
   async function optInForPush(capabilityToken: string, target: 'appointment' | 'waitlist', explicitConsent = true) {
-    if (!pushPublicKey) return;
+    if (!pushPublicKey || pushEnvironment !== 'supported') return;
     const currentState = target === 'appointment' ? appointmentPushState : waitlistPushState;
     if (currentState.busy || pushAbortRef.current[target]) return;
     const attempt = ++pushAttemptRef.current[target];
@@ -323,7 +329,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }
 
   async function autoLinkExistingPush(capabilityToken: string, target: 'appointment' | 'waitlist') {
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
+    if (pushEnvironment !== 'supported' || typeof Notification === 'undefined' || Notification.permission !== 'granted' ||
         !('serviceWorker' in navigator) || !('PushManager' in window)) return;
     try {
       const registration = await withTimeout(navigator.serviceWorker.ready, 10000);
@@ -347,12 +353,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     const token = done?.pushCapabilityToken;
     if (!token || !pushPublicKey) return;
     void autoLinkExistingPush(token, 'appointment');
-  }, [done?.pushCapabilityToken, pushPublicKey, apiBase]);
+  }, [done?.pushCapabilityToken, pushPublicKey, apiBase, pushEnvironment]);
 
   useEffect(() => {
     if (!waitlistPushCapability || !waitlistDone || !pushPublicKey) return;
     void autoLinkExistingPush(waitlistPushCapability, 'waitlist');
-  }, [waitlistPushCapability, waitlistDone, pushPublicKey, apiBase]);
+  }, [waitlistPushCapability, waitlistDone, pushPublicKey, apiBase, pushEnvironment]);
 
   useEffect(() => {
     const term = search.trim();
@@ -787,6 +793,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void cancelPushForBusiness('waitlist')}
                       className="mt-2 text-xs underline disabled:opacity-50">{waitlistPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
                   </div>
+                ) : pushEnvironment === 'ios-home-screen-required' ? (
+                  <p className="text-sm leading-6 text-green-900">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
+                ) : pushEnvironment === 'checking' ? (
+                  <p className="text-sm text-green-900">בודקים תמיכה בהתראות במכשיר…</p>
+                ) : pushEnvironment === 'unsupported' ? (
+                  <p className="text-sm text-green-900">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
                 ) : (
                   <>
                     <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על תורים ובקשות המתנה שתיצרו בעתיד דרך הדפדפן הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה; אם הוא משותף, גם משתמשים אחרים בו עשויים לראות אותן. ניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
@@ -850,6 +862,12 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void cancelPushForBusiness('appointment')}
                       className="mt-2 text-xs underline disabled:opacity-50">{appointmentPushState.busy ? 'מבטלים…' : 'ביטול התראות מהעסק הזה'}</button>
                   </div>
+                ) : pushEnvironment === 'ios-home-screen-required' ? (
+                  <p className="text-sm leading-6 text-ink/75">ב-iPhone או iPad, Push זמין רק באתר שהותקן למסך הבית (iOS/iPadOS 16.4 ומעלה). כדי לקבל התראות על הזמנה חדשה, פתחו ב-Safari, לחצו על שיתוף ואז „הוספה למסך הבית”; לאחר מכן פתחו את האתר מהסמל החדש ובצעו ממנו את ההזמנה. הזמנה שכבר בוצעה בטאב Safari אינה מקושרת אוטומטית לאפליקציה שהותקנה.</p>
+                ) : pushEnvironment === 'checking' ? (
+                  <p className="text-sm text-ink/75">בודקים תמיכה בהתראות במכשיר…</p>
+                ) : pushEnvironment === 'unsupported' ? (
+                  <p className="text-sm text-ink/75">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
                 ) : (
                   <>
                     <p className="font-semibold">לקבל עדכונים על התורים שלך בעסק הזה?</p>

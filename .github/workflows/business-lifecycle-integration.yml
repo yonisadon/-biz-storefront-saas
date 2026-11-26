@@ -1,0 +1,73 @@
+name: Business provisioning and deletion integration test
+
+on:
+  pull_request:
+    branches: [main, feat/customer-device-push-consent]
+    paths:
+      - 'backend/src/provisioning.ts'
+      - 'backend/src/routes/admin.ts'
+      - 'backend/integration-tests/platformAuth.integration.ts'
+      - 'backend/migrations/**'
+      - '.github/workflows/business-lifecycle-integration.yml'
+  push:
+    branches: ['**']
+    paths:
+      - 'backend/src/provisioning.ts'
+      - 'backend/src/routes/admin.ts'
+      - 'backend/integration-tests/platformAuth.integration.ts'
+      - 'backend/migrations/**'
+      - '.github/workflows/business-lifecycle-integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: Provisioning and deletion lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: btime_registry_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d btime_registry_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --no-audit --no-fund
+      - name: Prepare disposable Registry schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          # The central Registry starts from the common platform schema, then receives
+          # the platform-only migrations that add ownership, subscriptions and policies.
+          psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f backend/migrations/tenant-schema.sql
+          for migration in \
+            backend/migrations/000_tenant_registry.sql \
+            backend/migrations/001_platform_accounts_subscriptions.sql \
+            backend/migrations/002_platform_content_and_messages.sql \
+            backend/migrations/003_platform_retention_policies.sql \
+            backend/migrations/004_management_access_and_encrypted_tokens.sql \
+            backend/migrations/005_seller_onboarding_state.sql \
+            backend/migrations/006_platform_channel_entitlements.sql; do
+            psql -h localhost -U postgres -d btime_registry_test -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Run end-to-end provisioning and deletion integration test
+        working-directory: backend
+        run: npm run test:platform-integration

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createECDH, createHash, randomBytes, randomUUID } from 'node:crypto';
 import { test } from 'node:test';
+import { execFileSync } from 'node:child_process';
+import { derivePushCapabilityToken, generateVapidKeys, hashPushCapability } from '../src/pushCrypto';
 
 test('platform account lifecycle and independent marketing consents', async () => {
   const databaseUrl = 'postgres://postgres:postgres@localhost:5432/btime_registry_test';
@@ -15,6 +17,17 @@ test('platform account lifecycle and independent marketing consents', async () =
   process.env.NODE_ENV = 'test';
   process.env.SUPERADMIN_API_TOKEN = 't'.repeat(48);
   process.env.MANAGEMENT_TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
+  const vapidKeys = generateVapidKeys();
+  process.env.WEB_PUSH_VAPID_PUBLIC_KEY = vapidKeys.publicKey;
+  process.env.WEB_PUSH_VAPID_PRIVATE_KEY = vapidKeys.privateKey;
+  process.env.WEB_PUSH_VAPID_SUBJECT = 'mailto:push-tests@example.test';
+  process.env.PUSH_SUBSCRIPTION_ENCRYPTION_KEY = 'c'.repeat(64);
+  process.env.PUSH_CAPABILITY_HMAC_KEY = 'd'.repeat(64);
+  process.env.GOOGLE_OAUTH_CLIENT_ID = 'integration-google-client';
+  process.env.GOOGLE_OAUTH_CLIENT_SECRET = 'integration-google-secret';
+  process.env.GOOGLE_OAUTH_REDIRECT_URI = 'http://localhost:3000/api/google-calendar/callback';
+  process.env.GOOGLE_OAUTH_STATE_SECRET = 'f'.repeat(64);
+  process.env.GOOGLE_TOKEN_ENCRYPTION_KEY = 'e'.repeat(64);
 
   const sentEmails: Array<{ to: Array<{ email: string }>; subject: string; htmlContent: string }> = [];
   const originalFetch = globalThis.fetch;
@@ -35,6 +48,15 @@ test('platform account lifecycle and independent marketing consents', async () =
   let sessionCookie = '';
   let ownerSessionCookie = '';
   let claimSessionCookie = '';
+  const pushClientEcdh = createECDH('prime256v1');
+  pushClientEcdh.generateKeys();
+  const customerSubscription = {
+    endpoint: `https://fcm.googleapis.com/fcm/send/integration-${randomUUID()}`,
+    keys: {
+      p256dh: pushClientEcdh.getPublicKey(undefined, 'uncompressed').toString('base64url'),
+      auth: randomBytes(16).toString('base64url'),
+    },
+  };
 
   const extractToken = (html: string, route: 'verify-email' | 'reset-password') => {
     const match = html.match(new RegExp(`/${route}\\?token=([^"&]+)`));
@@ -156,6 +178,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     const setCookie = String(login.headers['set-cookie']);
     assert.match(setCookie, /Max-Age=259200/);
     const newCookie = setCookie.split(';')[0];
+    sessionCookie = newCookie;
     const newSessionToken = decodeURIComponent(newCookie.slice('btime_session='.length));
     const newSessionHash = createHash('sha256').update(newSessionToken).digest();
     const sessionRows = await pool.query(
@@ -180,6 +203,11 @@ test('platform account lifecycle and independent marketing consents', async () =
     const preservedSession = await pool.query('SELECT 1 FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
     assert.equal(preservedSession.rowCount, 1, 'logout must not delete another active session');
     await pool.query('DELETE FROM public.platform_sessions WHERE token_hash = $1', [activeSessionHash]);
+    const ownerManagementLogin = await app.inject({
+      method: 'POST', url: '/api/auth/login', payload: { email, password: 'new-correct-horse-battery' },
+    });
+    assert.equal(ownerManagementLogin.statusCode, 200);
+    sessionCookie = String(ownerManagementLogin.headers['set-cookie']).split(';')[0];
 
     // Exercise the real dedicated-database provisioning path against the disposable CI registry.
     const { provisionBusinessForOwner } = await import('../src/provisioning');
@@ -214,6 +242,19 @@ test('platform account lifecycle and independent marketing consents', async () =
       const tenantDb = new pgModule.default.Client({ connectionString: tenantDatabaseUrl.toString() });
       await tenantDb.connect();
       try {
+        const pushSettings = await tenantDb.query(
+          'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
+          [provisioned.id],
+        );
+        assert.equal(pushSettings.rowCount, 1, 'self-service provisioning must create Push settings after the tenant business row');
+        assert.equal(pushSettings.rows[0].seller_enabled, true);
+        assert.equal(pushSettings.rows[0].customer_enabled, true);
+        const tenantBusinessConfig = await tenantDb.query(
+          'SELECT config FROM public.businesses WHERE id = $1',
+          [provisioned.id],
+        );
+        assert.equal(tenantBusinessConfig.rows[0].config.contact_options.products.crm_enabled, true);
+        assert.equal(tenantBusinessConfig.rows[0].config.contact_options.services.calendar_enabled, true);
         const retentionClosedAt = await tenantDb.query(
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_closed_at'",
         );
@@ -226,6 +267,275 @@ test('platform account lifecycle and independent marketing consents', async () =
           "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leads' AND column_name = 'retention_expires_at'",
         );
         assert.equal(oldDeadlineColumn.rowCount, 0, 'legacy hard-coded retention deadline must be removed');
+
+        const pushConfig = await app.inject({ method: 'GET', url: `/api/biz/${provisioned.slug}/push/config` });
+        assert.equal(pushConfig.statusCode, 200);
+        assert.equal(pushConfig.json().enabled, true, 'fresh tenant Push must be available immediately after provisioning');
+
+        const manageHeaders = { cookie: sessionCookie };
+        const initialPushSettings = await app.inject({ method: 'GET', url: `/api/manage/${permanentToken}/push/settings`, headers: manageHeaders });
+        assert.equal(initialPushSettings.statusCode, 200);
+        assert.equal(initialPushSettings.json().seller_effective, true);
+        assert.equal(initialPushSettings.json().customer_effective, true);
+        const sellerOff = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { seller_enabled: false },
+        });
+        assert.equal(sellerOff.statusCode, 200);
+        const sellerDisabledAttempt = await app.inject({
+          method: 'POST', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { subscription: customerSubscription },
+        });
+        assert.equal(sellerDisabledAttempt.statusCode, 403);
+        const sellerOn = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { seller_enabled: true },
+        });
+        assert.equal(sellerOn.statusCode, 200);
+        const sellerRegistered = await app.inject({
+          method: 'POST', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { subscription: customerSubscription },
+        });
+        assert.equal(sellerRegistered.statusCode, 200, sellerRegistered.body);
+
+        let pushTargetCounter = 0;
+        const createPushTarget = async () => {
+          pushTargetCounter += 1;
+          const startAt = new Date(Date.now() + (60 + pushTargetCounter * 60) * 60 * 1000);
+          const endAt = new Date(startAt.getTime() + 30 * 60 * 1000);
+          const appointment = await tenantDb.query(
+            `INSERT INTO public.appointments
+               (tenant_id, service_name, customer_phone, start_at, end_at, source, status)
+             VALUES ($1, 'Push integration service', '+972501234567', $2, $3, 'website', 'reserved')
+             RETURNING id`,
+            [provisioned!.id, startAt, endAt],
+          );
+          const targetId = appointment.rows[0].id as string;
+          const capabilityId = randomUUID();
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const token = derivePushCapabilityToken(
+            provisioned!.id, 'appointment', targetId, capabilityId, expiresAt, process.env.PUSH_CAPABILITY_HMAC_KEY!,
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (id, tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, 'appointment', $3, $4, $5)`,
+            [capabilityId, provisioned!.id, targetId, hashPushCapability(token), expiresAt],
+          );
+          return token;
+        };
+
+        const firstCapability = await createPushTarget();
+        const firstConsent = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: true, subscription: customerSubscription },
+        });
+        assert.equal(firstConsent.statusCode, 200, firstConsent.body);
+        assert.equal(firstConsent.json().already_enabled, false);
+
+        const activeStatus = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(activeStatus.json().active, true);
+
+        const secondCapability = await createPushTarget();
+        const silentLink = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: secondCapability, explicit_consent: false, subscription: customerSubscription },
+        });
+        assert.equal(silentLink.statusCode, 200, silentLink.body);
+        assert.equal(silentLink.json().already_enabled, true, 'same browser and tenant must reuse its active consent');
+        const consentCounts = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $1 AND revoked_at IS NULL) AS devices, ' +
+          '(SELECT count(*)::int FROM public.push_subscription_targets WHERE tenant_id = $1 AND revoked_at IS NULL) AS targets',
+          [provisioned.id],
+        );
+        assert.equal(consentCounts.rows[0].devices, 1, 'one persistent device consent must cover multiple targets');
+        assert.equal(consentCounts.rows[0].targets, 2, 'each booking still needs its own target link');
+
+        const revoked = await app.inject({
+          method: 'DELETE',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(revoked.statusCode, 200);
+        const revokedStatus = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(revokedStatus.json().active, false);
+
+        const reenabled = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: true, subscription: customerSubscription },
+        });
+        assert.equal(reenabled.statusCode, 200, reenabled.body);
+        assert.equal(reenabled.json().already_enabled, false, 'explicit consent must reactivate a revoked device');
+        const activeAgain = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(activeAgain.json().active, true);
+        const customerOff = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { customer_enabled: false },
+        });
+        assert.equal(customerOff.statusCode, 200);
+        const disabledCustomerConfig = await app.inject({
+          method: 'GET', url: `/api/biz/${provisioned.slug}/push/config`,
+        });
+        assert.equal(disabledCustomerConfig.json().enabled, false);
+        const blockedCustomerConsent = await app.inject({
+          method: 'POST', url: `/api/biz/${provisioned.slug}/push/consent`,
+          payload: { token: firstCapability, explicit_consent: false, subscription: customerSubscription },
+        });
+        assert.equal(blockedCustomerConsent.statusCode, 403);
+        const customerOn = await app.inject({
+          method: 'PATCH', url: `/api/manage/${permanentToken}/push/settings`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { customer_enabled: true },
+        });
+        assert.equal(customerOn.statusCode, 200);
+        const enabledCustomerConfig = await app.inject({
+          method: 'GET', url: `/api/biz/${provisioned.slug}/push/config`,
+        });
+        assert.equal(enabledCustomerConfig.json().enabled, true);
+        const sellerRemoved = await app.inject({
+          method: 'DELETE', url: `/api/manage/${permanentToken}/push/subscriptions`,
+          headers: { ...manageHeaders, 'content-type': 'application/json' }, payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(sellerRemoved.statusCode, 200);
+        const customerStillActive = await app.inject({
+          method: 'POST',
+          url: `/api/biz/${provisioned.slug}/push/subscriptions/customer/status`,
+          payload: { endpoint: customerSubscription.endpoint },
+        });
+        assert.equal(customerStillActive.json().active, true,
+          'removing seller Push on this browser must not revoke independent customer consent');
+
+        // Retention must wait for pending Push events, then remove only target
+        // links/capabilities while preserving the tenant+device consent record.
+        await pool.query(
+          `UPDATE public.platform_retention_policies
+              SET delete_enabled = true, retention_days = 1
+            WHERE plan_code = 'standard' AND
+              ((record_type = 'appointment' AND record_status = 'cancelled') OR
+               (record_type = 'waitlist' AND record_status = 'closed'))`,
+        );
+        const subscriptionRow = await tenantDb.query(
+          'SELECT id FROM public.push_subscriptions WHERE tenant_id = $1 AND audience = $2 AND endpoint_hash = $3',
+          [provisioned.id, 'customer', hashPushCapability(customerSubscription.endpoint)],
+        );
+        const subscriptionId = subscriptionRow.rows[0].id as string;
+        const oldStart = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+        const oldEnd = new Date(oldStart.getTime() + 30 * 60 * 1000);
+        const expiredAppointment = await tenantDb.query(
+          `INSERT INTO public.appointments
+             (tenant_id, service_name, customer_phone, start_at, end_at, source, status, status_changed_at)
+           VALUES ($1, 'Expired Push appointment', '+972501234567', $2, $3, 'manual', 'cancelled', now() - interval '3 days')
+           RETURNING id`,
+          [provisioned.id, oldStart, oldEnd],
+        );
+        const expiredAppointmentId = expiredAppointment.rows[0].id as string;
+        const expiredWaitlist = await tenantDb.query(
+          `INSERT INTO public.waitlist_entries
+             (tenant_id, customer_phone, service_ids, service_names, preferred_date, status, updated_at)
+           VALUES ($1, '+972501234567', ARRAY[$2::uuid], ARRAY['Expired service'], (now() - interval '3 days')::date, 'closed', now() - interval '3 days')
+           RETURNING id`,
+          [provisioned.id, randomUUID()],
+        );
+        const expiredWaitlistId = expiredWaitlist.rows[0].id as string;
+        for (const [targetType, targetId] of [
+          ['appointment', expiredAppointmentId],
+          ['waitlist', expiredWaitlistId],
+        ] as const) {
+          await tenantDb.query(
+            'INSERT INTO public.push_subscription_targets (tenant_id, target_type, target_id, subscription_id) VALUES ($1, $2, $3, $4)',
+            [provisioned.id, targetType, targetId, subscriptionId],
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, $3, $4, now() + interval '7 days')`,
+            [provisioned.id, targetType, targetId, hashPushCapability(randomUUID())],
+          );
+          await tenantDb.query(
+            `INSERT INTO public.push_outbox
+               (tenant_id, audience, event_type, target_type, target_id, payload, status)
+             VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'pending')`,
+            [provisioned.id, targetType === 'appointment' ? 'customer' : 'seller',
+             targetType === 'appointment' ? 'customer.appointment_cancelled' : 'seller.waitlist_created',
+             targetType, targetId, JSON.stringify({ title: 'BTime', body: 'Cleanup integration test', url: '/' })],
+          );
+        }
+
+        const runRetentionCleanup = () => execFileSync(
+          'npx',
+          ['tsx', 'scripts/cleanup-expired-crm.ts', '--apply'],
+          {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            env: { ...process.env, APP_DATABASE_URL: databaseUrl, DATABASE_SSL: 'false' },
+          },
+        );
+        const deferredCleanup = runRetentionCleanup();
+        assert.match(deferredCleanup, /preflight passed/i);
+        const retainedTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count',
+          [expiredAppointmentId, expiredWaitlistId],
+        );
+        assert.equal(retainedTargets.rows[0].appointment_count, 1, 'pending appointment Push must defer appointment retention');
+        assert.equal(retainedTargets.rows[0].waitlist_count, 1, 'pending waitlist Push must defer waitlist retention');
+
+        await tenantDb.query(
+          `UPDATE public.push_outbox SET status = 'done', processed_at = now()
+            WHERE tenant_id = $1 AND target_id = ANY($2::uuid[])`,
+          [provisioned.id, [expiredAppointmentId, expiredWaitlistId]],
+        );
+        const appointmentEvent = await tenantDb.query(
+          "SELECT id FROM public.push_outbox WHERE tenant_id = $1 AND target_type = 'appointment' AND target_id = $2",
+          [provisioned.id, expiredAppointmentId],
+        );
+        const pendingDelivery = await tenantDb.query(
+          `INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id, status)
+           VALUES ($1, $2, $3, 'pending') RETURNING id`,
+          [provisioned.id, appointmentEvent.rows[0].id, subscriptionId],
+        );
+        runRetentionCleanup();
+        const deliveryDeferredTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count',
+          [expiredAppointmentId, expiredWaitlistId],
+        );
+        assert.equal(deliveryDeferredTargets.rows[0].appointment_count, 1,
+          'a pending delivery must defer appointment retention even after its outbox event is marked done');
+        assert.equal(deliveryDeferredTargets.rows[0].waitlist_count, 0,
+          'a completed waitlist event may be cleaned independently');
+        await tenantDb.query(
+          "UPDATE public.push_deliveries SET status = 'sent', sent_at = now() WHERE id = $1",
+          [pendingDelivery.rows[0].id],
+        );
+        runRetentionCleanup();
+        const cleanedTargets = await tenantDb.query(
+          'SELECT (SELECT count(*)::int FROM public.appointments WHERE id = $1) AS appointment_count, ' +
+          '(SELECT count(*)::int FROM public.waitlist_entries WHERE id = $2) AS waitlist_count, ' +
+          '(SELECT count(*)::int FROM public.push_subscription_targets WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS links, ' +
+          '(SELECT count(*)::int FROM public.push_target_link_capabilities WHERE tenant_id = $3 AND target_id = ANY($4::uuid[])) AS capabilities, ' +
+          '(SELECT count(*)::int FROM public.push_device_consents WHERE tenant_id = $3 AND subscription_id = $5 AND revoked_at IS NULL) AS device_consents',
+          [expiredAppointmentId, expiredWaitlistId, provisioned.id, [expiredAppointmentId, expiredWaitlistId], subscriptionId],
+        );
+        assert.equal(cleanedTargets.rows[0].appointment_count, 0);
+        assert.equal(cleanedTargets.rows[0].waitlist_count, 0);
+        assert.equal(cleanedTargets.rows[0].links, 0, 'completed targets must not leave Push subscription links behind');
+        assert.equal(cleanedTargets.rows[0].capabilities, 0, 'completed targets must not leave link capabilities behind');
+        assert.equal(cleanedTargets.rows[0].device_consents, 1, 'target cleanup must preserve device-level consent');
       } finally {
         await tenantDb.end();
       }
@@ -353,6 +663,7 @@ test('platform account lifecycle and independent marketing consents', async () =
     // Exercise ownerless/manual business visibility and the two-step deletion flow.
     const adminToken = 't'.repeat(48);
     process.env.SUPERADMIN_API_TOKEN = adminToken;
+    const adminHeaders = { authorization: `Bearer ${adminToken}` };
     const manualSlug = `manual-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const manualName = 'Manual Integration Business';
     const claimEmail = `claim-${randomUUID()}@example.test`;
@@ -404,6 +715,23 @@ test('platform account lifecycle and independent marketing consents', async () =
         await tenantAdmin.query(readFileSync('migrations/tenant-schema.sql', 'utf8'));
         const { applyTenantMigrations } = await import('../src/tenantMigrations');
         await applyTenantMigrations(tenantAdmin);
+        const manualBusinessRow = (await pool.query(
+          'SELECT id, slug, name, status, whatsapp_number, phone, email, about_text, locale, timezone, config FROM public.businesses WHERE id = $1',
+          [manualBusinessId],
+        )).rows[0];
+        await tenantAdmin.query(
+          `INSERT INTO public.businesses
+             (id, slug, name, status, whatsapp_number, phone, email, about_text, locale, timezone, config)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)`,
+          [manualBusinessRow.id, manualBusinessRow.slug, manualBusinessRow.name, manualBusinessRow.status,
+           manualBusinessRow.whatsapp_number, manualBusinessRow.phone, manualBusinessRow.email,
+           manualBusinessRow.about_text, manualBusinessRow.locale, manualBusinessRow.timezone,
+           JSON.stringify(manualBusinessRow.config)],
+        );
+        await tenantAdmin.query(
+          'INSERT INTO public.push_settings (tenant_id) VALUES ($1) ON CONFLICT (tenant_id) DO NOTHING',
+          [manualBusinessId],
+        );
       } finally {
         await tenantAdmin.end().catch(() => {});
       }
@@ -412,7 +740,81 @@ test('platform account lifecycle and independent marketing consents', async () =
         [manualBusinessId, manualDatabase],
       );
 
-      const adminHeaders = { authorization: `Bearer ${adminToken}` };
+      // Exercise the Super Admin provisioning path as well: it must produce the
+      // same contact defaults and initialize Push settings in the fresh tenant.
+      const adminProvisionSlug = `admin-integration-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+      let adminProvisioned: { id: string; database: string; slug: string } | undefined;
+      try {
+        const adminCreate = await app.inject({
+          method: 'POST',
+          url: '/api/admin/businesses',
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { name: 'Admin Provisioning Integration Business', slug: adminProvisionSlug },
+        });
+        assert.equal(adminCreate.statusCode, 201, adminCreate.body);
+        adminProvisioned = adminCreate.json() as { id: string; database: string; slug: string };
+        const adminTenantUrl = new URL(databaseUrl);
+        adminTenantUrl.pathname = `/${adminProvisioned.database}`;
+        const adminTenant = new pgModule.default.Client({ connectionString: adminTenantUrl.toString() });
+        await adminTenant.connect();
+        try {
+          const settings = await adminTenant.query(
+            'SELECT seller_enabled, customer_enabled FROM public.push_settings WHERE tenant_id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(settings.rowCount, 1, 'Super Admin provisioning must initialize Push settings');
+          assert.equal(settings.rows[0].seller_enabled, true);
+          assert.equal(settings.rows[0].customer_enabled, true);
+          const tenantBusiness = await adminTenant.query(
+            'SELECT config FROM public.businesses WHERE id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(tenantBusiness.rows[0].config.contact_options.products.crm_enabled, true);
+          assert.equal(tenantBusiness.rows[0].config.contact_options.services.calendar_enabled, true);
+
+          const startAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+          const endAt = new Date(startAt.getTime() + 30 * 60 * 1000);
+          const appointment = await adminTenant.query(
+            `INSERT INTO public.appointments
+               (tenant_id, service_name, customer_phone, start_at, end_at, source, status)
+             VALUES ($1, 'Cross-tenant Push service', '+972501234567', $2, $3, 'website', 'reserved')
+             RETURNING id`,
+            [adminProvisioned.id, startAt, endAt],
+          );
+          const targetId = appointment.rows[0].id as string;
+          const capabilityId = randomUUID();
+          const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const token = derivePushCapabilityToken(
+            adminProvisioned.id, 'appointment', targetId, capabilityId, expiresAt, process.env.PUSH_CAPABILITY_HMAC_KEY!,
+          );
+          await adminTenant.query(
+            `INSERT INTO public.push_target_link_capabilities
+               (id, tenant_id, target_type, target_id, token_hash, expires_at)
+             VALUES ($1, $2, 'appointment', $3, $4, $5)`,
+            [capabilityId, adminProvisioned.id, targetId, hashPushCapability(token), expiresAt],
+          );
+          const crossTenantConsent = await app.inject({
+            method: 'POST',
+            url: `/api/biz/${adminProvisioned.slug}/push/consent`,
+            payload: { token, explicit_consent: false, subscription: customerSubscription },
+          });
+          assert.equal(crossTenantConsent.statusCode, 403,
+            'a browser consent granted in another tenant must not be reused automatically');
+          const isolatedConsent = await adminTenant.query(
+            'SELECT count(*)::int AS n FROM public.push_device_consents WHERE tenant_id = $1',
+            [adminProvisioned.id],
+          );
+          assert.equal(isolatedConsent.rows[0].n, 0, 'device consent must remain tenant-scoped');
+        } finally {
+          await adminTenant.end();
+        }
+      } finally {
+        if (adminProvisioned) {
+          await pool.query(`DROP DATABASE IF EXISTS "${adminProvisioned.database}" WITH (FORCE)`).catch(() => {});
+          await pool.query('DELETE FROM public.businesses WHERE id = $1', [adminProvisioned.id]).catch(() => {});
+        }
+      }
+
       const legacyLinkBeforeAssociation = await app.inject({
         method: 'GET', url: `/api/admin/businesses/${manualBusinessId}/management-link`, headers: adminHeaders,
       });
@@ -478,6 +880,43 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(bearerOnlyAfterClaim.rows[0].tenant_id, null,
         'claiming a business must stop bearer-only access without changing the link');
 
+      const customDomain = `${manualSlug}.example.test`;
+      await pool.query(
+        'INSERT INTO public.business_domains (tenant_id, domain, is_verified, is_primary) VALUES ($1, $2, true, true)',
+        [manualBusinessId, customDomain],
+      );
+      const registryResourcesBefore = await pool.query(
+        'SELECT ' +
+        '(SELECT count(*)::int FROM app.tenant_databases WHERE tenant_id = $1) AS tenant_mapping, ' +
+        '(SELECT count(*)::int FROM public.access_tokens WHERE tenant_id = $1) AS access_tokens, ' +
+        '(SELECT count(*)::int FROM public.business_domains WHERE tenant_id = $1) AS domains, ' +
+        '(SELECT count(*)::int FROM public.platform_business_owners WHERE tenant_id = $1) AS owners, ' +
+        '(SELECT count(*)::int FROM public.platform_channel_entitlements WHERE tenant_id = $1) AS entitlements',
+        [manualBusinessId],
+      );
+      assert.equal(registryResourcesBefore.rows[0].tenant_mapping, 1);
+      assert.ok(registryResourcesBefore.rows[0].access_tokens > 0);
+      assert.equal(registryResourcesBefore.rows[0].domains, 1);
+      assert.equal(registryResourcesBefore.rows[0].owners, 1);
+      assert.ok(registryResourcesBefore.rows[0].entitlements > 0);
+
+      const { encryptGoogleToken } = await import('../src/googleCalendarService');
+      const googleTenant = new pgModule.default.Client({
+        connectionString: databaseUrl.replace(/\/[^/]*$/, `/${manualDatabase}`),
+      });
+      await googleTenant.connect();
+      try {
+        await googleTenant.query(
+          `INSERT INTO public.google_calendar_connections
+             (tenant_id, google_email, access_token_encrypted, refresh_token_encrypted,
+              access_token_expires_at, calendar_id, connected_at)
+           VALUES ($1, 'owner@example.test', $2, $3, now() + interval '1 hour', 'primary', now())`,
+          [manualBusinessId, encryptGoogleToken('integration-access-token'), encryptGoogleToken('integration-refresh-token')],
+        );
+      } finally {
+        await googleTenant.end();
+      }
+
       const requestResponse = await app.inject({
         method: 'POST',
         url: `/api/admin/businesses/${manualBusinessId}/deletion-request`,
@@ -494,6 +933,28 @@ test('platform account lifecycle and independent marketing consents', async () =
       });
       assert.equal(approval.statusCode, 200);
 
+      const deletionLockClient = new pgModule.default.Client({ connectionString: databaseUrl });
+      await deletionLockClient.connect();
+      try {
+        await deletionLockClient.query(
+          'SELECT pg_advisory_lock(hashtextextended($1::text, 93003))',
+          [deletionRequestId],
+        );
+        const concurrentDeletion = await app.inject({
+          method: 'POST',
+          url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { backupVerified: true, backupReference: 'railway-backup-integration-lock' },
+        });
+        assert.equal(concurrentDeletion.statusCode, 409, 'only one execution may own a deletion request at a time');
+      } finally {
+        await deletionLockClient.query(
+          'SELECT pg_advisory_unlock(hashtextextended($1::text, 93003))',
+          [deletionRequestId],
+        );
+        await deletionLockClient.end();
+      }
+
       const blockedDeletion = await app.inject({
         method: 'POST',
         url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
@@ -503,13 +964,29 @@ test('platform account lifecycle and independent marketing consents', async () =
       const databaseBeforeBackup = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [manualDatabase]);
       assert.equal(databaseBeforeBackup.rowCount, 1);
 
-      const executedDeletion = await app.inject({
-        method: 'POST',
-        url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
-        headers: { ...adminHeaders, 'content-type': 'application/json' },
-        payload: { backupVerified: true, backupReference: 'railway-backup-integration-001' },
-      });
+      const originalFetch = globalThis.fetch;
+      let revokedGoogleToken: string | null = null;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === 'https://oauth2.googleapis.com/revoke') {
+          revokedGoogleToken = new URLSearchParams(String(init?.body ?? '')).get('token');
+          return new Response(null, { status: 200 });
+        }
+        return originalFetch(input, init);
+      }) as typeof fetch;
+      let executedDeletion: Awaited<ReturnType<typeof app.inject>>;
+      try {
+        executedDeletion = await app.inject({
+          method: 'POST',
+          url: `/api/admin/deletion-requests/${deletionRequestId}/execute`,
+          headers: { ...adminHeaders, 'content-type': 'application/json' },
+          payload: { backupVerified: true, backupReference: 'railway-backup-integration-001' },
+        });
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
       assert.equal(executedDeletion.statusCode, 200);
+      assert.equal(revokedGoogleToken, 'integration-refresh-token',
+        'business deletion must revoke its Google OAuth refresh token before dropping the tenant database');
       const deletionAudit = await pool.query(
         `SELECT status, tenant_id, database_name, backup_reference, backup_verified_at
            FROM public.business_deletion_requests WHERE id = $1`,
@@ -524,6 +1001,25 @@ test('platform account lifecycle and independent marketing consents', async () =
       assert.equal(databaseAfterDeletion.rowCount, 0);
       const businessAfterDeletion = await pool.query('SELECT 1 FROM public.businesses WHERE id = $1', [manualBusinessId]);
       assert.equal(businessAfterDeletion.rowCount, 0);
+      const registryResourcesAfter = await pool.query(
+        'SELECT ' +
+        '(SELECT count(*)::int FROM app.tenant_databases WHERE tenant_id = $1) AS tenant_mapping, ' +
+        '(SELECT count(*)::int FROM public.access_tokens WHERE tenant_id = $1) AS access_tokens, ' +
+        '(SELECT count(*)::int FROM public.business_domains WHERE tenant_id = $1) AS domains, ' +
+        '(SELECT count(*)::int FROM public.platform_business_owners WHERE tenant_id = $1) AS owners, ' +
+        '(SELECT count(*)::int FROM public.platform_channel_entitlements WHERE tenant_id = $1) AS entitlements',
+        [manualBusinessId],
+      );
+      assert.deepEqual(registryResourcesAfter.rows[0], {
+        tenant_mapping: 0, access_tokens: 0, domains: 0, owners: 0, entitlements: 0,
+      });
+      const retainedOwner = await pool.query('SELECT 1 FROM public.platform_users WHERE email = $1', [claimEmail]);
+      assert.equal(retainedOwner.rowCount, 1, `deleting a business must not delete its owner's platform account`);
+      const oldManagementAccess = await pool.query(
+        'SELECT app.authorize_tenant_management($1, NULL) AS tenant_id',
+        [legacyManagementHash],
+      );
+      assert.equal(oldManagementAccess.rows[0].tenant_id, null, 'old management links must stop resolving after deletion');
     } finally {
       if (manualDatabase) await pool.query(`DROP DATABASE IF EXISTS "${manualDatabase}" WITH (FORCE)`).catch(() => {});
       if (manualBusinessId) {
@@ -531,6 +1027,54 @@ test('platform account lifecycle and independent marketing consents', async () =
         await pool.query('DELETE FROM public.businesses WHERE id = $1', [manualBusinessId]).catch(() => {});
         await pool.query('DELETE FROM public.platform_users WHERE email = $1', [claimEmail]).catch(() => {});
       }
+    }
+
+    // A provisioning rollback can leave a Registry mapping after the tenant
+    // database has already been dropped. The deletion workflow must also handle
+    // an existing but only partially initialized tenant database.
+    const partialSlug = `partial-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    const partialCreated = await pool.query(
+      'SELECT app.create_business($1, $2, NULL, $3::jsonb) AS id',
+      [partialSlug, 'Partial Tenant Integration Business', JSON.stringify({})],
+    );
+    const partialBusinessId = partialCreated.rows[0].id as string;
+    const partialDatabase = `biz_${partialBusinessId.replace(/-/g, '').slice(0, 24)}`;
+    try {
+      await pool.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [partialBusinessId]);
+      await pool.query(`CREATE DATABASE "${partialDatabase}"`);
+      await pool.query(
+        'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2)',
+        [partialBusinessId, partialDatabase],
+      );
+      const partialRequest = await app.inject({
+        method: 'POST',
+        url: `/api/admin/businesses/${partialBusinessId}/deletion-request`,
+        headers: adminHeaders,
+      });
+      assert.equal(partialRequest.statusCode, 201);
+      const partialRequestId = partialRequest.json().request.id as string;
+      const partialApproval = await app.inject({
+        method: 'PATCH',
+        url: `/api/admin/deletion-requests/${partialRequestId}/review`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { decision: 'approve', note: 'partial tenant integration test' },
+      });
+      assert.equal(partialApproval.statusCode, 200);
+      const partialDeletion = await app.inject({
+        method: 'POST',
+        url: `/api/admin/deletion-requests/${partialRequestId}/execute`,
+        headers: { ...adminHeaders, 'content-type': 'application/json' },
+        payload: { backupVerified: true, backupReference: 'railway-backup-partial-tenant-001' },
+      });
+      assert.equal(partialDeletion.statusCode, 200, partialDeletion.body);
+      const partialDbAfter = await pool.query('SELECT 1 FROM pg_database WHERE datname = $1', [partialDatabase]);
+      assert.equal(partialDbAfter.rowCount, 0, 'partially initialized tenant database must be dropped');
+      const partialBusinessAfter = await pool.query('SELECT 1 FROM public.businesses WHERE id = $1', [partialBusinessId]);
+      assert.equal(partialBusinessAfter.rowCount, 0, 'partially initialized business registry row must be removed');
+    } finally {
+      await pool.query(`DROP DATABASE IF EXISTS "${partialDatabase}" WITH (FORCE)`).catch(() => {});
+      await pool.query('DELETE FROM public.business_deletion_requests WHERE business_slug = $1', [partialSlug]).catch(() => {});
+      await pool.query('DELETE FROM public.businesses WHERE id = $1', [partialBusinessId]).catch(() => {});
     }
 
     const rejectedEmail = `no-consent-${randomUUID()}@example.test`;

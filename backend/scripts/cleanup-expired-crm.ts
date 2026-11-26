@@ -118,7 +118,7 @@ async function main() {
     }
     lockAcquired = true;
     const tenantResult = await registry.query(
-      'SELECT td.tenant_id, td.database_name, app.get_tenant_plan_code(td.tenant_id) AS plan_code FROM app.tenant_databases td ORDER BY td.tenant_id',
+      'SELECT td.tenant_id, td.database_name, app.get_tenant_plan_code(td.tenant_id) AS plan_code FROM app.tenant_databases td JOIN public.businesses b ON b.id = td.tenant_id WHERE b.status = \'active\' ORDER BY td.tenant_id',
     );
     const policyResult = await registry.query(
       'SELECT plan_code, record_type, record_status, delete_enabled, retention_days FROM public.platform_retention_policies',
@@ -148,11 +148,16 @@ async function main() {
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='waitlist_entries' AND column_name='preferred_time') AS has_preferred_time, " +
             "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='appointments' AND column_name='status_changed_at') AS has_status_changed_at, " +
             "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_appointment_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (appointment_id)%') AS has_waitlist_fk, " +
-            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_lead_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_waitlist_leads"
+            "EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid=to_regclass('public.waitlist_entries') AND conname='waitlist_entries_tenant_lead_fkey' AND pg_get_constraintdef(oid) LIKE '%ON DELETE SET NULL (lead_id)%') AS preserves_waitlist_leads, " +
+            "to_regclass('public.push_outbox') IS NOT NULL AS has_push_outbox, " +
+            "to_regclass('public.push_deliveries') IS NOT NULL AS has_push_deliveries, " +
+            "to_regclass('public.push_subscription_targets') IS NOT NULL AS has_push_targets, " +
+            "to_regclass('public.push_target_link_capabilities') IS NOT NULL AS has_push_capabilities"
           );
           const c = check.rows[0];
           if (!c?.has_closed_at || !c?.has_opened_at || !c?.preserves_appointments || !c?.has_waitlist || !c?.has_waitlist_link ||
-              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads) {
+              !c?.has_preferred_time || !c?.has_status_changed_at || !c?.has_waitlist_fk || !c?.has_waitlist_lead_link || !c?.preserves_waitlist_leads ||
+              !c?.has_push_outbox || !c?.has_push_deliveries || !c?.has_push_targets || !c?.has_push_capabilities) {
             throw new Error('Required configurable-retention migrations are incomplete.');
           }
           preflightPassed = true;
@@ -187,15 +192,21 @@ async function main() {
         const leadParams = [p.leadClosed, p.leadOpen];
         const leadCount = await db.query('SELECT count(*)::int AS n FROM public.leads WHERE ' + leadWhere, leadParams);
 
-        const appointmentWhere = "(status = 'reserved' AND $1::int IS NOT NULL AND end_at + ($1::int * interval '1 day') <= now()) " +
-          "OR (status = 'cancelled' AND $2::int IS NOT NULL AND status_changed_at + ($2::int * interval '1 day') <= now())";
+        // Do not remove a target while its outbox event or any delivery is still
+        // pending/processing. Cancellation notifications must finish first.
+        const appointmentWhere = "((a.status = 'reserved' AND $1::int IS NOT NULL AND a.end_at + ($1::int * interval '1 day') <= now()) " +
+          "OR (a.status = 'cancelled' AND $2::int IS NOT NULL AND a.status_changed_at + ($2::int * interval '1 day') <= now())) " +
+          "AND NOT EXISTS (SELECT 1 FROM public.push_outbox o WHERE o.tenant_id = app.current_tenant_id() AND o.target_type = 'appointment' AND o.target_id = a.id " +
+          "AND (o.status IN ('pending','processing') OR EXISTS (SELECT 1 FROM public.push_deliveries d WHERE d.tenant_id = o.tenant_id AND d.outbox_id = o.id AND d.status IN ('pending','processing'))))";
         const appointmentParams = [p.appointmentReserved, p.appointmentCancelled];
-        const appointmentCount = await db.query('SELECT count(*)::int AS n FROM public.appointments WHERE ' + appointmentWhere, appointmentParams);
+        const appointmentCount = await db.query('SELECT count(*)::int AS n FROM public.appointments a WHERE ' + appointmentWhere, appointmentParams);
 
-        const waitlistWhere = "(w.status = 'waiting' AND $1::int IS NOT NULL AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) + ($1::int * interval '1 day') <= now()) " +
+        const waitlistWhere = "((w.status = 'waiting' AND $1::int IS NOT NULL AND ((w.preferred_date + COALESCE(w.preferred_time, TIME '23:59:59')) AT TIME ZONE b.timezone) + ($1::int * interval '1 day') <= now()) " +
           "OR (w.status = 'rejected' AND $2::int IS NOT NULL AND w.updated_at + ($2::int * interval '1 day') <= now()) " +
           "OR (w.status = 'closed' AND $3::int IS NOT NULL AND w.updated_at + ($3::int * interval '1 day') <= now()) " +
-          "OR (w.status = 'scheduled_without_booking' AND $4::int IS NOT NULL AND w.updated_at + ($4::int * interval '1 day') <= now())";
+          "OR (w.status = 'scheduled_without_booking' AND $4::int IS NOT NULL AND w.updated_at + ($4::int * interval '1 day') <= now())) " +
+          "AND NOT EXISTS (SELECT 1 FROM public.push_outbox o WHERE o.tenant_id = app.current_tenant_id() AND o.target_type = 'waitlist' AND o.target_id = w.id " +
+          "AND (o.status IN ('pending','processing') OR EXISTS (SELECT 1 FROM public.push_deliveries d WHERE d.tenant_id = o.tenant_id AND d.outbox_id = o.id AND d.status IN ('pending','processing'))))";
         const waitlistParams = [p.waitlistWaiting, p.waitlistRejected, p.waitlistClosed, p.waitlistScheduled];
         const waitlistFrom = 'public.waitlist_entries w JOIN public.businesses b ON b.id = w.tenant_id WHERE w.tenant_id = app.current_tenant_id() AND (' + waitlistWhere + ')';
         const waitlistCount = await db.query('SELECT count(*)::int AS n FROM ' + waitlistFrom, waitlistParams);
@@ -208,9 +219,39 @@ async function main() {
             'WHERE w2.tenant_id = app.current_tenant_id() AND (' + waitlistWhere.replaceAll('w.', 'w2.') + ')) RETURNING w.id',
             waitlistParams,
           );
-          tenantWaitlistDeleted = deletedWaitlist.rowCount ?? 0;
-          const deletedAppointments = await db.query('DELETE FROM public.appointments WHERE ' + appointmentWhere + ' RETURNING id', appointmentParams);
-          tenantAppointmentsDeleted = deletedAppointments.rowCount ?? 0;
+          const deletedWaitlistIds = deletedWaitlist.rows.map((row: { id: string }) => row.id);
+          tenantWaitlistDeleted = deletedWaitlistIds.length;
+          const deletedAppointments = await db.query(
+            'DELETE FROM public.appointments a WHERE ' + appointmentWhere + ' RETURNING a.id',
+            appointmentParams,
+          );
+          const deletedAppointmentIds = deletedAppointments.rows.map((row: { id: string }) => row.id);
+          tenantAppointmentsDeleted = deletedAppointmentIds.length;
+
+          // These tables intentionally have no FK to appointments/waitlist because
+          // they must survive long enough to deliver cancellation/scheduling events.
+          // Once retention is eligible and no delivery is pending, remove the now
+          // useless target links and short-lived capabilities.
+          if (deletedWaitlistIds.length) {
+            await db.query(
+              "DELETE FROM public.push_subscription_targets WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = ANY($1::uuid[])",
+              [deletedWaitlistIds],
+            );
+            await db.query(
+              "DELETE FROM public.push_target_link_capabilities WHERE tenant_id = app.current_tenant_id() AND target_type = 'waitlist' AND target_id = ANY($1::uuid[])",
+              [deletedWaitlistIds],
+            );
+          }
+          if (deletedAppointmentIds.length) {
+            await db.query(
+              "DELETE FROM public.push_subscription_targets WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = ANY($1::uuid[])",
+              [deletedAppointmentIds],
+            );
+            await db.query(
+              "DELETE FROM public.push_target_link_capabilities WHERE tenant_id = app.current_tenant_id() AND target_type = 'appointment' AND target_id = ANY($1::uuid[])",
+              [deletedAppointmentIds],
+            );
+          }
           const deletedLeads = await db.query('DELETE FROM public.leads WHERE ' + leadWhere + ' RETURNING id', leadParams);
           tenantLeadsDeleted = deletedLeads.rowCount ?? 0;
         }

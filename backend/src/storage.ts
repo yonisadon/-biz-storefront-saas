@@ -55,9 +55,15 @@ function s3Storage(): Storage {
     },
     async remove(keys) {
       if (!keys.length) return;
-      await s3.send(new DeleteObjectsCommand({
+      const result = await s3.send(new DeleteObjectsCommand({
         Bucket, Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
       }));
+      // S3 may return HTTP 200 while reporting per-object deletion failures.
+      // Treat those as real failures so business deletion remains retryable and
+      // never drops the tenant DB while media objects are still present.
+      if (result.Errors?.length) {
+        throw new Error(`storage_delete_partial_failure:${result.Errors.length}`);
+      }
     },
   };
 }

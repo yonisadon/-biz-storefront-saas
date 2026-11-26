@@ -8,6 +8,7 @@
 - [ ] Registry migration 006 הוחלה בהצלחה.
 - [ ] Tenant migration 013 הוחלה על כל ה-tenants בסביבת הבדיקות.
 - [ ] עסק חדש שנוצר אחרי המיגרציות קיבל Push entitlement=true ו-WhatsApp/SMS=false.
+- [ ] אחרי provisioning מלא, כולל INSERT של tenant business row, קיימת גם רשומת `push_settings` עם ברירות המחדל seller_enabled/customer_enabled=true.
 - [ ] הוגדרו secrets ב-backend: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, WEB_PUSH_VAPID_SUBJECT, PUSH_SUBSCRIPTION_ENCRYPTION_KEY, PUSH_CAPABILITY_HMAC_KEY.
 - [ ] הוגדר Cron חיצוני ל-npm run process-push-outbox כל 30 דקות.
 - [ ] נבדק ש-Service Worker מעודכן ופעיל ב-origin של סביבת הבדיקות.
@@ -32,8 +33,9 @@
 - [ ] יצירת הזמנה אינה שולחת Push ללקוח.
 - [ ] מסך ההצלחה מציג opt-in ללקוח רק אם customer_enabled, entitlement והגדרות Push זמינות.
 - [ ] אישור הרשאת דפדפן ללא לחיצה על opt-in להזמנה אינו יוצר consent להזמנה.
-- [ ] opt-in מפורש יוצר push_consents עבור ה-appointment המסוים.
-- [ ] opt-in להזמנה A אינו מאשר Push להזמנה B.
+- [ ] opt-in מפורש יוצר `push_device_consents` לפי tenant+subscription וגם קישור target להזמנה A.
+- [ ] הזמנה B מאותו דפדפן ואותו עסק מקושרת בשקט להסכמה הקיימת, ללא prompt נוסף.
+- [ ] אותה הרשמת דפדפן בעסק אחר אינה מקבלת הסכמה אוטומטית לאותו עסק אחר.
 - [ ] idempotent retry של אותה הזמנה מחזיר את אותו capability token; אין token גלוי ב-DB או בלוגים.
 - [ ] עדכון אמיתי של תור אתר שולח Push ללקוח שהסכים לאותה הזמנה.
 - [ ] ביטול דרך ניהול העסק שולח Push ללקוח שהסכים לאותה הזמנה.
@@ -44,7 +46,7 @@
 ## 4. רשימת המתנה
 
 - [ ] בקשת המתנה חדשה יוצרת seller event ו-capability token, אך לא שולחת Push ללקוח כשהבקשה עדיין ממתינה.
-- [ ] opt-in מפורש לבקשת המתנה יוצר consent ל-target מסוג waitlist.
+- [ ] opt-in מפורש לבקשת המתנה יוצר הסכמה קבועה לפי tenant+subscription וקישור target מסוג waitlist.
 - [ ] שיבוץ בקשת המתנה לתור מעביר capability ו-consent ל-target מסוג appointment.
 - [ ] שיבוץ לאחר opt-in שולח customer.waitlist_scheduled.
 - [ ] שיבוץ לפני opt-in משאיר את האירוע pending כל עוד capability בתוקף; opt-in מאוחר מפעיל ניסיון שליחה מיידי.
@@ -59,11 +61,23 @@
 - [ ] כיבוי seller_enabled מונע הודעות למוכר אך אינו פוגע ב-customer subscriptions באותו דפדפן.
 - [ ] הסרת מכשיר מקהל המוכר אינה קוראת ל-PushSubscription.unsubscribe ואינה מבטלת הסכמות לקוח נפרדות.
 - [ ] כיבוי customer_enabled מונע opt-in חדש ושליחה ללקוחות.
+- [ ] ביטול consent בעסק A אינו מבטל consent או subscriptions של אותו דפדפן בעסק B.
+- [ ] ביטול consent ולאחריו הפעלה מחדש מאפשרים opt-in מפורש מחדש באותו דפדפן.
 - [ ] הסרת entitlement על ידי סופר אדמין עוצרת שליחה בלי למחוק subscriptions או העדפות.
 - [ ] החזרת entitlement מאפשרת שליחה עתידית לפי ההעדפות שנשמרו.
 - [ ] 404/410 מהספק מנטרלים subscription.
 - [ ] subscription לא תקף או consent שבוטל אינם משאירים delivery pending ללא סוף.
 - [ ] endpoint לא מוכר או URL מקומי נדחה; אין SSRF לכתובת שרירותית.
+
+### iPhone / iPad (iOS Web Push)
+- [ ] ב-Safari רגיל ב-iPhone/iPad לא מוצג כפתור opt-in שאינו יכול לעבוד; מוצגת הדרכה להוספה למסך הבית.
+- [ ] התקנת אתר הלקוח למסך הבית יוצרת Home Screen web app עם `display: standalone` ו-Service Worker פעיל.
+- [ ] ב-iOS/iPadOS 16.4 ומעלה, פתיחת האתר מהסמל במסך הבית מאפשרת opt-in מתוך לחיצה מפורשת של המשתמש.
+- [ ] הזמנה ובקשת המתנה שנוצרו מתוך ה-PWA באייפון מקושרות ל-device consent ונשלחת אליהן התראת Push אמיתית.
+- [ ] התראה מתקבלת כשה-PWA ברקע/סגור, נפתחת לכתובת הנכונה בלחיצה, ומוצגת מיד עם קבלת אירוע ה-push.
+- [ ] נבדקו iOS/iPadOS מתחת ל-16.4: אין ניסיון הרשמה שגוי ומוצגת הודעת אי-תמיכה ברורה.
+- [ ] נבדק גם Push למוכר מתוך אזור הניהול שהותקן למסך הבית באייפון.
+- [ ] הובהר שהזמנה שבוצעה בטאב Safari לפני ההתקנה אינה מקושרת אוטומטית ל-PWA, בגלל הפרדת האחסון של Home Screen web apps.
 
 ## 6. Outbox ו-Recovery
 
@@ -78,7 +92,27 @@
 - [ ] נבדק ש-TTL אצל ספק Push הוא 24 שעות.
 - [ ] נבדק ש-click על notification פותח רק URL מאותו origin.
 
-## 7. Cold start ו-CRM cleanup
+## 7. Provisioning ומחיקת עסק
+
+- [ ] יצירת עסק חדש יוצרת Registry business במצב suspended עד שכל משאבי tenant מוכנים.
+- [ ] tenant DB חדש כולל schema, migrations, business row, `push_settings`, entitlement, access token וקישור `tenant_databases`.
+- [ ] העסק מתפרסם כ-active רק לאחר שכל השלבים הושלמו.
+- [ ] כשל בכל שלב אחרי יצירת Registry row מנסה למחוק את tenant DB ואת רשומות ה-Registry שנוצרו.
+- [ ] כשל ב-compensating cleanup אינו נבלע: העסק נשאר suspended וממופה כך שניתן לזהות ולמחוק אותו בבטחה.
+- [ ] retry לאחר כשל provisioning אינו יוצר DB, slug, access token או mapping כפולים.
+- [ ] בקשת מחיקה מאושרת מקפיאה את העסק ומונעת שימוש בקישורי ניהול קיימים.
+- [ ] שתי בקשות execute מקבילות לאותה בקשת מחיקה: רק אחת מבצעת מחיקה.
+- [ ] manifest של database name וכל media storage variants נשמר לפני מחיקת storage או DB.
+- [ ] ספק S3 שמחזיר HTTP 200 עם `Errors` חלקיים גורם למחיקה להיכשל ולהישאר retryable; מסד הנתונים לא נמחק לפני שכל אובייקטי המדיה נמחקו.
+- [ ] כשל לאחר מחיקת storage, לאחר DROP DATABASE או במהלך מחיקת Registry ניתן להשלמה באמצעות retry.
+- [ ] tenant DB חלקי ללא `media_assets` עדיין ניתן למחיקה בטוחה.
+- [ ] אם קיים חיבור Google Calendar, המחיקה מבטלת את OAuth refresh token לפני DROP DATABASE; אירועים שכבר נוצרו נשארים ביומן Google, בהתאם להתנהגות ניתוק החיבור הקיימת.
+- [ ] מחיקת עסק מסירה את tenant DB, media objects, tenant mapping, access tokens, domains, entitlements, subscriptions, owners ויתר רשומות ה-Registry התלויות לפי FK.
+- [ ] אחרי מחיקה, slug, management link ו-session ישנים אינם פותחים את העסק.
+- [ ] מחיקת עסק אחד אינה משנה נתונים או משאבים של עסק אחר.
+- [ ] יצירת עסק חדש עם slug שהיה בשימוש בעסק שנמחק מתנהגת לפי מדיניות ה-slug הייחודית.
+
+## 8. Cold start ו-CRM cleanup
 
 - [ ] DB במצב sleep: גם אם חיבור PostgreSQL נפתח אך שאילתת `SELECT 1` ראשונה נכשלת זמנית, בדיקת readiness מתחברת מחדש; רק לאחר הצלחת probe נרכש advisory lock וה-cleanup ממשיך.
 - [ ] כשל transient בשאילתת preflight של Tenant לאחר פתיחת החיבור גורם לחיבור מחדש ולניסיון חוזר; לא מתחילות מחיקות עד שכל ה-tenants עברו preflight.
@@ -90,7 +124,7 @@
 - [ ] retention days נלקחים מ-public.platform_retention_policies; לא קיימת תקופת retention hardcoded.
 - [ ] Cron נכשל מחזיר exit code 1; הצלחה מחזירה 0.
 
-## 8. Onboarding ו-regression
+## 9. Onboarding ו-regression
 
 - [ ] מוכר חדש שנרשם עצמאית מגיע ל-Dashboard ורואה מדריך הקמה.
 - [ ] עסק שהוקם על ידי סופר אדמין וחובר לחשבון מקבל אותה חוויית onboarding.
@@ -104,7 +138,11 @@
 - [ ] אין שינוי בזרימת הקמת עסק קיימת, חיבור עסק לחשבון או redirect.
 - [ ] בדיקת RTL, מובייל, focus, מקלדת ו-accessibility.
 
-## 9. סטטוס ביצוע
+### Onboarding / סגירת ההדרכה
+- [ ] סגירת הדרכת העסק שומרת את מצב הסגירה בשרת; לאחר רענון, התנתקות והתחברות מחדש ההדרכה אינה מופיעה שוב אוטומטית.
+- [ ] לאחר סגירה ניתן לפתוח את המדריך מחדש רק דרך כפתור „הצגת מדריך ההקמה שוב”.
+
+## 10. סטטוס ביצוע
 
 - [x] Backend build/tests.
 - [x] Web build/lint.

@@ -535,6 +535,26 @@ export const publicRoutes = (resolver: preHandlerAsyncHookHandler): FastifyPlugi
             if (!body.customer_phone) throw new HttpError(400, 'contact_required');
             if (!body.appointment_at) throw new HttpError(400, 'appointment_required');
             if (serviceDurationMinutes <= 0 || serviceDurationMinutes > 480) throw new HttpError(400, 'invalid_appointment_time');
+
+            // Match the lock used by POST /appointment-blocks. This closes the
+            // race where a block is created after availability was checked but
+            // before the customer reservation is inserted.
+            await db.query(
+              "SELECT pg_advisory_xact_lock(hashtextextended(app.current_tenant_id()::text, 724110))",
+            );
+            const blocked = await db.query(
+              `SELECT EXISTS (
+                 SELECT 1 FROM appointment_blocks b
+                  WHERE tstzrange(b.start_at, b.end_at, '[)') &&
+                        tstzrange(($1::timestamp AT TIME ZONE $2),
+                          (($1::timestamp AT TIME ZONE $2) + ($3::int * interval '1 minute')), '[)')
+               ) AS blocked`,
+              [body.appointment_at, biz.timezone, serviceDurationMinutes],
+            );
+            if (blocked.rows[0]?.blocked === true) {
+              throw new HttpError(409, 'slot_blocked', 'המועד נחסם בינתיים. בחרו מועד אחר.');
+            }
+
             const appointmentError = validateAppointmentSelection({
               needsAppointment: true,
               appointmentAt: body.appointment_at,

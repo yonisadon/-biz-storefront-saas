@@ -14,15 +14,27 @@ type TimeBlock = { id: string; start_at: string; end_at: string; reason: string 
 type CalendarResponse = { date: string; timezone: string; appointments: Appointment[]; blocks: TimeBlock[] };
 type OpeningRange = { open: string; close: string };
 
-function todayLocal() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+function dateTimeInTimezone(timezone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`;
+}
+function todayInTimezone(timezone: string) {
+  return dateTimeInTimezone(timezone).slice(0, 10);
 }
 function localLabel(value: string) { return value.slice(11, 16); }
 function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string) {
   return aStart < bEnd && bStart < aEnd;
 }
-function slotsFor(date: string, duration: number, ranges: OpeningRange[], appointments: Appointment[], blocks: TimeBlock[]) {
+function slotsFor(date: string, duration: number, ranges: OpeningRange[], appointments: Appointment[], blocks: TimeBlock[], localNow: string) {
   const result: string[] = [];
   const mins = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
   for (const range of ranges) {
@@ -33,6 +45,7 @@ function slotsFor(date: string, duration: number, ranges: OpeningRange[], appoin
       const start = `${date}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
       const endM = m + duration;
       const end = `${date}T${String(Math.floor(endM / 60)).padStart(2, '0')}:${String(endM % 60).padStart(2, '0')}`;
+      if (date === localNow.slice(0, 10) && start <= localNow) continue;
       if (appointments.some((a) => a.status === 'reserved' && overlaps(start, end, a.start_at, a.end_at))) continue;
       if (blocks.some((b) => overlaps(start, end, b.start_at, b.end_at))) continue;
       result.push(start);
@@ -42,7 +55,7 @@ function slotsFor(date: string, duration: number, ranges: OpeningRange[], appoin
 }
 
 export default function CalendarPanel({ token, biz }: { token: string; biz: ManageBusiness }) {
-  const [date, setDate] = useState(todayLocal);
+  const [date, setDate] = useState(() => todayInTimezone(biz.timezone || 'Asia/Jerusalem'));
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [calendar, setCalendar] = useState<CalendarResponse | null>(null);
   const [products, setProducts] = useState<MProduct[]>([]);
@@ -130,9 +143,11 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
     const value = (days as Record<string, unknown>)[weekday];
     return Array.isArray(value) ? value.filter((r): r is OpeningRange => !!r && typeof r === 'object' && typeof (r as OpeningRange).open === 'string' && typeof (r as OpeningRange).close === 'string') : [];
   }, [biz.config, date]);
+  const calendarTimezone = calendar?.timezone || biz.timezone || 'Asia/Jerusalem';
+  const localNow = dateTimeInTimezone(calendarTimezone);
   const freeSlots = useMemo(() => service && calendar
-    ? slotsFor(date, service.appointment_duration_minutes || 30, ranges, selectedAppointments, selectedBlocks)
-    : [], [service, calendar, selectedAppointments, selectedBlocks, date, ranges]);
+    ? slotsFor(date, service.appointment_duration_minutes || 30, ranges, selectedAppointments, selectedBlocks, localNow)
+    : [], [service, calendar, selectedAppointments, selectedBlocks, date, ranges, localNow]);
 
   async function createAppointment() {
     if (!serviceId || !phone.trim() || !startTime) return setError('יש לבחור שירות, להזין טלפון ולבחור שעה פנויה.');
@@ -229,7 +244,7 @@ export default function CalendarPanel({ token, biz }: { token: string; biz: Mana
           <div className="min-w-0 text-center"><p className="truncate text-sm font-semibold">{viewMode === 'month' ? new Intl.DateTimeFormat('he-IL',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(date.slice(0,7)+'-01T12:00:00Z')) : selectedDateLabel}</p><label className="sr-only" htmlFor="seller-calendar-date">בחירת תאריך</label><input id="seller-calendar-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${field} mt-1 w-full max-w-48`}/></div>
           <button type="button" onClick={() => moveDate(1)} aria-label="הבא" className="grid h-10 w-10 place-items-center rounded-full border border-gray-300 bg-white">›</button>
         </div>
-        <div className="flex items-center gap-2"><button type="button" onClick={() => {setDate(todayLocal());setViewMode('day');}} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">היום</button><button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button></div>
+        <div className="flex items-center gap-2"><button type="button" onClick={() => {setDate(todayInTimezone(calendarTimezone));setViewMode('day');}} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold">היום</button><button type="button" onClick={() => void load()} disabled={busy} className="min-h-10 flex-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm">רענון</button></div>
       </div>
     </div>
     {viewMode === 'month' && <div className="rounded-2xl border border-gray-200 bg-white p-3"><div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500">{['ב׳','ג׳','ד׳','ה׳','ו׳','ש׳','א׳'].map((x) => <span key={x}>{x}</span>)}</div><div className="grid grid-cols-7 gap-1">{visibleDates.map((day) => { const events = (calendar?.appointments ?? []).filter((a) => a.start_at.slice(0,10) === day && a.status === 'reserved'); return <button key={day} type="button" onClick={() => {setDate(day);setViewMode('day');}} aria-pressed={date === day} className={`min-h-16 rounded-xl border p-1 text-center ${date === day ? 'border-gray-900 bg-primary text-primary-fg' : 'border-gray-100 bg-white'}`}><span className="text-sm font-semibold">{Number(day.slice(8,10))}</span><span className={`mt-1 block text-[10px] ${date === day ? 'text-primary-fg/75' : 'text-gray-500'}`}>{events.length ? `${events.length} תורים` : '—'}</span>{events.slice(0,2).map((event) => <span key={event.id} className={`mt-1 block truncate rounded px-1 text-[9px] ${date === day ? 'bg-white/15' : 'bg-blue-50 text-blue-800'}`}>{localLabel(event.start_at)} {event.service_name}</span>)}</button>;})}</div></div>}

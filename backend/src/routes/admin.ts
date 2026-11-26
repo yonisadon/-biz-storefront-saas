@@ -13,6 +13,7 @@ import { applyTenantMigrations } from '../tenantMigrations';
 import { normalizeDomain } from '../domain';
 import { storage, variantKeys } from '../storage';
 import { sendBrevoEmail } from '../email';
+import { decryptGoogleToken, isGoogleCalendarConfigured } from '../googleCalendarService';
 import { createManagementToken, decryptManagementToken, encryptManagementToken, extractManagementTokenFromUrl, managementTokenMatches } from '../managementTokenCrypto';
 
 const CreateBusiness = z.object({
@@ -386,7 +387,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     let tenantAdmin: pg.Client | undefined;
     let tenantId: string | undefined;
     let databaseName: string | undefined;
-    let databaseCreated = false;
 
     try {
       // Both connections can race PostgreSQL's wake-up after a quiet period.
@@ -431,7 +431,6 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       // Database identifiers are generated from the server-created UUID, never user input.
       databaseName = `biz_${tenantId.replace(/-/g, '').slice(0, 24)}`;
       await databaseAdmin.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
-      databaseCreated = true;
       await databaseAdmin.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(databaseName)} TO app_runtime, app_superadmin`);
 
       tenantAdmin = await connectClientWithRetry(
@@ -461,6 +460,15 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
          b.about_text, b.locale, b.timezone, JSON.stringify(b.config)],
       );
 
+      // tenant-schema and migration 013 run before the tenant business row exists,
+      // so their initial backfill cannot create this tenant's Push defaults.
+      // Create them only after the tenant row is present; do not rely on a later
+      // seller settings page request to initialize public customer Push config.
+      await tenantAdmin.query(
+        'INSERT INTO public.push_settings (tenant_id) VALUES ($1) ON CONFLICT (tenant_id) DO NOTHING',
+        [tenantId],
+      );
+
       // The registry DB resolves public slugs and seller tokens; only business data
       // and day-to-day operations live in the dedicated business database.
       const managementToken = createManagementToken();
@@ -487,14 +495,64 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
         status: 'active',
       });
     } catch (err) {
-      // Provisioning is all-or-nothing from the user's perspective. Clean up a
-      // partially created DB/business so a retry doesn't leave orphan resources.
-      if (tenantAdmin) await tenantAdmin.end().catch(() => {});
-      if (databaseCreated && databaseName && databaseAdmin) {
-        await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`).catch(() => {});
+      // Provisioning uses compensating cleanup across two databases, so a
+      // failure cannot be globally atomic. Never hide a failed compensation:
+      // keep the registry business suspended and mapped so an operator can
+      // safely retry deletion instead of leaving an invisible orphan database.
+      if (tenantAdmin) {
+        await tenantAdmin.end().catch((cleanupErr) => {
+          req.log.error({ err: cleanupErr, tenantId }, 'tenant connection close failed during provisioning rollback');
+        });
+        tenantAdmin = undefined;
       }
+
+      let cleanupFailed = false;
+      if (databaseName && databaseAdmin) {
+        try {
+          // Try even when CREATE DATABASE returned an ambiguous network error:
+          // the generated name belongs only to the UUID created in this request.
+          await databaseAdmin.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)} WITH (FORCE)`);
+        } catch (cleanupErr) {
+          cleanupFailed = true;
+          req.log.error({ err: cleanupErr, tenantId, databaseName }, 'tenant database cleanup failed; preserving suspended registry record');
+        }
+      }
+
       if (tenantId && registry) {
-        await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]).catch(() => {});
+        if (cleanupFailed && databaseName) {
+          try {
+            await registry.query(
+              'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+              [tenantId, databaseName],
+            );
+            await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]);
+          } catch (cleanupErr) {
+            req.log.error({ err: cleanupErr, tenantId, databaseName }, 'could not preserve failed provisioning record for operator recovery');
+          }
+        } else {
+          try {
+            await registry.query('DELETE FROM public.businesses WHERE id = $1', [tenantId]);
+          } catch (cleanupErr) {
+            cleanupFailed = true;
+            req.log.error({ err: cleanupErr, tenantId }, 'registry cleanup failed during provisioning rollback');
+            if (databaseName) {
+              await registry.query(
+                'INSERT INTO app.tenant_databases (tenant_id, database_name) VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE SET database_name = EXCLUDED.database_name',
+                [tenantId, databaseName],
+              ).catch((preserveErr) => {
+                req.log.error({ err: preserveErr, tenantId, databaseName }, 'could not preserve tenant database mapping for recovery');
+              });
+            }
+            await registry.query("UPDATE public.businesses SET status = 'suspended' WHERE id = $1", [tenantId]).catch((preserveErr) => {
+              req.log.error({ err: preserveErr, tenantId }, 'could not suspend partially provisioned business');
+            });
+          }
+        }
+      }
+
+      if (cleanupFailed) {
+        throw new HttpError(500, 'business_provisioning_cleanup_pending',
+          'Business setup failed and automatic cleanup could not be completed. The business was kept suspended for safe recovery.');
       }
       if ((err as { code?: string }).code === '23505') {
         throw new HttpError(409, 'slug_already_exists');
@@ -913,8 +971,17 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     let registry: pg.Client | undefined;
     let databaseAdmin: pg.Client | undefined;
     let tenant: pg.Client | undefined;
+    let deletionLockAcquired = false;
     try {
       registry = await connectClientWithRetry(env.SUPERADMIN_DATABASE_URL, options);
+      const deletionLock = await registry.query(
+        'SELECT pg_try_advisory_lock(hashtextextended($1::text, 93003)) AS locked',
+        [requestId],
+      );
+      if (deletionLock.rows[0]?.locked !== true) {
+        throw new HttpError(409, 'business_deletion_in_progress', 'מחיקת העסק כבר מתבצעת. נסו שוב לאחר סיומה.');
+      }
+      deletionLockAcquired = true;
       const selected = await registry.query(
         `SELECT id, tenant_id, business_name, business_slug, database_name, storage_keys, status
            FROM public.business_deletion_requests WHERE id = $1 LIMIT 1`,
@@ -940,17 +1007,80 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
       let storageKeys = Array.isArray(request.storage_keys) ? request.storage_keys as string[] : [];
       if (!databaseName && request.tenant_id) {
         databaseName = await getTenantDatabase(registry, request.tenant_id);
-        tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
-        const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
-        storageKeys = [...new Set(assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)))];
-        await tenant.end();
-        tenant = undefined;
-        // Persist the cleanup manifest before touching storage or dropping the DB,
-        // so an interrupted deletion can be retried safely.
+      }
+      if (databaseName) {
+        // A failed provisioning rollback may have left a Registry mapping after
+        // successfully dropping the tenant DB. Treat that as an empty tenant,
+        // not as an unconnectable database that blocks recovery forever.
+        const databaseExists = await registry.query(
+          'SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1) AS exists',
+          [databaseName],
+        );
+        if (databaseExists.rows[0]?.exists === true) {
+          tenant = await connectClientWithRetry(databaseUrl(env.DATABASE_ADMIN_URL, databaseName), options);
+          try {
+            const mediaAssetsTable = await tenant.query(
+              "SELECT to_regclass('public.media_assets') IS NOT NULL AS exists",
+            );
+            if (mediaAssetsTable.rows[0]?.exists === true) {
+              const assets = await tenant.query('SELECT storage_key FROM public.media_assets ORDER BY storage_key');
+              storageKeys = [...new Set([
+                ...storageKeys,
+                ...assets.rows.flatMap((row: { storage_key: string }) => variantKeys(row.storage_key)),
+              ])];
+            }
+
+            // Revoke Google OAuth before dropping the tenant database. Match the
+            // existing disconnect policy: revoke BTime access, but leave events
+            // already created in the user's Google Calendar untouched.
+            const googleTable = await tenant.query(
+              "SELECT to_regclass('public.google_calendar_connections') IS NOT NULL AS exists",
+            );
+            if (googleTable.rows[0]?.exists === true) {
+              const googleConnection = await tenant.query(
+                'SELECT refresh_token_encrypted FROM public.google_calendar_connections WHERE tenant_id = $1',
+                [request.tenant_id],
+              );
+              if (googleConnection.rows[0]) {
+                if (!isGoogleCalendarConfigured()) {
+                  throw new HttpError(503, 'google_calendar_revocation_not_configured',
+                    'לעסק יש חיבור Google Calendar פעיל, אך הגדרות הביטול אינן זמינות. המחיקה נעצרה כדי לא להשאיר הרשאה חיצונית פעילה.');
+                }
+                const refreshToken = decryptGoogleToken(googleConnection.rows[0].refresh_token_encrypted as string);
+                const revokeResponse = await fetch('https://oauth2.googleapis.com/revoke', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                  body: new URLSearchParams({ token: refreshToken }),
+                  signal: AbortSignal.timeout(12_000),
+                });
+                if (!revokeResponse.ok && revokeResponse.status !== 400) {
+                  throw new HttpError(502, 'google_calendar_revocation_failed',
+                    'לא הצלחנו לבטל את הרשאת Google Calendar. אפשר לנסות שוב; העסק עדיין לא נמחק.');
+                }
+              }
+            }
+          } finally {
+            await tenant.end();
+            tenant = undefined;
+          }
+        }
+        // Persist the complete manifest before touching storage or dropping the DB.
+        // Re-read media_assets on every retry while the tenant DB still exists, so
+        // older/incomplete manifests cannot leave untracked objects behind.
         await registry.query(
           'UPDATE public.business_deletion_requests SET database_name = $2, storage_keys = $3::jsonb WHERE id = $1',
           [requestId, databaseName, JSON.stringify(storageKeys)],
         );
+      }
+
+      if (!databaseName || !/^biz_[a-f0-9]{24}$/.test(databaseName)) {
+        throw new HttpError(409, 'tenant_database_mapping_missing', 'לא נמצא מיפוי תקין למסד הנתונים של העסק; המחיקה נעצרה כדי לא למחוק משאב שגוי.');
+      }
+      if (request.tenant_id) {
+        const expectedDatabaseName = 'biz_' + String(request.tenant_id).replace(/-/g, '').slice(0, 24);
+        if (databaseName !== expectedDatabaseName) {
+          throw new HttpError(409, 'tenant_database_mapping_mismatch', 'מיפוי מסד הנתונים אינו תואם לעסק; המחיקה נעצרה.');
+        }
       }
 
       for (let offset = 0; offset < storageKeys.length; offset += 1000) {
@@ -992,6 +1122,12 @@ export const adminRoutes: FastifyPluginAsync = async (app) => {
     } finally {
       if (tenant) await tenant.end().catch(() => {});
       if (databaseAdmin) await databaseAdmin.end().catch(() => {});
+      if (registry && deletionLockAcquired) {
+        await registry.query(
+          'SELECT pg_advisory_unlock(hashtextextended($1::text, 93003))',
+          [requestId],
+        ).catch(() => {});
+      }
       if (registry) await registry.end().catch(() => {});
     }
   });

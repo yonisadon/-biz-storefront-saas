@@ -278,6 +278,11 @@ export const appointmentRoutes: FastifyPluginAsync = async (app) => {
     const input = BlockInput.parse(req.body);
     if (input.end_at <= input.start_at) throw new HttpError(400, 'invalid_block_range');
     const block = await withTenant(req.tenantId, async (db) => {
+      // Serialize block creation with public customer reservations for this tenant.
+      // The public reservation path takes the same transaction-scoped advisory lock.
+      await db.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended(app.current_tenant_id()::text, 724110))",
+      );
       const biz = (await db.query('SELECT timezone FROM businesses WHERE id = app.current_tenant_id()')).rows[0];
       if (!biz) throw new HttpError(404, 'not_found');
       const created = (await db.query(
