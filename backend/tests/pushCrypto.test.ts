@@ -73,6 +73,7 @@ test('Push endpoint allowlist accepts known providers and rejects arbitrary or l
 
 test('VAPID JWT uses the endpoint origin and a verifiable ES256 signature', () => {
   const keys = generateVapidKeys();
+  assert.equal(fromB64u(keys.privateKey).length, 32);
   const endpoint = 'https://push.example.test/send/abc';
   const jwt = createVapidJwt(endpoint, 'mailto:push@example.test', keys.publicKey, keys.privateKey, 1_800_000_000);
   const [header, payload, signature] = jwt.split('.');
