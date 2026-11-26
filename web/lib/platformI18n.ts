@@ -160,6 +160,12 @@ export const PLATFORM_MESSAGES = {
     nightShiftUnsupported: 'שעת הסיום חייבת להיות אחרי שעת ההתחלה (משמרת לילה אינה נתמכת).', timeRangesOverlap: 'טווחי השעות חופפים.',
     hoursSavedWithBookings: 'שעות הפעילות נשמרו. קיימים תורים משוריינים עתידיים; הם נשארו בתוקף. בדקו ידנית אם הם מתנגשים עם השעות החדשות.',
 
+        fontStyleTitle: 'סגנון כתב באתר', businessNameColor: 'צבע שם העסק', brandColor: 'צבע המותג', black: 'שחור', saveDesign: 'שמירת העיצוב',
+    fontStyleHint: 'בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות את הבחירה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.',
+    modern: 'מודרני', cleanClear: 'נקי וברור', sharpBalanced: 'חד ומאוזן', rounded: 'מעוגל', friendly: 'נעים וחברותי', softAccessible: 'רך ונגיש',
+    elegant: 'אלגנטי', beautyDetails: 'יופי בפרטים', characterHeadings: 'כותרות עם אופי', warm: 'חמים', businessWithHeart: 'עסק עם לב', personalInviting: 'אישי ומזמין',
+    businessNameColorHint: 'הבחירה משפיעה רק על שם העסק בראש האתר. אפשר לשנות אותה בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.',
+
     showPassword: 'הצגת סיסמה', hidePassword: 'הסתרת סיסמה',
   },
   en: {
@@ -321,6 +327,12 @@ export const PLATFORM_MESSAGES = {
     nightShiftUnsupported: 'The end time must be after the start time (overnight shifts are not supported).', timeRangesOverlap: 'Time ranges overlap.',
     hoursSavedWithBookings: 'Business hours saved. Existing future appointments remain booked. Please check manually whether they conflict with the new hours.',
 
+        fontStyleTitle: 'Website typography', businessNameColor: 'Business name color', brandColor: 'Brand color', black: 'Black', saveDesign: 'Save design',
+    fontStyleHint: 'Choose a consistent style for the business name, headings and text. You can change it later in the Website design tab of the management link.',
+    modern: 'Modern', cleanClear: 'Clean and clear', sharpBalanced: 'Sharp and balanced', rounded: 'Rounded', friendly: 'Friendly', softAccessible: 'Soft and accessible',
+    elegant: 'Elegant', beautyDetails: 'Beauty in the details', characterHeadings: 'Distinctive headings', warm: 'Warm', businessWithHeart: 'A business with heart', personalInviting: 'Personal and welcoming',
+    businessNameColorHint: 'This choice affects only the business name at the top of the website. You can change it at any time in the Website design tab of the management link.',
+
     showPassword: 'Show password', hidePassword: 'Hide password',
   },
   ru: {
@@ -481,6 +493,12 @@ export const PLATFORM_MESSAGES = {
     bannerMessage: 'Текст баннера', bannerPlaceholder: 'Сейчас мы закрыты. Оставьте сообщение, и мы ответим в рабочее время.',
     nightShiftUnsupported: 'Время окончания должно быть позже времени начала (ночные смены не поддерживаются).', timeRangesOverlap: 'Временные интервалы пересекаются.',
     hoursSavedWithBookings: 'Часы работы сохранены. Существующие будущие записи остаются действительными. Проверьте вручную, не конфликтуют ли они с новым расписанием.',
+
+        fontStyleTitle: 'Шрифт сайта', businessNameColor: 'Цвет названия бизнеса', brandColor: 'Цвет бренда', black: 'Чёрный', saveDesign: 'Сохранить дизайн',
+    fontStyleHint: 'Выберите единый стиль для названия бизнеса, заголовков и текста. Его можно изменить позже во вкладке «Дизайн сайта» панели управления.',
+    modern: 'Современный', cleanClear: 'Чистый и понятный', sharpBalanced: 'Чёткий и сбалансированный', rounded: 'Округлый', friendly: 'Дружелюбный', softAccessible: 'Мягкий и доступный',
+    elegant: 'Элегантный', beautyDetails: 'Красота в деталях', characterHeadings: 'Выразительные заголовки', warm: 'Тёплый', businessWithHeart: 'Бизнес с душой', personalInviting: 'Личный и гостеприимный',
+    businessNameColorHint: 'Этот выбор влияет только на название бизнеса в верхней части сайта. Его можно изменить в любое время во вкладке «Дизайн сайта» панели управления.',
 
     showPassword: 'Показать пароль', hidePassword: 'Скрыть пароль',
   },
