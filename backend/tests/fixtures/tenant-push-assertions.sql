@@ -175,6 +175,46 @@ BEGIN
 END
 $push_retention$;
 
+-- Bulk delivery creation remains idempotent even if the subscription input contains duplicates
+-- or the same outbox event is retried.
+DO $push_bulk_deliveries$
+DECLARE
+  v_tenant uuid := '00000000-0000-0000-0000-000000000101';
+  v_subscription uuid;
+  v_event uuid;
+  v_count integer;
+BEGIN
+  INSERT INTO public.push_subscriptions
+    (tenant_id, audience, endpoint_hash, endpoint_ciphertext, p256dh_ciphertext, auth_ciphertext)
+  VALUES
+    (v_tenant, 'seller', decode(repeat('b', 64), 'hex'), 'endpoint-bulk', 'p256dh', 'auth')
+  RETURNING id INTO v_subscription;
+
+  INSERT INTO public.push_outbox
+    (tenant_id, audience, event_type, target_type, target_id, status)
+  VALUES
+    (v_tenant, 'seller', 'seller.appointment_created', 'appointment',
+     '00000000-0000-0000-0000-000000000204', 'pending')
+  RETURNING id INTO v_event;
+
+  INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id)
+  SELECT v_tenant, v_event, selected.subscription_id
+    FROM (SELECT DISTINCT unnest(ARRAY[v_subscription, v_subscription]::uuid[]) AS subscription_id) selected
+  ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING;
+
+  INSERT INTO public.push_deliveries (tenant_id, outbox_id, subscription_id)
+  SELECT v_tenant, v_event, selected.subscription_id
+    FROM (SELECT DISTINCT unnest(ARRAY[v_subscription]::uuid[]) AS subscription_id) selected
+  ON CONFLICT (tenant_id, outbox_id, subscription_id) DO NOTHING;
+
+  SELECT count(*)::int INTO v_count FROM public.push_deliveries
+   WHERE tenant_id = v_tenant AND outbox_id = v_event;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'bulk Push delivery creation must remain idempotent and deduplicate subscriptions';
+  END IF;
+END
+$push_bulk_deliveries$;
+
 -- Verify tenant-local visibility using the same setting contract as withTenant.
 BEGIN;
 SET ROLE app_runtime;
