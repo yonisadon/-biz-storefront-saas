@@ -50,11 +50,11 @@ export default function StorefrontGallery({ images, heroId, layout = 'slider' }:
     <div
       key={image.id}
       className="absolute inset-0 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-      style={{ transform: `translateX(${(index - active) * 100}%)` }}
+      style={{ transform: `translateX(${(index - active) * (direction === 'rtl' ? -100 : 100)}%)` }}
       aria-hidden={index !== active}
     >
       <Image src={image.url} alt={image.alt || image.caption || t('galleryAlt')} fill priority={priority} sizes="(max-width: 640px) 100vw, 1024px" className="object-cover" />
-      {image.caption && <p className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-8 text-sm font-medium text-white">{image.caption}</p>}
+      {image.caption && <p dir="auto" className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-8 text-sm font-medium text-white">{image.caption}</p>}
     </div>
   );
 
