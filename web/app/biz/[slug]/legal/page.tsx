@@ -47,7 +47,7 @@ export default async function LegalPage({ params }: Props) {
       <StorefrontLanguageSwitcher />
       <a href="#legal-main" className="sr-only z-[100] rounded-md bg-white px-4 py-3 font-bold text-black focus:not-sr-only focus:fixed focus:start-3 focus:top-3 focus:outline-4 focus:outline-offset-2 focus:outline-black"><StorefrontText message="skipToMainContent" /></a>
       <main id="legal-main" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
-        <a href={ctx.base || '/'} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><StorefrontText message="legalBackToStorefront" /> {biz.business.name}</a>
+        <a href={ctx.base || '/'} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><StorefrontText message="legalBackToStorefront" /> <span dir="auto">{biz.business.name}</span></a>
         <header className="mt-5 rounded-3xl border border-ink/10 bg-white p-5 shadow-sm sm:p-8">
           <p className="text-sm font-semibold text-primary"><StorefrontText message="legalPageAttribution" /></p>
           <h1 id="legal-page-title" className="mt-2 text-3xl font-black tracking-tight sm:text-4xl"><StorefrontText message="legalAndAccessibility" /></h1>
@@ -64,7 +64,7 @@ export default async function LegalPage({ params }: Props) {
             <div className="mt-4 whitespace-pre-line break-words text-sm leading-7 text-ink/85 sm:text-base">{platformText}</div>
             {businessText && <>
               <h3 className="mt-6 border-t border-ink/10 pt-5 text-base font-bold"><StorefrontText message="legalBusinessAdditions" /></h3>
-              <div className="mt-3 whitespace-pre-line break-words text-sm leading-7 text-ink/85 sm:text-base">{businessText}</div>
+              <div dir="auto" className="mt-3 whitespace-pre-line break-words text-sm leading-7 text-ink/85 sm:text-base">{businessText}</div>
             </>}
             {doc === 'accessibility_statement' && !businessText && <p role="note" className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><StorefrontText message="legalAccessibilityMissing" /></p>}
           </section>)}
