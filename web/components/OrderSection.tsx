@@ -19,7 +19,7 @@ function errorText(status: number, d: ApiErrorPayload | null): string {
   if (status === 403) return 'הגדרות העסק השתנו מאז פתיחת האתר. רעננו את הדף ונסו שוב.';
   if (d?.error === 'appointment_required') return 'בחרו תאריך ושעה לשירות שסימנתם.';
   if (d?.error === 'invalid_appointment_time') return 'התאריך או השעה אינם זמינים בשעות הפעילות. בחרו שוב.';
-  if (d?.error === 'contact_required') return 'כדי לשמור תור ביומן, יש להזין מספר טלפון.';
+  if (d?.error === 'contact_required') return 'כדי לקבוע תור ביומן, יש להזין מספר טלפון.';
   if (d?.error === 'calendar_booking_disabled' || d?.error === 'route_disabled') return 'מסלול הפנייה הזה אינו פעיל בעסק. רעננו את הדף ונסו שוב.';
   if (d?.error === 'mixed_catalog_types' || d?.error === 'invalid_contact_flow') return 'יש לבחור מוצרים או שירותים בתהליך נפרד.';
   if (d?.error === 'whatsapp_not_configured') return 'מספר ה-WhatsApp של העסק אינו מוגדר כרגע.';
@@ -81,6 +81,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   const [searchTotal, setSearchTotal] = useState(catalogTotal);
   const [searching, setSearching] = useState(false);
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [otherCartCount, setOtherCartCount] = useState(0);
   // Keep selected item snapshots independent of the visible/search-filtered catalog page.
   const [selectedProducts, setSelectedProducts] = useState<Record<string, Product>>({});
   const [form, setForm] = useState({ name: '', phone: '', email: '', hp: '' });
@@ -411,6 +412,21 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
     .map(([id, q]) => ({ p: selectedProducts[id] ?? byId.get(id), q }))
     .filter((line): line is { p: Product; q: number } => Boolean(line.p));
   const count = lines.reduce((s, l) => s + l.q, 0);
+  useEffect(() => {
+    const onCartChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind: 'product' | 'service'; count: number }>).detail;
+      if (detail && detail.kind !== kind) setOtherCartCount(Math.max(0, detail.count));
+    };
+    window.addEventListener('btime:storefront-cart-change', onCartChange);
+    return () => window.removeEventListener('btime:storefront-cart-change', onCartChange);
+  }, [kind]);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('btime:storefront-cart-change', { detail: { kind, count } }));
+  }, [kind, count]);
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent('btime:storefront-cart-change', { detail: { kind, count: 0 } }));
+  }, [kind]);
+  const stackedOrderBar = kind === 'service' && otherCartCount > 0;
   const appointmentLines = kind === 'service' ? lines : [];
   const needsAppointment = calendarEnabled && appointmentLines.length > 0;
   const reservedAppointmentLines = appointmentLines;
@@ -616,6 +632,16 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }
 
   const input = 'mt-1 min-h-11 min-w-0 max-w-full w-full rounded-xl border border-ink/25 bg-surface px-3 py-2 text-start';
+  const openWaitlist = () => {
+    setWaitlistPreferredDate(appointmentDate);
+    setWaitlistPreferredTime(appointmentTime);
+    setWaitlistOpen(true);
+    setWaitlistError(null);
+    setWaitlistDone(false);
+    setWaitlistPushCapability(null);
+    setWaitlistPushState({ busy: false, success: false, status: null });
+  };
+
   const openContinuation = () => {
     setError(null);
     setDone(null);
@@ -627,7 +653,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   };
 
   return (
-    <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? 'pb-24' : ''}>
+    <section aria-labelledby={kind === 'product' ? 'products-h' : 'services-h'} className={count ? (otherCartCount > 0 ? 'pb-40' : 'pb-24') : ''}>
       <div className="flex items-center justify-between gap-3">
         <h2 ref={sectionHeadingRef} id={kind === 'product' ? 'products-h' : 'services-h'} tabIndex={-1} className="text-2xl font-bold">{kind === 'product' ? 'המוצרים שלנו' : 'השירותים שלנו'}</h2>
         {kind === 'service' && customerPushActive && (
@@ -637,7 +663,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         )}
       </div>
       {kind === 'service' && customerPushManageStatus && <p role="status" className="mt-2 text-xs text-ink/65">{customerPushManageStatus}</p>}
-      {(items.length > 0 || search.trim()) && <p className="mt-2 text-sm leading-6 text-ink/65">בחרו מוצר או שירות כדי להוסיף אותו להזמנה.</p>}
+      {(items.length > 0 || search.trim()) && <p className="mt-1 text-sm leading-5 text-ink/65">{kind === 'product' ? 'בחרו מוצר כדי להוסיף אותו להזמנה.' : 'בחרו שירות כדי להוסיף אותו להזמנה.'}</p>}
 
       {catalogTotal >= 5 && (
         <div className="mt-4">
@@ -649,13 +675,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
       {!searching && search.trim() && items.length === 0 && !catalogError && <p className="mt-4 text-sm text-ink/65">לא נמצאו פריטים התואמים לחיפוש.</p>}
 
       {items.length > 0 && (
-        <div className="mt-5 space-y-8">
+        <div className="mt-3 space-y-5">
           {(['product', 'service'] as const).map((kind) => {
             const groupItems = items.filter((item) => item.kind === kind);
             if (!groupItems.length) return null;
             const layout = kind === 'product' ? productLayout : serviceLayout;
             return <section key={kind} id={kind === 'service' ? 'services-subsection' : 'products-subsection'} data-profile-section={kind} aria-label={kind === 'product' ? 'מוצרים' : 'שירותים'}>
-              {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-3 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
+              {items.some((item) => item.kind === 'product') && items.some((item) => item.kind === 'service') && <h3 className="mb-2 text-lg font-bold">{kind === 'product' ? 'מוצרים' : 'שירותים'}</h3>}
               <ul data-storefront-list data-kind={kind} data-layout={layout} className="storefront-items-list">
           {groupItems.map((p) => (
             <StorefrontCatalogItem
@@ -686,7 +712,11 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
 
       {/* Sticky bar on bottom when cart has items */}
       {count > 0 && (
-        <div className={`fixed inset-x-0 ${kind === 'service' ? 'bottom-16 sm:bottom-20' : 'bottom-0'} z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4`}>
+        <div
+          data-stacked={stackedOrderBar ? 'true' : 'false'}
+          className="storefront-order-bar fixed inset-x-0 bottom-0 z-40 flex items-center justify-between gap-4 border-t border-ink/10 bg-surface/95 p-3 shadow-sm backdrop-blur-sm sm:p-4"
+          style={{ bottom: stackedOrderBar ? '4.5rem' : '0' }}
+        >
           <div>
             <div className="text-xs text-ink/70">{count} {kind === 'product' ? 'מוצרים' : 'שירותים'} נבחרו</div>
             <div className="font-bold text-lg">{totalText}</div>
@@ -731,7 +761,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <legend className="px-1 text-sm font-semibold">תיאום תור</legend>
             {hasAppointmentHours ? (
               <>
-                <p className="text-xs leading-5 text-ink/65">{`משך השריון ביומן לכל השירותים שנבחרו: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר שמירת הבקשה.`}</p>
+                <p className="text-xs leading-5 text-ink/65">{`משך התור ביומן לכל השירותים שנבחרו: ${reservedAppointmentDurationMinutes} דקות. בחרו שעה פנויה; התור יישמר ביומן לאחר אישור הבקשה.`}</p>
                 <div className="space-y-3">
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">בחירת תאריך</span>
@@ -768,6 +798,15 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   {appointmentTimeGroups.map((group) => group.slots.length > 0 && <div key={group.label}><p className="mb-1 text-xs font-medium text-ink/55">{group.label}</p><div className="flex flex-wrap gap-2">{group.slots.map((slot) => <button key={slot} type="button" aria-pressed={appointmentTime === slot} onClick={() => { setIdempotencyKey(''); setAppointmentTime(slot); }} className={`min-h-10 min-w-16 rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${appointmentTime === slot ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : 'text-ink hover:bg-primary/5'}`}>{slot}</button>)}</div></div>)}
                 </div>
                 {appointmentDate && appointmentTime && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-sm"><p className="font-semibold">סיכום התור</p><p className="mt-1">{reservedAppointmentLines.map(({ p, q }) => `${p.name}${q > 1 ? ` × ${q}` : ''}`).join(', ')}</p><p className="mt-1">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${appointmentDate}T12:00:00Z`))} · {appointmentTime}</p><p className="mt-1 text-ink/65">משך: {reservedAppointmentDurationMinutes} דקות · מחיר: {totalText || 'לפי הצעת מחיר'}</p></div>}
+                {!appointmentTime && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                    <p className="text-sm font-semibold">לא מצאתם מועד שמתאים לכם?</p>
+                    <p className="mt-1 text-xs leading-5 text-ink/65">אפשר להשאיר בקשת המתנה עם תאריך ושעה מועדפים. העסק יוכל לבדוק את האפשרות וליצור איתכם קשר; הבקשה אינה שומרת תור ביומן.</p>
+                    <button type="button" onClick={openWaitlist} className="mt-2 min-h-11 w-full rounded-xl border border-primary/30 bg-surface px-4 py-2 text-sm font-semibold text-primary">
+                      בקשת הצטרפות לרשימת המתנה
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm leading-6 text-ink/75">לא הוגדרו שעות פעילות שמאפשרות לקבוע תור. אפשר לבחור בקשת המתנה או לפנות לעסק ב-WhatsApp.</p>
@@ -801,9 +840,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <p className="text-sm text-green-900">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
                 ) : (
                   <>
-                    <p className="mb-1 text-xs text-green-900/75">ההסכמה תחול על תורים ובקשות המתנה שתיצרו בעתיד דרך הדפדפן הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה; אם הוא משותף, גם משתמשים אחרים בו עשויים לראות אותן. ניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
+                    <p className="font-semibold text-green-950">לקבל עדכונים על התורים שלכם בעסק הזה?</p>
+                    <p className="mt-1 text-xs leading-5 text-green-900/75">באישור חד־פעמי, המכשיר הזה יקבל עדכונים על כל התורים ובקשות ההמתנה שתיצרו בעתיד מאותו מכשיר אצל העסק הזה. אם המכשיר משותף, גם אנשים אחרים שמשתמשים בו עשויים לראות את ההתראות. אפשר לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={waitlistPushState.busy} onClick={() => void optInForPush(waitlistPushCapability, 'waitlist')}
-                      className="min-h-10 rounded-full border border-green-800/20 bg-white px-4 py-2 font-semibold text-green-900 disabled:opacity-50">
+                      className="mt-3 min-h-11 rounded-full border border-primary/25 bg-white px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
                       {waitlistPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {waitlistPushState.status && <p role="status" className="mt-2 text-xs">{waitlistPushState.status}</p>}
@@ -842,7 +882,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
           </form>
         ) : null}
 
-        {waitlistOpen ? null : done ? (
+        {waitlistOpen || waitlistDone ? null : done ? (
           <div className="py-4 text-center">
             <p ref={successRef} tabIndex={-1} role="status" aria-live="polite" aria-atomic="true" className="mb-4 text-lg font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
               {done.message}
@@ -870,10 +910,10 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <p className="text-sm text-ink/75">הדפדפן או מצב הגלישה הנוכחי אינם תומכים בהתראות Push.</p>
                 ) : (
                   <>
-                    <p className="font-semibold">לקבל עדכונים על התורים שלך בעסק הזה?</p>
-                    <p className="mt-1 text-xs text-ink/65">ההסכמה תחול על התורים ובקשות ההמתנה שתיצרו בעתיד דרך המכשיר הזה אצל העסק הזה. ההתראות יגיעו למכשיר הזה בלבד, וניתן לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
+                    <p className="font-semibold">לקבל עדכונים על התורים שלכם בעסק הזה?</p>
+                    <p className="mt-1 text-xs leading-5 text-ink/65">באישור חד־פעמי, המכשיר הזה יקבל עדכונים על כל התורים ובקשות ההמתנה שתיצרו בעתיד מאותו מכשיר אצל העסק הזה. אם המכשיר משותף, גם אנשים אחרים שמשתמשים בו עשויים לראות את ההתראות. אפשר לבטל בכל עת. לא יישלחו הודעות שיווקיות.</p>
                     <button type="button" disabled={appointmentPushState.busy} onClick={() => void optInForPush(done.pushCapabilityToken!, 'appointment')}
-                      className="mt-3 min-h-11 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-fg disabled:opacity-50">
+                      className="mt-3 min-h-11 rounded-full border border-primary/25 bg-surface px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50">
                       {appointmentPushState.busy ? 'מפעילים…' : 'אישור וקבלת עדכונים'}
                     </button>
                     {appointmentPushState.status && <p role="status" className="mt-2 text-xs text-ink/70">{appointmentPushState.status}</p>}
@@ -888,9 +928,9 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             {kind === 'service' ? (
               <>
                 {calendarEnabled && hasAppointmentHours && <button type="button" disabled={busy !== null} onClick={() => { setError(null); setStep('reserve'); }}
-                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">שריון תור ביומן</button>}
-                {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">העסק עדיין לא הגדיר שעות פעילות. אפשר להצטרף לרשימת המתנה או לפנות ב-WhatsApp.</p>}
-                {calendarEnabled && <button type="button" onClick={() => { setWaitlistPreferredDate(''); setWaitlistOpen(true); setWaitlistError(null); setWaitlistDone(false); setWaitlistPushCapability(null); setWaitlistPushState({ busy: false, success: false, status: null }); }}
+                  className="min-h-12 w-full rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">קביעת תור ביומן</button>}
+                {calendarEnabled && !hasAppointmentHours && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">העסק עדיין לא הגדיר שעות פעילות. אפשר להשאיר בקשת המתנה או לפנות ב-WhatsApp.</p>}
+                {calendarEnabled && !hasAppointmentHours && <button type="button" onClick={openWaitlist}
                   className="min-h-12 w-full rounded-xl border border-primary/25 px-4 py-3 font-medium text-primary">בקשת הצטרפות לרשימת המתנה</button>}
                 {whatsappEnabled && <button type="button" disabled={busy !== null} onClick={() => submit('whatsapp')}
                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#168A52]/10 px-4 py-3 font-medium text-[#168A52] disabled:opacity-50">
@@ -912,13 +952,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         ) : step === 'reserve' ? (
           <form onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-            <label className="block text-sm font-medium">מספר טלפון לשמירת התור *
+            <label className="block text-sm font-medium">מספר טלפון לקביעת התור *
               <input name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
             </label>
             <div className="flex gap-2">
               <button type="button" onClick={() => { setError(null); setStep('choose'); }} className="min-h-12 flex-1 rounded-xl border border-ink/20 px-4 py-3">חזרה</button>
               <button type="submit" disabled={busy !== null || !appointmentDate || !appointmentTime || !hasAppointmentHours} className="min-h-12 flex-1 rounded-xl bg-primary/10 px-4 py-3 font-medium text-primary disabled:opacity-50">
-                {busy === 'reserve' ? 'שומר תור…' : 'אישור שריון התור'}
+                {busy === 'reserve' ? 'שומר תור…' : 'אישור וקביעת התור'}
               </button>
             </div>
           </form>
