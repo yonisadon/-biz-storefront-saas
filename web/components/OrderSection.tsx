@@ -1,7 +1,7 @@
 'use client';
 
 import StorefrontCatalogItem from '@/components/StorefrontCatalogItem';
-import { useStorefrontTranslation, useStorefrontLocale } from '@/components/StorefrontLanguageProvider';
+import { useStorefrontTranslation, useStorefrontLocale, useStorefrontDirection } from '@/components/StorefrontLanguageProvider';
 import type { StorefrontMessageKey } from '@/lib/storefrontI18n';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ils, normalizeILPhone } from '@/lib/format';
@@ -73,6 +73,9 @@ function dateInTimezone(timezone: string): string {
 export default function OrderSection({ apiBase, items: initialItems, quoteLabel, contactOptions, kind, businessTimezone, openingHours, catalogTotal, hasMore: initiallyHasMore, productLayout, serviceLayout }: Props) {
   const t = useStorefrontTranslation();
   const storefrontLocale = useStorefrontLocale();
+  const storefrontDirection = useStorefrontDirection();
+  // Hebrew and US English calendars conventionally start on Sunday; Russian starts on Monday.
+  const firstDayOffset = storefrontLocale.toLowerCase().startsWith('ru') ? 1 : 0;
 
   const dlg = useRef<HTMLDialogElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -467,13 +470,14 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
   }, [apiBase, appointmentMonth, cartSignature, hasAppointmentHours, needsAppointment, step]);
   const monthCells = useMemo(() => {
     const [year, month] = appointmentMonth.split('-').map(Number);
-    const firstWeekday = new Date(Date.UTC(year, month - 1, 1, 12)).getUTCDay();
+    const calendarWeekday = new Date(Date.UTC(year, month - 1, 1, 12)).getUTCDay();
+    const firstWeekday = (calendarWeekday - firstDayOffset + 7) % 7;
     const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
     return Array.from({ length: firstWeekday + count }, (_, index) => {
       if (index < firstWeekday) return null;
       return `${year}-${String(month).padStart(2, '0')}-${String(index - firstWeekday + 1).padStart(2, '0')}`;
     });
-  }, [appointmentMonth]);
+  }, [appointmentMonth, firstDayOffset]);
   const moveAppointmentMonth = (delta: number) => {
     const [year, month] = appointmentMonth.split('-').map(Number);
     const next = new Date(Date.UTC(year, month - 1 + delta, 1, 12));
@@ -786,13 +790,13 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                   <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                     <span className="text-sm font-semibold">{t('selectDate')}</span>
                     <div className="flex min-w-0 items-center gap-1">
-                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label={t('previousMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30">‹</button>
+                      <button type="button" onClick={() => moveAppointmentMonth(-1)} disabled={appointmentMonth <= todayDate.slice(0, 7)} aria-label={t('previousMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-30"><span aria-hidden="true" className={storefrontDirection === 'rtl' ? 'rotate-180' : ''}>‹</span></button>
                       <span aria-live="polite" className="min-w-0 text-center text-sm font-semibold capitalize">{appointmentMonthLabel}</span>
-                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label={t('nextMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20">›</button>
+                      <button type="button" onClick={() => moveAppointmentMonth(1)} aria-label={t('nextMonth')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-ink/20"><span aria-hidden="true" className={storefrontDirection === 'rtl' ? 'rotate-180' : ''}>›</span></button>
                       <button type="button" onClick={() => { const month = todayDate.slice(0, 7); setAppointmentMonth(month); if (appointmentDate.slice(0, 7) !== month) { setAppointmentDate(''); setAppointmentTime(''); setIdempotencyKey(''); } }} className="shrink-0 rounded-full px-2 py-2 text-xs font-medium text-primary underline underline-offset-2">{t('monthNow')}</button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{[t('weekdaySundayShort'), t('weekdayMondayShort'), t('weekdayTuesdayShort'), t('weekdayWednesdayShort'), t('weekdayThursdayShort'), t('weekdayFridayShort'), t('weekdaySaturdayShort')].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink/55">{([t('weekdaySundayShort'), t('weekdayMondayShort'), t('weekdayTuesdayShort'), t('weekdayWednesdayShort'), t('weekdayThursdayShort'), t('weekdayFridayShort'), t('weekdaySaturdayShort')].slice(firstDayOffset).concat([t('weekdaySundayShort'), t('weekdayMondayShort'), t('weekdayTuesdayShort'), t('weekdayWednesdayShort'), t('weekdayThursdayShort'), t('weekdayFridayShort'), t('weekdaySaturdayShort')].slice(0, firstDayOffset))).map((day) => <span key={day} className="py-1">{day}</span>)}</div>
                   <div role="group" aria-label={t('chooseDay')} className="grid min-w-0 grid-cols-7 gap-1">
                     {monthCells.map((date, index) => {
                       if (!date) return <span key={`empty-${index}`} aria-hidden="true" />;
@@ -800,7 +804,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
                       const disabled = date < todayDate || !available || monthLoading || monthError;
                       const selected = appointmentDate === date;
                       return <button key={date} type="button" disabled={disabled} aria-pressed={selected} onClick={() => { setIdempotencyKey(''); setAppointmentDate(date); setAppointmentTime(''); }}
-                        aria-label={`${Number(date.slice(-2))}${available ? `, ${t('dayAvailable')}` : `, ${t('dayUnavailable')}`}`} className={`min-h-11 rounded-xl text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : available ? 'bg-primary/5 text-ink hover:bg-primary/10' : 'text-ink/35'}`}>
+                        aria-label={`${new Intl.DateTimeFormat(storefrontLocale, { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}, ${available ? t('dayAvailable') : t('dayUnavailable')}`} className={`min-h-11 rounded-xl text-sm font-medium transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-30 ${selected ? 'bg-primary/10 text-primary ring-1 ring-primary/25' : available ? 'bg-primary/5 text-ink hover:bg-primary/10' : 'text-ink/35'}`}>
                         {Number(date.slice(-2))}{available && <span className="mx-auto mt-0.5 block h-1 w-1 rounded-full bg-current" aria-hidden="true" />}
                       </button>;
                     })}
