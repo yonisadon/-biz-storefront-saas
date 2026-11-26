@@ -6,7 +6,7 @@ if (!registryUrl) throw new Error('APP_DATABASE_URL is required');
 
 type PlanCode = 'standard' | 'plus';
 type PolicyRow = {
-  plan_code: PlanCode; record_type: 'lead' | 'appointment' | 'waitlist';
+  plan_code: PlanCode; record_type: 'lead' | 'appointment' | 'waitlist' | 'push';
   record_status: string; delete_enabled: boolean; retention_days: number | null;
 };
 type Tenant = { tenant_id: string; database_name: string; plan_code: PlanCode };
@@ -14,7 +14,7 @@ type TenantPolicy = Record<string, number | null>;
 
 const statuses = [
   'lead:open', 'lead:closed', 'appointment:reserved', 'appointment:cancelled',
-  'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking',
+  'waitlist:waiting', 'waitlist:rejected', 'waitlist:closed', 'waitlist:scheduled_without_booking', 'push:completed',
 ];
 
 function databaseUrl(name: string): string {
@@ -88,6 +88,7 @@ function policyFor(plan: PlanCode, rows: PolicyRow[]): TenantPolicy {
     appointmentReserved: getDays(get('appointment:reserved')), appointmentCancelled: getDays(get('appointment:cancelled')),
     waitlistWaiting: getDays(get('waitlist:waiting')), waitlistRejected: getDays(get('waitlist:rejected')),
     waitlistClosed: getDays(get('waitlist:closed')), waitlistScheduled: getDays(get('waitlist:scheduled_without_booking')),
+    pushHistory: getDays(get('push:completed')),
   };
 }
 
@@ -110,6 +111,7 @@ async function main() {
   let lockAcquired = false;
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
+  let pushHistoryDeleted = 0, pushHistoryFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -211,7 +213,15 @@ async function main() {
         const waitlistFrom = 'public.waitlist_entries w JOIN public.businesses b ON b.id = w.tenant_id WHERE w.tenant_id = app.current_tenant_id() AND (' + waitlistWhere + ')';
         const waitlistCount = await db.query('SELECT count(*)::int AS n FROM ' + waitlistFrom, waitlistParams);
 
-        let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0;
+        // Keep completed Push history for the configured period. The explicit delivery guard
+        // protects retries even if an event's outbox status is unexpectedly inconsistent.
+        const pushHistoryWhere = "o.tenant_id = app.current_tenant_id() AND o.status = 'done' AND o.processed_at IS NOT NULL " +
+          "AND $1::int IS NOT NULL AND o.processed_at + ($1::int * interval '1 day') <= now() " +
+          "AND NOT EXISTS (SELECT 1 FROM public.push_deliveries d WHERE d.tenant_id = o.tenant_id " +
+          "AND d.outbox_id = o.id AND d.status IN ('pending','processing'))";
+        const pushHistoryCount = await db.query('SELECT count(*)::int AS n FROM public.push_outbox o WHERE ' + pushHistoryWhere, [p.pushHistory]);
+
+        let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
           const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
@@ -252,6 +262,8 @@ async function main() {
               [deletedAppointmentIds],
             );
           }
+          const deletedPushHistory = await db.query('DELETE FROM public.push_outbox o WHERE ' + pushHistoryWhere + ' RETURNING o.id', [p.pushHistory]);
+          tenantPushHistoryDeleted = deletedPushHistory.rowCount ?? 0;
           const deletedLeads = await db.query('DELETE FROM public.leads WHERE ' + leadWhere + ' RETURNING id', leadParams);
           tenantLeadsDeleted = deletedLeads.rowCount ?? 0;
         }
@@ -260,13 +272,16 @@ async function main() {
         const foundLeads = Number(leadCount.rows[0]?.n ?? 0);
         const foundAppointments = Number(appointmentCount.rows[0]?.n ?? 0);
         const foundWaitlist = Number(waitlistCount.rows[0]?.n ?? 0);
+        const foundPushHistory = Number(pushHistoryCount.rows[0]?.n ?? 0);
         leadsDeleted += tenantLeadsDeleted; leadsFound += foundLeads;
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
+        pushHistoryDeleted += tenantPushHistoryDeleted; pushHistoryFound += foundPushHistory;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
+          (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
