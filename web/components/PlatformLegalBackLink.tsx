@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { PlatformLanguageSwitcher, usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 export default function PlatformLegalBackLink() {
+  const { t, language } = usePlatformLanguage();
   const [loading, setLoading] = useState(false);
 
   async function goBack() {
@@ -38,13 +40,17 @@ export default function PlatformLegalBackLink() {
   }
 
   return (
+    <div dir={language === 'he' ? 'rtl' : 'ltr'} className="flex flex-wrap items-center justify-between gap-3">
+    <PlatformLanguageSwitcher />
     <a
       href="/login"
       onClick={(event) => { event.preventDefault(); void goBack(); }}
       aria-busy={loading}
       className="text-sm font-semibold text-blue-700 underline"
     >
-      חזרה ל-BTime
+      {t('backToBtime')}
     </a>
+    {language !== 'he' && <p className="basis-full text-sm text-amber-800">{t('legalFixedLanguageNote')}</p>}
+    </div>
   );
 }
