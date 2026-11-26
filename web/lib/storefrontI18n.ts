@@ -289,6 +289,9 @@ const messages = {
     dayThursday: "חמישי",
     dayFriday: "שישי",
     daySaturday: "שבת",
+    requiredField: "זהו שדה חובה.",
+    invalidEmail: "כתובת הדוא״ל אינה תקינה.",
+    invalidField: "הערך שהוזן אינו תקין.",
   },
   en: {
     whatsappGreeting: "Hello, I would like to get more information about your business.",
@@ -552,6 +555,9 @@ const messages = {
     dayThursday: "Thursday",
     dayFriday: "Friday",
     daySaturday: "Saturday",
+    requiredField: "This field is required.",
+    invalidEmail: "Please enter a valid email address.",
+    invalidField: "Please enter a valid value.",
   },
   ru: {
     whatsappGreeting: "Здравствуйте! Хотел(а) бы получить дополнительную информацию о вашей компании.",
@@ -815,6 +821,9 @@ const messages = {
     dayThursday: "Четверг",
     dayFriday: "Пятница",
     daySaturday: "Суббота",
+    requiredField: "Это обязательное поле.",
+    invalidEmail: "Введите корректный адрес электронной почты.",
+    invalidField: "Введите корректное значение.",
   },
 } as const;
 
