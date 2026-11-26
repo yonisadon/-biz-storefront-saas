@@ -883,7 +883,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
         )}
 
         {waitlistOpen ? (
-          <form onSubmit={submitWaitlist} className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
+          <form onInvalid={(event) => { const field = event.target as HTMLInputElement; field.setCustomValidity(field.validity.valueMissing ? t('requiredField') : field.validity.typeMismatch ? t('invalidEmail') : t('invalidField')); }} onInput={(event) => { (event.target as HTMLInputElement).setCustomValidity(''); }} onSubmit={submitWaitlist} className="mb-4 space-y-3 rounded-xl border border-ink/15 p-3">
             <h3 className="font-semibold">{t('waitlistRequest')}</h3>
             {waitlistError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{waitlistError}</p>}
             <label className="block text-sm">{t('customerNameOptional')}
@@ -978,7 +978,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             <p className="text-center text-xs leading-5 text-ink/60">{kind === 'service' ? t('chooseOneMethod') : t('productsInquiryNote')}</p>
           </div>
         ) : step === 'reserve' ? (
-          <form onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
+          <form onInvalid={(event) => { const field = event.target as HTMLInputElement; field.setCustomValidity(field.validity.valueMissing ? t('requiredField') : field.validity.typeMismatch ? t('invalidEmail') : t('invalidField')); }} onInput={(event) => { (event.target as HTMLInputElement).setCustomValidity(''); }} onSubmit={(e) => { e.preventDefault(); submit('reserve'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <label className="block text-sm font-medium">{t('bookingPhone')}
               <input name="tel" autoComplete="tel" dir="ltr" type="tel" required className={input} value={form.phone} onChange={setField('phone')} placeholder="0500000000" />
@@ -991,7 +991,7 @@ export default function OrderSection({ apiBase, items: initialItems, quoteLabel,
             </div>
           </form>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
+          <form onInvalid={(event) => { const field = event.target as HTMLInputElement; field.setCustomValidity(field.validity.valueMissing ? t('requiredField') : field.validity.typeMismatch ? t('invalidEmail') : t('invalidField')); }} onInput={(event) => { (event.target as HTMLInputElement).setCustomValidity(''); }} onSubmit={(e) => { e.preventDefault(); submit('site'); }} className="space-y-3">
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <input type="text" tabIndex={-1} className="hidden" value={form.hp} onChange={setField('hp')} autoComplete="off" />
             <div>
