@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { notFound } from 'next/navigation';
 import { getCtx, getStorefront } from '@/lib/api';
+import { getStorefrontDirection, normalizeStorefrontLanguage } from '@/lib/storefrontI18n';
 
 export const revalidate = 60;
 
@@ -35,13 +36,14 @@ export async function GET(
       }))
     : fallbackIcons;
 
+  const language = normalizeStorefrontLanguage(data.business.locale);
   const manifest: MetadataRoute.Manifest = {
     id: startUrl,
     name: data.business.name,
     short_name: data.business.name.slice(0, 24),
     description: data.about?.slice(0, 160) || 'אתר העסק, נוח לשימוש גם מהנייד.',
-    lang: 'he',
-    dir: 'rtl',
+    lang: language,
+    dir: getStorefrontDirection(language),
     start_url: startUrl,
     scope: startUrl,
     display: 'standalone',
