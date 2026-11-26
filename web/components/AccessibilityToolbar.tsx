@@ -103,7 +103,7 @@ export default function AccessibilityToolbar({ statementHref }: { statementHref?
   );
 
   return (
-    <div className="fixed bottom-28 end-3 z-50 sm:bottom-auto sm:end-5 sm:top-24">
+    <div className="storefront-accessibility-toolbar fixed bottom-28 end-3 z-50 sm:bottom-auto sm:end-5 sm:top-24">
       <button
         ref={triggerRef}
         type="button"
