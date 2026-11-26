@@ -51,7 +51,7 @@ export default function StorefrontItemImage({ product }: { product: Product }) {
       }} className="m-auto max-h-[96dvh] w-[calc(100%-1rem)] max-w-5xl rounded-2xl border border-white/10 bg-neutral-950 p-3 text-white shadow-2xl backdrop:bg-black/85 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="min-w-0 whitespace-normal break-words text-sm font-semibold [overflow-wrap:anywhere] sm:text-base">{product.name}</p>
+            <p dir="auto" className="min-w-0 whitespace-normal break-words text-sm font-semibold [overflow-wrap:anywhere] sm:text-base">{product.name}</p>
             <p className="text-xs text-white/65">{t('enlargedImage')} · {active + 1} / {images.length}</p>
           </div>
           <button type="button" onClick={() => dialog.current?.close()} autoFocus className="grid min-h-11 min-w-11 place-items-center rounded-full border border-white/30 bg-white/10 text-xl transition hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={t('closeImageGallery')}>✕</button>
