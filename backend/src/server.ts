@@ -14,6 +14,8 @@ import { authRoutes } from './routes/auth';
 import { googleCalendarCallbackRoutes } from './routes/googleCalendar';
 import { platformContentRoutes } from './routes/platformContent';
 import { brevoWebhookRoutes } from './routes/brevoWebhook';
+import { startMediaCleanupScheduler } from './mediaCleanup';
+import { startPushRecoveryScheduler } from './pushRecovery';
 
 // Management tokens are secrets: keep them out of logs
 const redactUrl = (url: string) => url
@@ -93,6 +95,11 @@ export async function buildServer() {
 // Importing the server from integration tests must not start a listener.
 if (require.main === module) {
   buildServer()
-    .then((app) => app.listen({ port: env.PORT, host: '0.0.0.0' }))
+    .then(async (app) => {
+      await app.listen({ port: env.PORT, host: '0.0.0.0' });
+      // Runs inside the API process so local media cleanup uses the API's mounted volume.
+      startMediaCleanupScheduler();
+      startPushRecoveryScheduler();
+    })
     .catch((err) => { console.error(err); process.exit(1); });
 }

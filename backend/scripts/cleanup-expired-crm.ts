@@ -111,7 +111,7 @@ async function main() {
   let leadsDeleted = 0, leadsFound = 0, appointmentsDeleted = 0, appointmentsFound = 0;
   let waitlistDeleted = 0, waitlistFound = 0;
   let pushHistoryDeleted = 0, pushHistoryFound = 0;
-  let mediaObjectsDeleted = 0, mediaObjectsFound = 0;
+  let mediaObjectsFound = 0;
   try {
     const lock = await registry.query('SELECT pg_try_advisory_lock($1, $2) AS locked', [74122, 93002]);
     if (!lock.rows[0]?.locked) {
@@ -230,39 +230,11 @@ async function main() {
               AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
               AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)`
         );
-        let tenantMediaObjectsDeleted = 0;
+        // Physical media deletion is handled by the API process, which owns the
+        // mounted local volume. This service only reports pending rows; it must
+        // never use its own local filesystem to finalize API media records.
         let tenantLeadsDeleted = 0, tenantAppointmentsDeleted = 0, tenantWaitlistDeleted = 0, tenantPushHistoryDeleted = 0;
         if (apply) {
-          // Bound each run. Keep the DB row until object storage confirms deletion.
-          const pendingMedia = await db.query(
-            `SELECT m.id, m.storage_key FROM public.media_assets m
-              WHERE m.tenant_id = app.current_tenant_id() AND m.deleted_at <= now() - interval '15 minutes'
-                AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
-                AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
-                AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
-              ORDER BY m.deleted_at, m.id LIMIT 50 FOR UPDATE SKIP LOCKED`
-          );
-          if (pendingMedia.rows.length) {
-            try {
-              // Fail closed: do not let the storage module's local-driver default
-              // finalize DB rows when the cleanup service lacks its storage config.
-              if (!process.env.STORAGE_DRIVER) throw new Error('STORAGE_DRIVER must be explicitly configured for media deletion retries.');
-              const { storage, variantKeys } = await import('../src/storage');
-              await storage.remove(pendingMedia.rows.flatMap((asset: { storage_key: string }) => variantKeys(asset.storage_key)));
-              const finalized = await db.query(
-                `DELETE FROM public.media_assets m
-                  WHERE m.id = ANY($1::uuid[]) AND m.deleted_at IS NOT NULL
-                    AND NOT EXISTS (SELECT 1 FROM public.products p WHERE p.image_asset_id = m.id)
-                    AND NOT EXISTS (SELECT 1 FROM public.product_images pi WHERE pi.asset_id = m.id)
-                    AND NOT EXISTS (SELECT 1 FROM public.portfolio_images g WHERE g.asset_id = m.id)
-                  RETURNING m.id`,
-                [pendingMedia.rows.map((asset: { id: string }) => asset.id)]
-              );
-              tenantMediaObjectsDeleted = finalized.rowCount ?? 0;
-            } catch (error) {
-              console.warn('Media storage deletion deferred for ' + tenant.database_name + ': ' + (error instanceof Error ? error.message : String(error)));
-            }
-          }
           const deletedWaitlist = await db.query(
             'DELETE FROM public.waitlist_entries w WHERE w.id IN (' +
             'SELECT w2.id FROM public.waitlist_entries w2 JOIN public.businesses b ON b.id = w2.tenant_id ' +
@@ -318,13 +290,13 @@ async function main() {
         appointmentsDeleted += tenantAppointmentsDeleted; appointmentsFound += foundAppointments;
         waitlistDeleted += tenantWaitlistDeleted; waitlistFound += foundWaitlist;
         pushHistoryDeleted += tenantPushHistoryDeleted; pushHistoryFound += foundPushHistory;
-        mediaObjectsDeleted += tenantMediaObjectsDeleted; mediaObjectsFound += foundMediaObjects;
+        mediaObjectsFound += foundMediaObjects;
         console.log(tenant.database_name + ' (' + tenant.plan_code + '): ' +
           (apply ? 'deleted ' + tenantLeadsDeleted : 'would delete ' + foundLeads) + ' lead(s); ' +
           (apply ? 'deleted ' + tenantAppointmentsDeleted : 'would delete ' + foundAppointments) + ' appointment(s); ' +
           (apply ? 'deleted ' + tenantWaitlistDeleted : 'would delete ' + foundWaitlist) + ' waitlist request(s); ' +
           (apply ? 'deleted ' + tenantPushHistoryDeleted : 'would delete ' + foundPushHistory) + ' Push history event(s); ' +
-          (apply ? 'deleted ' + tenantMediaObjectsDeleted : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
+          (apply ? 'pending for API cleanup ' + foundMediaObjects : 'pending ' + foundMediaObjects) + ' media asset(s); ' +
           'Each record type is evaluated independently; foreign keys only detach links to deleted records.');
       } catch (error) {
         await db.query('ROLLBACK').catch(() => {});
@@ -338,7 +310,7 @@ async function main() {
       '; appointments deleted/found: ' + appointmentsDeleted + '/' + appointmentsFound +
       '; waitlist deleted/found: ' + waitlistDeleted + '/' + waitlistFound +
       '; Push history deleted/found: ' + pushHistoryDeleted + '/' + pushHistoryFound +
-      '; media assets deleted/found: ' + mediaObjectsDeleted + '/' + mediaObjectsFound + '.');
+      '; media assets pending for API cleanup: ' + mediaObjectsFound + '.');
   } finally {
     if (lockAcquired) {
       await registry.query('SELECT pg_advisory_unlock($1, $2)', [74122, 93002]).catch(() => {});
