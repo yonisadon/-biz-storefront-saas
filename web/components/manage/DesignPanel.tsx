@@ -6,20 +6,22 @@ import StorefrontDesignPicker from '@/components/StorefrontDesignPicker';
 import { BRAND_PALETTES, paletteIdForColors, type PaletteId } from '@/lib/palettes';
 import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
 
 type StorefrontTheme = 'soft' | 'flat' | 'editorial' | 'creative';
 type ItemLayout = 'cards' | 'list' | 'carousel' | 'luxury_catalog';
 type GalleryLayout = 'slider' | 'thumbnails';
 type FontStyle = 'modern' | 'rounded' | 'elegant' | 'warm';
 
-function saveError(err: unknown): string {
-  if (err instanceof ApiError && err.body?.error === 'invalid_config') return 'הגדרות העיצוב לא עברו אימות.';
-  return 'שמירת העיצוב נכשלה. נסו שוב.';
+function saveError(err: unknown, t: (key: import('@/lib/platformI18n').PlatformMessageKey) => string): string {
+  if (err instanceof ApiError && err.body?.error === 'invalid_config') return t('invalidConfig');
+  return t('designSaveFailed');
 }
 
 export default function DesignPanel({ token, biz, onSaved }: {
   token: string; biz: ManageBusiness; onSaved: (b: ManageBusiness) => void;
 }) {
+  const { t } = usePlatformLanguage();
   const validThemes: StorefrontTheme[] = ['soft', 'flat', 'editorial', 'creative'];
   const validLayouts: ItemLayout[] = ['cards', 'list', 'carousel', 'luxury_catalog'];
   const validFonts: FontStyle[] = ['modern', 'rounded', 'elegant', 'warm'];
@@ -62,9 +64,9 @@ export default function DesignPanel({ token, biz, onSaved }: {
         }),
       });
       onSaved({ ...biz, ...saved });
-      setMsg({ ok: true, text: 'הגדרות העיצוב נשמרו.' });
+      setMsg({ ok: true, text: t('designSaved') });
     } catch (err) {
-      setMsg({ ok: false, text: saveError(err) });
+      setMsg({ ok: false, text: saveError(err, t) });
     } finally {
       setSaving(false);
     }
@@ -74,14 +76,14 @@ export default function DesignPanel({ token, biz, onSaved }: {
     <div className="max-w-3xl space-y-5">
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4">
-          <h2 className="text-lg font-bold">עיצוב האתר</h2>
-          <p className="mt-1 text-sm leading-6 text-gray-600">כאן משנים את המראה של האתר שהלקוחות רואים. השינויים אינם משנים את פרטי העסק או את המוצרים והשירותים.</p>
+          <h2 className="text-lg font-bold">{t('designTitle')}</h2>
+          <p className="mt-1 text-sm leading-6 text-gray-600">{t('designIntro')}</p>
         </div>
         <div className="space-y-5">
           <PalettePicker value={palette} onChange={setPalette} />
           <StorefrontDesignPicker theme={storefrontTheme} onThemeChange={setStorefrontTheme} galleryLayout={galleryLayout} onGalleryLayoutChange={setGalleryLayout} productLayout={productLayout} onProductLayoutChange={setProductLayout} serviceLayout={serviceLayout} onServiceLayoutChange={setServiceLayout} />
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-            <legend className="px-1 text-sm font-semibold">סגנון כתב באתר</legend>
+            <legend className="px-1 text-sm font-semibold">{t('fontStyleTitle')}</legend>
             <p className="text-xs leading-5 text-gray-500">בחרו סגנון אחיד לשם העסק, לכותרות ולטקסטים. אפשר לשנות את הבחירה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
             <div className="grid grid-cols-2 gap-2">
               {([
@@ -100,17 +102,17 @@ export default function DesignPanel({ token, biz, onSaved }: {
             </div>
           </fieldset>
           <fieldset className="space-y-2 rounded-xl border border-gray-200 p-3">
-            <legend className="px-1 text-sm font-semibold">צבע שם העסק</legend>
+            <legend className="px-1 text-sm font-semibold">{t('businessNameColor')}</legend>
             <p className="text-xs leading-5 text-gray-500">הבחירה משפיעה רק על שם העסק בראש האתר. אפשר לשנות אותה בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
             <div className="grid grid-cols-2 gap-2">
               <label className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${businessTitleColor === 'brand' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200'}`}>
                 <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'brand'} onChange={() => setBusinessTitleColor('brand')} />
-                <span>צבע המותג</span>
+                <span>{t('brandColor')}</span>
                 <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300" style={{ background: BRAND_PALETTES[palette].colors.primary }} />
               </label>
               <label className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${businessTitleColor === 'black' ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10' : 'border-gray-200'}`}>
                 <input type="radio" name="businessTitleColor" checked={businessTitleColor === 'black'} onChange={() => setBusinessTitleColor('black')} />
-                <span>שחור</span>
+                <span>{t('black')}</span>
                 <span aria-hidden="true" className="h-4 w-4 rounded-full border border-gray-300 bg-black" />
               </label>
             </div>
@@ -118,7 +120,7 @@ export default function DesignPanel({ token, biz, onSaved }: {
         </div>
         {msg && <p role={msg.ok ? 'status' : 'alert'} className={`mt-4 rounded-lg p-2 text-sm ${msg.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>{msg.text}</p>}
         <button type="button" onClick={save} disabled={saving} className="mt-5 rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-          {saving ? 'שומר…' : 'שמירת העיצוב'}
+          {saving ? t('saving') : t('saveDesign')}
         </button>
       </section>
     </div>
