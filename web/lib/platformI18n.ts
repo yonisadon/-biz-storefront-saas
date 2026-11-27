@@ -66,7 +66,7 @@ export const PLATFORM_MESSAGES = {
     invalidWhatsapp: 'יש להזין מספר WhatsApp ישראלי תקין.', provisioningMissing: 'שירות הקמת העסקים עדיין לא הוגדר.',
     provisioningFailed: 'הקמת העסק נכשלה. לא נוצר עסק פעיל; אפשר לנסות שוב לאחר בדיקה.', cannotCreateBusiness: 'לא ניתן להקים את העסק כרגע.',
     trialInactive: 'תקופת הניסיון הסתיימה או שהמנוי אינו פעיל.', managementLinkUnavailable: 'לא ניתן לטעון את קישור הניהול.',
-    invalidManagementLink: 'קישור הניהול שהתקבל אינו תקין.', accountLoadFailed: 'לא ניתן לטעון את פרטי החשבון.',
+    accountLoadFailed: 'לא ניתן לטעון את פרטי החשבון.',
     updateMailingFailed: 'לא ניתן לעדכן את העדפות הדיוור.', mailingSaved: 'העדפות הדיוור נשמרו. אפשר לשנות אותן בכל עת.',
     deletionSent: 'בקשת המחיקה נשלחה לאישור.', subscriptionCanceled: 'המנוי בוטל.', noAccount: 'לא ניתן לטעון את פרטי החשבון.',
 
@@ -335,7 +335,7 @@ export const PLATFORM_MESSAGES = {
     invalidWhatsapp: 'Enter a valid Israeli WhatsApp number.', provisioningMissing: 'Business setup service is not configured yet.',
     provisioningFailed: 'Business setup failed. No active business was created; you can try again after checking.', cannotCreateBusiness: 'Unable to create the business right now.',
     trialInactive: 'The trial has ended or the subscription is inactive.', managementLinkUnavailable: 'Unable to load the management link.',
-    invalidManagementLink: 'The management link received is invalid.', accountLoadFailed: 'Unable to load account details.',
+    accountLoadFailed: 'Unable to load account details.',
     updateMailingFailed: 'Unable to update mailing preferences.', mailingSaved: 'Mailing preferences saved. You can change them at any time.',
     deletionSent: 'Your deletion request was submitted for approval.', subscriptionCanceled: 'The subscription was canceled.', noAccount: 'Unable to load account details.',
 
@@ -604,7 +604,7 @@ export const PLATFORM_MESSAGES = {
     invalidWhatsapp: 'Введите действительный израильский номер WhatsApp.', provisioningMissing: 'Сервис создания бизнеса ещё не настроен.',
     provisioningFailed: 'Не удалось создать бизнес. Активный бизнес не создан; после проверки можно попробовать снова.', cannotCreateBusiness: 'Сейчас не удалось создать бизнес.',
     trialInactive: 'Пробный период завершён или подписка неактивна.', managementLinkUnavailable: 'Не удалось загрузить ссылку управления.',
-    invalidManagementLink: 'Полученная ссылка управления недействительна.', accountLoadFailed: 'Не удалось загрузить данные аккаунта.',
+    accountLoadFailed: 'Не удалось загрузить данные аккаунта.',
     updateMailingFailed: 'Не удалось обновить настройки рассылки.', mailingSaved: 'Настройки рассылки сохранены. Их можно изменить в любое время.',
     deletionSent: 'Запрос на удаление отправлен на подтверждение.', subscriptionCanceled: 'Подписка отменена.', noAccount: 'Не удалось загрузить данные аккаунта.',
 
