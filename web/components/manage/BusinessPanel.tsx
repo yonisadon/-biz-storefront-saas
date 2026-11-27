@@ -5,6 +5,7 @@ import { toLocalPhone } from '@/lib/format';
 import { ApiError, mcallWithTimeout } from '@/lib/manageApi';
 import type { ManageBusiness } from '@/lib/types';
 import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
+import { BRAND_PALETTES } from '@/lib/palettes';
 
 function initialWhatsAppIntro(flow: Record<string, unknown>): string {
   if (typeof flow.whatsapp_intro === 'string') return flow.whatsapp_intro;
@@ -97,7 +98,12 @@ export default function BusinessPanel({ token, biz, onSaved }: {
               site_inquiry_enabled: f.productCrm,
               whatsapp_intro: f.whatsappIntro.trim(),
             },
-            branding: latest.config.branding ?? {},
+            branding: {
+              ...(latest.config.branding ?? {}),
+              // Older businesses may have an empty branding object. Keep existing colors;
+              // initialize only the missing palette with the same natural default used by the picker.
+              colors: latest.config.branding?.colors ?? BRAND_PALETTES.natural.colors,
+            },
             social_links: { instagram: f.instagram.trim(), facebook: f.facebook.trim() },
             business_profile: {
               city: f.city.trim(),
