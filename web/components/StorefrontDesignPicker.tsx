@@ -1,24 +1,26 @@
 'use client';
 
+import { usePlatformLanguage } from '@/components/PlatformLanguageProvider';
+
 type Theme = 'soft' | 'flat' | 'editorial' | 'creative';
 type Layout = 'cards' | 'list' | 'carousel' | 'luxury_catalog';
 type GalleryLayout = 'slider' | 'thumbnails';
 
-const themes: { id: Theme; title: string; description: string }[] = [
-  { id: 'soft', title: 'Soft · רך ואלגנטי', description: 'כרטיסים מעוגלים, צללים עדינים וריווח נעים.' },
-  { id: 'flat', title: 'Flat · נקי ומודרני', description: 'אזורים פתוחים, קווים נקיים ומינימום מסגרות.' },
-  { id: 'editorial', title: 'Editorial · יוקרתי ומגזיני', description: 'טיפוגרפיה מודגשת, קווים דקים וקומפוזיציה מאופקת.' },
-  { id: 'creative', title: 'Creative · נועז ויצירתי', description: 'קומפוזיציה א-סימטרית, כותרות גדולות ומיקום תמונות משתנה.' },
+const themes: { id: Theme; title: import('@/lib/platformI18n').PlatformMessageKey; description: import('@/lib/platformI18n').PlatformMessageKey }[] = [
+  { id: 'soft', title: 'themeSoftTitle', description: 'themeSoftDescription' },
+  { id: 'flat', title: 'themeFlatTitle', description: 'themeFlatDescription' },
+  { id: 'editorial', title: 'themeEditorialTitle', description: 'themeEditorialDescription' },
+  { id: 'creative', title: 'themeCreativeTitle', description: 'themeCreativeDescription' },
 ];
-const layouts: { id: Layout; title: string; description: string }[] = [
-  { id: 'cards', title: 'כרטיסיות קלאסיות', description: 'העיצוב המוכר: תמונה, שם, תיאור ופעולה בכרטיס ברור.' },
-  { id: 'list', title: 'רשימה', description: 'תמונה לצד פרטי הפריט, בגובה טבעי לפי התוכן.' },
-  { id: 'carousel', title: 'קרוסלה', description: 'גלילה אופקית; כל כרטיס בגובה התוכן שלו.' },
-  { id: 'luxury_catalog', title: 'קטלוג יוקרתי', description: 'תמונות גדולות ומעט פריטים בכל שורה.' },
+const layouts: { id: Layout; title: import('@/lib/platformI18n').PlatformMessageKey; description: import('@/lib/platformI18n').PlatformMessageKey }[] = [
+  { id: 'cards', title: 'layoutCardsTitle', description: 'layoutCardsDescription' },
+  { id: 'list', title: 'layoutListTitle', description: 'layoutListDescription' },
+  { id: 'carousel', title: 'layoutCarouselTitle', description: 'layoutCarouselDescription' },
+  { id: 'luxury_catalog', title: 'layoutLuxuryTitle', description: 'layoutLuxuryDescription' },
 ];
-const galleryLayouts: { id: GalleryLayout; title: string; description: string }[] = [
-  { id: 'slider', title: 'גלילה / החלפה אוטומטית', description: 'התצוגה הקיימת: תמונה ראשית ומעבר בין תמונות.' },
-  { id: 'thumbnails', title: 'תמונה ראשית ותמונות ממוזערות', description: 'תמונה גדולה ומתחתיה בחירה ישירה של תמונות נוספות.' },
+const galleryLayouts: { id: GalleryLayout; title: import('@/lib/platformI18n').PlatformMessageKey; description: import('@/lib/platformI18n').PlatformMessageKey }[] = [
+  { id: 'slider', title: 'gallerySliderTitle', description: 'gallerySliderDescription' },
+  { id: 'thumbnails', title: 'galleryThumbnailsTitle', description: 'galleryThumbnailsDescription' },
 ];
 
 function LayoutPreview({ theme }: { theme: Theme }) {
@@ -38,34 +40,35 @@ export default function StorefrontDesignPicker({
   serviceLayout: Layout; onServiceLayoutChange: (value: Layout) => void;
   galleryLayout: GalleryLayout; onGalleryLayoutChange: (value: GalleryLayout) => void;
 }) {
-  const layoutPicker = (id: string, value: Layout, onChange: (value: Layout) => void) => (
+  const { t } = usePlatformLanguage();
+  const layoutPicker = (id: 'products' | 'services', value: Layout, onChange: (value: Layout) => void) => (
     <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold">{id === 'products' ? 'תצוגת מוצרים' : 'תצוגת שירותים'}</legend>
-      <p className="text-xs leading-5 text-slate-500">אפשר להחליף את אופן ההצגה גם לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
+      <legend className="text-sm font-semibold">{t(id === 'products' ? 'productsLayoutTitle' : 'servicesLayoutTitle')}</legend>
+      <p className="text-xs leading-5 text-slate-500">{t('itemLayoutIntro')}</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {layouts.map((option) => <label key={option.id} className={`flex min-h-20 cursor-pointer flex-col justify-center rounded-xl border p-3 text-start transition ${value === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
-          <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name={id + '-layout'} value={option.id} checked={value === option.id} onChange={() => onChange(option.id)} />{option.title}</span>
-          <span className="mt-1 text-xs leading-5 text-slate-500">{option.description}</span>
+          <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name={id + '-layout'} value={option.id} checked={value === option.id} onChange={() => onChange(option.id)} />{t(option.title)}</span>
+          <span className="mt-1 text-xs leading-5 text-slate-500">{t(option.description)}</span>
         </label>)}
       </div>
     </fieldset>
   );
   return <section className="space-y-5" aria-labelledby="storefront-design-title">
-    <div><h3 id="storefront-design-title" className="text-base font-bold">סגנון האתר</h3><p className="mt-1 text-xs leading-5 text-slate-500">הסגנון משנה את העיצוב והפריסה בלבד. התוכן, התמונות, המוצרים וההזמנות נשארים ללא שינוי. אפשר להחליף אותו בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p></div>
+    <div><h3 id="storefront-design-title" className="text-base font-bold">{t('designThemeTitle')}</h3><p className="mt-1 text-xs leading-5 text-slate-500">{t('designThemeIntro')}</p></div>
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {themes.map((option) => <label key={option.id} className={`cursor-pointer rounded-2xl border p-3 transition ${theme === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
-        <span className="flex items-center gap-2 text-sm font-bold"><input type="radio" name="storefront-theme" value={option.id} checked={theme === option.id} onChange={() => onThemeChange(option.id)} />{option.title}</span>
+        <span className="flex items-center gap-2 text-sm font-bold"><input type="radio" name="storefront-theme" value={option.id} checked={theme === option.id} onChange={() => onThemeChange(option.id)} />{t(option.title)}</span>
         <LayoutPreview theme={option.id} />
-        <span className="mt-2 block text-xs leading-5 text-slate-500">{option.description}</span>
+        <span className="mt-2 block text-xs leading-5 text-slate-500">{t(option.description)}</span>
       </label>)}
     </div>
     <fieldset className="space-y-2">
-      <legend className="text-sm font-semibold">תצוגת גלריית התמונות הראשית</legend>
-      <p className="text-xs leading-5 text-slate-500">אפשר לשנות את אופן הצגת התמונות בכל עת לאחר הקמת העסק, בלשונית „עיצוב האתר” בקישור הניהול.</p>
+      <legend className="text-sm font-semibold">{t('galleryLayoutTitle')}</legend>
+      <p className="text-xs leading-5 text-slate-500">{t('galleryLayoutIntro')}</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {galleryLayouts.map((option) => <label key={option.id} className={`flex min-h-20 cursor-pointer flex-col justify-center rounded-xl border p-3 text-start transition ${galleryLayout === option.id ? 'border-slate-900 bg-slate-50 ring-2 ring-slate-900/10' : 'border-slate-200 hover:border-slate-400'}`}>
-          <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name="hero-gallery-layout" value={option.id} checked={galleryLayout === option.id} onChange={() => onGalleryLayoutChange(option.id)} />{option.title}</span>
-          <span className="mt-1 text-xs leading-5 text-slate-500">{option.description}</span>
+          <span className="flex items-center gap-2 text-sm font-semibold"><input type="radio" name="hero-gallery-layout" value={option.id} checked={galleryLayout === option.id} onChange={() => onGalleryLayoutChange(option.id)} />{t(option.title)}</span>
+          <span className="mt-1 text-xs leading-5 text-slate-500">{t(option.description)}</span>
         </label>)}
       </div>
     </fieldset>
