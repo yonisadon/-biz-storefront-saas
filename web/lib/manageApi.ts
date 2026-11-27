@@ -27,7 +27,7 @@ export function translateManageApiError(status: number, body: ApiErrorBody | nul
   return translatePlatform(language, 'genericApiError');
 }
 
-export type ApiErrorBody = { error?: string; issues?: { message: string }[]; [key: string]: unknown };
+export type ApiErrorBody = { error?: string; issues?: { message: string }[]; details?: unknown; [key: string]: unknown };
 
 export class ApiError extends Error {
   constructor(public status: number, public body: ApiErrorBody | null) {
