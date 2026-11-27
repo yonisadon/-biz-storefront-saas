@@ -25,12 +25,8 @@ function saveError(err: unknown, t: (key: import('@/lib/platformI18n').PlatformM
     if (err.body?.error === 'constraint_violation')
       return t('constraintViolation');
     if (err.body?.error === 'invalid_config' || err.body?.error === 'invalid_contact_options') {
-      const details = Array.isArray(err.body.details)
-        ? err.body.details.filter((value): value is string => typeof value === 'string')
-        : [];
-      return details.length
-        ? `${t('invalidConfig')} (${details.join('; ')})`
-        : t('invalidConfig');
+      // Backend schema details are technical (and often English); keep the UI message localized.
+      return t('invalidConfig');
     }
   }
   return t('businessSaveFailed');
