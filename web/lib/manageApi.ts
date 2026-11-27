@@ -10,7 +10,7 @@ const API_ERROR_KEYS: Record<string, PlatformMessageKey> = {
   invalid_config: 'invalidConfig', invalid_contact_options: 'invalidConfig', validation_error: 'invalidConfig',
   constraint_violation: 'constraintViolation', conflict: 'conflictError', version_conflict: 'conflictError',
   rate_limit_exceeded: 'rateLimited', too_many_requests: 'rateLimited', internal_error: 'serverUnavailable',
-  service_unavailable: 'serverUnavailable', gallery_full: 'galleryFull', product_images_full: 'productImagesFull',
+  service_unavailable: 'serverUnavailable', upstream_unavailable: 'serverUnavailable', gallery_full: 'galleryFull', product_images_full: 'productImagesFull',
 };
 
 export function translateManageApiError(status: number, body: ApiErrorBody | null): string {
