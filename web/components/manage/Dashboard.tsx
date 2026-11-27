@@ -316,7 +316,7 @@ export default function Dashboard({ token, initialBusiness, initialLeads, initia
           {TABS.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}
               className={`min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${tab === id ? 'bg-primary text-primary-fg shadow-sm' : 'bg-white text-ink ring-1 ring-ink/15 hover:bg-primary/5'}`}>
-              {label}
+              {t(label)}
             </button>
           ))}
         </nav>
